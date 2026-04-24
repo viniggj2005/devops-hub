@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -15,26 +16,39 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
+type sshConnection struct {
+	client  *ssh.Client
+	session *ssh.Session
+	stdin   io.WriteCloser
+}
+
 type TerminalHandlerStruct struct {
-	context       context.Context
-	client        *ssh.Client
-	sshSession    *ssh.Session
-	Session       *auth.ManagerStruct
-	standardInput io.WriteCloser
+	context     context.Context
+	sshSessions sync.Map
+	Session     *auth.ManagerStruct
 }
 
 func (handlerStruct *TerminalHandlerStruct) Startup(context context.Context) {
 	handlerStruct.context = context
 }
-func NewTerminalHandler(sessionManager *auth.ManagerStruct) *TerminalHandlerStruct {
-	return &TerminalHandlerStruct{Session: sessionManager}
+
+func NewTerminalHandler(session *auth.ManagerStruct) *TerminalHandlerStruct {
+	return &TerminalHandlerStruct{
+		Session: session}
+}
+
+func (handlerStruct *TerminalHandlerStruct) AddSession(id string, conn *sshConnection) {
+	handlerStruct.sshSessions.Store(id, conn)
+}
+func (handlerStruct *TerminalHandlerStruct) GetSession(id string) (*sshConnection, bool) {
+	val, ok := handlerStruct.sshSessions.Load(id)
+	if !ok {
+		return nil, false
+	}
+	return val.(*sshConnection), true
 }
 
 func (handlerStruct *TerminalHandlerStruct) ConnectWith(configure dtos.SSHConnectionDto) error {
-	if handlerStruct.sshSession != nil {
-		return errors.New("já conectado")
-	}
-
 	var hostKeyCallBack ssh.HostKeyCallback
 	if configure.KnownHostsPath != "" {
 		callBack, err := knownhosts.New(configure.KnownHostsPath)
@@ -127,17 +141,17 @@ func (handlerStruct *TerminalHandlerStruct) ConnectWith(configure dtos.SSHConnec
 		sshClient.Close()
 		return err
 	}
-
-	handlerStruct.client = sshClient
-	handlerStruct.sshSession = session
-	handlerStruct.standardInput = standardInput
-
+	handlerStruct.AddSession(configure.SshSessionId, &sshConnection{
+		client:  sshClient,
+		session: session,
+		stdin:   standardInput,
+	})
 	go func() {
 		standardOutputBuffer := make([]byte, 8192)
 		for {
 			n, err := stdout.Read(standardOutputBuffer)
 			if n > 0 {
-				runtime.EventsEmit(handlerStruct.context, "ssh:data", string(standardOutputBuffer[:n]))
+				runtime.EventsEmit(handlerStruct.context, fmt.Sprintf("ssh:data:%s", configure.SshSessionId), string(standardOutputBuffer[:n]))
 			}
 			if err != nil {
 				break
@@ -149,7 +163,7 @@ func (handlerStruct *TerminalHandlerStruct) ConnectWith(configure dtos.SSHConnec
 		for {
 			n, err := stderr.Read(standardErrorBuffer)
 			if n > 0 {
-				runtime.EventsEmit(handlerStruct.context, "ssh:data", string(standardErrorBuffer[:n]))
+				runtime.EventsEmit(handlerStruct.context, fmt.Sprintf("ssh:data:%s", configure.SshSessionId), string(standardErrorBuffer[:n]))
 			}
 			if err != nil {
 				break
@@ -162,35 +176,40 @@ func (handlerStruct *TerminalHandlerStruct) ConnectWith(configure dtos.SSHConnec
 		if err != nil {
 			message = err.Error()
 		}
-		runtime.EventsEmit(handlerStruct.context, "ssh:exit", message)
+		runtime.EventsEmit(handlerStruct.context, fmt.Sprintf("ssh:exit:%s", configure.SshSessionId), message)
 	}()
 
 	return nil
 }
 
-func (handlerStruct *TerminalHandlerStruct) Send(data string) error {
-	if handlerStruct.standardInput == nil {
-		return errors.New("não conectado")
+func (handlerStruct *TerminalHandlerStruct) Send(sessionId string, data string) error {
+	conn, ok := handlerStruct.GetSession(sessionId)
+	if !ok {
+		return errors.New("sessão não encontrada")
 	}
-	_, err := handlerStruct.standardInput.Write([]byte(data))
+	_, err := conn.stdin.Write([]byte(data))
 	return err
 }
 
-func (handlerStruct *TerminalHandlerStruct) Resize(cols, rows int) error {
-	if handlerStruct.sshSession == nil {
-		return errors.New("não conectado")
+func (handlerStruct *TerminalHandlerStruct) Resize(sessionId string, cols, rows int) error {
+	conn, ok := handlerStruct.GetSession(sessionId)
+	if !ok {
+		return errors.New("sessão não encontrada")
 	}
-	return handlerStruct.sshSession.WindowChange(rows, cols)
+	return conn.session.WindowChange(rows, cols)
 }
 
-func (handlerStruct *TerminalHandlerStruct) Disconnect() {
-	if handlerStruct.sshSession != nil {
-		_ = handlerStruct.sshSession.Close()
-		handlerStruct.sshSession = nil
+func (handlerStruct *TerminalHandlerStruct) Disconnect(sessionId string) {
+	conn, ok := handlerStruct.GetSession(sessionId)
+	if !ok {
+		return
 	}
-	if handlerStruct.client != nil {
-		_ = handlerStruct.client.Close()
-		handlerStruct.client = nil
+
+	_ = conn.session.Close()
+
+	if conn.client != nil {
+		_ = conn.client.Close()
 	}
-	handlerStruct.standardInput = nil
+
+	handlerStruct.sshSessions.Delete(sessionId)
 }

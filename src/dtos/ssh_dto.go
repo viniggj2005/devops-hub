@@ -26,9 +26,10 @@ type SshDto struct {
 	UserID         uint    `json:"userId"`
 }
 type SSHConnectionDto struct {
-	Host string
-	Port int
-	User string
+	SshSessionId string
+	Host         string
+	Port         int
+	User         string
 
 	Password   string
 	Key        []byte
