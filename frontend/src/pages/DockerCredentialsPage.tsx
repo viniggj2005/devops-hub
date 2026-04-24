@@ -2,8 +2,8 @@ import { Plus } from 'lucide-react';
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useDockerClient } from '../contexts/DockerClientContext';
-import DockerCredentialsList from '../features/dockerCredentials/components/list/DockerCredentialsList';
-import { CreateDockerCredentialModal } from '../features/dockerCredentials/components/modals/CreateDockerCredentialModal';
+import DockerCredentialsList from '../features/docker-module/dockerCredentials/components/list/DockerCredentialsList';
+import { CreateDockerCredentialModal } from '../features/docker-module/dockerCredentials/components/modals/CreateDockerCredentialModal';
 
 const DockerCredentialsPage: React.FC = () => {
   const { user, token } = useAuth();

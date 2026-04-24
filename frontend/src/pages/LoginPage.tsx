@@ -70,10 +70,10 @@ const LoginPage: React.FC = () => {
             </motion.div>
 
             <h1 className="text-3xl text-white mb-2">
-              Docker Manager
+              DevOps Hub
             </h1>
             <p className="text-blue-200/70">
-              Gerencie seus containers com facilidade
+              Plataforma para o trabalho de devops.
             </p>
           </div>
 

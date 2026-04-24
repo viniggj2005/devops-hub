@@ -15,6 +15,7 @@ export function toSshConn(dto: SshDto): SSHConnectionDto {
     KeyPath: dto.keyPath ?? '',
     InsecureIgnoreHostKey: true,
     Passphrase: dto.passphrase ?? '',
+    SshSessionId: '',
     Key: Array.from(normalizeKey(dto.key)),
   };
 }

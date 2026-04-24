@@ -8,7 +8,7 @@ import TerminalModalHeader from '../headers/TerminalModalHeader';
 import { TerminalProps } from '../../../../interfaces/TerminalInterfaces';
 import { useDockerClient } from '../../../../contexts/DockerClientContext';
 import { EventsOff, EventsOn } from '../../../../../wailsjs/runtime/runtime';
-import { containerExec, terminalWrite } from '../../../containers/services/ContainersService';
+import { containerExec, terminalWrite } from '../../../docker-module/containers/services/ContainersService';
 import { Send, Resize, Disconnect, ConnectWith } from '../../../../../wailsjs/go/handlers/TerminalHandlerStruct';
 
 const TerminalModal: React.FC<TerminalProps> = ({
@@ -133,7 +133,7 @@ const TerminalModal: React.FC<TerminalProps> = ({
                 anyTerm.paste(text);
               } else {
                 terminal.write(text);
-                Send(text);
+                Send(configure?.SshSessionId || '', text);
               }
             })
             .catch(() => {
@@ -170,7 +170,7 @@ const TerminalModal: React.FC<TerminalProps> = ({
     let offData: any;
     let offExit: any;
     if (!id) {
-      subscription = terminal.onData((data: string) => Send(data));
+      subscription = terminal.onData((data: string) => Send(configure?.SshSessionId || '', data));
       offData = EventsOn('ssh:data', (chunk: string) => terminal.write(chunk));
       offExit = EventsOn('ssh:exit', (msg: string) =>
         terminal.write(`\r\n[conexão encerrada] ${msg || ''}\r\n`)
@@ -182,7 +182,7 @@ const TerminalModal: React.FC<TerminalProps> = ({
     } else if (id) {
       terminal.onData((data: string) => {
         if (connectedRef.current) {
-          terminalWrite(id, data).catch((error) => console.error(error));
+          terminalWrite(id, data).catch((error: any) => console.error(error));
         }
       });
 
@@ -213,7 +213,7 @@ const TerminalModal: React.FC<TerminalProps> = ({
 
     const resizeObserver = new ResizeObserver(() => {
       fit.fit();
-      Resize(terminal.cols, terminal.rows);
+      Resize(configure?.SshSessionId || '', terminal.cols, terminal.rows);
     });
 
     resizeObserver.observe(hostRef.current!);
@@ -221,13 +221,13 @@ const TerminalModal: React.FC<TerminalProps> = ({
 
     const onWindowResize = () => {
       fit.fit();
-      Resize(terminal.cols, terminal.rows);
+      Resize(configure?.SshSessionId || '', terminal.cols, terminal.rows);
     };
 
     window.addEventListener('resize', onWindowResize);
 
     return () => {
-      Disconnect();
+      Disconnect(configure?.SshSessionId || '');
       terminal.dispose();
       if (!id) {
         subscription.dispose();
@@ -253,7 +253,7 @@ const TerminalModal: React.FC<TerminalProps> = ({
     queueMicrotask(() => {
       if (fitRef.current && terminalRef.current) {
         fitRef.current.fit();
-        Resize(terminalRef.current.cols, terminalRef.current.rows);
+        Resize(configure?.SshSessionId || '', terminalRef.current.cols, terminalRef.current.rows);
       }
     });
   }, [maximized, docked, dockHeight, open, minimized]);

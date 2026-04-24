@@ -5,7 +5,7 @@ import appIcon from '../../../../assets/images/appicon.png';
 import ToggleThemeButton from '../buttons/ToggleThemeButton';
 import { ChevronLeft, ChevronRight, CircleX } from 'lucide-react';
 import { SidebarProps } from '../../../../interfaces/SharedInterfaces';
-import DockerCredentialSelector from '../../../dockerCredentials/components/DockerCredentialSelector';
+import DockerCredentialSelector from '../../../docker-module/dockerCredentials/components/DockerCredentialSelector';
 
 const Sidebar: React.FC<SidebarProps> = ({ open, collapsed, onClose, onToggleCollapse }) => {
   return (

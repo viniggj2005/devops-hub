@@ -344,6 +344,7 @@ export namespace dtos {
 		}
 	}
 	export class SSHConnectionDto {
+	    SshSessionId: string;
 	    Host: string;
 	    Port: number;
 	    User: string;
@@ -363,6 +364,7 @@ export namespace dtos {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.SshSessionId = source["SshSessionId"];
 	        this.Host = source["Host"];
 	        this.Port = source["Port"];
 	        this.User = source["User"];
@@ -465,6 +467,18 @@ export namespace handlers {
 	
 	    static createFrom(source: any = {}) {
 	        return new DockerSdkHandlerStruct(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	
+	    }
+	}
+	export class sshConnection {
+	
+	
+	    static createFrom(source: any = {}) {
+	        return new sshConnection(source);
 	    }
 	
 	    constructor(source: any = {}) {

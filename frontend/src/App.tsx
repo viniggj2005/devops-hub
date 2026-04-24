@@ -6,11 +6,11 @@ import AppShell from './features/shared/components/sidebar/AppShell';
 import GlobalTerminalHost from './features/terminal/GlobalTerminalHost';
 import { WindowIsFullscreen, WindowFullscreen, WindowUnfullscreen, WindowIsMaximised, WindowUnmaximise } from '../wailsjs/runtime/runtime';
 
-const authRoutes = ['/login', '/create-account'];
+const noShellRoutes = ['/login', '/create-account', '/home'];
 
 export default function App() {
   const location = useLocation();
-  const isAuthRoute = authRoutes.includes(location.pathname);
+  const isNoShellRoute = noShellRoutes.includes(location.pathname);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -61,7 +61,7 @@ export default function App() {
       <GlobalTerminalHost />
 
       <div className="flex-1 min-h-0">
-        {isAuthRoute ? (
+        {isNoShellRoute ? (
           <Outlet />
         ) : (
           <AppShell>
