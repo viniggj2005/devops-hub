@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { CircleX, Copy, Minus } from "lucide-react";
-import appIcon from "../../assets/images/appicon.png";
+import appIcon from "../../assets/images/hub.svg";
 import { Quit, WindowMinimise, WindowIsMaximised, WindowToggleMaximise } from "../../../wailsjs/runtime/runtime";
 
 export function AppFrame() {
@@ -41,13 +41,13 @@ export function AppFrame() {
         <div className="flex items-center justify-center pl-1">
           <img
             src={appIcon}
-            className="w-6 h-6 opacity-80"
+            className="w-8 h-8 opacity-80"
             draggable={false}
           />
         </div>
         <div className="flex flex-col leading-tight">
-          <span className="text-xs uppercase tracking-[0.18em] text-blue-100/50 font-medium">
-            Docker Manager
+          <span className="text-xs uppercase tracking-[0.18em] text-black-100/50 font-medium">
+            Devops Hub
           </span>
         </div>
       </div>

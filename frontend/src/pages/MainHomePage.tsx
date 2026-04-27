@@ -1,18 +1,18 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Server, Shield, Activity, Settings, LogOut } from 'lucide-react';
+import { Box, Shield, Activity, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const MainHomePage: React.FC = () => {
     const navigate = useNavigate();
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
 
     const modules = [
         {
             id: 'docker',
             title: 'Docker Manager',
             description: 'Gerencie contêineres, imagens, redes e volumes Docker.',
-            icon: <Box className="w-8 h-8" />,
+            icon: <img src="/docker-manager.svg" alt="Docker Manager" className="w-10 h-10 brightness-0 invert dark:invert-0" />,
             color: 'from-blue-500 to-blue-700',
             path: '/docker/home',
             status: 'Ativo'
@@ -21,10 +21,10 @@ const MainHomePage: React.FC = () => {
             id: 'ssh',
             title: 'Conexões SSH',
             description: 'Acesse e gerencie seus servidores remotos via terminal SSH.',
-            icon: <Server className="w-8 h-8" />,
+            icon: <img src="/term.svg" alt="Docker Manager" className="w-10 h-10 brightness-0 invert dark:invert-0" />,
             color: 'from-purple-500 to-purple-700',
             path: '/createConnectionForm',
-            status: 'Ativo'
+            status: 'Inativo'
         },
         {
             id: 'security',
@@ -33,7 +33,7 @@ const MainHomePage: React.FC = () => {
             icon: <Shield className="w-8 h-8" />,
             color: 'from-emerald-500 to-emerald-700',
             path: '/docker/docker-credentials',
-            status: 'Configurar'
+            status: 'Inativo'
         },
         {
             id: 'monitoring',
@@ -42,7 +42,7 @@ const MainHomePage: React.FC = () => {
             icon: <Activity className="w-8 h-8" />,
             color: 'from-amber-500 to-amber-700',
             path: '/docker/home',
-            status: 'Beta'
+            status: 'Inativo'
         }
     ];
 
@@ -68,7 +68,7 @@ const MainHomePage: React.FC = () => {
             <main className="flex-1 flex flex-col items-center justify-center p-6 -mt-20">
                 <div className="max-w-5xl w-full">
                     <div className="text-center mb-12">
-                        <h2 className="text-4xl md:text-5xl font-extrabold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        <h2 className="text-4xl md:text-5xl font-extrabold mb-5 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                             O que vamos gerenciar hoje?
                         </h2>
                         <p className="text-lg text-gray-500 dark:text-zinc-400">
@@ -90,7 +90,7 @@ const MainHomePage: React.FC = () => {
                                         {module.icon}
                                     </div>
                                     <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${module.status === 'Ativo' ? 'bg-green-500/10 text-green-500' :
-                                        module.status === 'Beta' ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'
+                                        module.status === 'Beta' ? 'bg-amber-500/10 text-amber-500' : module.status === 'Inativo' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
                                         }`}>
                                         {module.status}
                                     </span>

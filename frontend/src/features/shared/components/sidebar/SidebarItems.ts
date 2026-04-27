@@ -15,37 +15,37 @@ export const navItems = [
   {
     label: 'Networks',
     description: 'Visão das redes do docker',
-    to: '/networks',
+    to: '/docker/networks',
     icon: Network,
   },
   {
     label: 'Volumes',
     description: 'Gerencie volumes Docker',
-    to: '/volumes',
+    to: '/docker/volumes',
     icon: HardDrive,
   },
   {
     label: 'Containers',
     description: 'Gerencie contêineres locais',
-    to: '/containers',
+    to: '/docker/containers',
     icon: Box,
   },
   {
     label: 'Imagens Docker',
     description: 'Organize suas imagens',
-    to: '/images',
+    to: '/docker/images',
     icon: Image,
   },
   {
     label: 'Credenciais Docker',
     description: 'Gerencie conexões TLS do Docker',
-    to: '/docker-credentials',
+    to: '/docker/docker-credentials',
     icon: Key,
   },
-  {
-    label: 'Conexões SSH',
-    description: 'Acesse servidores remotos',
-    to: '/createConnectionForm',
-    icon: Server,
-  },
+  // {
+  //   label: 'Conexões SSH',
+  //   description: 'Acesse servidores remotos',
+  //   to: '/createConnectionForm',
+  //   icon: Server,
+  // },
 ];
