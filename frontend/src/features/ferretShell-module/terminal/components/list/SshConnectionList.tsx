@@ -13,7 +13,7 @@ const SshConnectionList: React.FC<{ token: string }> = ({ token }) => {
   const confirmToast = useConfirmToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { openWith, requirePassword } = useTerminalStore();
+  const { createTab, requirePassword } = useTerminalStore();
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [connectionsList, setConnectionsList] = useState<SshDto[]>([]);
   const [editingConnection, setEditingConnection] = useState<SshDto | null>(null);
@@ -61,7 +61,7 @@ const SshConnectionList: React.FC<{ token: string }> = ({ token }) => {
       const connection = await TerminalServices.getById(token, id);
       const ssh = toSshConn(connection);
       const hasKey = !!(connection.key && connection.key.length);
-      hasKey ? openWith(ssh) : requirePassword(ssh);
+      hasKey ? createTab({ title: connection.alias || `${ssh.User}@${ssh.Host}`, config: ssh }) : requirePassword(ssh);
     } catch (error) {
       setError('Falha ao abrir terminal');
     }

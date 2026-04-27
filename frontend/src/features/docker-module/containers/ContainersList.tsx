@@ -140,7 +140,11 @@ const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
               onOpenMenu={() => setMenuModalId(container.Id)}
               onOpenEdit={() => setEditNameModalId(container.Id)}
               onOpenTerminal={() => {
-                useTerminalStore.getState().openForContainer(container.Id, container.Names[0] || 'Container');
+                useTerminalStore.getState().createTab({ 
+                  title: `Exec: ${container.Names[0] || 'Container'}`, 
+                  containerId: container.Id, 
+                  containerName: container.Names[0] || 'Container' 
+                });
               }}
               onDeleted={async () => {
                 await fetchContainers();

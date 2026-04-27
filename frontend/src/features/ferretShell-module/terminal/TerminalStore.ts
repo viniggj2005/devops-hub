@@ -1,55 +1,139 @@
 import { create } from 'zustand';
-import { TerminalStateProps } from '../../../interfaces/TerminalInterfaces';
+import { TerminalStateProps, TerminalTab, TerminalInstance } from '../../../interfaces/TerminalInterfaces';
+
+const generateId = () => Math.random().toString(36).substring(2, 9);
 
 export const useTerminalStore = create<TerminalStateProps>((set) => ({
-  open: false,
-  minimized: false,
-  error: null,
-  config: null,
-  containerId: null,
-  containerName: null,
+  tabs: [],
+  activeTabId: null,
+  viewMode: 'page',
   askPassword: false,
+  pendingConfig: null,
+  open: false,
 
-  minimize: (value) => set({ minimized: value }),
+  setViewMode: (mode) => set({ viewMode: mode }),
 
-  openWith: (config) => {
+  createTab: (instanceData) => {
+    const instanceId = generateId();
+    const tabId = generateId();
+
+    const newInstance: TerminalInstance = { ...instanceData, id: instanceId };
+    if (newInstance.config) {
+      newInstance.config.SshSessionId = instanceId;
+    }
+
+    const newTab: TerminalTab = {
+      id: tabId,
+      title: instanceData.title,
+      instances: [newInstance],
+    };
+
+    set((state) => ({
+      tabs: [...state.tabs, newTab],
+      activeTabId: tabId,
+      viewMode: 'terminal',
+      open: true,
+    }));
+  },
+
+  closeTab: (tabId) => {
     set((state) => {
-      const isSame =
-        state.open &&
-        state.config &&
-        state.config.Host === config.Host &&
-        state.config.Port === config.Port &&
-        state.config.User === config.User;
-
-      if (isSame) {
-        return { minimized: false };
+      const newTabs = state.tabs.filter((t) => t.id !== tabId);
+      let newActiveId = state.activeTabId;
+      if (state.activeTabId === tabId) {
+        newActiveId = newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null;
       }
-      return { config: config, containerId: null, containerName: null, open: true, askPassword: false, minimized: false };
+      return {
+        tabs: newTabs,
+        activeTabId: newActiveId,
+        open: newTabs.length > 0,
+      };
     });
   },
-  openForContainer: (id, name) => {
+
+  setActiveTab: (tabId) => set({ activeTabId: tabId }),
+
+  addInstanceToTab: (tabId, instanceData, index, layout) => {
     set((state) => {
-      if (state.open && state.containerId === id) {
-        return { minimized: false };
+      const instanceId = generateId();
+      const newInstance: TerminalInstance = { ...instanceData, id: instanceId };
+      if (newInstance.config) {
+        newInstance.config.SshSessionId = instanceId;
       }
-      return { config: null, containerId: id, containerName: name, open: true, askPassword: false, minimized: false };
+
+      const newTabs = state.tabs.map((tab) => {
+        if (tab.id === tabId && tab.instances.length < 4) {
+          const newInstances = [...tab.instances];
+          if (typeof index === 'number') {
+            newInstances.splice(index, 0, newInstance);
+          } else {
+            newInstances.push(newInstance);
+          }
+          return { 
+            ...tab, 
+            instances: newInstances,
+            preferredLayout: layout || tab.preferredLayout
+          };
+        }
+        return tab;
+      });
+      return { tabs: newTabs };
     });
   },
-  requirePassword: (config) => set({ config: config, containerId: null, containerName: null, askPassword: true, open: false }),
+  
+  setLayout: (tabId, layout) => {
+    set((state) => ({
+      tabs: state.tabs.map(t => t.id === tabId ? { ...t, preferredLayout: layout } : t)
+    }));
+  },
+
+  removeInstance: (tabId, instanceId) => {
+    set((state) => {
+      const newTabs = state.tabs.map((tab) => {
+        if (tab.id === tabId) {
+          const newInstances = tab.instances.filter((i) => i.id !== instanceId);
+          return { ...tab, instances: newInstances };
+        }
+        return tab;
+      }).filter(tab => tab.instances.length > 0);
+
+      let newActiveId = state.activeTabId;
+      if (!newTabs.find(t => t.id === state.activeTabId)) {
+        newActiveId = newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null;
+      }
+
+      return { tabs: newTabs, activeTabId: newActiveId, open: newTabs.length > 0 };
+    });
+  },
+
+  requirePassword: (config) => set({ pendingConfig: config, askPassword: true }),
+
   submitPassword: (password) =>
-    set((storeState) =>
-      storeState.config
-        ? { config: { ...storeState.config, Password: password }, askPassword: false, open: true, minimized: false }
-        : {}
-    ),
-  close: () =>
-    set({
-      open: false,
-      minimized: false,
-      askPassword: false,
-      config: null,
-      containerId: null,
-      containerName: null,
+    set((state) => {
+      if (state.pendingConfig) {
+        const configWithPassword = { ...state.pendingConfig, Password: password };
+        const instanceId = generateId();
+        const tabId = generateId();
+        const newInstance: TerminalInstance = {
+          id: instanceId,
+          title: `${configWithPassword.User}@${configWithPassword.Host}`,
+          config: { ...configWithPassword, SshSessionId: instanceId }
+        };
+        const newTab: TerminalTab = {
+          id: tabId,
+          title: newInstance.title,
+          instances: [newInstance],
+        };
+        return {
+          tabs: [...state.tabs, newTab],
+          activeTabId: tabId,
+          askPassword: false,
+          pendingConfig: null,
+          open: true
+        };
+      }
+      return {};
     }),
-  setError: (event) => set({ error: event }),
+
+  close: () => set({ tabs: [], activeTabId: null, open: false, askPassword: false, pendingConfig: null }),
 }));

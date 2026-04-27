@@ -75,21 +75,41 @@ export interface PasswordModalProps {
   onSubmit: (password: string) => void;
 }
 
+export interface TerminalInstance {
+  id: string;
+  title: string;
+  config?: SSHConnectionDto;
+  containerId?: string;
+  containerName?: string;
+}
+
+export interface TerminalTab {
+  id: string;
+  title: string;
+  instances: TerminalInstance[];
+  preferredLayout?: 'vertical' | 'horizontal' | 'grid';
+}
+
 export interface TerminalStateProps {
-  open: boolean;
-  minimized: boolean;
-  close: () => void;
-  minimize: (value: boolean) => void;
+  tabs: TerminalTab[];
+  activeTabId: string | null;
   askPassword: boolean;
-  error: string | null;
-  config: SSHConnectionDto | null;
-  containerId: string | null;
-  containerName: string | null;
-  setError: (event: string | null) => void;
+  pendingConfig: SSHConnectionDto | null;
+  viewMode: 'page' | 'terminal';
+  setViewMode: (mode: 'page' | 'terminal') => void;
+
+  createTab: (instance: Omit<TerminalInstance, 'id'>) => void;
+  closeTab: (tabId: string) => void;
+  setActiveTab: (tabId: string | null) => void;
+  addInstanceToTab: (tabId: string, instance: Omit<TerminalInstance, 'id'>, index?: number, layout?: 'vertical' | 'horizontal' | 'grid') => void;
+  removeInstance: (tabId: string, instanceId: string) => void;
+  setLayout: (tabId: string, layout: 'vertical' | 'horizontal' | 'grid') => void;
+
   submitPassword: (password: string) => void;
-  openWith: (config: SSHConnectionDto) => void;
-  openForContainer: (id: string, name: string) => void;
   requirePassword: (config: SSHConnectionDto) => void;
+
+  open: boolean;
+  close: () => void;
 }
 
 
