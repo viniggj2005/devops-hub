@@ -1,4 +1,4 @@
-import { SshDto } from '../../../interfaces/TerminalInterfaces';
+import type { SshDto } from '../../../../interfaces/TerminalInterfaces';
 
 export function normalizeKey(key: SshDto['key']): Uint8Array {
   if (!key) return new Uint8Array();

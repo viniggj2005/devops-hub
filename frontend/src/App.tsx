@@ -3,14 +3,15 @@ import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AppFrame } from './features/appFrame/appFrame';
 import AppShell from './features/shared/components/sidebar/AppShell';
-import GlobalTerminalHost from './features/terminal/GlobalTerminalHost';
+import FerretShellShell from './features/ferretShell-module/components/FerretShellShell';
+import GlobalTerminalHost from './features/ferretShell-module/terminal/GlobalTerminalHost';
 import { WindowIsFullscreen, WindowFullscreen, WindowUnfullscreen, WindowIsMaximised, WindowUnmaximise } from '../wailsjs/runtime/runtime';
 
-const noShellRoutes = ['/login', '/create-account', '/home'];
 
 export default function App() {
   const location = useLocation();
-  const isNoShellRoute = noShellRoutes.includes(location.pathname);
+  const hasDockerShell = location.pathname.startsWith('/docker/');
+  const hasFerretShell = location.pathname.startsWith('/term/');
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -61,12 +62,12 @@ export default function App() {
       <GlobalTerminalHost />
 
       <div className="flex-1 min-h-0">
-        {isNoShellRoute ? (
-          <Outlet />
+        {hasDockerShell ? (
+          <AppShell><Outlet /></AppShell>
+        ) : hasFerretShell ? (
+          <FerretShellShell><Outlet /></FerretShellShell>
         ) : (
-          <AppShell>
-            <Outlet />
-          </AppShell>
+          <Outlet />
         )}
       </div>
     </div>

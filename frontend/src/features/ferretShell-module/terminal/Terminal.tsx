@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import TerminalModal from './components/modals/TerminalModal';
 import PasswordModal from './components/modals/PasswordModal';
 import { TerminalServices, toSshConn } from './services/TerminalServices';
-import { OpenTerminalProps, SSHConnectionDto } from '../../interfaces/TerminalInterfaces';
+import { OpenTerminalProps, SSHConnectionDto } from '../../../interfaces/TerminalInterfaces';
 
 export default function SshTerminal({ id, onClose, autoOpen = true }: OpenTerminalProps) {
   const { token } = useAuth();

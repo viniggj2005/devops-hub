@@ -7,7 +7,7 @@ const ManagementCards: React.FC = () => {
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div onClick={() => navigate('/containers')} className="relative group cursor-pointer">
+            <div onClick={() => navigate('/docker/containers')} className="relative group cursor-pointer">
                 <div className="absolute inset-0 bg-white dark:bg-white/10 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-white/20 group-hover:border-blue-500/50 dark:group-hover:border-white/30 transition-all shadow-sm hover:shadow-md" />
                 <div className="relative p-6">
                     <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-lg">
@@ -23,7 +23,7 @@ const ManagementCards: React.FC = () => {
                 </div>
             </div>
 
-            <div onClick={() => navigate('/images')} className="relative group cursor-pointer">
+            <div onClick={() => navigate('/docker/images')} className="relative group cursor-pointer">
                 <div className="absolute inset-0 bg-white dark:bg-white/10 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-white/20 group-hover:border-purple-500/50 dark:group-hover:border-white/30 transition-all shadow-sm hover:shadow-md" />
                 <div className="relative p-6">
                     <div className="w-14 h-14 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center mb-4 shadow-lg">

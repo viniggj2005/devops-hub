@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { LockKeyhole } from 'lucide-react';
-import { Modal } from '../../../shared/components/modals/Modal';
-import { ModalButton } from '../../../shared/components/modals/ModalButton';
-import { PasswordModalProps } from '../../../../interfaces/TerminalInterfaces';
+import { Modal } from '../../../../shared/components/modals/Modal';
+import { ModalButton } from '../../../../shared/components/modals/ModalButton';
+import { PasswordModalProps } from '../../../../../interfaces/TerminalInterfaces';
 
 const PasswordModal: React.FC<PasswordModalProps> = ({ open, onClose, onSubmit }) => {
   const [password, setPassword] = useState('');

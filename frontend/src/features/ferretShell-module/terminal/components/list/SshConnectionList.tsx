@@ -1,12 +1,12 @@
 import iziToast from 'izitoast';
 import { useTerminalStore } from '../../TerminalStore';
 import SshConnectionCard from "../cards/SshConnectionCard";
-import { useAuth } from '../../../../contexts/AuthContext';
+import { useAuth } from '../../../../../contexts/AuthContext';
 import React, { useCallback, useEffect, useState } from 'react';
-import { SshDto } from '../../../../interfaces/TerminalInterfaces';
+import { SshDto } from '../../../../../interfaces/TerminalInterfaces';
 import EditSshConnectionModal from '../modals/EditSshConnectionModal';
 import { TerminalServices, toSshConn } from '../../services/TerminalServices';
-import { useConfirmToast } from '../../../shared/components/toasts/ConfirmToast';
+import { useConfirmToast } from '../../../../shared/components/toasts/ConfirmToast';
 
 const SshConnectionList: React.FC<{ token: string }> = ({ token }) => {
   const { user } = useAuth();

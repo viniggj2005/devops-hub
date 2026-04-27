@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { TerminalStateProps } from '../../interfaces/TerminalInterfaces';
+import { TerminalStateProps } from '../../../interfaces/TerminalInterfaces';
 
 export const useTerminalStore = create<TerminalStateProps>((set) => ({
   open: false,

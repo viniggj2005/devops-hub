@@ -5,11 +5,11 @@ import { FitAddon } from 'xterm-addon-fit';
 import React, { useEffect, useRef, useState } from 'react';
 import { ExternalLink, SquareTerminal } from 'lucide-react';
 import TerminalModalHeader from '../headers/TerminalModalHeader';
-import { TerminalProps } from '../../../../interfaces/TerminalInterfaces';
-import { useDockerClient } from '../../../../contexts/DockerClientContext';
-import { EventsOff, EventsOn } from '../../../../../wailsjs/runtime/runtime';
-import { containerExec, terminalWrite } from '../../../docker-module/containers/services/ContainersService';
-import { Send, Resize, Disconnect, ConnectWith } from '../../../../../wailsjs/go/handlers/TerminalHandlerStruct';
+import { TerminalProps } from '../../../../../interfaces/TerminalInterfaces';
+import { useDockerClient } from '../../../../../contexts/DockerClientContext';
+import { EventsOff, EventsOn } from '../../../../../../wailsjs/runtime/runtime';
+import { containerExec, terminalWrite } from '../../../../docker-module/containers/services/ContainersService';
+import { Send, Resize, Disconnect, ConnectWith } from '../../../../../../wailsjs/go/handlers/TerminalHandlerStruct';
 
 const TerminalModal: React.FC<TerminalProps> = ({
   id,

@@ -1,11 +1,6 @@
 import { Box, HardDrive, Key, Network, Server, Image, LayoutDashboard, Home } from 'lucide-react';
 export const navItems = [
-  {
-    label: 'Início Console',
-    description: 'Voltar para seleção de módulos',
-    to: '/home',
-    icon: Home,
-  },
+
   {
     label: 'Dashboard',
     description: 'Visão geral dos contêineres',

@@ -11,6 +11,7 @@ import TerminalFormPage from './pages/TerminalFormPage';
 import CreateAccountPage from './pages/CreateAccountPage';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import DockerCredentialsPage from './pages/DockerCredentialsPage';
+import FerretShellHomePage from './pages/FerretShellHomePage';
 
 export const router = createBrowserRouter(
   [
@@ -24,15 +25,22 @@ export const router = createBrowserRouter(
           element: <ProtectedRoute />,
           children: [
             { path: 'home', element: <MainHomePage /> },
-            { path: 'docker', children: [
-              { path: 'home', element: <DockerHomePage /> },
-              { path: 'images', element: <ImagesPage /> },
-              { path: 'containers', element: <ContainersPage /> },
-              { path: 'docker-credentials', element: <DockerCredentialsPage /> },
-              { path: 'networks', element: <NetworksPage /> },
-              { path: 'volumes', element: <VolumesPage /> },
-            ]},
-            { path: 'createConnectionForm', element: <TerminalFormPage /> },
+            {
+              path: 'docker', children: [
+                { path: 'home', element: <DockerHomePage /> },
+                { path: 'images', element: <ImagesPage /> },
+                { path: 'containers', element: <ContainersPage /> },
+                { path: 'docker-credentials', element: <DockerCredentialsPage /> },
+                { path: 'networks', element: <NetworksPage /> },
+                { path: 'volumes', element: <VolumesPage /> },
+              ]
+            },
+            {
+              path: 'term', children: [
+                { path: 'home', element: <FerretShellHomePage /> },
+                { path: 'createConnectionForm', element: <TerminalFormPage /> },
+              ]
+            }
           ],
         },
 

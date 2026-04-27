@@ -1,5 +1,5 @@
 import { Monitor, Pencil, SquareTerminal, Trash2 } from "lucide-react";
-import { SshConnectionCardProps } from "../../../../interfaces/TerminalInterfaces";
+import { SshConnectionCardProps } from "../../../../../interfaces/TerminalInterfaces";
 
 const SshConnectionCard: React.FC<SshConnectionCardProps> = ({
     connection,

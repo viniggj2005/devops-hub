@@ -1,6 +1,6 @@
 import React from 'react';
 import { CircleX, Copy, Minus, Pin, PinOff, Terminal } from 'lucide-react';
-import { TerminalHeaderProps } from '../../../../interfaces/TerminalInterfaces';
+import { TerminalHeaderProps } from '../../../../../interfaces/TerminalInterfaces';
 
 const TerminalModalHeader: React.FC<TerminalHeaderProps> = ({
   title,

@@ -19,11 +19,11 @@ const MainHomePage: React.FC = () => {
         },
         {
             id: 'ssh',
-            title: 'Conexões SSH',
+            title: 'FerretShell',
             description: 'Acesse e gerencie seus servidores remotos via terminal SSH.',
             icon: <img src="/term.svg" alt="Docker Manager" className="w-10 h-10 brightness-0 invert dark:invert-0" />,
             color: 'from-purple-500 to-purple-700',
-            path: '/createConnectionForm',
+            path: '/term/home',
             status: 'Inativo'
         },
         {

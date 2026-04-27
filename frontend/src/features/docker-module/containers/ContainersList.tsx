@@ -1,9 +1,9 @@
 import iziToast from 'izitoast';
 import ContainerCard from './components/cards/ContainerCard';
-import { useTerminalStore } from '../../../features/terminal/TerminalStore';
-import { FmtName } from '../../../features/shared/functions/TreatmentFunction';
+import { FmtName } from '../../shared/functions/TreatmentFunction';
 import { ContainerItem } from '../../../interfaces/ContainerInterfaces';
 import { useDockerClient } from '../../../contexts/DockerClientContext';
+import { useTerminalStore } from '../../ferretShell-module/terminal/TerminalStore';
 import { useCallback, useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import { getContainers, stopContainer, startContainer, renameContainer, toggleContainerState } from './services/ContainersService';
 

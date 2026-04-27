@@ -21,7 +21,7 @@ const ConnectServerCard: React.FC = () => {
                             </p>
                         </div>
                     </div>
-                    <button onClick={() => navigate('/createConnectionForm')} className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/50 transition-all flex items-center gap-2 whitespace-nowrap font-medium">
+                    <button onClick={() => navigate('/term/createConnectionForm')} className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/50 transition-all flex items-center gap-2 whitespace-nowrap font-medium">
                         <Plus className="w-5 h-5" />
                         Criar conexão SSH
                     </button>

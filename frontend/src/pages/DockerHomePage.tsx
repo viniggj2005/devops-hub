@@ -3,11 +3,10 @@ import 'izitoast/dist/css/iziToast.min.css';
 import { dtos } from '../../wailsjs/go/models';
 import React, { useEffect, useState } from 'react';
 import { useDockerClient } from '../contexts/DockerClientContext';
-import StatsGrid from '../features/docker-module/dashboard/components/cards/StatsGrid';
 import { GetInfo } from '../../wailsjs/go/handlers/DockerSdkHandlerStruct';
+import StatsGrid from '../features/docker-module/dashboard/components/cards/StatsGrid';
 import RecentActivity from '../features/docker-module/dashboard/components/cards/RecentActivity';
 import ManagementCards from '../features/docker-module/dashboard/components/cards/ManagementCards';
-import ConnectServerCard from '../features/docker-module/dashboard/components/cards/ConnectServerCard';
 
 const HomePage: React.FC = () => {
   const { selectedCredentialId, dockerClientId } = useDockerClient();
@@ -50,7 +49,6 @@ const HomePage: React.FC = () => {
       <StatsGrid info={info} />
       <ManagementCards />
       <RecentActivity info={info} />
-      <ConnectServerCard />
     </div>
   );
 };

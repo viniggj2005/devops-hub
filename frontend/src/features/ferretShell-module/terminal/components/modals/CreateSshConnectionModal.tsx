@@ -2,11 +2,11 @@ import iziToast from 'izitoast';
 import React, { useState } from 'react';
 import { TerminalSquare } from 'lucide-react';
 import { FileUploader } from 'react-drag-drop-files';
-import { useAuth } from '../../../../contexts/AuthContext';
-import { Modal } from '../../../shared/components/modals/Modal';
+import { useAuth } from '../../../../../contexts/AuthContext';
+import { Modal } from '../../../../shared/components/modals/Modal';
 import { TerminalServices } from '../../services/TerminalServices';
-import { ModalButton } from '../../../shared/components/modals/ModalButton';
-import { CreateSshConnectionInterface, ModalProps } from '../../../../interfaces/TerminalInterfaces';
+import { ModalButton } from '../../../../shared/components/modals/ModalButton';
+import { CreateSshConnectionInterface, ModalProps } from '../../../../../interfaces/TerminalInterfaces';
 
 const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) => {
   const fileTypes = ['PEM', 'TXT'];
