@@ -6,6 +6,10 @@ export function AddSession(arg1, arg2) {
   return window['go']['handlers']['TerminalHandlerStruct']['AddSession'](arg1, arg2);
 }
 
+export function Broadcast(arg1, arg2) {
+  return window['go']['handlers']['TerminalHandlerStruct']['Broadcast'](arg1, arg2);
+}
+
 export function ConnectWith(arg1) {
   return window['go']['handlers']['TerminalHandlerStruct']['ConnectWith'](arg1);
 }

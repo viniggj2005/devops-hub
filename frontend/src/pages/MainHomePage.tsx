@@ -12,7 +12,7 @@ const MainHomePage: React.FC = () => {
             id: 'docker',
             title: 'Docker Manager',
             description: 'Gerencie contêineres, imagens, redes e volumes Docker.',
-            icon: <img src="/docker-manager.svg" alt="Docker Manager" className="w-10 h-10 brightness-0 invert dark:invert-0" />,
+            icon: <img src="/docker-manager.svg" alt="Docker Manager" className="w-14 h-14 brightness-0 invert dark:invert-0" />,
             color: 'from-blue-500 to-blue-700',
             path: '/docker/home',
             status: 'Ativo'
@@ -21,25 +21,25 @@ const MainHomePage: React.FC = () => {
             id: 'ssh',
             title: 'FerretShell',
             description: 'Acesse e gerencie seus servidores remotos via terminal SSH.',
-            icon: <img src="/term.svg" alt="Docker Manager" className="w-10 h-10 brightness-0 invert dark:invert-0" />,
+            icon: <img src="/term.svg" alt="Ferretshell" className="w-14 h-14 brightness-0 invert dark:invert-0" />,
             color: 'from-purple-500 to-purple-700',
             path: '/term/home',
-            status: 'Inativo'
+            status: 'Ativo'
         },
         {
-            id: 'security',
-            title: 'Segurança',
+            id: 'git',
+            title: 'OctoHub',
             description: 'Configurações de acesso, chaves SSH e certificados TLS.',
-            icon: <Shield className="w-8 h-8" />,
+            icon: <img src="/gitoctocat.svg" alt="git" className="w-14 h-14 brightness-0 invert dark:invert-0" />,
             color: 'from-emerald-500 to-emerald-700',
             path: '/docker/docker-credentials',
             status: 'Inativo'
         },
         {
-            id: 'monitoring',
-            title: 'Monitoramento',
+            id: 'api',
+            title: 'api tester',
             description: 'Visualize o uso de recursos e logs do sistema em tempo real.',
-            icon: <Activity className="w-8 h-8" />,
+            icon: <img src="/fox.svg" alt="fox" className="w-14 h-14 brightness-0 invert dark:invert-0" />,
             color: 'from-amber-500 to-amber-700',
             path: '/docker/home',
             status: 'Inativo'

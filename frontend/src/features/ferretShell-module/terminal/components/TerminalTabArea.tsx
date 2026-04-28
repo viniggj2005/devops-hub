@@ -1,10 +1,11 @@
 import React from 'react';
+import { Radio } from 'lucide-react';
 import SplitLayout from './SplitLayout';
 import SnapOverlay from './SnapOverlay';
 import { useTerminalStore } from '../TerminalStore';
 
 const TerminalTabArea: React.FC = () => {
-    const { tabs, activeTabId, addInstanceToTab, removeInstance } = useTerminalStore();
+    const { tabs, activeTabId, addInstanceToTab, removeInstance, broadcastActive, setBroadcastActive } = useTerminalStore();
     const [isDraggingOver, setIsDraggingOver] = React.useState(false);
     const activeTab = tabs.find(t => t.id === activeTabId);
 
@@ -66,6 +67,22 @@ const TerminalTabArea: React.FC = () => {
         >
             <div className="flex-1 min-h-0 bg-[#0e172a] relative">
                 <SplitLayout instances={activeTab.instances} tabId={activeTab.id} />
+
+                {activeTab.instances.length > 1 && (
+                    <div className="absolute top-4 right-4 z-50">
+                        <button
+                            onClick={() => setBroadcastActive(!broadcastActive)}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg ${broadcastActive
+                                    ? 'bg-purple-500 text-white ring-2 ring-purple-500/50 shadow-purple-500/20'
+                                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 border border-white/10'
+                                }`}
+                            title="Ativar/Desativar Broadcast de digitação"
+                        >
+                            <Radio className={`w-4 h-4 ${broadcastActive ? 'animate-pulse' : ''}`} />
+                            Broadcast
+                        </button>
+                    </div>
+                )}
 
                 {isDraggingOver && (
                     <SnapOverlay onDrop={handleSnapDrop} />

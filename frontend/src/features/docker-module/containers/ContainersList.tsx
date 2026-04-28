@@ -1,4 +1,5 @@
 import iziToast from 'izitoast';
+import { useNavigate } from 'react-router-dom';
 import ContainerCard from './components/cards/ContainerCard';
 import { FmtName } from '../../shared/functions/TreatmentFunction';
 import { ContainerItem } from '../../../interfaces/ContainerInterfaces';
@@ -12,6 +13,7 @@ export interface ContainersListFetchRef {
 }
 
 const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
+  const navigate = useNavigate();
   const timerRef = useRef<number | null>(null);
   const [LogsModalId, setLogsModalId] = useState<string | null>(null);
   const [MenuModalId, setMenuModalId] = useState<string | null>(null);
@@ -140,11 +142,12 @@ const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
               onOpenMenu={() => setMenuModalId(container.Id)}
               onOpenEdit={() => setEditNameModalId(container.Id)}
               onOpenTerminal={() => {
-                useTerminalStore.getState().createTab({ 
-                  title: `Exec: ${container.Names[0] || 'Container'}`, 
-                  containerId: container.Id, 
-                  containerName: container.Names[0] || 'Container' 
+                useTerminalStore.getState().createTab({
+                  title: `Exec: ${container.Names[0] || 'Container'}`,
+                  containerId: container.Id,
+                  containerName: container.Names[0] || 'Container'
                 });
+                navigate('/term/home');
               }}
               onDeleted={async () => {
                 await fetchContainers();

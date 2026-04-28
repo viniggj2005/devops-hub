@@ -6,6 +6,8 @@ import {context} from '../models';
 
 export function AddSession(arg1:string,arg2:handlers.sshConnection):Promise<void>;
 
+export function Broadcast(arg1:Array<string>,arg2:string):Promise<void>;
+
 export function ConnectWith(arg1:dtos.SSHConnectionDto):Promise<void>;
 
 export function Disconnect(arg1:string):Promise<void>;

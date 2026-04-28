@@ -6,7 +6,8 @@ import { TerminalInstance as ITerminalInstance } from '../../../interfaces/Termi
 import { useDockerClient } from '../../../contexts/DockerClientContext';
 import { EventsOn, EventsOff } from '../../../../wailsjs/runtime/runtime';
 import { containerExec, terminalWrite } from '../../docker-module/containers/services/ContainersService';
-import { Send, Resize, Disconnect, ConnectWith } from '../../../../wailsjs/go/handlers/TerminalHandlerStruct';
+import { Send, Resize, Disconnect, ConnectWith, Broadcast } from '../../../../wailsjs/go/handlers/TerminalHandlerStruct';
+import { useTerminalStore } from './TerminalStore';
 import iziToast from 'izitoast';
 
 interface Props {
@@ -51,9 +52,37 @@ const TerminalInstance: React.FC<Props> = ({ instance }) => {
     let offData: any;
     let offExit: any;
 
+    const handleData = (data: string) => {
+      if (containerId && !connectedRef.current) return;
+
+      const state = useTerminalStore.getState();
+      const activeTab = state.tabs.find(t => t.id === state.activeTabId);
+      const isActiveTab = activeTab?.instances.some(i => i.id === id);
+
+      if (state.broadcastActive && isActiveTab && activeTab) {
+         const sshSessionIds = activeTab.instances.filter(i => !i.containerId).map(i => i.config?.SshSessionId || i.id);
+         const containerIds = activeTab.instances.filter(i => i.containerId).map(i => i.containerId as string);
+         
+         if (sshSessionIds.length > 0) {
+            Broadcast(sshSessionIds, data);
+         }
+         containerIds.forEach(cId => {
+             terminalWrite(cId, data).catch((error: any) => console.error(error));
+         });
+      } else {
+         if (!containerId) {
+             const sessionId = config?.SshSessionId || id;
+             Send(sessionId, data);
+         } else {
+             terminalWrite(containerId, data).catch((error: any) => console.error(error));
+         }
+      }
+    };
+
+    terminal.onData(handleData);
+
     if (!containerId) {
       const sessionId = config?.SshSessionId || id;
-      terminal.onData((data: string) => Send(sessionId, data));
       offData = EventsOn(`ssh:data:${sessionId}`, (chunk: string) => terminal.write(chunk));
       offExit = EventsOn(`ssh:exit:${sessionId}`, (msg: string) =>
         terminal.write(`\r\n[conexão encerrada] ${msg || ''}\r\n`)
@@ -63,12 +92,6 @@ const TerminalInstance: React.FC<Props> = ({ instance }) => {
         (event: any) => terminal.write(`\r\n[erro] ${String(event)}\r\n`)
       );
     } else {
-      terminal.onData((data: string) => {
-        if (connectedRef.current) {
-          terminalWrite(containerId, data).catch((error: any) => console.error(error));
-        }
-      });
-
       EventsOn(`terminal:data:${containerId}`, (data: string) => {
         terminal.write(data);
       });

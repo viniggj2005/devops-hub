@@ -10,8 +10,7 @@ const FerretShellNavbar: React.FC = () => {
     const { tabs, activeTabId, setActiveTab, closeTab, setViewMode, viewMode } = useTerminalStore();
 
     const navLinks = [
-        { to: '/term/home', label: 'Início', icon: Home },
-        { to: '/term/createConnectionForm', label: 'Nova Conexão', icon: Plus },
+        { to: '/term/home', label: 'Início', icon: Home }
     ];
 
     const handleTabClick = (tabId: string) => {
@@ -28,7 +27,7 @@ const FerretShellNavbar: React.FC = () => {
     return (
         <nav className="h-16 border-b border-gray-200 dark:border-white/5 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md sticky top-0 z-50 px-6 flex items-center justify-between">
             <div className="flex items-center gap-8 flex-1 min-w-0">
-                <div 
+                <div
                     className="flex items-center gap-3 cursor-pointer group flex-shrink-0"
                     onClick={() => {
                         handlePageClick();
@@ -50,10 +49,9 @@ const FerretShellNavbar: React.FC = () => {
                             to={to}
                             onClick={handlePageClick}
                             className={({ isActive }) =>
-                                `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                                    isActive && viewMode === 'page'
-                                        ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
-                                        : 'text-gray-500 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-white/5'
+                                `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive && viewMode === 'page'
+                                    ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                                    : 'text-gray-500 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-white/5'
                                 }`
                             }
                         >
@@ -76,7 +74,7 @@ const FerretShellNavbar: React.FC = () => {
                             className={`
                                 group flex items-center gap-2 px-3 py-1.5 min-w-[100px] max-w-[180px] rounded-lg cursor-pointer transition-all flex-shrink-0
                                 ${activeTabId === tab.id && viewMode === 'terminal'
-                                    ? 'bg-zinc-800 text-white ring-1 ring-white/10 shadow-lg' 
+                                    ? 'bg-zinc-800 text-white ring-1 ring-white/10 shadow-lg'
                                     : 'text-zinc-500 hover:bg-zinc-800/30 hover:text-zinc-300'}
                             `}
                         >
@@ -98,7 +96,7 @@ const FerretShellNavbar: React.FC = () => {
 
             <div className="flex items-center gap-4 flex-shrink-0 pl-4">
                 <ToggleThemeButton />
-                
+
                 <button
                     onClick={() => navigate('/home')}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 transition-all group"

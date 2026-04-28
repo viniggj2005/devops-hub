@@ -191,6 +191,16 @@ func (handlerStruct *TerminalHandlerStruct) Send(sessionId string, data string) 
 	return err
 }
 
+func (handlerStruct *TerminalHandlerStruct) Broadcast(sessionIds []string, data string) error {
+	for _, sessionId := range sessionIds {
+		err := handlerStruct.Send(sessionId, data)
+		if err != nil {
+			return errors.New("Erro de broadcast")
+		}
+	}
+	return nil
+}
+
 func (handlerStruct *TerminalHandlerStruct) Resize(sessionId string, cols, rows int) error {
 	conn, ok := handlerStruct.GetSession(sessionId)
 	if !ok {

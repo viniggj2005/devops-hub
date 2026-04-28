@@ -96,6 +96,8 @@ export interface TerminalStateProps {
   askPassword: boolean;
   pendingConfig: SSHConnectionDto | null;
   viewMode: 'page' | 'terminal';
+  broadcastActive: boolean;
+  setBroadcastActive: (value: boolean) => void;
   setViewMode: (mode: 'page' | 'terminal') => void;
 
   createTab: (instance: Omit<TerminalInstance, 'id'>) => void;

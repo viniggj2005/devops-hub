@@ -10,7 +10,9 @@ export const useTerminalStore = create<TerminalStateProps>((set) => ({
   askPassword: false,
   pendingConfig: null,
   open: false,
+  broadcastActive: false,
 
+  setBroadcastActive: (value) => set({ broadcastActive: value }),
   setViewMode: (mode) => set({ viewMode: mode }),
 
   createTab: (instanceData) => {
@@ -127,6 +129,7 @@ export const useTerminalStore = create<TerminalStateProps>((set) => ({
         return {
           tabs: [...state.tabs, newTab],
           activeTabId: tabId,
+          viewMode: 'terminal',
           askPassword: false,
           pendingConfig: null,
           open: true
