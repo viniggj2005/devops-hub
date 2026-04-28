@@ -1,16 +1,17 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { Terminal, Home, LogOut, Plus, SquareTerminal, X } from 'lucide-react';
 import termIcon from '../../../assets/images/term.svg';
-import ToggleThemeButton from '../../shared/components/buttons/ToggleThemeButton';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useTerminalStore } from '../terminal/TerminalStore';
+import { Home, LogOut, SquareTerminal, X, FolderSync } from 'lucide-react';
+import ToggleThemeButton from '../../shared/components/buttons/ToggleThemeButton';
 
 const FerretShellNavbar: React.FC = () => {
     const navigate = useNavigate();
     const { tabs, activeTabId, setActiveTab, closeTab, setViewMode, viewMode } = useTerminalStore();
 
     const navLinks = [
-        { to: '/term/home', label: 'Início', icon: Home }
+        { to: '/term/home', label: 'Início', icon: Home },
+        { to: '/term/sftp', label: 'SFTP', icon: FolderSync }
     ];
 
     const handleTabClick = (tabId: string) => {
@@ -67,8 +68,8 @@ const FerretShellNavbar: React.FC = () => {
                         <div
                             key={tab.id}
                             draggable
-                            onDragStart={(e) => {
-                                e.dataTransfer.setData('tabId', tab.id);
+                            onDragStart={(event) => {
+                                event.dataTransfer.setData('tabId', tab.id);
                             }}
                             onClick={() => handleTabClick(tab.id)}
                             className={`
@@ -81,8 +82,8 @@ const FerretShellNavbar: React.FC = () => {
                             <SquareTerminal className={`w-3.5 h-3.5 ${activeTabId === tab.id && viewMode === 'terminal' ? 'text-purple-500' : ''}`} />
                             <span className="text-xs font-medium truncate flex-1">{tab.title}</span>
                             <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
+                                onClick={(event) => {
+                                    event.stopPropagation();
                                     closeTab(tab.id);
                                 }}
                                 className="opacity-0 group-hover:opacity-100 p-0.5 rounded-full hover:bg-zinc-700 transition-opacity"

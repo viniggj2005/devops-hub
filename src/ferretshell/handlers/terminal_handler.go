@@ -24,9 +24,10 @@ type sshConnection struct {
 }
 
 type TerminalHandlerStruct struct {
-	context     context.Context
-	sshSessions sync.Map
-	Session     *auth.ManagerStruct
+	context      context.Context
+	sshSessions  sync.Map
+	Session      *auth.ManagerStruct
+	SftpSessions sync.Map
 }
 
 func (handlerStruct *TerminalHandlerStruct) Startup(context context.Context) {
@@ -49,18 +50,18 @@ func (handlerStruct *TerminalHandlerStruct) GetSession(id string) (*sshConnectio
 	return val.(*sshConnection), true
 }
 
-func (handlerStruct *TerminalHandlerStruct) ConnectWith(configure ferretShellDtos.SSHConnectionDto) error {
+func (handlerStruct *TerminalHandlerStruct) createSshClient(configure ferretShellDtos.SSHConnectionDto) (*ssh.Client, error) {
 	var hostKeyCallBack ssh.HostKeyCallback
 	if configure.KnownHostsPath != "" {
 		callBack, err := knownhosts.New(configure.KnownHostsPath)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		hostKeyCallBack = callBack
 	} else if configure.InsecureIgnoreHostKey {
 		hostKeyCallBack = ssh.InsecureIgnoreHostKey()
 	} else {
-		return errors.New("sem KnownHostsPath e InsecureIgnoreHostKey=false")
+		return nil, errors.New("sem KnownHostsPath e InsecureIgnoreHostKey=false")
 	}
 
 	methods := []ssh.AuthMethod{}
@@ -69,7 +70,7 @@ func (handlerStruct *TerminalHandlerStruct) ConnectWith(configure ferretShellDto
 		if len(key) == 0 {
 			documentInBytes, err := os.ReadFile(configure.KeyPath)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			key = documentInBytes
 		}
@@ -81,13 +82,13 @@ func (handlerStruct *TerminalHandlerStruct) ConnectWith(configure ferretShellDto
 			signer, err = ssh.ParsePrivateKey(key)
 		}
 		if err != nil {
-			return err
+			return nil, err
 		}
 		methods = append(methods, ssh.PublicKeys(signer))
 	} else if configure.Password != "" {
 		methods = append(methods, ssh.Password(configure.Password))
 	} else {
-		return errors.New("nenhum método de autenticação fornecido")
+		return nil, errors.New("nenhum método de autenticação fornecido")
 	}
 
 	if configure.Timeout == 0 {
@@ -95,12 +96,6 @@ func (handlerStruct *TerminalHandlerStruct) ConnectWith(configure ferretShellDto
 	}
 	if configure.Port == 0 {
 		configure.Port = 22
-	}
-	if configure.Cols == 0 {
-		configure.Cols = 80
-	}
-	if configure.Rows == 0 {
-		configure.Rows = 24
 	}
 
 	sshConfigure := &ssh.ClientConfig{
@@ -111,9 +106,20 @@ func (handlerStruct *TerminalHandlerStruct) ConnectWith(configure ferretShellDto
 	}
 
 	addr := fmt.Sprintf("%s:%d", configure.Host, configure.Port)
-	sshClient, err := ssh.Dial("tcp", addr, sshConfigure)
+	return ssh.Dial("tcp", addr, sshConfigure)
+}
+
+func (handlerStruct *TerminalHandlerStruct) ConnectWith(configure ferretShellDtos.SSHConnectionDto) error {
+	sshClient, err := handlerStruct.createSshClient(configure)
 	if err != nil {
 		return err
+	}
+
+	if configure.Cols == 0 {
+		configure.Cols = 80
+	}
+	if configure.Rows == 0 {
+		configure.Rows = 24
 	}
 
 	session, err := sshClient.NewSession()

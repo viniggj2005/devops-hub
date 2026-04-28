@@ -1,10 +1,12 @@
 import React from 'react';
 import { Box, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppStore, ModuleType } from '../features/appFrame/AppStore';
 
 const MainHomePage: React.FC = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const { openTab } = useAppStore();
 
     const modules: { id: ModuleType, title: string, description: string, icon: any, color: string, status: string }[] = [
@@ -73,12 +75,14 @@ const MainHomePage: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {modules.map((module, idx) => (
+                        {modules.map((module, index) => (
                             <div
-                                key={`${module.id}-${idx}`}
+                                key={`${module.id}-${index}`}
                                 onClick={() => {
                                     if (module.status === 'Ativo') {
                                         openTab(module.id, module.title);
+                                        if (module.id === 'ferretshell') navigate('/term/home');
+                                        if (module.id === 'docker') navigate('/docker/home');
                                     }
                                 }}
                                 className={`group relative overflow-hidden rounded-3xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-white/5 p-8 ${module.status === 'Ativo' ? 'cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:shadow-blue-500/10' : 'opacity-70 cursor-not-allowed'} transition-all`}

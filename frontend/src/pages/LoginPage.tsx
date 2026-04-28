@@ -64,7 +64,7 @@ const LoginPage: React.FC = () => {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl blur-lg opacity-75" />
                 <div className="relative w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
-                  <img src={appIcon} className="w-22 h-22 brightness-0 invert dark:invert-0" />
+                  <img src={appIcon} className="w-22 h-22 brightness-0 invert " />
                 </div>
               </div>
             </motion.div>

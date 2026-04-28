@@ -441,6 +441,42 @@ export namespace ferretShellDtos {
 
 export namespace ferretShellHandlers {
 	
+	export class LocalFileInfo {
+	    name: string;
+	    size: number;
+	    isDir: boolean;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalFileInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.size = source["size"];
+	        this.isDir = source["isDir"];
+	        this.path = source["path"];
+	    }
+	}
+	export class SftpFileInfo {
+	    name: string;
+	    size: number;
+	    isDir: boolean;
+	    mode: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SftpFileInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.size = source["size"];
+	        this.isDir = source["isDir"];
+	        this.mode = source["mode"];
+	    }
+	}
 	export class sshConnection {
 	
 	

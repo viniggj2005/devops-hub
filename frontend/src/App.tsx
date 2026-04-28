@@ -3,9 +3,8 @@ import { useEffect, useState } from 'react';
 import MainHomePage from './pages/MainHomePage';
 import { AppFrame } from './features/appFrame/appFrame';
 import { useAppStore } from './features/appFrame/AppStore';
-import FerretShellHomePage from './pages/FerretShellHomePage';
-import FerretShellShell from './features/ferretShell-module/components/FerretShellShell';
 import DockerModuleWrapper from './features/docker-module/components/DockerModuleWrapper';
+import FerretShellModuleWrapper from './features/ferretShell-module/components/FerretShellModuleWrapper';
 import { WindowIsFullscreen, WindowFullscreen, WindowUnfullscreen, WindowIsMaximised, WindowUnmaximise } from '../wailsjs/runtime/runtime';
 
 export default function App() {
@@ -14,14 +13,14 @@ export default function App() {
 
   useEffect(() => {
     const handleResize = async () => {
-      const fs = await WindowIsFullscreen();
-      setIsFullscreen(fs);
+      const fullscreen = await WindowIsFullscreen();
+      setIsFullscreen(fullscreen);
     };
 
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      if (e.key === 'F11') {
-        const fs = await WindowIsFullscreen();
-        if (fs) {
+    const handleKeyDown = async (event: KeyboardEvent) => {
+      if (event.key === 'F11') {
+        const fullscreen = await WindowIsFullscreen();
+        if (fullscreen) {
           await WindowUnfullscreen();
           setIsFullscreen(false);
         } else {
@@ -32,9 +31,9 @@ export default function App() {
           }
           await WindowFullscreen();
         }
-      } else if (e.key === 'Escape') {
-        const fs = await WindowIsFullscreen();
-        if (fs) {
+      } else if (event.key === 'Escape') {
+        const fullscreen = await WindowIsFullscreen();
+        if (fullscreen) {
           await WindowUnfullscreen();
           setIsFullscreen(false);
         }
@@ -59,11 +58,7 @@ export default function App() {
       case 'docker':
         return <DockerModuleWrapper />;
       case 'ferretshell':
-        return (
-          <FerretShellShell>
-            <FerretShellHomePage />
-          </FerretShellShell>
-        );
+        return <FerretShellModuleWrapper />;
       default:
         return null;
     }

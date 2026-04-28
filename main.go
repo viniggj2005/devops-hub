@@ -30,9 +30,11 @@ func main() {
 	dockerSdk := dockerHandlers.NewDockerSdkHandler(docker)
 	docker.RegisterDockerSdkHandler(dockerSdk)
 	terminal := ferretShellHandlers.NewTerminalHandler(sessionManager)
+	sftpHandler := ferretShellHandlers.NewSftpHandler(terminal)
 	sshHandler := ferretShellHandlers.NewSshHandler(database.DataBase, sessionManager)
 	authHandler := authHandlers.NewAuthHandler(database.DataBase, sessionManager)
 	userHandler := userHandlers.NewUserHandler(database.DataBase, sessionManager)
+	localFileHandler := ferretShellHandlers.NewLocalFileHandler()
 
 	err := wails.Run(&options.App{
 		Title:            "Docker Manager",
@@ -49,10 +51,12 @@ func main() {
 			app.startup(ctx)
 			docker.Startup(ctx)
 			terminal.Startup(ctx)
+			sftpHandler.Startup(ctx)
 			dockerSdk.Startup(ctx)
 			sshHandler.Startup(ctx)
 			authHandler.Startup(ctx)
 			userHandler.Startup(ctx)
+			localFileHandler.Startup(ctx)
 
 		},
 		Windows: &windows.Options{
@@ -66,8 +70,10 @@ func main() {
 			docker,
 			dockerSdk,
 			sshHandler,
+			sftpHandler,
 			authHandler,
 			userHandler,
+			localFileHandler,
 		},
 	})
 
