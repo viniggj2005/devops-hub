@@ -9,7 +9,7 @@ import { VolumesSection } from '../create-modal/VolumesSection';
 import { BasicInfoSection } from '../create-modal/BasicInfoSection';
 import { ResourceLimitsSection } from '../create-modal/ResourceLimitsSection';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
-import { CreateContainer, ImagesList, ListVolumes, ListNetworks } from '../../../../../../wailsjs/go/handlers/DockerSdkHandlerStruct';
+import { CreateContainer, ImagesList, ListVolumes, ListNetworks } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
 import { CreateContainerPortMapping, CreateContainerEnvVar, CreateContainerVolumeMapping } from '../../../../../interfaces/ContainerInterfaces';
 
 
@@ -41,31 +41,31 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
 
     useEffect(() => {
         if (isOpen && dockerClientId) {
-            ImagesList(dockerClientId).then((imgs) => {
+            ImagesList(dockerClientId).then((imgs: any) => {
                 setAvailableImages(imgs || []);
-            }).catch(error => {
+            }).catch((error: any) => {
                 iziToast.error({ title: 'Erro', message: 'Falha ao carregar imagens.' });
             });
 
-            ListVolumes(dockerClientId).then((volsJson) => {
+            ListVolumes(dockerClientId).then((volsJson: any) => {
                 try {
                     const data = JSON.parse(volsJson);
                     setAvailableVolumes(data.Volumes || []);
-                } catch (error) {
+                } catch (error: any) {
                     iziToast.error({ title: 'Erro', message: 'Falha ao processar lista de volumes.' });
                 }
-            }).catch(error => {
+            }).catch((error: any) => {
                 iziToast.error({ title: 'Erro', message: 'Falha ao carregar volumes.' });
             });
 
-            ListNetworks(dockerClientId).then((netsJson) => {
+            ListNetworks(dockerClientId).then((netsJson: any) => {
                 try {
                     const data = JSON.parse(netsJson);
                     setAvailableNetworks(Array.isArray(data) ? data : []);
-                } catch (error) {
+                } catch (error: any) {
                     iziToast.error({ title: 'Erro', message: 'Falha ao processar lista de redes.' });
                 }
-            }).catch((error) => {
+            }).catch((error: any) => {
 
                 iziToast.error({ title: 'Erro', message: 'Falha ao carregar redes.' });
             });

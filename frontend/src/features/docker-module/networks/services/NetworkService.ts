@@ -1,4 +1,4 @@
-import { CreateNetwork, DeleteNetwork, InspectNetwork, ListNetworks, PruneNetworks } from '../../../../../wailsjs/go/handlers/DockerSdkHandlerStruct'
+import { CreateNetwork, DeleteNetwork, InspectNetwork, ListNetworks, PruneNetworks } from '../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct'
 import { network } from '../../../../../wailsjs/go/models'
 
 export const NetworkService={

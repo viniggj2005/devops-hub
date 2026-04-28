@@ -1,3 +1,54 @@
+export namespace authDtos {
+	
+	export class LoginInputDto {
+	    email: string;
+	    password: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LoginInputDto(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.email = source["email"];
+	        this.password = source["password"];
+	    }
+	}
+	export class LoginResponseDto {
+	    token: string;
+	    user: dtos.UserDTO;
+	
+	    static createFrom(source: any = {}) {
+	        return new LoginResponseDto(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.token = source["token"];
+	        this.user = this.convertValues(source["user"], dtos.UserDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace client {
 	
 	export class Client {
@@ -159,6 +210,23 @@ export namespace container {
 
 }
 
+export namespace dockerHandlers {
+	
+	export class DockerSdkHandlerStruct {
+	
+	
+	    static createFrom(source: any = {}) {
+	        return new DockerSdkHandlerStruct(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	
+	    }
+	}
+
+}
+
 export namespace dtos {
 	
 	export class ContainerCreateOptions {
@@ -223,30 +291,6 @@ export namespace dtos {
 	        this.userId = source["userId"];
 	    }
 	}
-	export class CreateSshConnectionInputDto {
-	    host: string;
-	    systemUser: string;
-	    alias?: string;
-	    port?: number;
-	    key?: string;
-	    knownHosts?: string;
-	    userId: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new CreateSshConnectionInputDto(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.host = source["host"];
-	        this.systemUser = source["systemUser"];
-	        this.alias = source["alias"];
-	        this.port = source["port"];
-	        this.key = source["key"];
-	        this.knownHosts = source["knownHosts"];
-	        this.userId = source["userId"];
-	    }
-	}
 	export class CreateUserInputDto {
 	    nome: string;
 	    email: string;
@@ -281,16 +325,54 @@ export namespace dtos {
 	        this.dockerfile = source["dockerfile"];
 	    }
 	}
-	export class LoginInputDto {
-	    email: string;
-	    password: string;
+	export class SystemInfoDto {
+	    ID: string;
+	    Name: string;
+	    NCPU: number;
+	    Images: number;
+	    MemTotal: number;
+	    SystemTime: string;
+	    Containers: number;
+	    Architecture: string;
+	    ServerVersion: string;
+	    OperatingSystem: string;
+	    ContainersPaused: number;
+	    ContainersStopped: number;
+	    ContainersRunning: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new LoginInputDto(source);
+	        return new SystemInfoDto(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ID = source["ID"];
+	        this.Name = source["Name"];
+	        this.NCPU = source["NCPU"];
+	        this.Images = source["Images"];
+	        this.MemTotal = source["MemTotal"];
+	        this.SystemTime = source["SystemTime"];
+	        this.Containers = source["Containers"];
+	        this.Architecture = source["Architecture"];
+	        this.ServerVersion = source["ServerVersion"];
+	        this.OperatingSystem = source["OperatingSystem"];
+	        this.ContainersPaused = source["ContainersPaused"];
+	        this.ContainersStopped = source["ContainersStopped"];
+	        this.ContainersRunning = source["ContainersRunning"];
+	    }
+	}
+	export class UpdateUserInputDto {
+	    nome?: string;
+	    email?: string;
+	    password?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateUserInputDto(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.nome = source["nome"];
 	        this.email = source["email"];
 	        this.password = source["password"];
 	    }
@@ -311,37 +393,34 @@ export namespace dtos {
 	        this.email = source["email"];
 	    }
 	}
-	export class LoginResponseDto {
-	    token: string;
-	    user: UserDTO;
+
+}
+
+export namespace ferretShellDtos {
+	
+	export class CreateSshConnectionInputDto {
+	    host: string;
+	    systemUser: string;
+	    alias?: string;
+	    port?: number;
+	    key?: string;
+	    knownHosts?: string;
+	    userId: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new LoginResponseDto(source);
+	        return new CreateSshConnectionInputDto(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.token = source["token"];
-	        this.user = this.convertValues(source["user"], UserDTO);
+	        this.host = source["host"];
+	        this.systemUser = source["systemUser"];
+	        this.alias = source["alias"];
+	        this.port = source["port"];
+	        this.key = source["key"];
+	        this.knownHosts = source["knownHosts"];
+	        this.userId = source["userId"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class SSHConnectionDto {
 	    SshSessionId: string;
@@ -405,75 +484,11 @@ export namespace dtos {
 	        this.userId = source["userId"];
 	    }
 	}
-	export class SystemInfoDto {
-	    ID: string;
-	    Name: string;
-	    NCPU: number;
-	    Images: number;
-	    MemTotal: number;
-	    SystemTime: string;
-	    Containers: number;
-	    Architecture: string;
-	    ServerVersion: string;
-	    OperatingSystem: string;
-	    ContainersPaused: number;
-	    ContainersStopped: number;
-	    ContainersRunning: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new SystemInfoDto(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.ID = source["ID"];
-	        this.Name = source["Name"];
-	        this.NCPU = source["NCPU"];
-	        this.Images = source["Images"];
-	        this.MemTotal = source["MemTotal"];
-	        this.SystemTime = source["SystemTime"];
-	        this.Containers = source["Containers"];
-	        this.Architecture = source["Architecture"];
-	        this.ServerVersion = source["ServerVersion"];
-	        this.OperatingSystem = source["OperatingSystem"];
-	        this.ContainersPaused = source["ContainersPaused"];
-	        this.ContainersStopped = source["ContainersStopped"];
-	        this.ContainersRunning = source["ContainersRunning"];
-	    }
-	}
-	export class UpdateUserInputDto {
-	    nome?: string;
-	    email?: string;
-	    password?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new UpdateUserInputDto(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.nome = source["nome"];
-	        this.email = source["email"];
-	        this.password = source["password"];
-	    }
-	}
 
 }
 
-export namespace handlers {
+export namespace ferretShellHandlers {
 	
-	export class DockerSdkHandlerStruct {
-	
-	
-	    static createFrom(source: any = {}) {
-	        return new DockerSdkHandlerStruct(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	
-	    }
-	}
 	export class sshConnection {
 	
 	

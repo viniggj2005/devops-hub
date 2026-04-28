@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	database "docker-manager-go/src/dataBase"
+	dockerHandlers "docker-manager-go/src/dockermanager/handlers"
+	ferretShellHandlers "docker-manager-go/src/ferretshell/handlers"
 
-	"docker-manager-go/src/auth"
+	auth "docker-manager-go/src/auth/functions"
+	authHandlers "docker-manager-go/src/auth/handlers"
 	"docker-manager-go/src/handlers"
 	"embed"
 	"time"
@@ -23,12 +26,12 @@ func main() {
 	database.InitDb()
 	app := NewApp()
 	sessionManager := auth.NewManager(8 * time.Hour)
-	terminal := handlers.NewTerminalHandler(sessionManager)
-	docker := handlers.NewDockerHandler(database.DataBase, sessionManager)
-	dockerSdk := handlers.NewDockerSdkHandler(docker)
+	docker := dockerHandlers.NewDockerHandler(database.DataBase, sessionManager)
+	dockerSdk := dockerHandlers.NewDockerSdkHandler(docker)
 	docker.RegisterDockerSdkHandler(dockerSdk)
-	sshHandler := handlers.NewSshHandler(database.DataBase, sessionManager)
-	authHandler := handlers.NewAuthHandler(database.DataBase, sessionManager)
+	terminal := ferretShellHandlers.NewTerminalHandler(sessionManager)
+	sshHandler := ferretShellHandlers.NewSshHandler(database.DataBase, sessionManager)
+	authHandler := authHandlers.NewAuthHandler(database.DataBase, sessionManager)
 	userHandler := handlers.NewUserHandler(database.DataBase, sessionManager)
 
 	err := wails.Run(&options.App{

@@ -1,5 +1,5 @@
-import type { dtos } from '../../wailsjs/go/models';
-export type SSHConnectionDto = dtos.SSHConnectionDto;
+import type { dtos, ferretShellDtos } from '../../wailsjs/go/models';
+export type SSHConnectionDto = ferretShellDtos.SSHConnectionDto;
 
 export interface TerminalProps {
   id?: string;

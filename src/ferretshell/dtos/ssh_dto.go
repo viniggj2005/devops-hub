@@ -1,4 +1,4 @@
-package dtos
+package ferretShellDtos
 
 import (
 	"docker-manager-go/src/models"

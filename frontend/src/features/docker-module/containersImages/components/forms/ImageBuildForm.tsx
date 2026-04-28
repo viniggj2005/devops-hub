@@ -5,7 +5,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { GetFilePath } from '../../../../../../wailsjs/go/main/App';
 import TextField from '../../../../../features/login/components/fields/TextField';
 import { EventsOn, EventsOff } from '../../../../../../wailsjs/runtime';
-import { ImageCreate } from '../../../../../../wailsjs/go/handlers/DockerSdkHandlerStruct';
+import { ImageCreate } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
 
 const converter = new Convert({
     newline: true,

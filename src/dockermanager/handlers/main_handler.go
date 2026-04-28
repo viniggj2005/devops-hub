@@ -1,8 +1,9 @@
-package handlers
+package dockerHandlers
 
 import (
 	"context"
-	"docker-manager-go/src/auth"
+
+	auth "docker-manager-go/src/auth/functions"
 	"docker-manager-go/src/dtos"
 	"docker-manager-go/src/models"
 	"docker-manager-go/src/types"

@@ -1,4 +1,4 @@
-package handlers
+package ferretShellHandlers
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 
 	"gorm.io/gorm"
 
-	"docker-manager-go/src/auth"
-	"docker-manager-go/src/dtos"
+	auth "docker-manager-go/src/auth/functions"
+	ferretShellDtos "docker-manager-go/src/ferretshell/dtos"
 	"docker-manager-go/src/models"
 	"docker-manager-go/src/types"
 )
@@ -27,7 +27,7 @@ func (handlerStruct *SshHandlerStruct) Startup(context context.Context) {
 	handlerStruct.context = context
 }
 
-func (handlerStruct *SshHandlerStruct) UpdateSshConnection(token string, id uint, body dtos.CreateSshConnectionInputDto) error {
+func (handlerStruct *SshHandlerStruct) UpdateSshConnection(token string, id uint, body ferretShellDtos.CreateSshConnectionInputDto) error {
 	if err := auth.MustAuth(handlerStruct.Session, token); err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (handlerStruct *SshHandlerStruct) UpdateSshConnection(token string, id uint
 	return nil
 }
 
-func (handlerStruct *SshHandlerStruct) CreateSshConnection(token string, body dtos.CreateSshConnectionInputDto) error {
+func (handlerStruct *SshHandlerStruct) CreateSshConnection(token string, body ferretShellDtos.CreateSshConnectionInputDto) error {
 	if err := auth.MustAuth(handlerStruct.Session, token); err != nil {
 		return err
 	}
@@ -133,7 +133,7 @@ func (handlerStruct *SshHandlerStruct) CreateSshConnection(token string, body dt
 	return nil
 }
 
-func (handlerStruct *SshHandlerStruct) FindAllConnectionByUser(token string, userId int) ([]dtos.SshDto, error) {
+func (handlerStruct *SshHandlerStruct) FindAllConnectionByUser(token string, userId int) ([]ferretShellDtos.SshDto, error) {
 	if err := auth.MustAuth(handlerStruct.Session, token); err != nil {
 		return nil, err
 	}
@@ -145,22 +145,22 @@ func (handlerStruct *SshHandlerStruct) FindAllConnectionByUser(token string, use
 		return nil, err
 	}
 
-	return dtos.ToSshDTOList(connections), nil
+	return ferretShellDtos.ToSshDTOList(connections), nil
 }
 
-func (handlerStruct *SshHandlerStruct) GetById(token string, id int) (dtos.SshDto, error) {
+func (handlerStruct *SshHandlerStruct) GetById(token string, id int) (ferretShellDtos.SshDto, error) {
 	if err := auth.MustAuth(handlerStruct.Session, token); err != nil {
-		return dtos.SshDto{}, err
+		return ferretShellDtos.SshDto{}, err
 	}
 
 	var connection models.SshConnectionModel
 	if err := handlerStruct.DataBase.WithContext(handlerStruct.context).
 		Where("id = ?", id).
 		First(&connection).Error; err != nil {
-		return dtos.SshDto{}, err
+		return ferretShellDtos.SshDto{}, err
 	}
 
-	return *dtos.ToSshDTO(&connection), nil
+	return *ferretShellDtos.ToSshDTO(&connection), nil
 }
 
 func (handlerStruct *SshHandlerStruct) DeleteConnection(token string, id int) error {

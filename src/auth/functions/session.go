@@ -1,4 +1,4 @@
-package auth
+package authFunctions
 
 import (
 	"crypto/rand"

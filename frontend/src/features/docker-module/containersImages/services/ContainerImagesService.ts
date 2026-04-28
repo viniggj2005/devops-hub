@@ -1,7 +1,7 @@
 import iziToast from 'izitoast';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DockerImageInfo } from '../../../../interfaces/ContainerImagesInterfaces';
-import { ImagesList } from '../../../../../wailsjs/go/handlers/DockerSdkHandlerStruct';
+import { ImagesList } from '../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
 
 export const ContainerImagesService = (clientId: number | null, pollMiliseconds = 2000) => {
   const timerRef = useRef<number | null>(null);

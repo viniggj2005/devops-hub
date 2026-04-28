@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BytesToMB } from '../../../../../features/shared/functions/TreatmentFunction';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
 import { ContainerStatsProps, StatsPayload } from '../../../../../interfaces/ContainerInterfaces';
-import { StartContainerStats, StopContainerStats } from '../../../../../../wailsjs/go/handlers/DockerSdkHandlerStruct';
+import { StartContainerStats, StopContainerStats } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
 
 const maxPoints = 10;
 

@@ -7,7 +7,7 @@ import InspectModal from '../../../../../features/shared/components/modals/Inspe
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
 import { ImageProps } from '../../../../../interfaces/ContainerImagesInterfaces';
 import { useConfirmToast } from '../../../../../features/shared/components/toasts/ConfirmToast';
-import { RemoveImage, InspectImage } from '../../../../../../wailsjs/go/handlers/DockerSdkHandlerStruct';
+import { RemoveImage, InspectImage } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
 import { FmtAgo, FormatBytes, EpochToDateStr, ParseNameAndTag } from '../../../../../features/shared/functions/TreatmentFunction';
 
 const ImageCard: React.FC<ImageProps> = ({ image, onDeleted }) => {

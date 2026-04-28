@@ -1,9 +1,10 @@
-package handlers
+package ferretShellHandlers
 
 import (
 	"context"
-	"docker-manager-go/src/auth"
-	"docker-manager-go/src/dtos"
+
+	auth "docker-manager-go/src/auth/functions"
+	ferretShellDtos "docker-manager-go/src/ferretshell/dtos"
 	"errors"
 	"fmt"
 	"io"
@@ -48,7 +49,7 @@ func (handlerStruct *TerminalHandlerStruct) GetSession(id string) (*sshConnectio
 	return val.(*sshConnection), true
 }
 
-func (handlerStruct *TerminalHandlerStruct) ConnectWith(configure dtos.SSHConnectionDto) error {
+func (handlerStruct *TerminalHandlerStruct) ConnectWith(configure ferretShellDtos.SSHConnectionDto) error {
 	var hostKeyCallBack ssh.HostKeyCallback
 	if configure.KnownHostsPath != "" {
 		callBack, err := knownhosts.New(configure.KnownHostsPath)

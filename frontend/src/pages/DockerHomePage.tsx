@@ -3,7 +3,7 @@ import 'izitoast/dist/css/iziToast.min.css';
 import { dtos } from '../../wailsjs/go/models';
 import React, { useEffect, useState } from 'react';
 import { useDockerClient } from '../contexts/DockerClientContext';
-import { GetInfo } from '../../wailsjs/go/handlers/DockerSdkHandlerStruct';
+import { GetInfo } from '../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
 import StatsGrid from '../features/docker-module/dashboard/components/cards/StatsGrid';
 import RecentActivity from '../features/docker-module/dashboard/components/cards/RecentActivity';
 import ManagementCards from '../features/docker-module/dashboard/components/cards/ManagementCards';

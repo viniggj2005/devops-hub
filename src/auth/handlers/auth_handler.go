@@ -1,4 +1,4 @@
-package handlers
+package authHandlers
 
 import (
 	"context"
@@ -9,7 +9,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
-	"docker-manager-go/src/auth"
+	authDtos "docker-manager-go/src/auth/dtos"
+	authFunctions "docker-manager-go/src/auth/functions"
 	"docker-manager-go/src/dtos"
 	"docker-manager-go/src/models"
 	"docker-manager-go/src/types"
@@ -20,10 +21,10 @@ import (
 type AuthHandlerStruct struct {
 	DataBase *gorm.DB
 	context  context.Context
-	Session  *auth.ManagerStruct
+	Session  *authFunctions.ManagerStruct
 }
 
-func NewAuthHandler(dataBase *gorm.DB, sessionManager *auth.ManagerStruct) *AuthHandlerStruct {
+func NewAuthHandler(dataBase *gorm.DB, sessionManager *authFunctions.ManagerStruct) *AuthHandlerStruct {
 	return &AuthHandlerStruct{DataBase: dataBase, Session: sessionManager}
 }
 
@@ -31,7 +32,7 @@ func (handlerStruct *AuthHandlerStruct) Startup(context context.Context) {
 	handlerStruct.context = context
 }
 
-func (handlerStruct *AuthHandlerStruct) Login(body dtos.LoginInputDto) (*dtos.LoginResponseDto, error) {
+func (handlerStruct *AuthHandlerStruct) Login(body authDtos.LoginInputDto) (*authDtos.LoginResponseDto, error) {
 	var userModel models.UserModel
 	if err := handlerStruct.DataBase.WithContext(handlerStruct.context).Where("email = ?", body.Email).First(&userModel).Error; err != nil {
 		return nil, errors.New("credenciais inválidas")
@@ -54,7 +55,7 @@ func (handlerStruct *AuthHandlerStruct) Login(body dtos.LoginInputDto) (*dtos.Lo
 	runtime.EventsEmit(handlerStruct.context, "auth:changed", true)
 	uDTO := dtos.ToDTO(&userModel)
 
-	return &dtos.LoginResponseDto{
+	return &authDtos.LoginResponseDto{
 		Token: token,
 		User:  *uDTO,
 	}, nil

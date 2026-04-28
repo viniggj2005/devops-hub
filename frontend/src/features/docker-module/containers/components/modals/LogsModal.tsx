@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { LogsProps } from '../../../../../interfaces/ContainerInterfaces';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
-import { ContainerLogs } from '../../../../../../wailsjs/go/handlers/DockerSdkHandlerStruct';
+import { ContainerLogs } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
 
 const LogsModal: React.FC<LogsProps> = ({ id, setLogsModal }) => {
   const firstScrollDone = useRef(false);

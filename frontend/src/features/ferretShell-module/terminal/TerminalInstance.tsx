@@ -6,7 +6,7 @@ import { TerminalInstance as ITerminalInstance } from '../../../interfaces/Termi
 import { useDockerClient } from '../../../contexts/DockerClientContext';
 import { EventsOn, EventsOff } from '../../../../wailsjs/runtime/runtime';
 import { containerExec, terminalWrite } from '../../docker-module/containers/services/ContainersService';
-import { Send, Resize, Disconnect, ConnectWith, Broadcast } from '../../../../wailsjs/go/handlers/TerminalHandlerStruct';
+import { Send, Resize, Disconnect, ConnectWith, Broadcast } from '../../../../wailsjs/go/ferretShellHandlers/TerminalHandlerStruct';
 import { useTerminalStore } from './TerminalStore';
 import iziToast from 'izitoast';
 

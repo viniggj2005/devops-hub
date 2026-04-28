@@ -3,7 +3,7 @@ import { useDockerClient } from '../../../../../contexts/DockerClientContext';
 import { ToolbarProps } from '../../../../../interfaces/ContainerImagesInterfaces';
 import { useConfirmToast } from '../../../../../features/shared/components/toasts/ConfirmToast';
 import { Blocks, LayoutGrid, Search, TextAlignJustify, Trash2 } from 'lucide-react';
-import { PruneImages } from '../../../../../../wailsjs/go/handlers/DockerSdkHandlerStruct';
+import { PruneImages } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
 
 const Toolbar: React.FC<ToolbarProps> = ({
   view,

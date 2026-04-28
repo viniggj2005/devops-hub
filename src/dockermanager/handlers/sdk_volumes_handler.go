@@ -1,4 +1,4 @@
-package handlers
+package dockerHandlers
 
 import (
 	"encoding/json"

@@ -9,7 +9,7 @@ import {
   TerminalResize,
   ContainerRename,
   ContainerUnPause,
-} from '../../../../../wailsjs/go/handlers/DockerSdkHandlerStruct';
+} from '../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
 import { ContainerItem } from '../../../../interfaces/ContainerInterfaces';
 
 export const getContainers = async (clientId: number): Promise<ContainerItem[]> => {

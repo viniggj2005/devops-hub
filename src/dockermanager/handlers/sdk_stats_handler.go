@@ -1,4 +1,4 @@
-package handlers
+package dockerHandlers
 
 import (
 	"context"
@@ -12,8 +12,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
-
-
 
 func (handlerStruct *DockerSdkHandlerStruct) StartContainerStats(clientId int, containerID string) error {
 	dockerId := fmt.Sprintf("%d", clientId)

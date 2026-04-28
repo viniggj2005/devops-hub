@@ -1,4 +1,4 @@
-package handlers
+package dockerHandlers
 
 import (
 	"docker-manager-go/src/dtos"

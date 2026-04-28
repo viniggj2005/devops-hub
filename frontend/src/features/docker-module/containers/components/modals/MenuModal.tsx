@@ -7,7 +7,7 @@ import { useDockerClient } from '../../../../../contexts/DockerClientContext';
 import { ContainerProps } from '../../../../../interfaces/ContainerInterfaces';
 import { useConfirmToast } from '../../../../../features/shared/components/toasts/ConfirmToast';
 import { BookSearch, ChartSpline, ClipboardList, RotateCcw, SquareTerminal, Trash2 } from 'lucide-react';
-import { ContainerRemove, ContainerInspect, ContainerRestart } from '../../../../../../wailsjs/go/handlers/DockerSdkHandlerStruct';
+import { ContainerRemove, ContainerInspect, ContainerRestart } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
 
 const ContainersMenuModal: React.FC<ContainerProps> = ({
   id,
