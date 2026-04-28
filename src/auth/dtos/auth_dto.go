@@ -1,6 +1,6 @@
 package authDtos
 
-import "docker-manager-go/src/dtos"
+import userDtos "docker-manager-go/src/user/dtos"
 
 type LoginInputDto struct {
 	Email    string `json:"email"`
@@ -8,6 +8,6 @@ type LoginInputDto struct {
 }
 
 type LoginResponseDto struct {
-	Token string       `json:"token"`
-	User  dtos.UserDTO `json:"user"`
+	Token string           `json:"token"`
+	User  userDtos.UserDTO `json:"user"`
 }

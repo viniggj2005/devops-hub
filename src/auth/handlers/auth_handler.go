@@ -11,8 +11,8 @@ import (
 
 	authDtos "docker-manager-go/src/auth/dtos"
 	authFunctions "docker-manager-go/src/auth/functions"
-	"docker-manager-go/src/dtos"
 	"docker-manager-go/src/models"
+	userDtos "docker-manager-go/src/user/dtos"
 	"docker-manager-go/src/types"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -53,7 +53,7 @@ func (handlerStruct *AuthHandlerStruct) Login(body authDtos.LoginInputDto) (*aut
 	}
 
 	runtime.EventsEmit(handlerStruct.context, "auth:changed", true)
-	uDTO := dtos.ToDTO(&userModel)
+	uDTO := userDtos.ToDTO(&userModel)
 
 	return &authDtos.LoginResponseDto{
 		Token: token,

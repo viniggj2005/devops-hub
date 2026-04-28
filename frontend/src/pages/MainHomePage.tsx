@@ -1,47 +1,43 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Box, Shield, Activity, Settings } from 'lucide-react';
+import { Box, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppStore, ModuleType } from '../features/appFrame/AppStore';
 
 const MainHomePage: React.FC = () => {
-    const navigate = useNavigate();
     const { user } = useAuth();
+    const { openTab } = useAppStore();
 
-    const modules = [
+    const modules: { id: ModuleType, title: string, description: string, icon: any, color: string, status: string }[] = [
         {
             id: 'docker',
             title: 'Docker Manager',
             description: 'Gerencie contêineres, imagens, redes e volumes Docker.',
-            icon: <img src="/docker-manager.svg" alt="Docker Manager" className="w-14 h-14 brightness-0 invert dark:invert-0" />,
+            icon: <img src="/docker-manager.svg" alt="Docker Manager" className="w-14 h-14 brightness-0 invert" />,
             color: 'from-blue-500 to-blue-700',
-            path: '/docker/home',
             status: 'Ativo'
         },
         {
-            id: 'ssh',
+            id: 'ferretshell',
             title: 'FerretShell',
             description: 'Acesse e gerencie seus servidores remotos via terminal SSH.',
-            icon: <img src="/term.svg" alt="Ferretshell" className="w-14 h-14 brightness-0 invert dark:invert-0" />,
+            icon: <img src="/term.svg" alt="Ferretshell" className="w-14 h-14 brightness-0 invert" />,
             color: 'from-purple-500 to-purple-700',
-            path: '/term/home',
             status: 'Ativo'
         },
         {
-            id: 'git',
+            id: 'octohub',
             title: 'OctoHub',
             description: 'Configurações de acesso, chaves SSH e certificados TLS.',
-            icon: <img src="/gitoctocat.svg" alt="git" className="w-14 h-14 brightness-0 invert dark:invert-0" />,
+            icon: <img src="/gitoctocat.svg" alt="git" className="w-14 h-14 brightness-0 invert" />,
             color: 'from-emerald-500 to-emerald-700',
-            path: '/docker/docker-credentials',
             status: 'Inativo'
         },
         {
-            id: 'api',
-            title: 'api tester',
+            id: 'vulpes',
+            title: 'Vulpes',
             description: 'Visualize o uso de recursos e logs do sistema em tempo real.',
-            icon: <img src="/fox.svg" alt="fox" className="w-14 h-14 brightness-0 invert dark:invert-0" />,
+            icon: <img src="/fox.svg" alt="fox" className="w-14 h-14 brightness-0 invert" />,
             color: 'from-amber-500 to-amber-700',
-            path: '/docker/home',
             status: 'Inativo'
         }
     ];
@@ -56,7 +52,7 @@ const MainHomePage: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => navigate('/settings')}
+                        onClick={() => { }}
                         className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-white/5 transition-colors"
                     >
                         <Settings className="w-5 h-5 text-gray-500" />
@@ -77,11 +73,15 @@ const MainHomePage: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {modules.map((module) => (
+                        {modules.map((module, idx) => (
                             <div
-                                key={module.id}
-                                onClick={() => navigate(module.path)}
-                                className="group relative overflow-hidden rounded-3xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-white/5 p-8 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-2xl hover:shadow-blue-500/10"
+                                key={`${module.id}-${idx}`}
+                                onClick={() => {
+                                    if (module.status === 'Ativo') {
+                                        openTab(module.id, module.title);
+                                    }
+                                }}
+                                className={`group relative overflow-hidden rounded-3xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-white/5 p-8 ${module.status === 'Ativo' ? 'cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:shadow-blue-500/10' : 'opacity-70 cursor-not-allowed'} transition-all`}
                             >
                                 <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${module.color} opacity-0 group-hover:opacity-10 blur-3xl transition-opacity`} />
 

@@ -16,7 +16,7 @@ export namespace authDtos {
 	}
 	export class LoginResponseDto {
 	    token: string;
-	    user: dtos.UserDTO;
+	    user: userDtos.UserDTO;
 	
 	    static createFrom(source: any = {}) {
 	        return new LoginResponseDto(source);
@@ -25,7 +25,7 @@ export namespace authDtos {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.token = source["token"];
-	        this.user = this.convertValues(source["user"], dtos.UserDTO);
+	        this.user = this.convertValues(source["user"], userDtos.UserDTO);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -291,22 +291,6 @@ export namespace dtos {
 	        this.userId = source["userId"];
 	    }
 	}
-	export class CreateUserInputDto {
-	    nome: string;
-	    email: string;
-	    password: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new CreateUserInputDto(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.nome = source["nome"];
-	        this.email = source["email"];
-	        this.password = source["password"];
-	    }
-	}
 	export class ImageCreateDto {
 	    path: string;
 	    name: string;
@@ -359,38 +343,6 @@ export namespace dtos {
 	        this.ContainersPaused = source["ContainersPaused"];
 	        this.ContainersStopped = source["ContainersStopped"];
 	        this.ContainersRunning = source["ContainersRunning"];
-	    }
-	}
-	export class UpdateUserInputDto {
-	    nome?: string;
-	    email?: string;
-	    password?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new UpdateUserInputDto(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.nome = source["nome"];
-	        this.email = source["email"];
-	        this.password = source["password"];
-	    }
-	}
-	export class UserDTO {
-	    id: number;
-	    nome: string;
-	    email: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new UserDTO(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.nome = source["nome"];
-	        this.email = source["email"];
 	    }
 	}
 
@@ -1057,6 +1009,59 @@ export namespace types {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.Ciphertext = source["Ciphertext"];
 	        this.Plaintext = source["Plaintext"];
+	    }
+	}
+
+}
+
+export namespace userDtos {
+	
+	export class CreateUserInputDto {
+	    nome: string;
+	    email: string;
+	    password: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateUserInputDto(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.nome = source["nome"];
+	        this.email = source["email"];
+	        this.password = source["password"];
+	    }
+	}
+	export class UpdateUserInputDto {
+	    nome?: string;
+	    email?: string;
+	    password?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateUserInputDto(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.nome = source["nome"];
+	        this.email = source["email"];
+	        this.password = source["password"];
+	    }
+	}
+	export class UserDTO {
+	    id: number;
+	    nome: string;
+	    email: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UserDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.nome = source["nome"];
+	        this.email = source["email"];
 	    }
 	}
 

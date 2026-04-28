@@ -1,15 +1,15 @@
 import React from 'react';
 import { navItems } from './SidebarItems';
 import { NavLink } from 'react-router-dom';
+import { useAppStore } from '../../../appFrame/AppStore';
 import appIcon from '../../../../assets/images/appicon.png';
 import ToggleThemeButton from '../buttons/ToggleThemeButton';
 import { ChevronLeft, ChevronRight, CircleX } from 'lucide-react';
 import { SidebarProps } from '../../../../interfaces/SharedInterfaces';
 import DockerCredentialSelector from '../../../docker-module/dockerCredentials/components/DockerCredentialSelector';
-import { useNavigate } from 'react-router-dom';
 
 const Sidebar: React.FC<SidebarProps> = ({ open, collapsed, onClose, onToggleCollapse }) => {
-  const navigate = useNavigate();
+  const { setActiveTab } = useAppStore();
   return (
     <>
       <div
@@ -145,7 +145,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, collapsed, onClose, onToggleCol
           </div>
 
           <button
-            onClick={() => navigate('/home')}
+            onClick={() => setActiveTab('home')}
             className={`mt-6 flex items-center gap-3 p-3 rounded-xl transition-all duration-200 
               hover:bg-red-500/10 text-red-500 group
               ${collapsed ? 'justify-center w-full px-2' : 'w-full'}`}

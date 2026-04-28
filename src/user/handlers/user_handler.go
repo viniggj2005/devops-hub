@@ -1,11 +1,12 @@
-package handlers
+package userHandlers
 
 import (
 	"context"
 
 	auth "docker-manager-go/src/auth/functions"
-	"docker-manager-go/src/dtos"
+
 	"docker-manager-go/src/models"
+	userDtos "docker-manager-go/src/user/dtos"
 	"errors"
 
 	"golang.org/x/crypto/bcrypt"
@@ -25,7 +26,7 @@ func (handlerStruct *UserHandlerStruct) Startup(context context.Context) {
 	handlerStruct.context = context
 }
 
-func (handlerStruct *UserHandlerStruct) Create(body dtos.CreateUserInputDto) (*dtos.UserDTO, error) {
+func (handlerStruct *UserHandlerStruct) Create(body userDtos.CreateUserInputDto) (*userDtos.UserDTO, error) {
 	if body.Name == "" || body.Email == "" || body.Password == "" {
 		return nil, errors.New("nome, email e password são obrigatórios")
 	}
@@ -37,10 +38,10 @@ func (handlerStruct *UserHandlerStruct) Create(body dtos.CreateUserInputDto) (*d
 	if err := handlerStruct.DataBase.WithContext(handlerStruct.context).Create(user).Error; err != nil {
 		return nil, err
 	}
-	return dtos.ToDTO(user), nil
+	return userDtos.ToDTO(user), nil
 }
 
-func (handlerStruct *UserHandlerStruct) GetByID(token string, id uint) (*dtos.UserDTO, error) {
+func (handlerStruct *UserHandlerStruct) GetByID(token string, id uint) (*userDtos.UserDTO, error) {
 	if err := auth.MustAuth(handlerStruct.Session, token); err != nil {
 		return nil, err
 	}
@@ -48,10 +49,10 @@ func (handlerStruct *UserHandlerStruct) GetByID(token string, id uint) (*dtos.Us
 	if err := handlerStruct.DataBase.WithContext(handlerStruct.context).First(&userModel, id).Error; err != nil {
 		return nil, err
 	}
-	return dtos.ToDTO(&userModel), nil
+	return userDtos.ToDTO(&userModel), nil
 }
 
-func (handlerStruct *UserHandlerStruct) Update(token string, id uint, body dtos.UpdateUserInputDto) (*dtos.UserDTO, error) {
+func (handlerStruct *UserHandlerStruct) Update(token string, id uint, body userDtos.UpdateUserInputDto) (*userDtos.UserDTO, error) {
 	if err := auth.MustAuth(handlerStruct.Session, token); err != nil {
 		return nil, err
 	}
@@ -76,10 +77,10 @@ func (handlerStruct *UserHandlerStruct) Update(token string, id uint, body dtos.
 	if err := handlerStruct.DataBase.WithContext(handlerStruct.context).Save(&userModel).Error; err != nil {
 		return nil, err
 	}
-	return dtos.ToDTO(&userModel), nil
+	return userDtos.ToDTO(&userModel), nil
 }
 
-func (handlerStruct *UserHandlerStruct) MyInfo(token string) (*dtos.UserDTO, error) {
+func (handlerStruct *UserHandlerStruct) MyInfo(token string) (*userDtos.UserDTO, error) {
 	session, err := handlerStruct.Session.Validate(token)
 	if err != nil {
 		return nil, err
@@ -89,5 +90,5 @@ func (handlerStruct *UserHandlerStruct) MyInfo(token string) (*dtos.UserDTO, err
 	if err := handlerStruct.DataBase.WithContext(handlerStruct.context).First(&userModel, session.UserID).Error; err != nil {
 		return nil, err
 	}
-	return dtos.ToDTO(&userModel), nil
+	return userDtos.ToDTO(&userModel), nil
 }

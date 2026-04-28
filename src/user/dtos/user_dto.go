@@ -1,4 +1,4 @@
-package dtos
+package userDtos
 
 import "docker-manager-go/src/models"
 

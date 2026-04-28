@@ -1,46 +1,40 @@
-import { Box, HardDrive, Key, Network, Server, Image, LayoutDashboard, Home } from 'lucide-react';
+import { Box, HardDrive, Key, Network, Image, LayoutDashboard } from 'lucide-react';
 export const navItems = [
 
   {
     label: 'Dashboard',
     description: 'Visão geral dos contêineres',
-    to: '/docker/home',
+    to: '/home',
     icon: LayoutDashboard,
   },
   {
     label: 'Networks',
     description: 'Visão das redes do docker',
-    to: '/docker/networks',
+    to: '/networks',
     icon: Network,
   },
   {
     label: 'Volumes',
     description: 'Gerencie volumes Docker',
-    to: '/docker/volumes',
+    to: '/volumes',
     icon: HardDrive,
   },
   {
     label: 'Containers',
     description: 'Gerencie contêineres locais',
-    to: '/docker/containers',
+    to: '/containers',
     icon: Box,
   },
   {
     label: 'Imagens Docker',
     description: 'Organize suas imagens',
-    to: '/docker/images',
+    to: '/images',
     icon: Image,
   },
   {
     label: 'Credenciais Docker',
     description: 'Gerencie conexões TLS do Docker',
-    to: '/docker/docker-credentials',
+    to: '/docker-credentials',
     icon: Key,
   },
-  // {
-  //   label: 'Conexões SSH',
-  //   description: 'Acesse servidores remotos',
-  //   to: '/createConnectionForm',
-  //   icon: Server,
-  // },
 ];

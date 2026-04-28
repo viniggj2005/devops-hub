@@ -8,7 +8,7 @@ import (
 
 	auth "docker-manager-go/src/auth/functions"
 	authHandlers "docker-manager-go/src/auth/handlers"
-	"docker-manager-go/src/handlers"
+	userHandlers "docker-manager-go/src/user/handlers"
 	"embed"
 	"time"
 
@@ -32,7 +32,7 @@ func main() {
 	terminal := ferretShellHandlers.NewTerminalHandler(sessionManager)
 	sshHandler := ferretShellHandlers.NewSshHandler(database.DataBase, sessionManager)
 	authHandler := authHandlers.NewAuthHandler(database.DataBase, sessionManager)
-	userHandler := handlers.NewUserHandler(database.DataBase, sessionManager)
+	userHandler := userHandlers.NewUserHandler(database.DataBase, sessionManager)
 
 	err := wails.Run(&options.App{
 		Title:            "Docker Manager",
