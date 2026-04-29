@@ -34,7 +34,7 @@ const SftpFileRow: React.FC<SftpFileRowProps> = ({
 }) => {
     return (
         <tr
-            draggable={!isDir}
+            draggable={true}
             onDragStart={onDragStart}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}

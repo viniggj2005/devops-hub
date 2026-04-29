@@ -4,8 +4,10 @@ import (
 	"context"
 	ferretShellDtos "docker-manager-go/src/ferretshell/dtos"
 	"errors"
+	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 
@@ -16,6 +18,12 @@ import (
 
 type SftpHandlerStruct struct {
 	*TerminalHandlerStruct
+}
+
+type SftpFileInfo struct {
+	Name  string `json:"name"`
+	Size  int64  `json:"size"`
+	IsDir bool   `json:"isDir"`
 }
 
 type sftpSession struct {
@@ -32,7 +40,24 @@ func NewSftpHandler(terminalHandler *TerminalHandlerStruct) *SftpHandlerStruct {
 func (handlerStruct *SftpHandlerStruct) Startup(ctx context.Context) {}
 
 func (handlerStruct *SftpHandlerStruct) ConnectSFTP(configure ferretShellDtos.SSHConnectionDto) (string, error) {
-	sshClient, err := handlerStruct.createSshClient(configure)
+	sshConfig := &ssh.ClientConfig{
+		User:            configure.User,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         configure.Timeout,
+	}
+
+	if len(configure.Key) > 0 {
+		signer, err := ssh.ParsePrivateKey(configure.Key)
+		if err != nil {
+			return "", err
+		}
+		sshConfig.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
+	} else {
+		sshConfig.Auth = []ssh.AuthMethod{ssh.Password(configure.Password)}
+	}
+
+	addr := fmt.Sprintf("%s:%d", configure.Host, configure.Port)
+	sshClient, err := ssh.Dial("tcp", addr, sshConfig)
 	if err != nil {
 		return "", err
 	}
@@ -52,56 +77,43 @@ func (handlerStruct *SftpHandlerStruct) ConnectSFTP(configure ferretShellDtos.SS
 	return sessionId, nil
 }
 
-func (handlerStruct *SftpHandlerStruct) DisconnectSFTP(sessionId string) {
+func (handlerStruct *SftpHandlerStruct) DisconnectSFTP(sessionId string) error {
 	value, ok := handlerStruct.SftpSessions.Load(sessionId)
 	if !ok {
-		return
+		return errors.New("sessão não encontrada")
 	}
-
 	session := value.(*sftpSession)
-	if session.sftpClient != nil {
-		_ = session.sftpClient.Close()
-	}
-	if session.sshClient != nil {
-		_ = session.sshClient.Close()
-	}
-
+	session.sftpClient.Close()
+	session.sshClient.Close()
 	handlerStruct.SftpSessions.Delete(sessionId)
+	return nil
 }
 
 func (handlerStruct *SftpHandlerStruct) getSftpClient(sessionId string) (*sftp.Client, error) {
 	value, ok := handlerStruct.SftpSessions.Load(sessionId)
 	if !ok {
-		return nil, errors.New("sessão SFTP não encontrada ou já encerrada")
+		return nil, errors.New("sessão não encontrada")
 	}
 	return value.(*sftpSession).sftpClient, nil
 }
 
-type SftpFileInfo struct {
-	Name  string `json:"name"`
-	Size  int64  `json:"size"`
-	IsDir bool   `json:"isDir"`
-	Mode  string `json:"mode"`
-}
-
 func (handlerStruct *SftpHandlerStruct) ListFiles(sessionId string, path string) ([]SftpFileInfo, error) {
-	sftpClient, err := handlerStruct.getSftpClient(sessionId)
+	client, err := handlerStruct.getSftpClient(sessionId)
 	if err != nil {
 		return nil, err
 	}
 
-	files, err := sftpClient.ReadDir(path)
+	files, err := client.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
 
 	var fileInfos []SftpFileInfo
-	for _, f := range files {
+	for _, file := range files {
 		fileInfos = append(fileInfos, SftpFileInfo{
-			Name:  f.Name(),
-			Size:  f.Size(),
-			IsDir: f.IsDir(),
-			Mode:  f.Mode().String(),
+			Name:  file.Name(),
+			IsDir: file.IsDir(),
+			Size:  file.Size(),
 		})
 	}
 
@@ -109,12 +121,12 @@ func (handlerStruct *SftpHandlerStruct) ListFiles(sessionId string, path string)
 }
 
 func (handlerStruct *SftpHandlerStruct) DownloadFile(sessionId string, remotePath string, localPath string) error {
-	sftpClient, err := handlerStruct.getSftpClient(sessionId)
+	client, err := handlerStruct.getSftpClient(sessionId)
 	if err != nil {
 		return err
 	}
 
-	sourceFile, err := sftpClient.Open(remotePath)
+	sourceFile, err := client.Open(remotePath)
 	if err != nil {
 		return err
 	}
@@ -142,37 +154,6 @@ func (handlerStruct *SftpHandlerStruct) DownloadMultipleFiles(sessionId string, 
 		if err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-func (handlerStruct *SftpHandlerStruct) DownloadDirectory(sessionId string, remoteDir string, localPath string) error {
-	value, ok := handlerStruct.SftpSessions.Load(sessionId)
-	if !ok {
-		return errors.New("sessão não encontrada")
-	}
-	session := value.(*sftpSession)
-
-	remoteTarPath := "/tmp/ferret_download_" + uuid.New().String() + ".tar.gz"
-
-	sshSession, err := session.sshClient.NewSession()
-	if err != nil {
-		return err
-	}
-	defer sshSession.Close()
-
-	cmd := "tar -czf " + remoteTarPath + " -C $(dirname " + remoteDir + ") $(basename " + remoteDir + ")"
-	if err := sshSession.Run(cmd); err != nil {
-		return errors.New("falha ao compactar pasta no servidor: " + err.Error())
-	}
-
-	defer func() {
-		_ = session.sftpClient.Remove(remoteTarPath)
-	}()
-	err = handlerStruct.DownloadFile(sessionId, remoteTarPath, localPath)
-	if err != nil {
-		return err
 	}
 
 	return nil
@@ -218,6 +199,78 @@ func (handlerStruct *SftpHandlerStruct) UploadMultipleFiles(sessionId string, re
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (handlerStruct *SftpHandlerStruct) UploadDirectory(sessionId string, remoteDir string, localPath string) error {
+	value, ok := handlerStruct.SftpSessions.Load(sessionId)
+	if !ok {
+		return errors.New("sessão não encontrada")
+	}
+	session := value.(*sftpSession)
+
+	localTar := filepath.Join(os.TempDir(), "upload_"+uuid.New().String()+".tar.gz")
+	tarCmd := exec.Command("tar", "-czf", localTar, "-C", filepath.Dir(localPath), filepath.Base(localPath))
+	if err := tarCmd.Run(); err != nil {
+		return fmt.Errorf("falha ao compactar localmente: %w", err)
+	}
+	defer os.Remove(localTar)
+
+	remoteTarPath := "/tmp/" + filepath.Base(localTar)
+	err := handlerStruct.UploadFile(sessionId, remoteTarPath, localTar)
+	if err != nil {
+		return err
+	}
+	defer session.sftpClient.Remove(remoteTarPath)
+
+	sshSession, err := session.sshClient.NewSession()
+	if err != nil {
+		return err
+	}
+	defer sshSession.Close()
+
+	extractCmd := fmt.Sprintf("mkdir -p %s && tar -xzf %s -C %s", remoteDir, remoteTarPath, remoteDir)
+	if err := sshSession.Run(extractCmd); err != nil {
+		return fmt.Errorf("falha ao extrair no servidor: %w", err)
+	}
+
+	return nil
+}
+
+func (handlerStruct *SftpHandlerStruct) DownloadDirectory(sessionId string, remotePath string, localDir string) error {
+	value, ok := handlerStruct.SftpSessions.Load(sessionId)
+	if !ok {
+		return errors.New("sessão não encontrada")
+	}
+	session := value.(*sftpSession)
+
+	remoteBase := path.Base(remotePath)
+	remoteTarPath := "/tmp/download_" + uuid.New().String() + ".tar.gz"
+
+	sshSession, err := session.sshClient.NewSession()
+	if err != nil {
+		return err
+	}
+	defer sshSession.Close()
+
+	compressCmd := fmt.Sprintf("tar -czf %s -C %s %s", remoteTarPath, path.Dir(remotePath), remoteBase)
+	if err := sshSession.Run(compressCmd); err != nil {
+		return fmt.Errorf("falha ao compactar no servidor: %w", err)
+	}
+	defer session.sftpClient.Remove(remoteTarPath)
+
+	localTar := filepath.Join(os.TempDir(), path.Base(remoteTarPath))
+	err = handlerStruct.DownloadFile(sessionId, remoteTarPath, localTar)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(localTar)
+
+	extractCmd := exec.Command("tar", "-xzf", localTar, "-C", localDir)
+	if err := extractCmd.Run(); err != nil {
+		return fmt.Errorf("falha ao extrair localmente: %w", err)
 	}
 
 	return nil

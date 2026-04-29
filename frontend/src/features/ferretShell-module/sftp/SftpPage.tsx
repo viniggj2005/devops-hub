@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
 import iziToast from 'izitoast';
+import SftpSidebar from './components/SftpSidebar';
+import RenameModal from './components/RenameModal';
 import { useAuth } from '../../../contexts/AuthContext';
+import SftpLocalPanel from './components/SftpLocalPanel';
+import SftpRemotePanel from './components/SftpRemotePanel';
+import React, { useState, useEffect, useRef } from 'react';
 import * as Ssh from '../../../../wailsjs/go/ferretShellHandlers/SshHandlerStruct';
 import * as Sftp from '../../../../wailsjs/go/ferretShellHandlers/SftpHandlerStruct';
 import * as Local from '../../../../wailsjs/go/ferretShellHandlers/LocalFileHandler';
 import { ferretShellHandlers, ferretShellDtos } from '../../../../wailsjs/go/models';
 
-import SftpSidebar from './components/SftpSidebar';
-import SftpRemotePanel from './components/SftpRemotePanel';
-import SftpLocalPanel from './components/SftpLocalPanel';
-import RenameModal from './components/RenameModal';
+
 
 const SftpPage: React.FC = () => {
     const { token, user } = useAuth();
@@ -19,14 +20,12 @@ const SftpPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [remotePath, setRemotePath] = useState<string>('/');
     const [sessionId, setSessionId] = useState<string | null>(null);
-    
-    // Selection state
+
     const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
     const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
     const [selectedLocalIndices, setSelectedLocalIndices] = useState<number[]>([]);
     const [lastSelectedLocalIndex, setLastSelectedLocalIndex] = useState<number | null>(null);
-    
-    // Modal state
+
     const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
     const [itemToRename, setItemToRename] = useState<{ path: string, name: string } | null>(null);
 
@@ -116,42 +115,41 @@ const SftpPage: React.FC = () => {
         }
     };
 
-    const handleDownload = async (fileName: string | string[], overridePath?: string) => {
+    const handleDownload = async (items: { name: string, isDir: boolean }[], overridePath?: string) => {
         if (!sessionId) return;
         const targetDir = overridePath || localPath;
         try {
-            if (Array.isArray(fileName)) {
-                const remotePaths = fileName.map(f => remotePath.endsWith('/') ? remotePath + f : remotePath + '/' + f);
-                await Sftp.DownloadMultipleFiles(sessionId, remotePaths, targetDir);
-                iziToast.success({ title: 'Sucesso', message: `${fileName.length} arquivos baixados`, position: 'bottomRight' });
-            } else {
-                const remote = remotePath.endsWith('/') ? remotePath + fileName : remotePath + '/' + fileName;
-                const separator = targetDir.includes('\\') ? '\\' : '/';
-                const local = targetDir.endsWith('/') || targetDir.endsWith('\\') ? targetDir + fileName : targetDir + separator + fileName;
-                await Sftp.DownloadFile(sessionId, remote, local);
-                iziToast.success({ title: 'Sucesso', message: `Arquivo ${fileName} baixado`, position: 'bottomRight' });
+            for (const item of items) {
+                const remote = remotePath.endsWith('/') ? remotePath + item.name : remotePath + '/' + item.name;
+                if (item.isDir) {
+                    await Sftp.DownloadDirectory(sessionId, remote, targetDir);
+                } else {
+                    const separator = targetDir.includes('\\') ? '\\' : '/';
+                    const local = targetDir.endsWith('/') || targetDir.endsWith('\\') ? targetDir + item.name : targetDir + separator + item.name;
+                    await Sftp.DownloadFile(sessionId, remote, local);
+                }
             }
+            iziToast.success({ title: 'Sucesso', message: 'Download concluído', position: 'bottomRight' });
             loadLocalFiles(localPath);
         } catch (err: any) {
             iziToast.error({ title: 'Erro', message: String(err), position: 'bottomRight' });
         }
     };
 
-    const handleUpload = async (filePaths: string | string[], overridePath?: string) => {
+    const handleUpload = async (items: { path: string, name: string, isDir: boolean }[], overridePath?: string) => {
         if (!sessionId) return;
         const targetRemotePath = overridePath || remotePath;
         try {
-            if (Array.isArray(filePaths)) {
-                // @ts-ignore
-                await Sftp.UploadMultipleFiles(sessionId, targetRemotePath, filePaths);
-                iziToast.success({ title: 'Sucesso', message: `${filePaths.length} arquivos enviados`, position: 'bottomRight' });
-            } else {
-                const fileName = filePaths.split(/[\\/]/).pop() || 'file';
-                const remote = targetRemotePath.endsWith('/') ? targetRemotePath + fileName : targetRemotePath + '/' + fileName;
-                // @ts-ignore
-                await Sftp.UploadFile(sessionId, remote, filePaths);
-                iziToast.success({ title: 'Sucesso', message: `Arquivo ${fileName} enviado`, position: 'bottomRight' });
+            for (const item of items) {
+                if (item.isDir) {
+                    await Sftp.UploadDirectory(sessionId, targetRemotePath, item.path);
+                } else {
+                    const remote = targetRemotePath.endsWith('/') ? targetRemotePath + item.name : targetRemotePath + '/' + item.name;
+                    // @ts-ignore
+                    await Sftp.UploadFile(sessionId, remote, item.path);
+                }
             }
+            iziToast.success({ title: 'Sucesso', message: 'Upload concluído', position: 'bottomRight' });
             loadRemoteFiles(sessionId, remotePath);
         } catch (err: any) {
             iziToast.error({ title: 'Erro', message: String(err), position: 'bottomRight' });
@@ -229,23 +227,23 @@ const SftpPage: React.FC = () => {
 
     const onDragStart = (event: React.DragEvent, index: number) => {
         const file = remoteFiles[index];
-        if (!file || file.isDir) return;
-        let files: string[] = [file.name];
+        if (!file) return;
+        let items = [{ name: file.name, isDir: file.isDir }];
         if (selectedIndices.includes(index)) {
-            files = selectedIndices.map(i => remoteFiles[i]).filter(f => f && !f.isDir).map(f => f.name);
+            items = selectedIndices.map(i => ({ name: remoteFiles[i].name, isDir: remoteFiles[i].isDir }));
         }
-        event.dataTransfer.setData('application/json', JSON.stringify({ type: 'download', files }));
+        event.dataTransfer.setData('application/json', JSON.stringify({ type: 'download', items }));
         event.dataTransfer.effectAllowed = 'copy';
     };
 
     const onLocalDragStart = (event: React.DragEvent, index: number) => {
         const file = localFiles[index];
-        if (!file || file.isDir) return;
-        let files: string[] = [file.path];
+        if (!file) return;
+        let items = [{ path: file.path, name: file.name, isDir: file.isDir }];
         if (selectedLocalIndices.includes(index)) {
-            files = selectedLocalIndices.map(i => localFiles[i]).filter(f => f && !f.isDir).map(f => f.path);
+            items = selectedLocalIndices.map(i => ({ path: localFiles[i].path, name: localFiles[i].name, isDir: localFiles[i].isDir }));
         }
-        event.dataTransfer.setData('application/json', JSON.stringify({ type: 'upload', files }));
+        event.dataTransfer.setData('application/json', JSON.stringify({ type: 'upload', items }));
         event.dataTransfer.effectAllowed = 'copy';
     };
 
@@ -255,7 +253,7 @@ const SftpPage: React.FC = () => {
             const data = event.dataTransfer.getData('application/json');
             if (data) {
                 const payload = JSON.parse(data);
-                if (payload.type === 'download') { handleDownload(payload.files, overridePath); }
+                if (payload.type === 'download') { handleDownload(payload.items, overridePath); }
             }
         } catch (err) { console.error('Erro ao processar drop no local:', err); }
     };
@@ -267,7 +265,7 @@ const SftpPage: React.FC = () => {
             const data = event.dataTransfer.getData('application/json');
             if (data) {
                 const payload = JSON.parse(data);
-                if (payload.type === 'upload') { handleUpload(payload.files, targetPath); return; }
+                if (payload.type === 'upload') { handleUpload(payload.items, targetPath); return; }
             }
             if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
                 iziToast.info({ title: 'Upload', message: 'Para arquivos externos, arraste primeiro para o painel Local.', position: 'bottomRight' });

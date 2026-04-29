@@ -467,7 +467,6 @@ export namespace ferretShellHandlers {
 	    name: string;
 	    size: number;
 	    isDir: boolean;
-	    mode: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SftpFileInfo(source);
@@ -478,7 +477,6 @@ export namespace ferretShellHandlers {
 	        this.name = source["name"];
 	        this.size = source["size"];
 	        this.isDir = source["isDir"];
-	        this.mode = source["mode"];
 	    }
 	}
 	export class sshConnection {

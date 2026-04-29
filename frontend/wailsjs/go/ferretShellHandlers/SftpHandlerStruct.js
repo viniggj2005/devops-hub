@@ -58,6 +58,10 @@ export function Startup(arg1) {
   return window['go']['ferretShellHandlers']['SftpHandlerStruct']['Startup'](arg1);
 }
 
+export function UploadDirectory(arg1, arg2, arg3) {
+  return window['go']['ferretShellHandlers']['SftpHandlerStruct']['UploadDirectory'](arg1, arg2, arg3);
+}
+
 export function UploadFile(arg1, arg2, arg3) {
   return window['go']['ferretShellHandlers']['SftpHandlerStruct']['UploadFile'](arg1, arg2, arg3);
 }

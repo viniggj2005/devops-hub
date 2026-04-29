@@ -32,6 +32,8 @@ export function Send(arg1:string,arg2:string):Promise<void>;
 
 export function Startup(arg1:context.Context):Promise<void>;
 
+export function UploadDirectory(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function UploadFile(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function UploadMultipleFiles(arg1:string,arg2:string,arg3:Array<string>):Promise<void>;
