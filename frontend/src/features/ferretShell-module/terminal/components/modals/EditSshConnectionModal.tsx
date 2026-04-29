@@ -21,6 +21,7 @@ const EditSshConnectionModal: React.FC<EditSshConnectionModalProps> = ({
       systemUser: connection.systemUser,
       port: connection.port ?? undefined,
       alias: connection.alias ?? undefined,
+      password: connection.password ? connection.password : undefined,
       knownHosts: connection.knownHostsData ?? undefined,
     };
   }, [connection]);

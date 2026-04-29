@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import appIcon from '../assets/images/hub.svg';
 import { useNavigate } from 'react-router-dom';
-import appIcon from '../assets/images/appicon.png';
 import { Container, Layers, Server } from 'lucide-react';
 import CreateUserForm from '../features/users/components/forms/CreateUserForm';
 const CreateAccountPage: React.FC = () => {
@@ -64,7 +64,7 @@ const CreateAccountPage: React.FC = () => {
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl blur-lg opacity-75" />
                   <div className="relative w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl flex items-center justify-center">
-                    <img src={appIcon} alt="App Icon" className="w-9 h-9 " />
+                    <img src={appIcon} className="w-22 h-22 brightness-0 invert " />
                   </div>
                 </div>
               </motion.div>

@@ -62,6 +62,8 @@ const SftpPage: React.FC = () => {
             config.InsecureIgnoreHostKey = true;
             if (sshDto.key) {
                 config.Key = Array.from(sshDto.key).map(char => char.charCodeAt(0));
+            } else if (sshDto.password) {
+                config.Password = sshDto.password;
             } else {
                 const password = prompt(`Digite a senha para ${sshDto.systemUser}@${sshDto.host}:`);
                 if (!password) {

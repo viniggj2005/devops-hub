@@ -57,6 +57,13 @@ func (handlerStruct *SshHandlerStruct) UpdateSshConnection(token string, id uint
 		}
 		existing.Key.Plaintext = string(keyBytes)
 	}
+	if body.Password != nil && *body.Password != "" {
+		passwordBytes, err := base64.StdEncoding.DecodeString(*body.Password)
+		if err != nil {
+			return fmt.Errorf("erro ao decodificar senha: %w", err)
+		}
+		existing.Password.Plaintext = string(passwordBytes)
+	}
 
 	if body.KnownHostsData != nil && *body.KnownHostsData != "" {
 		knownBytes, err := base64.StdEncoding.DecodeString(*body.KnownHostsData)
@@ -90,12 +97,21 @@ func (handlerStruct *SshHandlerStruct) CreateSshConnection(token string, body fe
 	}
 
 	var keyString string
+	var passwordString string
 	if body.Key != nil && *body.Key != "" {
 		keyBytes, err := base64.StdEncoding.DecodeString(*body.Key)
 		if err != nil {
 			return fmt.Errorf("erro ao decodificar chave: %w", err)
 		}
 		keyString = string(keyBytes)
+	}
+
+	if body.Password != nil && *body.Password != "" {
+		passwordBytes, err := base64.StdEncoding.DecodeString(*body.Password)
+		if err != nil {
+			return fmt.Errorf("erro ao decodificar senha: %w", err)
+		}
+		passwordString = string(passwordBytes)
 	}
 
 	var knownString string
@@ -117,6 +133,7 @@ func (handlerStruct *SshHandlerStruct) CreateSshConnection(token string, body fe
 		Host:           types.EncryptedString{Plaintext: body.Host},
 		SystemUser:     body.SystemUser,
 		Port:           port,
+		Password:       types.EncryptedString{Plaintext: passwordString},
 		Key:            types.EncryptedString{Plaintext: keyString},
 		KnownHostsData: types.EncryptedString{Plaintext: knownString},
 		UserID:         body.UserID,

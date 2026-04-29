@@ -356,6 +356,7 @@ export namespace ferretShellDtos {
 	    alias?: string;
 	    port?: number;
 	    key?: string;
+	    password?: string;
 	    knownHosts?: string;
 	    userId: number;
 	
@@ -370,6 +371,7 @@ export namespace ferretShellDtos {
 	        this.alias = source["alias"];
 	        this.port = source["port"];
 	        this.key = source["key"];
+	        this.password = source["password"];
 	        this.knownHosts = source["knownHosts"];
 	        this.userId = source["userId"];
 	    }
@@ -415,6 +417,7 @@ export namespace ferretShellDtos {
 	    host: string;
 	    alias?: string;
 	    systemUser: string;
+	    password?: string;
 	    port?: number;
 	    key?: string;
 	    knownHosts?: string;
@@ -430,6 +433,7 @@ export namespace ferretShellDtos {
 	        this.host = source["host"];
 	        this.alias = source["alias"];
 	        this.systemUser = source["systemUser"];
+	        this.password = source["password"];
 	        this.port = source["port"];
 	        this.key = source["key"];
 	        this.knownHosts = source["knownHosts"];
@@ -700,6 +704,7 @@ export namespace models {
 	    systemUser: string;
 	    port: number;
 	    Key: types.EncryptedString;
+	    Password: types.EncryptedString;
 	    KnownHostsData: types.EncryptedString;
 	    UserID: number;
 	    User: UserModel;
@@ -719,6 +724,7 @@ export namespace models {
 	        this.systemUser = source["systemUser"];
 	        this.port = source["port"];
 	        this.Key = this.convertValues(source["Key"], types.EncryptedString);
+	        this.Password = this.convertValues(source["Password"], types.EncryptedString);
 	        this.KnownHostsData = this.convertValues(source["KnownHostsData"], types.EncryptedString);
 	        this.UserID = source["UserID"];
 	        this.User = this.convertValues(source["User"], UserModel);

@@ -7,8 +7,6 @@ export const useTerminalStore = create<TerminalStateProps>((set) => ({
   tabs: [],
   activeTabId: null,
   viewMode: 'page',
-  askPassword: false,
-  pendingConfig: null,
   open: false,
   broadcastActive: false,
 
@@ -108,35 +106,5 @@ export const useTerminalStore = create<TerminalStateProps>((set) => ({
     });
   },
 
-  requirePassword: (config) => set({ pendingConfig: config, askPassword: true }),
-
-  submitPassword: (password) =>
-    set((state) => {
-      if (state.pendingConfig) {
-        const configWithPassword = { ...state.pendingConfig, Password: password };
-        const instanceId = generateId();
-        const tabId = generateId();
-        const newInstance: TerminalInstance = {
-          id: instanceId,
-          title: `${configWithPassword.User}@${configWithPassword.Host}`,
-          config: { ...configWithPassword, SshSessionId: instanceId }
-        };
-        const newTab: TerminalTab = {
-          id: tabId,
-          title: newInstance.title,
-          instances: [newInstance],
-        };
-        return {
-          tabs: [...state.tabs, newTab],
-          activeTabId: tabId,
-          viewMode: 'terminal',
-          askPassword: false,
-          pendingConfig: null,
-          open: true
-        };
-      }
-      return {};
-    }),
-
-  close: () => set({ tabs: [], activeTabId: null, open: false, askPassword: false, pendingConfig: null }),
+  close: () => set({ tabs: [], activeTabId: null, open: false }),
 }));

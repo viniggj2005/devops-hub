@@ -2,14 +2,12 @@ import React from 'react';
 import FerretShellNavbar from './FerretShellNavbar';
 import { useTerminalStore } from '../terminal/TerminalStore';
 import TerminalTabArea from '../terminal/components/TerminalTabArea';
-import PasswordModal from '../terminal/components/modals/PasswordModal';
-
 interface FerretShellShellProps {
     children: React.ReactNode;
 }
 
 const FerretShellShell: React.FC<FerretShellShellProps> = ({ children }) => {
-    const { tabs, askPassword, submitPassword, viewMode } = useTerminalStore();
+    const { tabs, viewMode } = useTerminalStore();
     const hasTabs = tabs.length > 0;
 
     return (
@@ -26,12 +24,6 @@ const FerretShellShell: React.FC<FerretShellShellProps> = ({ children }) => {
                     <TerminalTabArea />
                 </div>
             </main>
-
-            <PasswordModal
-                open={askPassword}
-                onClose={() => useTerminalStore.getState().close()}
-                onSubmit={(pwd) => submitPassword(pwd)}
-            />
         </div>
     );
 };

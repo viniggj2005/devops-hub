@@ -11,6 +11,7 @@ type CreateSshConnectionInputDto struct {
 	Alias          *string `json:"alias,omitempty"`
 	Port           *int64  `json:"port,omitempty"`
 	Key            *string `json:"key,omitempty"`
+	Password       *string `json:"password,omitempty"`
 	KnownHostsData *string `json:"knownHosts,omitempty"`
 	UserID         uint    `json:"userId" binding:"required"`
 }
@@ -20,6 +21,7 @@ type SshDto struct {
 	Host           string  `json:"host"`
 	Alias          *string `json:"alias,omitempty"`
 	SystemUser     string  `json:"systemUser"`
+	Password       *string `json:"password,omitempty"`
 	Port           *int64  `json:"port,omitempty"`
 	Key            *string `json:"key,omitempty"`
 	KnownHostsData *string `json:"knownHosts,omitempty"`
@@ -56,12 +58,23 @@ func ToSshDTO(model *models.SshConnectionModel) *SshDto {
 		knownPointer = &model.KnownHostsData.Plaintext
 	}
 
+	var passwordPointer *string
+	if model.Password.Plaintext != "" {
+		passwordPointer = &model.Password.Plaintext
+	}
+
+	var aliasPointer *string
+	if model.Alias != "" {
+		aliasPointer = &model.Alias
+	}
+
 	return &SshDto{
 		ID:             model.ID,
 		Host:           host,
-		Alias:          &model.Alias,
+		Alias:          aliasPointer,
 		SystemUser:     model.SystemUser,
 		Port:           &model.Port,
+		Password:       passwordPointer,
 		Key:            keyPointer,
 		KnownHostsData: knownPointer,
 		UserID:         model.UserID,

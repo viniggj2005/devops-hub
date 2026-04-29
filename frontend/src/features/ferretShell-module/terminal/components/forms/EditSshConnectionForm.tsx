@@ -53,12 +53,21 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!formData.key && !formData.password) {
+      iziToast.error({
+        title: 'Erro',
+        message: 'Você deve fornecer uma senha ou um arquivo de chave.',
+        position: 'bottomRight',
+      });
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
         ...formData,
         userId: user?.id,
         key: toBase64(formData.key),
+        password: formData.password ? btoa(formData.password) : undefined,
       };
       await TerminalServices.updateSshConnection(token ?? '', id, payload);
       iziToast.success({
@@ -125,6 +134,18 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
             name="port"
             value={formData.port}
             onChange={handleChange}
+          />
+        </div>
+
+        <div className="grid gap-1.5">
+          <label className={labelBase}>Senha</label>
+          <input
+            className={inputBase}
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            placeholder="Deixe em branco para não alterar"
           />
         </div>
 

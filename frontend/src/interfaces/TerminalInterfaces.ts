@@ -28,6 +28,7 @@ export interface CreateSshConnectionInterface {
   alias?: string;
   userId?: number;
   systemUser: string;
+  password?: string;
   knownHosts?: string;
 }
 
@@ -48,6 +49,7 @@ export interface SshDto {
   systemUser: string;
   keyPath?: string | null;
   passphrase?: string | null;
+  password?: string | null;
   key?: number[] | string | null;
   knownHostsData?: string | null;
 }
@@ -69,12 +71,6 @@ export interface ModalProps {
   onCreated: () => void;
 }
 
-export interface PasswordModalProps {
-  open: boolean;
-  onClose: () => void;
-  onSubmit: (password: string) => void;
-}
-
 export interface TerminalInstance {
   id: string;
   title: string;
@@ -93,8 +89,6 @@ export interface TerminalTab {
 export interface TerminalStateProps {
   tabs: TerminalTab[];
   activeTabId: string | null;
-  askPassword: boolean;
-  pendingConfig: SSHConnectionDto | null;
   viewMode: 'page' | 'terminal';
   broadcastActive: boolean;
   setBroadcastActive: (value: boolean) => void;
@@ -106,9 +100,6 @@ export interface TerminalStateProps {
   addInstanceToTab: (tabId: string, instance: Omit<TerminalInstance, 'id'>, index?: number, layout?: 'vertical' | 'horizontal' | 'grid') => void;
   removeInstance: (tabId: string, instanceId: string) => void;
   setLayout: (tabId: string, layout: 'vertical' | 'horizontal' | 'grid') => void;
-
-  submitPassword: (password: string) => void;
-  requirePassword: (config: SSHConnectionDto) => void;
 
   open: boolean;
   close: () => void;

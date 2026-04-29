@@ -19,6 +19,7 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
     host: '',
     alias: '',
     systemUser: '',
+    password: '',
     knownHosts: '',
     userId: user ? user.id : 1,
   });
@@ -48,9 +49,21 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!formData.key && !formData.password) {
+      iziToast.error({
+        title: 'Erro',
+        message: 'Você deve fornecer uma senha ou um arquivo de chave.',
+        position: 'bottomRight',
+      });
+      return;
+    }
     setSubmitting(true);
     try {
-      await TerminalServices.createSshConnection(token ? token : '', formData);
+      const payload = { ...formData };
+      if (payload.password) {
+        payload.password = btoa(payload.password);
+      }
+      await TerminalServices.createSshConnection(token ? token : '', payload);
       iziToast.success({
         title: 'Criado com sucesso',
         message: 'A conexão SSH foi criada.',
@@ -65,6 +78,7 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
         host: '',
         alias: '',
         systemUser: '',
+        password: '',
         knownHosts: '',
         userId: user ? user.id : 1,
       });
@@ -161,6 +175,18 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
               name="port"
               value={formData.port}
               onChange={handleChange}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>Senha <span className="opacity-60 text-xs">(opcional se usar chave)</span></label>
+            <input
+              className={inputClass}
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="sua senha"
             />
           </div>
 
