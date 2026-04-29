@@ -12,7 +12,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-const AppVersion = "1.0.1"
+const AppVersion = "1.0.0"
 const RepoSlug = "viniggj2005/devops-hub"
 
 type App struct {
