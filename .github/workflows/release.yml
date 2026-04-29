@@ -59,10 +59,12 @@ jobs:
 
       - name: Build App
         run: |
-          if [ "${{ matrix.os }}" == "ubuntu-24.04" ]; then
-            wails build -tags webkit2_41 -o docker-manager-ubuntu24
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            wails build -o devops-hub_windows_amd64.exe
+          elif [ "${{ matrix.os }}" == "ubuntu-24.04" ]; then
+            wails build -tags webkit2_41 -o devops-hub_linux_amd64
           else
-            wails build
+            wails build -o devops-hub_linux_amd64
           fi
         shell: bash
 

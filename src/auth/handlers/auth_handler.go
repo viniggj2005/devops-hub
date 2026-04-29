@@ -18,14 +18,23 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-type AuthHandlerStruct struct {
-	DataBase *gorm.DB
-	context  context.Context
-	Session  *authFunctions.ManagerStruct
+type UpdateChecker interface {
+	AutoCheckForUpdates()
 }
 
-func NewAuthHandler(dataBase *gorm.DB, sessionManager *authFunctions.ManagerStruct) *AuthHandlerStruct {
-	return &AuthHandlerStruct{DataBase: dataBase, Session: sessionManager}
+type AuthHandlerStruct struct {
+	DataBase      *gorm.DB
+	context       context.Context
+	Session       *authFunctions.ManagerStruct
+	updateChecker UpdateChecker
+}
+
+func NewAuthHandler(dataBase *gorm.DB, sessionManager *authFunctions.ManagerStruct, updateChecker UpdateChecker) *AuthHandlerStruct {
+	return &AuthHandlerStruct{
+		DataBase:      dataBase,
+		Session:       sessionManager,
+		updateChecker: updateChecker,
+	}
 }
 
 func (handlerStruct *AuthHandlerStruct) Startup(context context.Context) {
@@ -54,6 +63,10 @@ func (handlerStruct *AuthHandlerStruct) Login(body authDtos.LoginInputDto) (*aut
 
 	runtime.EventsEmit(handlerStruct.context, "auth:changed", true)
 	uDTO := userDtos.ToDTO(&userModel)
+
+	if handlerStruct.updateChecker != nil {
+		go handlerStruct.updateChecker.AutoCheckForUpdates()
+	}
 
 	return &authDtos.LoginResponseDto{
 		Token: token,
