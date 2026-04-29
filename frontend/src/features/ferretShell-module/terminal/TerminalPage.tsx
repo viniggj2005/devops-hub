@@ -1,36 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Terminal, Plus, History, Server, Shield, Zap, ArrowRight } from 'lucide-react';
-import SshConnectionList from '../features/ferretShell-module/terminal/components/list/SshConnectionList';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { Terminal, Plus, Server, Zap } from 'lucide-react';
+import SshConnectionList from './components/SshConnectionList';
 
-const FerretShellHomePage: React.FC = () => {
+const TerminalPage: React.FC = () => {
     const navigate = useNavigate();
     const { token } = useAuth();
-
-    const quickActions = [
-        {
-            title: 'Nova Conexão',
-            description: 'Configure uma nova sessão SSH para um servidor remoto.',
-            icon: <Plus className="w-6 h-6" />,
-            color: 'from-purple-500 to-indigo-600',
-            path: '/term/createConnectionForm'
-        },
-        {
-            title: 'Sessões Recentes',
-            description: 'Acesse rapidamente os servidores conectados recentemente.',
-            icon: <History className="w-6 h-6" />,
-            color: 'from-blue-500 to-cyan-600',
-            path: '#'
-        },
-        {
-            title: 'Chaves SSH',
-            description: 'Gerencie suas chaves públicas e privadas com segurança.',
-            icon: <Shield className="w-6 h-6" />,
-            color: 'from-emerald-500 to-teal-600',
-            path: '#'
-        }
-    ];
 
     return (
         <div className="space-y-12 pb-20">
@@ -78,4 +54,4 @@ const FerretShellHomePage: React.FC = () => {
     );
 };
 
-export default FerretShellHomePage;
+export default TerminalPage;

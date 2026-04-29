@@ -6,6 +6,8 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path"
+	"path/filepath"
 
 	"github.com/google/uuid"
 	"github.com/pkg/sftp"
@@ -127,6 +129,95 @@ func (handlerStruct *SftpHandlerStruct) DownloadFile(sessionId string, remotePat
 	_, err = io.Copy(destinationFile, sourceFile)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (handlerStruct *SftpHandlerStruct) DownloadMultipleFiles(sessionId string, remotePaths []string, localPath string) error {
+	for _, remotePath := range remotePaths {
+		fileName := path.Base(remotePath)
+		dest := filepath.Join(localPath, fileName)
+		err := handlerStruct.DownloadFile(sessionId, remotePath, dest)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (handlerStruct *SftpHandlerStruct) DownloadDirectory(sessionId string, remoteDir string, localPath string) error {
+	value, ok := handlerStruct.SftpSessions.Load(sessionId)
+	if !ok {
+		return errors.New("sessão não encontrada")
+	}
+	session := value.(*sftpSession)
+
+	remoteTarPath := "/tmp/ferret_download_" + uuid.New().String() + ".tar.gz"
+
+	sshSession, err := session.sshClient.NewSession()
+	if err != nil {
+		return err
+	}
+	defer sshSession.Close()
+
+	cmd := "tar -czf " + remoteTarPath + " -C $(dirname " + remoteDir + ") $(basename " + remoteDir + ")"
+	if err := sshSession.Run(cmd); err != nil {
+		return errors.New("falha ao compactar pasta no servidor: " + err.Error())
+	}
+
+	defer func() {
+		_ = session.sftpClient.Remove(remoteTarPath)
+	}()
+	err = handlerStruct.DownloadFile(sessionId, remoteTarPath, localPath)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (handlerStruct *SftpHandlerStruct) UploadFile(sessionId string, remotePath string, localPath string) error {
+	sftpClient, err := handlerStruct.getSftpClient(sessionId)
+	if err != nil {
+		return err
+	}
+
+	sourceFile, err := os.Open(localPath)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destinationFile, err := sftpClient.Create(remotePath)
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+
+	_, err = io.Copy(destinationFile, sourceFile)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (handlerStruct *SftpHandlerStruct) UploadMultipleFiles(sessionId string, remoteDir string, localPaths []string) error {
+	for _, localPath := range localPaths {
+		fileName := filepath.Base(localPath)
+		separator := "/"
+		dest := remoteDir
+		if dest == "" || dest[len(dest)-1:] != "/" {
+			dest += separator
+		}
+		dest += fileName
+
+		err := handlerStruct.UploadFile(sessionId, dest, localPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

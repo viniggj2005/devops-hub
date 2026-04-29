@@ -16,7 +16,11 @@ export function Disconnect(arg1:string):Promise<void>;
 
 export function DisconnectSFTP(arg1:string):Promise<void>;
 
+export function DownloadDirectory(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function DownloadFile(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function DownloadMultipleFiles(arg1:string,arg2:Array<string>,arg3:string):Promise<void>;
 
 export function GetSession(arg1:string):Promise<ferretShellHandlers.sshConnection|boolean>;
 
@@ -27,3 +31,7 @@ export function Resize(arg1:string,arg2:number,arg3:number):Promise<void>;
 export function Send(arg1:string,arg2:string):Promise<void>;
 
 export function Startup(arg1:context.Context):Promise<void>;
+
+export function UploadFile(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function UploadMultipleFiles(arg1:string,arg2:string,arg3:Array<string>):Promise<void>;

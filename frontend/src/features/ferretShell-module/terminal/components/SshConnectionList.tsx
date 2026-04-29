@@ -1,19 +1,19 @@
 import iziToast from 'izitoast';
-import { useTerminalStore } from '../../TerminalStore';
-import SshConnectionCard from "../cards/SshConnectionCard";
-import { useAuth } from '../../../../../contexts/AuthContext';
+import { useTerminalStore } from '../TerminalStore';
+import SshConnectionCard from "./SshConnectionCard";
+import { useAuth } from '../../../../contexts/AuthContext';
+import EditSshConnectionModal from './EditSshConnectionModal';
 import React, { useCallback, useEffect, useState } from 'react';
-import { SshDto } from '../../../../../interfaces/TerminalInterfaces';
-import EditSshConnectionModal from '../modals/EditSshConnectionModal';
-import { TerminalServices, toSshConn } from '../../services/TerminalServices';
-import { useConfirmToast } from '../../../../shared/components/toasts/ConfirmToast';
+import { SshDto } from '../../../../interfaces/TerminalInterfaces';
+import { TerminalServices, toSshConn } from '../services/TerminalServices';
+import { useConfirmToast } from '../../../shared/components/toasts/ConfirmToast';
 
 const SshConnectionList: React.FC<{ token: string }> = ({ token }) => {
   const { user } = useAuth();
   const confirmToast = useConfirmToast();
+  const { createTab } = useTerminalStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { createTab } = useTerminalStore();
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [connectionsList, setConnectionsList] = useState<SshDto[]>([]);
   const [editingConnection, setEditingConnection] = useState<SshDto | null>(null);

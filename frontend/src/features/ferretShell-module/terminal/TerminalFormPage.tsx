@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { Plus, Shield, Terminal, Server } from 'lucide-react';
-import SshConnectionList from '../features/ferretShell-module/terminal/components/list/SshConnectionList';
-import SshConnectionModal from '../features/ferretShell-module/terminal/components/modals/CreateSshConnectionModal';
+import SshConnectionList from './components/SshConnectionList';
+import SshConnectionModal from './components/CreateSshConnectionModal';
 
 const TerminalFormPage: React.FC = () => {
   const [open, setOpen] = useState(false);

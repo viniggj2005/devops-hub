@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { FilePen } from 'lucide-react';
-import { toBase64 } from '../../functions/TreatmentFunctions';
-import { Modal } from '../../../../shared/components/modals/Modal';
-import EditSshConnectionForm from '../forms/EditSshConnectionForm';
-import { EditSshConnectionModalProps, CreateSshConnectionInterface } from '../../../../../interfaces/TerminalInterfaces';
+import { toBase64 } from '../functions/TreatmentFunctions';
+import EditSshConnectionForm from './EditSshConnectionForm';
+import { Modal } from '../../../shared/components/modals/Modal';
+import { EditSshConnectionModalProps, CreateSshConnectionInterface } from '../../../../interfaces/TerminalInterfaces';
 
 const EditSshConnectionModal: React.FC<EditSshConnectionModalProps> = ({
   open,

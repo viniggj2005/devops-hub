@@ -58,3 +58,20 @@ func (handlerStruct *LocalFileHandler) ListLocalFiles(path string) ([]LocalFileI
 func (handlerStruct *LocalFileHandler) GetHomeDir() (string, error) {
 	return os.UserHomeDir()
 }
+
+func (handlerStruct *LocalFileHandler) RenameLocalFile(currentPath string, newPath string) error {
+	return os.Rename(currentPath, newPath)
+}
+
+func (handlerStruct *LocalFileHandler) DeleteLocalFile(path string) error {
+	return os.RemoveAll(path)
+}
+
+func (handlerStruct *LocalFileHandler) DeleteLocalFiles(paths []string) error {
+	for _, path := range paths {
+		if err := os.RemoveAll(path); err != nil {
+			return err
+		}
+	}
+	return nil
+}

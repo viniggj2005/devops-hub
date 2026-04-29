@@ -1,10 +1,9 @@
 import iziToast from 'izitoast';
-import { useNavigate } from 'react-router-dom';
 import ContainerCard from './components/cards/ContainerCard';
+import TerminalModal from './components/modals/TerminalModal';
 import { FmtName } from '../../shared/functions/TreatmentFunction';
 import { ContainerItem } from '../../../interfaces/ContainerInterfaces';
 import { useDockerClient } from '../../../contexts/DockerClientContext';
-import { useTerminalStore } from '../../ferretShell-module/terminal/TerminalStore';
 import { useCallback, useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import { getContainers, stopContainer, startContainer, renameContainer, toggleContainerState } from './services/ContainersService';
 
@@ -13,10 +12,10 @@ export interface ContainersListFetchRef {
 }
 
 const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
-  const navigate = useNavigate();
   const timerRef = useRef<number | null>(null);
   const [LogsModalId, setLogsModalId] = useState<string | null>(null);
   const [MenuModalId, setMenuModalId] = useState<string | null>(null);
+  const [terminalModalId, setTerminalModalId] = useState<string | null>(null);
   const [containers, setcontainers] = useState<ContainerItem[] | null>(null);
   const [editNameModalId, setEditNameModalId] = useState<string | null>(null);
   const { dockerClientId, loading: credentialsLoading, connecting } = useDockerClient();
@@ -114,6 +113,8 @@ const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
     await fetchContainers();
   };
 
+  const selectedContainerForTerminal = containers?.find(c => c.Id === terminalModalId);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {containers &&
@@ -126,6 +127,7 @@ const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
 
           return (
             <ContainerCard
+              key={container.Id}
               name={name}
               isSeeing={isSeeing}
               isOpened={isOpened}
@@ -141,23 +143,22 @@ const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
               onOpenLogs={() => setLogsModalId(container.Id)}
               onOpenMenu={() => setMenuModalId(container.Id)}
               onOpenEdit={() => setEditNameModalId(container.Id)}
-              onOpenTerminal={() => {
-                useTerminalStore.getState().createTab({
-                  title: `Exec: ${container.Names[0] || 'Container'}`,
-                  containerId: container.Id,
-                  containerName: container.Names[0] || 'Container'
-                });
-                navigate('/term/home');
-              }}
+              onOpenTerminal={() => setTerminalModalId(container.Id)}
               onDeleted={async () => {
                 await fetchContainers();
                 setMenuModalId(null);
               }}
             />
           );
-
-
         })}
+
+      {terminalModalId && selectedContainerForTerminal && (
+        <TerminalModal
+          id={terminalModalId}
+          name={FmtName(selectedContainerForTerminal.Names)}
+          onClose={() => setTerminalModalId(null)}
+        />
+      )}
 
       <footer className="mt-6 text-xs text-gray-500 dark:text-zinc-400">
         Atualiza a cada 2s. Clique em “Atualizar” para forçar agora.

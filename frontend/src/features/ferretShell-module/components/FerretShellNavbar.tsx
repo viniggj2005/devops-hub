@@ -84,7 +84,12 @@ const FerretShellNavbar: React.FC = () => {
                             <button
                                 onClick={(event) => {
                                     event.stopPropagation();
+                                    const isLastTab = tabs.length === 1;
                                     closeTab(tab.id);
+                                    if (isLastTab) {
+                                        setViewMode('page');
+                                        navigate('/term/home');
+                                    }
                                 }}
                                 className="opacity-0 group-hover:opacity-100 p-0.5 rounded-full hover:bg-zinc-700 transition-opacity"
                             >

@@ -3,8 +3,14 @@
 import {ferretShellHandlers} from '../models';
 import {context} from '../models';
 
+export function DeleteLocalFile(arg1:string):Promise<void>;
+
+export function DeleteLocalFiles(arg1:Array<string>):Promise<void>;
+
 export function GetHomeDir():Promise<string>;
 
 export function ListLocalFiles(arg1:string):Promise<Array<ferretShellHandlers.LocalFileInfo>>;
+
+export function RenameLocalFile(arg1:string,arg2:string):Promise<void>;
 
 export function Startup(arg1:context.Context):Promise<void>;

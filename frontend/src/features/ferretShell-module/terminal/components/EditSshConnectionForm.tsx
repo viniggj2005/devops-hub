@@ -1,10 +1,10 @@
 import iziToast from 'izitoast';
 import React, { useState, useEffect } from 'react';
 import { FileUploader } from 'react-drag-drop-files';
-import { useAuth } from '../../../../../contexts/AuthContext';
-import { toBase64 } from '../../functions/TreatmentFunctions';
-import { TerminalServices } from '../../services/TerminalServices';
-import { EditSshConnectionFormProps, CreateSshConnectionInterface } from '../../../../../interfaces/TerminalInterfaces';
+import { toBase64 } from '../functions/TreatmentFunctions';
+import { useAuth } from '../../../../contexts/AuthContext';
+import { TerminalServices } from '../services/TerminalServices';
+import { EditSshConnectionFormProps, CreateSshConnectionInterface } from '../../../../interfaces/TerminalInterfaces';
 
 const labelBase = 'text-xs font-medium text-zinc-400';
 
@@ -31,9 +31,9 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = event.target;
     if (name === 'port') {
-      setFormData((previous) => ({ ...previous, [name]: Number(value) || 0 }));
+      setFormData((previous: any) => ({ ...previous, [name]: Number(value) || 0 }));
     } else {
-      setFormData((previous) => ({ ...previous, [name]: value }));
+      setFormData((previous: any) => ({ ...previous, [name]: value }));
     }
   };
 
@@ -48,7 +48,7 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
       reader.readAsDataURL(selectedFile);
     });
 
-    setFormData((previous) => ({ ...previous, key: base64 }));
+    setFormData((previous: any) => ({ ...previous, key: base64 }));
   };
 
   const handleSubmit = async (event: React.FormEvent) => {

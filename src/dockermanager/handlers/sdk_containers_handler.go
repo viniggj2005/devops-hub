@@ -297,3 +297,18 @@ func (handlerStruct *DockerSdkHandlerStruct) TerminalResize(clientId int, contai
 
 	return nil
 }
+
+func (handlerStruct *DockerSdkHandlerStruct) TerminalClose(containerId string) error {
+	handlerStruct.mutex.Lock()
+	conn, ok := handlerStruct.terminalConns[containerId]
+	if ok {
+		delete(handlerStruct.terminalConns, containerId)
+		delete(handlerStruct.terminalExecIds, containerId)
+	}
+	handlerStruct.mutex.Unlock()
+
+	if ok {
+		return conn.Close()
+	}
+	return nil
+}

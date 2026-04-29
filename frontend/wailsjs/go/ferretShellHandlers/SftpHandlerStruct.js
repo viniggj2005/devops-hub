@@ -26,8 +26,16 @@ export function DisconnectSFTP(arg1) {
   return window['go']['ferretShellHandlers']['SftpHandlerStruct']['DisconnectSFTP'](arg1);
 }
 
+export function DownloadDirectory(arg1, arg2, arg3) {
+  return window['go']['ferretShellHandlers']['SftpHandlerStruct']['DownloadDirectory'](arg1, arg2, arg3);
+}
+
 export function DownloadFile(arg1, arg2, arg3) {
   return window['go']['ferretShellHandlers']['SftpHandlerStruct']['DownloadFile'](arg1, arg2, arg3);
+}
+
+export function DownloadMultipleFiles(arg1, arg2, arg3) {
+  return window['go']['ferretShellHandlers']['SftpHandlerStruct']['DownloadMultipleFiles'](arg1, arg2, arg3);
 }
 
 export function GetSession(arg1) {
@@ -48,4 +56,12 @@ export function Send(arg1, arg2) {
 
 export function Startup(arg1) {
   return window['go']['ferretShellHandlers']['SftpHandlerStruct']['Startup'](arg1);
+}
+
+export function UploadFile(arg1, arg2, arg3) {
+  return window['go']['ferretShellHandlers']['SftpHandlerStruct']['UploadFile'](arg1, arg2, arg3);
+}
+
+export function UploadMultipleFiles(arg1, arg2, arg3) {
+  return window['go']['ferretShellHandlers']['SftpHandlerStruct']['UploadMultipleFiles'](arg1, arg2, arg3);
 }

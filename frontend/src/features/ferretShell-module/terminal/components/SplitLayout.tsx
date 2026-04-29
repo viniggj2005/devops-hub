@@ -1,4 +1,4 @@
-import TerminalInstance from '../TerminalInstance';
+import TerminalInstance from './TerminalInstance';
 import { useTerminalStore } from '../TerminalStore';
 import React, { useState, useRef, useEffect } from 'react';
 import { TerminalInstance as ITerminalInstance } from '../../../../interfaces/TerminalInterfaces';
@@ -23,24 +23,24 @@ const SplitLayout: React.FC<Props> = ({ instances, tabId }) => {
 
   if (count === 0) return null;
 
-  const handleMouseMoveV = (e: MouseEvent) => {
+  const handleMouseMoveV = (event: MouseEvent) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const pos = ((e.clientX - rect.left) / rect.width) * 100;
+    const pos = ((event.clientX - rect.left) / rect.width) * 100;
     setVSplit(Math.max(10, Math.min(90, pos)));
   };
 
-  const handleMouseMoveH1 = (e: MouseEvent) => {
+  const handleMouseMoveH1 = (event: MouseEvent) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const pos = ((e.clientY - rect.top) / rect.height) * 100;
+    const pos = ((event.clientY - rect.top) / rect.height) * 100;
     setHSplit1(Math.max(10, Math.min(90, pos)));
   };
 
-  const handleMouseMoveH2 = (e: MouseEvent) => {
+  const handleMouseMoveH2 = (event: MouseEvent) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const pos = ((e.clientY - rect.top) / rect.height) * 100;
+    const pos = ((event.clientY - rect.top) / rect.height) * 100;
     setHSplit2(Math.max(10, Math.min(90, pos)));
   };
 
@@ -80,7 +80,7 @@ const SplitLayout: React.FC<Props> = ({ instances, tabId }) => {
   );
 
   const { tabs } = useTerminalStore();
-  const tab = tabs.find(t => t.id === tabId);
+  const tab = tabs.find((tab) => tab.id === tabId);
   const layout = tab?.preferredLayout || 'vertical';
 
   const renderContent = () => {

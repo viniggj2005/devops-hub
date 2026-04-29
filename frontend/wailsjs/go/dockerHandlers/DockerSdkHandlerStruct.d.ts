@@ -76,6 +76,8 @@ export function StopContainerStats(arg1:number,arg2:string):Promise<void>;
 
 export function StreamStats(arg1:client.Client,arg2:context.Context,arg3:string,arg4:context.Context):Promise<void>;
 
+export function TerminalClose(arg1:string):Promise<void>;
+
 export function TerminalResize(arg1:number,arg2:string,arg3:number,arg4:number):Promise<void>;
 
 export function TerminalWrite(arg1:string,arg2:string):Promise<void>;

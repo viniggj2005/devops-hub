@@ -3,6 +3,7 @@ import {
   ContainerStop,
   ContainerExec,
   TerminalWrite,
+  TerminalClose,
   ContainerStart,
   ContainersList,
   ContainerPause,
@@ -110,6 +111,14 @@ export const terminalResize = async (
 ): Promise<void> => {
   try {
     await TerminalResize(clientId, id, cols, rows);
+  } catch (error: any) {
+    throw error;
+  }
+};
+
+export const terminalClose = async (id: string): Promise<void> => {
+  try {
+    await TerminalClose(id);
   } catch (error: any) {
     throw error;
   }

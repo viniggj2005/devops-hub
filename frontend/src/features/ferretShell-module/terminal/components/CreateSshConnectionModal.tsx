@@ -2,11 +2,11 @@ import iziToast from 'izitoast';
 import React, { useState } from 'react';
 import { TerminalSquare } from 'lucide-react';
 import { FileUploader } from 'react-drag-drop-files';
-import { useAuth } from '../../../../../contexts/AuthContext';
-import { Modal } from '../../../../shared/components/modals/Modal';
-import { TerminalServices } from '../../services/TerminalServices';
-import { ModalButton } from '../../../../shared/components/modals/ModalButton';
-import { CreateSshConnectionInterface, ModalProps } from '../../../../../interfaces/TerminalInterfaces';
+import { useAuth } from '../../../../contexts/AuthContext';
+import { Modal } from '../../../shared/components/modals/Modal';
+import { TerminalServices } from '../services/TerminalServices';
+import { ModalButton } from '../../../shared/components/modals/ModalButton';
+import { CreateSshConnectionInterface, ModalProps } from '../../../../interfaces/TerminalInterfaces';
 
 const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) => {
   const fileTypes = ['PEM', 'TXT'];
@@ -27,9 +27,9 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = event.target;
     if (name === 'port') {
-      setFormData((previous) => ({ ...previous, [name]: Number(value) || 0 }));
+      setFormData((previous: any) => ({ ...previous, [name]: Number(value) || 0 }));
     } else {
-      setFormData((previous) => ({ ...previous, [name]: value }));
+      setFormData((previous: any) => ({ ...previous, [name]: value }));
     }
   };
 
@@ -44,7 +44,7 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
       reader.readAsDataURL(selectedFile);
     });
 
-    setFormData((previous) => ({ ...previous, key: base64 }));
+    setFormData((previous: any) => ({ ...previous, key: base64 }));
   };
 
   const handleSubmit = async (event: React.FormEvent) => {

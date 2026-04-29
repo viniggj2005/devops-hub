@@ -138,6 +138,10 @@ export function StreamStats(arg1, arg2, arg3, arg4) {
   return window['go']['dockerHandlers']['DockerSdkHandlerStruct']['StreamStats'](arg1, arg2, arg3, arg4);
 }
 
+export function TerminalClose(arg1) {
+  return window['go']['dockerHandlers']['DockerSdkHandlerStruct']['TerminalClose'](arg1);
+}
+
 export function TerminalResize(arg1, arg2, arg3, arg4) {
   return window['go']['dockerHandlers']['DockerSdkHandlerStruct']['TerminalResize'](arg1, arg2, arg3, arg4);
 }
