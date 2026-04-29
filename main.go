@@ -32,7 +32,7 @@ func main() {
 	terminal := ferretShellHandlers.NewTerminalHandler(sessionManager)
 	sftpHandler := ferretShellHandlers.NewSftpHandler(terminal)
 	sshHandler := ferretShellHandlers.NewSshHandler(database.DataBase, sessionManager)
-	authHandler := authHandlers.NewAuthHandler(database.DataBase, sessionManager)
+	authHandler := authHandlers.NewAuthHandler(database.DataBase, sessionManager, app)
 	userHandler := userHandlers.NewUserHandler(database.DataBase, sessionManager)
 	localFileHandler := ferretShellHandlers.NewLocalFileHandler()
 
