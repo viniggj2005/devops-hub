@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	database "docker-manager-go/src/dataBase"
+	dockerHandlers "docker-manager-go/src/dockermanager/handlers"
+	ferretShellHandlers "docker-manager-go/src/ferretshell/handlers"
 
-	"docker-manager-go/src/auth"
-	"docker-manager-go/src/handlers"
+	auth "docker-manager-go/src/auth/functions"
+	authHandlers "docker-manager-go/src/auth/handlers"
+	userHandlers "docker-manager-go/src/user/handlers"
 	"embed"
 	"time"
 
@@ -23,13 +26,15 @@ func main() {
 	database.InitDb()
 	app := NewApp()
 	sessionManager := auth.NewManager(8 * time.Hour)
-	terminal := handlers.NewTerminalHandler(sessionManager)
-	docker := handlers.NewDockerHandler(database.DataBase, sessionManager)
-	dockerSdk := handlers.NewDockerSdkHandler(docker)
+	docker := dockerHandlers.NewDockerHandler(database.DataBase, sessionManager)
+	dockerSdk := dockerHandlers.NewDockerSdkHandler(docker)
 	docker.RegisterDockerSdkHandler(dockerSdk)
-	sshHandler := handlers.NewSshHandler(database.DataBase, sessionManager)
-	authHandler := handlers.NewAuthHandler(database.DataBase, sessionManager)
-	userHandler := handlers.NewUserHandler(database.DataBase, sessionManager)
+	terminal := ferretShellHandlers.NewTerminalHandler(sessionManager)
+	sftpHandler := ferretShellHandlers.NewSftpHandler(terminal)
+	sshHandler := ferretShellHandlers.NewSshHandler(database.DataBase, sessionManager)
+	authHandler := authHandlers.NewAuthHandler(database.DataBase, sessionManager)
+	userHandler := userHandlers.NewUserHandler(database.DataBase, sessionManager)
+	localFileHandler := ferretShellHandlers.NewLocalFileHandler()
 
 	err := wails.Run(&options.App{
 		Title:            "Docker Manager",
@@ -46,10 +51,12 @@ func main() {
 			app.startup(ctx)
 			docker.Startup(ctx)
 			terminal.Startup(ctx)
+			sftpHandler.Startup(ctx)
 			dockerSdk.Startup(ctx)
 			sshHandler.Startup(ctx)
 			authHandler.Startup(ctx)
 			userHandler.Startup(ctx)
+			localFileHandler.Startup(ctx)
 
 		},
 		Windows: &windows.Options{
@@ -63,8 +70,10 @@ func main() {
 			docker,
 			dockerSdk,
 			sshHandler,
+			sftpHandler,
 			authHandler,
 			userHandler,
+			localFileHandler,
 		},
 	})
 

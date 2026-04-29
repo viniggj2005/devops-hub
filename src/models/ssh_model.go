@@ -13,6 +13,7 @@ type SshConnectionModel struct {
 	SystemUser     string                `json:"systemUser" gorm:"column:system_user"`
 	Port           int64                 `json:"port" gorm:"default:22"`
 	Key            types.EncryptedString `gorm:"type:blob;column:key"`
+	Password       types.EncryptedString `gorm:"type:blob;column:password"`
 	KnownHostsData types.EncryptedString `gorm:"type:blob;column:known_hosts_data"`
 	UserID         uint
 	User           UserModel `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`

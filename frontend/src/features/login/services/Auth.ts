@@ -1,5 +1,5 @@
-import { MyInfo } from '../../../../wailsjs/go/handlers/UserHandlerStruct';
-import { Login, Logout } from '../../../../wailsjs/go/handlers/AuthHandlerStruct';
+import { MyInfo } from '../../../../wailsjs/go/userHandlers/UserHandlerStruct';
+import { Login, Logout } from '../../../../wailsjs/go/authHandlers/AuthHandlerStruct';
 
 export const myInfo = (token: string) => MyInfo(token);
 

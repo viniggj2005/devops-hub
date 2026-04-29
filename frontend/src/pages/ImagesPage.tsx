@@ -1,5 +1,5 @@
 import React from 'react';
-import ListContainersImages from '../features/containersImages/ListContainerImages';
+import ListContainersImages from '../features/docker-module/containersImages/ListContainerImages';
 
 const ImagesPage: React.FC = () => {
   return (

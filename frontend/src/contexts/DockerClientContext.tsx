@@ -1,6 +1,6 @@
 import iziToast from 'izitoast';
 import { useAuth } from './AuthContext';
-import { DockerCredentialService } from '../features/dockerCredentials/services/DockerCredentialService';
+import { DockerCredentialService } from '../features/docker-module/dockerCredentials/services/DockerCredentialService';
 import React, { useRef, useMemo, useState, useEffect, useContext, useCallback, createContext } from 'react';
 import { DockerCredentialSummary, DockerClientContextValue } from '../interfaces/DockerCredentialInterfaces';
 

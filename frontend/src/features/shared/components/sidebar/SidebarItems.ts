@@ -1,5 +1,6 @@
-import { Box, HardDrive, Key, Network, Server, Image, LayoutDashboard } from 'lucide-react';
+import { Box, HardDrive, Key, Network, Image, LayoutDashboard } from 'lucide-react';
 export const navItems = [
+
   {
     label: 'Dashboard',
     description: 'Visão geral dos contêineres',
@@ -35,11 +36,5 @@ export const navItems = [
     description: 'Gerencie conexões TLS do Docker',
     to: '/docker-credentials',
     icon: Key,
-  },
-  {
-    label: 'Conexões SSH',
-    description: 'Acesse servidores remotos',
-    to: '/createConnectionForm',
-    icon: Server,
   },
 ];

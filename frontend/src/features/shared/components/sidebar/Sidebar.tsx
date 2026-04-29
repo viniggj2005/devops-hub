@@ -1,13 +1,15 @@
 import React from 'react';
 import { navItems } from './SidebarItems';
 import { NavLink } from 'react-router-dom';
+import { useAppStore } from '../../../appFrame/AppStore';
 import appIcon from '../../../../assets/images/appicon.png';
 import ToggleThemeButton from '../buttons/ToggleThemeButton';
 import { ChevronLeft, ChevronRight, CircleX } from 'lucide-react';
 import { SidebarProps } from '../../../../interfaces/SharedInterfaces';
-import DockerCredentialSelector from '../../../dockerCredentials/components/DockerCredentialSelector';
+import DockerCredentialSelector from '../../../docker-module/dockerCredentials/components/DockerCredentialSelector';
 
 const Sidebar: React.FC<SidebarProps> = ({ open, collapsed, onClose, onToggleCollapse }) => {
+  const { setActiveTab } = useAppStore();
   return (
     <>
       <div
@@ -141,6 +143,20 @@ const Sidebar: React.FC<SidebarProps> = ({ open, collapsed, onClose, onToggleCol
           <div className={`mt-3 ${collapsed ? 'lg:mt-0' : ''}`}>
             <ToggleThemeButton />
           </div>
+
+          <button
+            onClick={() => setActiveTab('home')}
+            className={`mt-6 flex items-center gap-3 p-3 rounded-xl transition-all duration-200 
+              hover:bg-red-500/10 text-red-500 group
+              ${collapsed ? 'justify-center w-full px-2' : 'w-full'}`}
+            title="Voltar ao Console"
+          >
+
+            <div className={`flex flex-col text-left ${collapsed ? 'lg:hidden' : ''}`}>
+              <span className="font-bold text-sm">Voltar ao Console</span>
+              <span className="text-[10px] uppercase tracking-tighter opacity-70 font-semibold">Sair do Módulo</span>
+            </div>
+          </button>
         </div>
       </aside>
     </>
