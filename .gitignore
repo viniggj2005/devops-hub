@@ -9,6 +9,7 @@
 
 # Wails build artifacts
 /wailsjs/
+frontend/vite.config.ts.timestamp-*
 /frontend/wailsjs
 frontend/dist/
 /frontend/node_modules/
