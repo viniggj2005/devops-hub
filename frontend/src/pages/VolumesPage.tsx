@@ -2,9 +2,9 @@ import { Plus } from 'lucide-react';
 import { VolumeItem } from '../interfaces/VolumeInterfaces';
 import { useDockerClient } from '../contexts/DockerClientContext';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import VolumeCard from '../features/volumes/components/cards/VolumeCard';
-import { VolumeService } from '../features/volumes/services/VolumeService';
-import CreateVolumeModal from '../features/volumes/components/modals/CreateVolumeModal';
+import VolumeCard from '../features/docker-module/volumes/components/cards/VolumeCard';
+import { VolumeService } from '../features/docker-module/volumes/services/VolumeService';
+import CreateVolumeModal from '../features/docker-module/volumes/components/modals/CreateVolumeModal';
 
 const VolumesPage: React.FC = () => {
   const [loading, setLoading] = useState(false);

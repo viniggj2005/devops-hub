@@ -1,5 +1,5 @@
-import type { dtos } from '../../wailsjs/go/models';
-export type SSHConnectionDto = dtos.SSHConnectionDto;
+import type { dtos, ferretShellDtos } from '../../wailsjs/go/models';
+export type SSHConnectionDto = ferretShellDtos.SSHConnectionDto;
 
 export interface TerminalProps {
   id?: string;
@@ -28,6 +28,7 @@ export interface CreateSshConnectionInterface {
   alias?: string;
   userId?: number;
   systemUser: string;
+  password?: string;
   knownHosts?: string;
 }
 
@@ -48,6 +49,7 @@ export interface SshDto {
   systemUser: string;
   keyPath?: string | null;
   passphrase?: string | null;
+  password?: string | null;
   key?: number[] | string | null;
   knownHostsData?: string | null;
 }
@@ -69,27 +71,38 @@ export interface ModalProps {
   onCreated: () => void;
 }
 
-export interface PasswordModalProps {
-  open: boolean;
-  onClose: () => void;
-  onSubmit: (password: string) => void;
+export interface TerminalInstance {
+  id: string;
+  title: string;
+  config?: SSHConnectionDto;
+  containerId?: string;
+  containerName?: string;
+}
+
+export interface TerminalTab {
+  id: string;
+  title: string;
+  instances: TerminalInstance[];
+  preferredLayout?: 'vertical' | 'horizontal' | 'grid';
 }
 
 export interface TerminalStateProps {
+  tabs: TerminalTab[];
+  activeTabId: string | null;
+  viewMode: 'page' | 'terminal';
+  broadcastActive: boolean;
+  setBroadcastActive: (value: boolean) => void;
+  setViewMode: (mode: 'page' | 'terminal') => void;
+
+  createTab: (instance: Omit<TerminalInstance, 'id'>) => void;
+  closeTab: (tabId: string) => void;
+  setActiveTab: (tabId: string | null) => void;
+  addInstanceToTab: (tabId: string, instance: Omit<TerminalInstance, 'id'>, index?: number, layout?: 'vertical' | 'horizontal' | 'grid') => void;
+  removeInstance: (tabId: string, instanceId: string) => void;
+  setLayout: (tabId: string, layout: 'vertical' | 'horizontal' | 'grid') => void;
+
   open: boolean;
-  minimized: boolean;
   close: () => void;
-  minimize: (value: boolean) => void;
-  askPassword: boolean;
-  error: string | null;
-  config: SSHConnectionDto | null;
-  containerId: string | null;
-  containerName: string | null;
-  setError: (event: string | null) => void;
-  submitPassword: (password: string) => void;
-  openWith: (config: SSHConnectionDto) => void;
-  openForContainer: (id: string, name: string) => void;
-  requirePassword: (config: SSHConnectionDto) => void;
 }
 
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import appIcon from '../assets/images/appicon.png';
+import appIcon from '../assets/images/hub.svg';
 import LoginForm from '../features/login/LoginForm';
 import { Container, Layers, Server } from 'lucide-react';
 
@@ -63,17 +63,14 @@ const LoginPage: React.FC = () => {
             >
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl blur-lg opacity-75" />
-                <div className="relative w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
-                  <img src={appIcon} className="w-9 h-9" />
+                <div className="relative w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
+                  <img src={appIcon} className="w-22 h-22 brightness-0 invert " />
                 </div>
               </div>
             </motion.div>
 
-            <h1 className="text-3xl text-white mb-2">
-              Docker Manager
-            </h1>
             <p className="text-blue-200/70">
-              Gerencie seus containers com facilidade
+              Plataforma para o trabalho de devops.
             </p>
           </div>
 
@@ -114,7 +111,7 @@ const LoginPage: React.FC = () => {
             transition={{ delay: 0.6 }}
             className="text-center text-blue-200/50 text-sm mt-8"
           >
-            Plataforma segura para gerenciamento de ambientes Docker
+            Plataforma segura para gerenciamento de ambientes.
           </motion.p>
         </motion.div>
       </div>

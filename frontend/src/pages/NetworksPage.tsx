@@ -5,9 +5,9 @@ import 'izitoast/dist/css/iziToast.min.css';
 import { NetworkItem } from '../interfaces/NetworkInterfaces';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useDockerClient } from '../contexts/DockerClientContext';
-import NetworkCards from '../features/networks/components/cards/NetworkCards';
-import { NetworkService } from '../features/networks/services/NetworkService';
-import CreateNetworkModal from '../features/networks/components/modals/CreateNetworkModal';
+import NetworkCards from '../features/docker-module/networks/components/cards/NetworkCards';
+import { NetworkService } from '../features/docker-module/networks/services/NetworkService';
+import CreateNetworkModal from '../features/docker-module/networks/components/modals/CreateNetworkModal';
 
 const NetworksPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
