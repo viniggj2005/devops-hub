@@ -2,18 +2,18 @@ package authHandlers
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 
+	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	authDtos "docker-manager-go/src/auth/dtos"
 	authFunctions "docker-manager-go/src/auth/functions"
 	"docker-manager-go/src/models"
-	userDtos "docker-manager-go/src/user/dtos"
 	"docker-manager-go/src/types"
+	userDtos "docker-manager-go/src/user/dtos"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -67,6 +67,7 @@ func (handlerStruct *AuthHandlerStruct) Logout(token string) {
 }
 
 func deriveSessionKey(password, email string) string {
-	hash := sha256.Sum256([]byte(password + ":" + email))
-	return hex.EncodeToString(hash[:])
+	salt := []byte(email)
+	key := argon2.IDKey([]byte(password), salt, 1, 64*1024, 4, 32)
+	return hex.EncodeToString(key)
 }
