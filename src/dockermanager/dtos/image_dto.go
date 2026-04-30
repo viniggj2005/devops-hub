@@ -1,4 +1,4 @@
-package dtos
+package dockerDtos
 
 type ImageCreateDto struct {
 	Path       string `json:"path" binding:"required"`

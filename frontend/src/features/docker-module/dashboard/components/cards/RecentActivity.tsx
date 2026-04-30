@@ -1,8 +1,8 @@
 import React from 'react';
-import { dtos } from '../../../../../../wailsjs/go/models';
+import { dockerDtos } from '../../../../../../wailsjs/go/models';
 
 interface RecentActivityProps {
-    info: dtos.SystemInfoDto | null;
+    info: dockerDtos.SystemInfoDto | null;
 }
 
 const RecentActivity: React.FC<RecentActivityProps> = ({ info }) => {

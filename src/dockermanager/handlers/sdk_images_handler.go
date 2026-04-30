@@ -2,8 +2,8 @@ package dockerHandlers
 
 import (
 	"bytes"
-	"docker-manager-go/src/dtos"
-	"docker-manager-go/src/functions"
+	dockerDtos "docker-manager-go/src/dockermanager/dtos"
+	dockerFunctions "docker-manager-go/src/dockermanager/functions"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,12 +16,12 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-func (handlerStruct *DockerSdkHandlerStruct) ImageCreate(clientId int, body dtos.ImageCreateDto) error {
+func (handlerStruct *DockerSdkHandlerStruct) ImageCreate(clientId int, body dockerDtos.ImageCreateDto) error {
 	cli, ctx, err := handlerStruct.CatchClient(clientId)
 	if err != nil {
 		return err
 	}
-	excludes := functions.CleanFolderBeforeBuild(body.Path)
+	excludes := dockerFunctions.CleanFolderBeforeBuild(body.Path)
 
 	buildContext, err := archive.TarWithOptions(body.Path, &archive.TarOptions{
 		ExcludePatterns: excludes,

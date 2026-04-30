@@ -1,4 +1,4 @@
-package dtos
+package dockerDtos
 
 type StatsPayloadDto struct {
 	ContainerID      string  `json:"containerId"`

@@ -2,7 +2,7 @@ import iziToast from 'izitoast';
 import { Box } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { PortsSection } from '../create-modal/PortsSection';
-import { dtos, image } from '../../../../../../wailsjs/go/models';
+import { dockerDtos, image } from '../../../../../../wailsjs/go/models';
 import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { EnvVarsSection } from '../create-modal/EnvVarsSection';
 import { VolumesSection } from '../create-modal/VolumesSection';
@@ -103,7 +103,7 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
                 .filter(value => value.hostPath && value.containerPath)
                 .map(value => `${value.hostPath}:${value.containerPath}`);
 
-            const options = new dtos.ContainerCreateOptions({
+            const options = new dockerDtos.ContainerCreateOptions({
                 containerName: containerName,
                 config: {
                     Image: imageName,

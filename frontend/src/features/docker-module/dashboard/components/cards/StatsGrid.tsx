@@ -1,9 +1,9 @@
 import React from 'react';
-import { dtos } from '../../../../../../wailsjs/go/models';
+import { dockerDtos } from '../../../../../../wailsjs/go/models';
 import { Activity, Image, MemoryStick, Cpu } from 'lucide-react';
 
 interface StatsGridProps {
-    info: dtos.SystemInfoDto | null;
+    info: dockerDtos.SystemInfoDto | null;
 }
 
 const StatsGrid: React.FC<StatsGridProps> = ({ info }) => {

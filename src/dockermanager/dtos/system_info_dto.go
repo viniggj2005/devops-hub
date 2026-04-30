@@ -1,4 +1,4 @@
-package dtos
+package dockerDtos
 
 type SystemInfoDto struct {
 	ID                string `json:"ID"`

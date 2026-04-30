@@ -2,12 +2,12 @@ package dockerHandlers
 
 import (
 	"context"
-	"docker-manager-go/src/functions"
 	"fmt"
 	"net"
 	"sync"
 
-	"docker-manager-go/src/dtos"
+	dockerDtos "docker-manager-go/src/dockermanager/dtos"
+	dockerFunctions "docker-manager-go/src/dockermanager/functions"
 
 	"github.com/docker/docker/client"
 )
@@ -76,7 +76,7 @@ func (handlerStruct *DockerSdkHandlerStruct) AddDockerClient(id int) error {
 	delete(handlerStruct.clientCancels, dockerId)
 	delete(handlerStruct.statsCancel, dockerId)
 
-	httpClient, err := functions.BuildTLSHTTPClient(
+	httpClient, err := dockerFunctions.BuildTLSHTTPClient(
 		docker.Ca.Plaintext,
 		docker.Cert.Plaintext,
 		docker.Key.Plaintext,
@@ -143,17 +143,17 @@ func (handlerStruct *DockerSdkHandlerStruct) Startup(ctx context.Context) {
 	}
 }
 
-func (handlerStruct *DockerSdkHandlerStruct) GetInfo(clientId int) (dtos.SystemInfoDto, error) {
+func (handlerStruct *DockerSdkHandlerStruct) GetInfo(clientId int) (dockerDtos.SystemInfoDto, error) {
 
 	cli, ctx, err := handlerStruct.CatchClient(clientId)
 	if err != nil {
-		return dtos.SystemInfoDto{}, err
+		return dockerDtos.SystemInfoDto{}, err
 	}
 	info, err := cli.Info(ctx)
 	if err != nil {
-		return dtos.SystemInfoDto{}, err
+		return dockerDtos.SystemInfoDto{}, err
 	}
-	return dtos.SystemInfoDto{
+	return dockerDtos.SystemInfoDto{
 		ID:                info.ID,
 		Name:              info.Name,
 		NCPU:              info.NCPU,

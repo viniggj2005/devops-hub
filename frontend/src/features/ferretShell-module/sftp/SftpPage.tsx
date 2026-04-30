@@ -8,7 +8,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as Ssh from '../../../../wailsjs/go/ferretShellHandlers/SshHandlerStruct';
 import * as Sftp from '../../../../wailsjs/go/ferretShellHandlers/SftpHandlerStruct';
 import * as Local from '../../../../wailsjs/go/ferretShellHandlers/LocalFileHandler';
-import { ferretShellHandlers, ferretShellDtos } from '../../../../wailsjs/go/models';
+import { ferretshellHandlers, ferretshellDtos } from '../../../../wailsjs/go/models';
 
 
 
@@ -30,9 +30,9 @@ const SftpPage: React.FC = () => {
     const [itemToRename, setItemToRename] = useState<{ path: string, name: string } | null>(null);
 
     const [activeConnectionId, setActiveConnectionId] = useState<number | null>(null);
-    const [localFiles, setLocalFiles] = useState<ferretShellHandlers.LocalFileInfo[]>([]);
-    const [savedConnections, setSavedConnections] = useState<ferretShellDtos.SshDto[]>([]);
-    const [remoteFiles, setRemoteFiles] = useState<ferretShellHandlers.SftpFileInfo[]>([]);
+    const [localFiles, setLocalFiles] = useState<ferretshellHandlers.LocalFileInfo[]>([]);
+    const [savedConnections, setSavedConnections] = useState<ferretshellDtos.SshDto[]>([]);
+    const [remoteFiles, setRemoteFiles] = useState<ferretshellHandlers.SftpFileInfo[]>([]);
 
     useEffect(() => {
         if (token && user) {
@@ -77,7 +77,7 @@ const SftpPage: React.FC = () => {
         } catch (err: any) { console.error(err); }
     };
 
-    const handleConnect = async (sshDto: ferretShellDtos.SshDto) => {
+    const handleConnect = async (sshDto: ferretshellDtos.SshDto) => {
         if (activeConnectionId === sshDto.id) return;
         setConnecting(true);
         setError(null);
@@ -85,7 +85,7 @@ const SftpPage: React.FC = () => {
         setSelectedLocalIndices([]);
         try {
             if (sessionId) await Sftp.DisconnectSFTP(sessionId);
-            const config = new ferretShellDtos.SSHConnectionDto();
+            const config = new ferretshellDtos.SSHConnectionDto();
             config.Host = sshDto.host;
             config.Port = sshDto.port || 22;
             config.User = sshDto.systemUser;

@@ -1,6 +1,6 @@
 import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
-import { dtos } from '../../wailsjs/go/models';
+import { dockerDtos } from '../../wailsjs/go/models';
 import React, { useEffect, useState } from 'react';
 import { useDockerClient } from '../contexts/DockerClientContext';
 import { GetInfo } from '../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
@@ -10,7 +10,7 @@ import ManagementCards from '../features/docker-module/dashboard/components/card
 
 const HomePage: React.FC = () => {
   const { selectedCredentialId, dockerClientId } = useDockerClient();
-  const [info, setInfo] = useState<dtos.SystemInfoDto | null>(null);
+  const [info, setInfo] = useState<dockerDtos.SystemInfoDto | null>(null);
 
   useEffect(() => {
     const fetchInfo = async () => {

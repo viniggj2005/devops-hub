@@ -4,7 +4,7 @@ import (
 	"context"
 
 	auth "docker-manager-go/src/auth/functions"
-	"docker-manager-go/src/dtos"
+	dockerDtos "docker-manager-go/src/dockermanager/dtos"
 	"docker-manager-go/src/models"
 	"docker-manager-go/src/types"
 	"encoding/base64"
@@ -48,7 +48,7 @@ func (handlerStruct *DockerHandlerStruct) ConnectDockerCredential(token string, 
 	return nil
 }
 
-func (handlerStruct *DockerHandlerStruct) CreateDockerConnection(token string, body dtos.CreateDockerConnectionDto) error {
+func (handlerStruct *DockerHandlerStruct) CreateDockerConnection(token string, body dockerDtos.CreateDockerConnectionDto) error {
 	if err := auth.MustAuth(handlerStruct.Session, token); err != nil {
 		return err
 	}

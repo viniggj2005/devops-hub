@@ -1,11 +1,11 @@
 import React from 'react';
-import { ferretShellDtos } from '../../../../../wailsjs/go/models';
+import { ferretshellDtos } from '../../../../../wailsjs/go/models';
 
 interface SftpSidebarProps {
     connecting: boolean;
     activeConnectionId: number | null;
-    connections: ferretShellDtos.SshDto[];
-    onConnect: (connection: ferretShellDtos.SshDto) => void;
+    connections: ferretshellDtos.SshDto[];
+    onConnect: (connection: ferretshellDtos.SshDto) => void;
 }
 
 const SftpSidebar: React.FC<SftpSidebarProps> = ({

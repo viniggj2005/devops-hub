@@ -2,7 +2,7 @@ package dockerHandlers
 
 import (
 	"context"
-	"docker-manager-go/src/dtos"
+	dockerDtos "docker-manager-go/src/dockermanager/dtos"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -73,7 +73,7 @@ func (handlerStruct *DockerSdkHandlerStruct) StreamStats(dockerClient *client.Cl
 				return
 			}
 
-			payload := dtos.StatsPayloadDto{
+			payload := dockerDtos.StatsPayloadDto{
 				ContainerID:      containerID,
 				OSType:           "",
 				CPUPercentage:    cpuPercent(&body),

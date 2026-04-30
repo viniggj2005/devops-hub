@@ -1,8 +1,8 @@
 package dockerHandlers
 
 import (
-	"docker-manager-go/src/dtos"
-	"docker-manager-go/src/functions"
+	dockerDtos "docker-manager-go/src/dockermanager/dtos"
+	dockerFunctions "docker-manager-go/src/dockermanager/functions"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,7 +12,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-func (handlerStruct *DockerSdkHandlerStruct) CreateContainer(clientId int, config dtos.ContainerCreateOptions) (container.CreateResponse, error) {
+func (handlerStruct *DockerSdkHandlerStruct) CreateContainer(clientId int, config dockerDtos.ContainerCreateOptions) (container.CreateResponse, error) {
 	cli, ctx, err := handlerStruct.CatchClient(clientId)
 	if err != nil {
 		return container.CreateResponse{}, err
@@ -125,7 +125,7 @@ func (handlerStruct *DockerSdkHandlerStruct) ContainerLogs(clientId int, contain
 	}
 	defer logs.Close()
 
-	return functions.LogsTreatment(logs), nil
+	return dockerFunctions.LogsTreatment(logs), nil
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) ContainersList(clientId int) ([]container.Summary, error) {
