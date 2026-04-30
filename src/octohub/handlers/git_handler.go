@@ -12,34 +12,26 @@ import (
 type GitHandler struct {
 	ctx          context.Context
 	serverActive bool
+	repoPath     string
 }
 
-func NewGitbHandler() *GitHandler {
-	return &GitHandler{}
+func NewGitHandler(initialPath string) *GitHandler {
+	return &GitHandler{
+		repoPath: initialPath,
+	}
+}
+
+func (handlerStruct *GitHandler) SetRepoPath(newPath string) {
+	handlerStruct.repoPath = newPath
 }
 
 func (handlerStruct *GitHandler) Startup(ctx context.Context) {
 	handlerStruct.ctx = ctx
 }
-func (hanlerStruct *GitHandler) ChangeBranch(projectdir string, targetBranch string) error {
-	cmd := exec.Command("git", "stash")
-	cmd.Dir = projectdir
-	_, err := cmd.CombinedOutput()
-	if err != nil {
-		return err
-	}
 
-	cmd = exec.Command("git", "checkout", targetBranch)
-	_, err = cmd.CombinedOutput()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-func (handlerStruct *GitHandler) DeleteBranch(projectdir string, branch string) error {
-	cmd := exec.Command("git", "branch", "-d", branch)
-	cmd.Dir = projectdir
+func (handlerStruct *GitHandler) PublishBranch(branchName string) error {
+	cmd := exec.CommandContext(handlerStruct.ctx, "git", "push", "-u", "origin", branchName)
+	cmd.Dir = handlerStruct.repoPath
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		if handlerStruct.ctx.Err() == context.DeadlineExceeded {
@@ -49,9 +41,56 @@ func (handlerStruct *GitHandler) DeleteBranch(projectdir string, branch string) 
 	}
 	return nil
 }
-func (handlerStruct *GitHandler) ListBranchs(projectdir string) ([]string, error) {
+func (handlerStruct *GitHandler) CreateBranch(branchName string) error {
+	cmd := exec.CommandContext(handlerStruct.ctx, "git", "branch", branchName)
+	cmd.Dir = handlerStruct.repoPath
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		if handlerStruct.ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("o comando git expirou")
+		}
+		return err
+	}
+	return nil
+}
+
+func (handlerStruct *GitHandler) ChangeBranch(targetBranch string) error {
+	cmd := exec.CommandContext(handlerStruct.ctx, "git", "stash")
+	cmd.Dir = handlerStruct.repoPath
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		if handlerStruct.ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("o comando git expirou")
+		}
+		return err
+	}
+
+	cmd = exec.CommandContext(handlerStruct.ctx, "git", "checkout", targetBranch)
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+		if handlerStruct.ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("o comando git expirou")
+		}
+		return err
+	}
+
+	return nil
+}
+func (handlerStruct *GitHandler) DeleteBranch(branch string) error {
+	cmd := exec.CommandContext(handlerStruct.ctx, "git", "branch", "-d", branch)
+	cmd.Dir = handlerStruct.repoPath
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		if handlerStruct.ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("o comando git expirou")
+		}
+		return err
+	}
+	return nil
+}
+func (handlerStruct *GitHandler) ListBranchs() ([]string, error) {
 	cmd := exec.CommandContext(handlerStruct.ctx, "git", "branch")
-	cmd.Dir = projectdir
+	cmd.Dir = handlerStruct.repoPath
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		if handlerStruct.ctx.Err() == context.DeadlineExceeded {
@@ -72,10 +111,10 @@ func (handlerStruct *GitHandler) ListBranchs(projectdir string) ([]string, error
 	return branches, nil
 }
 
-func (handlerStruct *GitHandler) ListCommits(projectdir string, page int) ([]octohubStructs.Commit, error) {
+func (handlerStruct *GitHandler) ListCommits(page int) ([]octohubStructs.Commit, error) {
 	cmd := exec.CommandContext(handlerStruct.ctx, "git", "log", fmt.Sprintf("--skip=%d", page*15), "-n", "15")
 
-	cmd.Dir = projectdir
+	cmd.Dir = handlerStruct.repoPath
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
