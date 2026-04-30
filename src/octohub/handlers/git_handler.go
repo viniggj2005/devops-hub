@@ -21,6 +21,56 @@ func NewGitbHandler() *GitHandler {
 func (handlerStruct *GitHandler) Startup(ctx context.Context) {
 	handlerStruct.ctx = ctx
 }
+func (hanlerStruct *GitHandler) ChangeBranch(projectdir string, targetBranch string) error {
+	cmd := exec.Command("git", "stash")
+	cmd.Dir = projectdir
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return err
+	}
+
+	cmd = exec.Command("git", "checkout", targetBranch)
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func (handlerStruct *GitHandler) DeleteBranch(projectdir string, branch string) error {
+	cmd := exec.Command("git", "branch", "-d", branch)
+	cmd.Dir = projectdir
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		if handlerStruct.ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("o comando git expirou")
+		}
+		return err
+	}
+	return nil
+}
+func (handlerStruct *GitHandler) ListBranchs(projectdir string) ([]string, error) {
+	cmd := exec.CommandContext(handlerStruct.ctx, "git", "branch")
+	cmd.Dir = projectdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if handlerStruct.ctx.Err() == context.DeadlineExceeded {
+			return nil, fmt.Errorf("o comando git expirou")
+		}
+		return nil, err
+	}
+	var branches []string
+	scanner := bufio.NewScanner(strings.NewReader(string(out)))
+	for scanner.Scan() {
+
+		line := scanner.Text()
+		cleanLine := strings.TrimSpace(line)
+		if cleanLine != "" {
+			branches = append(branches, cleanLine)
+		}
+	}
+	return branches, nil
+}
 
 func (handlerStruct *GitHandler) ListCommits(projectdir string, page int) ([]octohubStructs.Commit, error) {
 	cmd := exec.CommandContext(handlerStruct.ctx, "git", "log", fmt.Sprintf("--skip=%d", page*15), "-n", "15")
