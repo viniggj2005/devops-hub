@@ -4,6 +4,7 @@ import MainHomePage from './pages/MainHomePage';
 import { AppFrame } from './features/appFrame/appFrame';
 import { useAppStore } from './features/appFrame/AppStore';
 import DockerModuleWrapper from './features/docker-module/components/DockerModuleWrapper';
+import OctohubModuleWrapper from './features/octohub-module/components/OctohubModuleWrapper';
 import FerretShellModuleWrapper from './features/ferretShell-module/components/FerretShellModuleWrapper';
 import { WindowIsFullscreen, WindowFullscreen, WindowUnfullscreen, WindowIsMaximised, WindowUnmaximise } from '../wailsjs/runtime/runtime';
 
@@ -59,6 +60,8 @@ export default function App() {
         return <DockerModuleWrapper />;
       case 'ferretshell':
         return <FerretShellModuleWrapper />;
+      case 'octohub':
+        return <OctohubModuleWrapper />;
       default:
         return null;
     }

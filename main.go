@@ -8,6 +8,7 @@ import (
 
 	auth "docker-manager-go/src/auth/functions"
 	authHandlers "docker-manager-go/src/auth/handlers"
+	octohubHandlers "docker-manager-go/src/octohub/handlers"
 	userHandlers "docker-manager-go/src/user/handlers"
 	"embed"
 	"time"
@@ -35,6 +36,7 @@ func main() {
 	authHandler := authHandlers.NewAuthHandler(database.DataBase, sessionManager, app)
 	userHandler := userHandlers.NewUserHandler(database.DataBase, sessionManager)
 	localFileHandler := ferretShellHandlers.NewLocalFileHandler()
+	octohubHandler := octohubHandlers.NewOctohubHandler()
 
 	err := wails.Run(&options.App{
 		Title:            "Docker Manager",
@@ -51,11 +53,12 @@ func main() {
 			app.startup(ctx)
 			docker.Startup(ctx)
 			terminal.Startup(ctx)
-			sftpHandler.Startup(ctx)
 			dockerSdk.Startup(ctx)
 			sshHandler.Startup(ctx)
+			sftpHandler.Startup(ctx)
 			authHandler.Startup(ctx)
 			userHandler.Startup(ctx)
+			octohubHandler.Startup(ctx)
 			localFileHandler.Startup(ctx)
 
 		},
@@ -66,13 +69,14 @@ func main() {
 		},
 		Bind: []interface{}{
 			app,
-			terminal,
 			docker,
+			terminal,
 			dockerSdk,
 			sshHandler,
 			sftpHandler,
 			authHandler,
 			userHandler,
+			octohubHandler,
 			localFileHandler,
 		},
 	})
