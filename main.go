@@ -39,7 +39,8 @@ func main() {
 	localFileHandler := ferretShellHandlers.NewLocalFileHandler()
 	octohubHandler := octohubHandlers.NewOctohubHandler()
 	gitHandler := octohubHandlers.NewGitHandler("C:\\Users\\user\\Documents\\GitHub\\devops-hub")
-
+	branchHandler := octohubHandlers.NewGitBranchHandler(gitHandler)
+	commitHandler := octohubHandlers.NewGitCommitsHandler(gitHandler)
 	err := wails.Run(&options.App{
 		Title:            "Docker Manager",
 		Width:            1024,
@@ -75,11 +76,13 @@ func main() {
 			docker,
 			terminal,
 			dockerSdk,
+			gitHandler,
 			sshHandler,
 			sftpHandler,
 			authHandler,
 			userHandler,
-			gitHandler,
+			branchHandler,
+			commitHandler,
 			octohubHandler,
 			localFileHandler,
 		},
