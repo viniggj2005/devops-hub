@@ -1,12 +1,9 @@
 import React from 'react';
-import DiffViewer from './DiffViewer';
 import { octohubStructs } from '../../../../../wailsjs/go/models';
 import { ChevronRight, FileText, Plus, Minus, SquareDot, SquareArrowRight } from 'lucide-react';
 
 interface ModifiedFileListProps {
-    loadingDiff: boolean;
     loadingFiles: boolean;
-    fileDiff: string | null;
     selectedFile: string | null;
     onFileClick: (file: string) => void;
     modifications: octohubStructs.FileModification[];
@@ -33,56 +30,51 @@ const getStatusLabel = (status: string) => {
 };
 
 const ModifiedFileList: React.FC<ModifiedFileListProps> = ({
-    fileDiff,
-    loadingDiff,
     onFileClick,
     loadingFiles,
     selectedFile,
     modifications,
 }) => {
     return (
-        <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
-            <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-zinc-200 dark:border-white/5 pb-2">
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-                        Arquivos Alterados ({modifications.length})
-                    </h3>
-                </div>
+        <div className="flex-1 flex flex-col min-h-0 bg-transparent">
+            <div className="p-4 border-b border-zinc-200 dark:border-white/5">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                    Arquivos Alterados ({modifications.length})
+                </h3>
+            </div>
 
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
                 {loadingFiles ? (
                     <div className="flex items-center gap-2 text-zinc-500 italic text-xs p-4">
                         <div className="w-3 h-3 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
                         Buscando arquivos...
                     </div>
                 ) : modifications.length > 0 ? (
-                    <div className="grid grid-cols-1 divide-y divide-zinc-100 dark:divide-white/5 bg-white dark:bg-zinc-800/10 rounded-xl border border-zinc-200 dark:border-white/5 overflow-hidden">
+                    <div className="space-y-0.5">
                         {modifications.map((modifiedFile, index) => (
-                            <div key={index}>
-                                <div
-                                    className={`flex items-center justify-between px-4 py-2 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors group cursor-pointer ${selectedFile === modifiedFile.File ? 'bg-zinc-100 dark:bg-white/5' : ''}`}
-                                    onClick={() => onFileClick(modifiedFile.File)}
-                                >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div
-                                            className="shrink-0"
-                                            title={getStatusLabel(modifiedFile.Status)}
-                                        >
-                                            {getStatusIcon(modifiedFile.Status)}
-                                        </div>
-                                        <span className="text-xs font-medium truncate text-zinc-700 dark:text-zinc-300">{modifiedFile.File}</span>
+                            <div
+                                key={index}
+                                className={`flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors group cursor-pointer ${selectedFile === modifiedFile.File ? 'bg-zinc-200 dark:bg-white/10 ring-1 ring-zinc-300 dark:ring-white/10' : ''}`}
+                                onClick={() => onFileClick(modifiedFile.File)}
+                            >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div
+                                        className="shrink-0"
+                                        title={getStatusLabel(modifiedFile.Status)}
+                                    >
+                                        {getStatusIcon(modifiedFile.Status)}
                                     </div>
-                                    <ChevronRight className={`w-3 h-3 text-zinc-400 transition-transform ${selectedFile === modifiedFile.File ? 'rotate-90' : ''}`} />
+                                    <span className={`text-[11px] truncate transition-colors ${selectedFile === modifiedFile.File ? 'text-zinc-900 dark:text-white font-semibold' : 'text-zinc-600 dark:text-zinc-400 font-medium'}`}>
+                                        {modifiedFile.File}
+                                    </span>
                                 </div>
-
-                                {selectedFile === modifiedFile.File && (
-                                    <DiffViewer diff={fileDiff} loading={loadingDiff} />
-                                )}
+                                <ChevronRight className={`w-3 h-3 text-zinc-400 transition-transform ${selectedFile === modifiedFile.File ? 'rotate-90 opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <div className="p-12 text-center border-2 border-dashed border-zinc-100 dark:border-white/5 rounded-2xl text-zinc-400 italic text-sm">
-                        Nenhuma modificação de arquivo encontrada.
+                    <div className="p-8 text-center text-zinc-400 italic text-xs">
+                        Nenhuma modificação encontrada.
                     </div>
                 )}
             </div>

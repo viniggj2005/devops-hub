@@ -128,7 +128,17 @@ func (handlerStruct *GitHandler) GetCommitModifications(commitHash string) ([]oc
 }
 
 func (handlerStruct *GitHandler) GetCommitedFileChanges(commitHash string, filePath string) (string, error) {
-	cmd := exec.CommandContext(handlerStruct.ctx, "git", "diff", commitHash+"^", commitHash, "--", filePath)
+	var args []string
+	if strings.Contains(filePath, " -> ") {
+		parts := strings.Split(filePath, " -> ")
+		oldPath := strings.TrimSpace(parts[0])
+		newPath := strings.TrimSpace(parts[1])
+		args = []string{"diff", "-M", commitHash + "^:" + oldPath, commitHash + ":" + newPath}
+	} else {
+		args = []string{"diff", commitHash + "^", commitHash, "--", filePath}
+	}
+
+	cmd := exec.CommandContext(handlerStruct.ctx, "git", args...)
 	cmd.Dir = handlerStruct.repoPath
 	out, err := cmd.CombinedOutput()
 	if err != nil {

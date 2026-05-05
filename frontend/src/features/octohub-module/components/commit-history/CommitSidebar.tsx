@@ -19,7 +19,13 @@ const formatShortDate = (dateString: string) => {
     if (parts.length >= 4) {
         return `${parts[1]} ${parts[2]}, ${parts[parts.length - 2]}`;
     }
-    return cleaned;
+    return new Date(cleaned).toLocaleDateString(undefined, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 };
 
 const CommitSidebar: React.FC<CommitSidebarProps> = ({
@@ -33,7 +39,7 @@ const CommitSidebar: React.FC<CommitSidebarProps> = ({
     lastCommitElementRef
 }) => {
     return (
-        <div className="w-80 flex flex-col border-r border-zinc-200 dark:border-white/5 bg-zinc-50/50 dark:bg-black/40 shrink-0">
+        <div className="w-full h-full flex flex-col bg-zinc-50 dark:bg-[#0c0c0e] shrink-0">
             <div className="p-4 border-b border-zinc-200 dark:border-white/5 space-y-3">
                 <div className="flex items-center justify-between">
                     <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">Histórico</h2>
@@ -81,10 +87,14 @@ const CommitSidebar: React.FC<CommitSidebarProps> = ({
                                         <div className="flex items-center justify-between mt-1">
                                             <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
                                                 <span className="font-medium text-zinc-600 dark:text-zinc-400 truncate max-w-[80px]">{commit.Author}</span>
-                                                <span>•</span>
-                                                <span className="font-mono">{commit.Hash.substring(0, 7)}</span>
                                             </div>
-                                            <span className="text-[9px] text-zinc-400 whitespace-nowrap">{formatShortDate(commit.Date)}</span>
+                                            <span className="text-[9px] text-zinc-400 whitespace-nowrap">{new Date(commit.Date.replace('Date:', '').trim()).toLocaleDateString(undefined, {
+                                                day: '2-digit',
+                                                month: 'short',
+                                                year: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                            })}</span>
                                         </div>
                                     </div>
                                 </div>
