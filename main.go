@@ -8,7 +8,7 @@ import (
 
 	auth "docker-manager-go/src/auth/functions"
 	authHandlers "docker-manager-go/src/auth/handlers"
-	octohubHandlers "docker-manager-go/src/octohub/handlers"
+	octohub "docker-manager-go/src/octohub/handlers"
 	userHandlers "docker-manager-go/src/user/handlers"
 	"embed"
 	"time"
@@ -37,10 +37,10 @@ func main() {
 	authHandler := authHandlers.NewAuthHandler(database.DataBase, sessionManager, app)
 	userHandler := userHandlers.NewUserHandler(database.DataBase, sessionManager)
 	localFileHandler := ferretShellHandlers.NewLocalFileHandler()
-	octohubHandler := octohubHandlers.NewOctohubHandler()
-	gitHandler := octohubHandlers.NewGitHandler("C:\\Users\\user\\Documents\\GitHub\\devops-hub")
-	branchHandler := octohubHandlers.NewGitBranchHandler(gitHandler)
-	commitHandler := octohubHandlers.NewGitCommitsHandler(gitHandler)
+	octohubHandler := octohub.NewOctohubHandler()
+	gitHandler := octohub.NewGitHandler("C:\\Users\\user\\Documents\\GitHub\\devops-hub")
+	branchHandler := octohub.NewGitBranchHandler(gitHandler)
+	commitHandler := octohub.NewGitCommitsHandler(gitHandler)
 	err := wails.Run(&options.App{
 		Title:            "Docker Manager",
 		Width:            1024,

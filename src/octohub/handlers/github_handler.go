@@ -1,4 +1,4 @@
-package octohubHandlers
+package octohubHandler
 
 import (
 	"bytes"

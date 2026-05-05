@@ -5,7 +5,7 @@ import DiffViewer from '../../features/octohub-module/components/commit-history/
 import CommitSidebar from '../../features/octohub-module/components/commit-history/CommitSidebar';
 import ModifiedFileList from '../../features/octohub-module/components/commit-history/ModifiedFileList';
 import CommitDetailsHeader from '../../features/octohub-module/components/commit-history/CommitDetailsHeader';
-import { ListCommits, GetCommitModifications, GetCommitedFileChanges } from '../../../wailsjs/go/octohubHandlers/GitCommitsHandler';
+import { ListCommits, GetCommitModifications, GetCommitedFileChanges } from '../../../wailsjs/go/octohubHandler/GitCommitsHandler';
 
 const CommitHistoryPage: React.FC = () => {
     const [_, setPage] = useState(0);

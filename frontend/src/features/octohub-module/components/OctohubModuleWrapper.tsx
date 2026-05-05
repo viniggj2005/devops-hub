@@ -4,7 +4,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { EventsOn } from '../../../../wailsjs/runtime/runtime';
 import OctohubHomePage from '../../../pages/octohub/OctohubHomePage';
 import CommitHistoryPage from '../../../pages/octohub/CommitHistoryPage';
-import { VerifyLogin, GetUserInfo } from '../../../../wailsjs/go/octohubHandlers/OctohubHandler';
+import { VerifyLogin, GetUserInfo } from '../../../../wailsjs/go/octohubHandler/OctohubHandler';
 
 const OctohubModuleWrapper: React.FC = () => {
     const [githubUser, setGithubUser] = React.useState<any>(null);

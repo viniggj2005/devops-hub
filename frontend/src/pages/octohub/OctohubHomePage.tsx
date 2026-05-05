@@ -1,7 +1,7 @@
 import React from 'react';
 import { User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { StartLogin } from '../../../wailsjs/go/octohubHandlers/OctohubHandler';
+import { StartLogin } from '../../../wailsjs/go/octohubHandler/OctohubHandler';
 
 interface OctohubHomePageProps {
     githubUser: any;
