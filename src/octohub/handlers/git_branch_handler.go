@@ -2,9 +2,7 @@ package octohubHandler
 
 import (
 	"bufio"
-	"context"
 	"fmt"
-	"os/exec"
 	"strings"
 )
 
@@ -19,34 +17,26 @@ func NewGitBranchHandler(gitHandler *GitHandler) *GitBranchHandler {
 }
 
 func (handlerStruct *GitBranchHandler) PublishBranch(branchName string) error {
-	cmd := exec.CommandContext(handlerStruct.gitHandler.ctx, "git", "push", "-u", "origin", branchName)
-	cmd.Dir = handlerStruct.gitHandler.repoPath
-	_, err := cmd.CombinedOutput()
+	args := []string{"push", "-u", "origin", branchName}
+	_, err := handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {
-		if handlerStruct.gitHandler.ctx.Err() == context.DeadlineExceeded {
-			return fmt.Errorf("o comando git expirou")
-		}
 		return err
 	}
 	return nil
 }
 func (handlerStruct *GitBranchHandler) CreateBranch(branchName string) error {
-	cmd := exec.CommandContext(handlerStruct.gitHandler.ctx, "git", "branch", branchName)
-	cmd.Dir = handlerStruct.gitHandler.repoPath
-	_, err := cmd.CombinedOutput()
+	args := []string{"branch", branchName}
+	_, err := handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {
-		if handlerStruct.gitHandler.ctx.Err() == context.DeadlineExceeded {
-			return fmt.Errorf("o comando git expirou")
-		}
 		return err
 	}
+
 	return nil
 }
 
 func (handlerStruct *GitBranchHandler) HasUncommittedChanges() (bool, error) {
-	cmd := exec.CommandContext(handlerStruct.gitHandler.ctx, "git", "status", "--porcelain")
-	cmd.Dir = handlerStruct.gitHandler.repoPath
-	out, err := cmd.CombinedOutput()
+	args := []string{"status", "--porcelain"}
+	out, err := handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {
 		return false, err
 	}
@@ -54,31 +44,33 @@ func (handlerStruct *GitBranchHandler) HasUncommittedChanges() (bool, error) {
 }
 
 func (handlerStruct *GitBranchHandler) ChangeBranch(targetBranch string, leaveChanges bool) error {
-	hasChanges, _ := handlerStruct.HasUncommittedChanges()
+	var args []string
+	hasChanges, err := handlerStruct.HasUncommittedChanges()
+	if err != nil {
+		return fmt.Errorf("erro ao verificar alterações: %v", err)
+	}
+
 	if hasChanges {
-		cmd := exec.CommandContext(handlerStruct.gitHandler.ctx, "git", "stash")
-		cmd.Dir = handlerStruct.gitHandler.repoPath
-		_, err := cmd.CombinedOutput()
+		args = []string{"stash", "push", "-u", "-m", "OctoHub: Auto-stash antes de mudar para " + targetBranch}
+		_, err := handlerStruct.gitHandler.RunGitCommand(args)
 		if err != nil {
 			return fmt.Errorf("erro ao guardar alterações temporárias: %v", err)
 		}
 	}
 
-	cmd := exec.CommandContext(handlerStruct.gitHandler.ctx, "git", "checkout", targetBranch)
-	cmd.Dir = handlerStruct.gitHandler.repoPath
-	out, err := cmd.CombinedOutput()
+	args = []string{"checkout", targetBranch}
+	out, err := handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {
 		if hasChanges {
-			cmdPop := exec.CommandContext(handlerStruct.gitHandler.ctx, "git", "stash", "pop")
-			cmdPop.Dir = handlerStruct.gitHandler.repoPath
-			_, _ = cmdPop.CombinedOutput()
+			args = []string{"stash", "pop"}
+			_, _ = handlerStruct.gitHandler.RunGitCommand(args)
 		}
 		return fmt.Errorf("erro ao trocar branch: %s", string(out))
 	}
+
 	if hasChanges && !leaveChanges {
-		cmdPop := exec.CommandContext(handlerStruct.gitHandler.ctx, "git", "stash", "pop")
-		cmdPop.Dir = handlerStruct.gitHandler.repoPath
-		_, err := cmdPop.CombinedOutput()
+		args := []string{"stash", "pop"}
+		_, err := handlerStruct.gitHandler.RunGitCommand(args)
 		if err != nil {
 			return fmt.Errorf("trocou de branch, mas houve conflito ao trazer as mudanças: %v", err)
 		}
@@ -87,26 +79,18 @@ func (handlerStruct *GitBranchHandler) ChangeBranch(targetBranch string, leaveCh
 	return nil
 }
 func (handlerStruct *GitBranchHandler) DeleteBranch(branch string) error {
-	cmd := exec.CommandContext(handlerStruct.gitHandler.ctx, "git", "branch", "-d", branch)
-	cmd.Dir = handlerStruct.gitHandler.repoPath
-	_, err := cmd.CombinedOutput()
+	args := []string{"branch", "-d", branch}
+	_, err := handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {
-		if handlerStruct.gitHandler.ctx.Err() == context.DeadlineExceeded {
-			return fmt.Errorf("o comando git expirou")
-		}
 		return err
 	}
 	return nil
 }
 
 func (handlerStruct *GitBranchHandler) ListBranchs() ([]string, error) {
-	cmd := exec.CommandContext(handlerStruct.gitHandler.ctx, "git", "branch")
-	cmd.Dir = handlerStruct.gitHandler.repoPath
-	out, err := cmd.CombinedOutput()
+	args := []string{"branch"}
+	out, err := handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {
-		if handlerStruct.gitHandler.ctx.Err() == context.DeadlineExceeded {
-			return nil, fmt.Errorf("o comando git expirou")
-		}
 		return nil, err
 	}
 	var branches []string
@@ -123,13 +107,9 @@ func (handlerStruct *GitBranchHandler) ListBranchs() ([]string, error) {
 }
 
 func (handlerStruct *GitBranchHandler) GetCurrentBranch() (string, error) {
-	cmd := exec.CommandContext(handlerStruct.gitHandler.ctx, "git", "rev-parse", "--abbrev-ref", "HEAD")
-	cmd.Dir = handlerStruct.gitHandler.repoPath
-	out, err := cmd.CombinedOutput()
+	args := []string{"rev-parse", "--abbrev-ref", "HEAD"}
+	out, err := handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {
-		if handlerStruct.gitHandler.ctx.Err() == context.DeadlineExceeded {
-			return "", fmt.Errorf("o comando git expirou")
-		}
 		return "", err
 	}
 	return strings.TrimSpace(string(out)), nil

@@ -5,7 +5,6 @@ import (
 	"context"
 	octohubStructs "docker-manager-go/src/octohub/structs"
 	"fmt"
-	"os/exec"
 	"strings"
 )
 
@@ -19,13 +18,9 @@ func NewGitCommitsHandler(gitHandler *GitHandler) *GitCommitsHandler {
 	}
 }
 func (handlerStruct *GitCommitsHandler) GetCommitModifications(commitHash string) ([]octohubStructs.FileModification, error) {
-	cmd := exec.CommandContext(handlerStruct.gitHandler.ctx, "git", "show", "--name-status", "--format=", commitHash)
-	cmd.Dir = handlerStruct.gitHandler.repoPath
-	out, err := cmd.CombinedOutput()
+	args := []string{"show", "--name-status", "--format=", commitHash}
+	out, err := handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {
-		if handlerStruct.gitHandler.ctx.Err() == context.DeadlineExceeded {
-			return nil, fmt.Errorf("o comando git expirou")
-		}
 		return nil, err
 	}
 	var filesModified []octohubStructs.FileModification
@@ -66,10 +61,7 @@ func (handlerStruct *GitCommitsHandler) GetCommitedFileChanges(commitHash string
 	} else {
 		args = []string{"diff", commitHash + "^", commitHash, "--", filePath}
 	}
-
-	cmd := exec.CommandContext(handlerStruct.gitHandler.ctx, "git", args...)
-	cmd.Dir = handlerStruct.gitHandler.repoPath
-	out, err := cmd.CombinedOutput()
+	out, err := handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {
 		if handlerStruct.gitHandler.ctx.Err() == context.DeadlineExceeded {
 			return "", fmt.Errorf("o comando git expirou")
@@ -94,18 +86,12 @@ func (handlerStruct *GitCommitsHandler) GetCommitedFileChanges(commitHash string
 }
 
 func (handlerStruct *GitCommitsHandler) ListCommits(page int) ([]octohubStructs.Commit, error) {
-	cmd := exec.CommandContext(handlerStruct.gitHandler.ctx, "git", "log", fmt.Sprintf("--skip=%d", page*15), "-n", "15")
 
-	cmd.Dir = handlerStruct.gitHandler.repoPath
-
-	out, err := cmd.CombinedOutput()
+	args := []string{"log", fmt.Sprintf("--skip=%d", page*15), "-n", "15"}
+	out, err := handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {
-		if handlerStruct.gitHandler.ctx.Err() == context.DeadlineExceeded {
-			return nil, fmt.Errorf("o comando git expirou")
-		}
 		return nil, err
 	}
-
 	var commits []octohubStructs.Commit
 	var current *octohubStructs.Commit
 

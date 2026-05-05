@@ -5,6 +5,7 @@ import (
 	database "docker-manager-go/src/dataBase"
 	dockerHandlers "docker-manager-go/src/dockermanager/handlers"
 	ferretShellHandlers "docker-manager-go/src/ferretshell/handlers"
+	"os"
 
 	auth "docker-manager-go/src/auth/functions"
 	authHandlers "docker-manager-go/src/auth/handlers"
@@ -38,7 +39,8 @@ func main() {
 	userHandler := userHandlers.NewUserHandler(database.DataBase, sessionManager)
 	localFileHandler := ferretShellHandlers.NewLocalFileHandler()
 	octohubHandler := octohub.NewOctohubHandler()
-	gitHandler := octohub.NewGitHandler("C:\\Users\\user\\Documents\\GitHub\\devops-hub")
+	repositoryPath := os.Getenv("REPOSITORY")
+	gitHandler := octohub.NewGitHandler(repositoryPath)
 	branchHandler := octohub.NewGitBranchHandler(gitHandler)
 	commitHandler := octohub.NewGitCommitsHandler(gitHandler)
 	err := wails.Run(&options.App{
