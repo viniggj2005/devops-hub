@@ -3,7 +3,7 @@ package octohubHandlers
 import (
 	"bufio"
 	"context"
-	octohubStructs "docker-manager-go/src/octohub/struct"
+	octohubStructs "docker-manager-go/src/octohub/structs"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -87,6 +87,71 @@ func (handlerStruct *GitHandler) DeleteBranch(branch string) error {
 		return err
 	}
 	return nil
+}
+
+func (handlerStruct *GitHandler) GetCommitModifications(commitHash string) ([]octohubStructs.FileModification, error) {
+	cmd := exec.CommandContext(handlerStruct.ctx, "git", "show", "--name-status", "--format=", commitHash)
+	cmd.Dir = handlerStruct.repoPath
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if handlerStruct.ctx.Err() == context.DeadlineExceeded {
+			return nil, fmt.Errorf("o comando git expirou")
+		}
+		return nil, err
+	}
+	var filesModified []octohubStructs.FileModification
+
+	scanner := bufio.NewScanner(strings.NewReader(string(out)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		parts := strings.Split(line, "\t")
+
+		if len(parts) < 2 {
+			continue
+		}
+
+		status := strings.TrimSpace(parts[0])
+		var fileName string
+		if strings.HasPrefix(status, "R") && len(parts) >= 3 {
+			fileName = fmt.Sprintf("%s -> %s", parts[1], parts[2])
+		} else {
+			fileName = parts[1]
+		}
+
+		filesModified = append(filesModified, octohubStructs.FileModification{File: fileName, Status: status})
+	}
+	return filesModified, nil
+}
+
+func (handlerStruct *GitHandler) GetCommitedFileChanges(commitHash string, filePath string) (string, error) {
+	cmd := exec.CommandContext(handlerStruct.ctx, "git", "diff", commitHash+"^", commitHash, "--", filePath)
+	cmd.Dir = handlerStruct.repoPath
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if handlerStruct.ctx.Err() == context.DeadlineExceeded {
+			return "", fmt.Errorf("o comando git expirou")
+		}
+		return "", err
+	}
+
+	lines := strings.Split(string(out), "\n")
+	var cleanLines []string
+	for _, line := range lines {
+
+		if strings.HasPrefix(line, "diff --git") ||
+			strings.HasPrefix(line, "index ") ||
+			strings.HasPrefix(line, "--- ") ||
+			strings.HasPrefix(line, "+++ ") {
+			continue
+		}
+		cleanLines = append(cleanLines, line)
+	}
+
+	return strings.Join(cleanLines, "\n"), nil
 }
 func (handlerStruct *GitHandler) ListBranchs() ([]string, error) {
 	cmd := exec.CommandContext(handlerStruct.ctx, "git", "branch")

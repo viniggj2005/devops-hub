@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Terminal, Plus, Server, Zap } from 'lucide-react';
-import SshConnectionList from './components/SshConnectionList';
+import SshConnectionList from '../../features/ferretShell-module/terminal/components/SshConnectionList';
 
 const TerminalPage: React.FC = () => {
     const navigate = useNavigate();

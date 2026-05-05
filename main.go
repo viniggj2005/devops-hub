@@ -13,6 +13,7 @@ import (
 	"embed"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -23,7 +24,7 @@ import (
 var assets embed.FS
 
 func main() {
-
+	godotenv.Load()
 	database.InitDb()
 	app := NewApp()
 	sessionManager := auth.NewManager(8 * time.Hour)
@@ -37,6 +38,7 @@ func main() {
 	userHandler := userHandlers.NewUserHandler(database.DataBase, sessionManager)
 	localFileHandler := ferretShellHandlers.NewLocalFileHandler()
 	octohubHandler := octohubHandlers.NewOctohubHandler()
+	gitHandler := octohubHandlers.NewGitHandler("C:\\Users\\user\\Documents\\GitHub\\devops-hub")
 
 	err := wails.Run(&options.App{
 		Title:            "Docker Manager",
@@ -59,6 +61,7 @@ func main() {
 			authHandler.Startup(ctx)
 			userHandler.Startup(ctx)
 			octohubHandler.Startup(ctx)
+			gitHandler.Startup(ctx)
 			localFileHandler.Startup(ctx)
 
 		},
@@ -76,6 +79,7 @@ func main() {
 			sftpHandler,
 			authHandler,
 			userHandler,
+			gitHandler,
 			octohubHandler,
 			localFileHandler,
 		},

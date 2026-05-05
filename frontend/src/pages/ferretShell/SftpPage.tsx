@@ -1,16 +1,14 @@
 import iziToast from 'izitoast';
-import SftpSidebar from './components/SftpSidebar';
-import RenameModal from './components/RenameModal';
-import { useAuth } from '../../../contexts/AuthContext';
-import SftpLocalPanel from './components/SftpLocalPanel';
-import SftpRemotePanel from './components/SftpRemotePanel';
+import { useAuth } from '../../contexts/AuthContext';
 import React, { useState, useEffect, useRef } from 'react';
-import * as Ssh from '../../../../wailsjs/go/ferretShellHandlers/SshHandlerStruct';
-import * as Sftp from '../../../../wailsjs/go/ferretShellHandlers/SftpHandlerStruct';
-import * as Local from '../../../../wailsjs/go/ferretShellHandlers/LocalFileHandler';
-import { ferretshellHandlers, ferretshellDtos } from '../../../../wailsjs/go/models';
-
-
+import * as Ssh from '../../../wailsjs/go/ferretShellHandlers/SshHandlerStruct';
+import * as Sftp from '../../../wailsjs/go/ferretShellHandlers/SftpHandlerStruct';
+import * as Local from '../../../wailsjs/go/ferretShellHandlers/LocalFileHandler';
+import { ferretshellHandlers, ferretshellDtos } from '../../../wailsjs/go/models';
+import SftpSidebar from '../../features/ferretShell-module/sftp/components/SftpSidebar';
+import RenameModal from '../../features/ferretShell-module/sftp/components/RenameModal';
+import SftpLocalPanel from '../../features/ferretShell-module/sftp/components/SftpLocalPanel';
+import SftpRemotePanel from '../../features/ferretShell-module/sftp/components/SftpRemotePanel';
 
 const SftpPage: React.FC = () => {
     const { token, user } = useAuth();

@@ -1,8 +1,8 @@
-import SftpPage from '../sftp/SftpPage';
 import FerretShellShell from './FerretShellShell';
-import TerminalPage from '../terminal/TerminalPage';
+import SftpPage from '../../../pages/ferretShell/SftpPage';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import TerminalFormPage from '../terminal/TerminalFormPage';
+import TerminalPage from '../../../pages/ferretShell/TerminalPage';
+import TerminalFormPage from '../../../pages/ferretShell/TerminalFormPage';
 
 const FerretShellModuleWrapper: React.FC = () => {
     return (

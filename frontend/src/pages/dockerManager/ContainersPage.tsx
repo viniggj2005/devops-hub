@@ -1,7 +1,8 @@
 import { Plus, RefreshCcw } from 'lucide-react';
 import React, { useRef, useState } from 'react';
-import ContainersListView, { ContainersListFetchRef } from '../features/docker-module/containers/ContainersList';
-import { CreateContainerModal } from '../features/docker-module/containers/components/modals/CreateContainerModal';
+import ContainersListView, { ContainersListFetchRef } from '../../features/docker-module/containers/ContainersList';
+import { CreateContainerModal } from '../../features/docker-module/containers/components/modals/CreateContainerModal';
+
 
 const ContainersPage: React.FC = () => {
   const containerListRef = useRef<ContainersListFetchRef>(null);

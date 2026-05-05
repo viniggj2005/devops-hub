@@ -31,7 +31,7 @@ func (handlerStruct *OctohubHandler) Startup(ctx context.Context) {
 	handlerStruct.ctx = ctx
 }
 
-func (handlerStruct *OctohubHandler) IniciarLogin() {
+func (handlerStruct *OctohubHandler) StartLogin() {
 	clientID := "Ov23liIA8eq127XEw2d7"
 	url := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&scope=repo", clientID)
 	runtime.BrowserOpenURL(handlerStruct.ctx, url)
@@ -56,10 +56,14 @@ func (handlerStruct *OctohubHandler) listenCallback() {
 				fmt.Fprintf(w, "Erro ao obter token: %v", err)
 				return
 			}
+			fmt.Printf("Token obtido com sucesso: %s\n", token[:5]+"...")
+			os.WriteFile(".github-token", []byte(token), 0600)
 
 			err = keyring.Set("meu-app-git", "github-token", token)
 			if err != nil {
 				fmt.Printf("Erro ao salvar no keyring: %v\n", err)
+			} else {
+				fmt.Printf("Token salvo no keyring com sucesso.\n")
 			}
 
 			fmt.Fprintf(w, "Login bem-sucedido! Pode fechar esta aba e voltar ao app.")
@@ -97,22 +101,34 @@ func (handlerStruct *OctohubHandler) exchangeCodeForToken(code string) (string, 
 	}
 	defer resp.Body.Close()
 
-	var res GitHubResponse
+	var res struct {
+		AccessToken string `json:"access_token"`
+		Error       string `json:"error"`
+		ErrorDesc   string `json:"error_description"`
+	}
 	json.NewDecoder(resp.Body).Decode(&res)
+
+	if res.Error != "" {
+		return "", fmt.Errorf("github error: %s - %s", res.Error, res.ErrorDesc)
+	}
 
 	return res.AccessToken, nil
 }
 
-func (handlerStruct *OctohubHandler) VerificarLogin() string {
+func (handlerStruct *OctohubHandler) VerifyLogin() string {
 	token, err := keyring.Get("meu-app-git", "github-token")
 	if err != nil {
-		return ""
+		data, err := os.ReadFile(".github-token")
+		if err != nil {
+			return ""
+		}
+		return string(data)
 	}
 	return token
 }
 
 func (handlerStruct *OctohubHandler) GetUserInfo() (map[string]interface{}, error) {
-	token := handlerStruct.VerificarLogin()
+	token := handlerStruct.VerifyLogin()
 	if token == "" {
 		return nil, fmt.Errorf("não autenticado")
 	}

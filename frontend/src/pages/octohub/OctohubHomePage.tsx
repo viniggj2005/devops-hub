@@ -1,13 +1,16 @@
 import React from 'react';
-import { IniciarLogin } from '../../../../wailsjs/go/octohubHandlers/OctohubHandler';
+import { User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { StartLogin } from '../../../wailsjs/go/octohubHandlers/OctohubHandler';
 
 interface OctohubHomePageProps {
-    isLoggedIn: boolean | null;
     githubUser: any;
+    isLoggedIn: boolean | null;
     checkLogin: () => Promise<void>;
 }
 
-const OctohubHomePage: React.FC<OctohubHomePageProps> = ({ isLoggedIn, githubUser, checkLogin }) => {
+const OctohubHomePage: React.FC<OctohubHomePageProps> = ({ githubUser, isLoggedIn, checkLogin }) => {
+    const navigate = useNavigate();
 
     if (isLoggedIn === null) {
         return (
@@ -36,7 +39,7 @@ const OctohubHomePage: React.FC<OctohubHomePageProps> = ({ isLoggedIn, githubUse
                     </p>
                 </div>
                 <button
-                    onClick={() => IniciarLogin()}
+                    onClick={() => StartLogin()}
                     className="w-full sm:w-auto px-10 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-3"
                 >
                     <img src="/gitoctocat.svg" alt="" className="w-5 h-5 brightness-0 invert" />
@@ -61,7 +64,7 @@ const OctohubHomePage: React.FC<OctohubHomePageProps> = ({ isLoggedIn, githubUse
                                 />
                             ) : (
                                 <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-white/10 flex items-center justify-center text-4xl">
-                                    👤
+                                    <User />
                                 </div>
                             )}
                             <div className="absolute bottom-1 right-1 w-6 h-6 bg-green-400 border-4 border-emerald-500 rounded-full"></div>
@@ -84,11 +87,13 @@ const OctohubHomePage: React.FC<OctohubHomePageProps> = ({ isLoggedIn, githubUse
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[
-                    { title: 'Chaves SSH', desc: 'Gerencie suas chaves de acesso ao servidor.', count: '3 ativas' },
                     { title: 'Repositórios', desc: 'Visualize e gerencie seus projetos git.', count: githubUser?.public_repos + ' públicos' },
-                    { title: 'Certificados', desc: 'Controle seus certificados TLS/SSL.', count: '2 alertas' },
-                ].map((card, i) => (
-                    <div key={i} className="group bg-white dark:bg-zinc-900/40 border border-gray-200 dark:border-white/5 p-8 rounded-3xl hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/5 transition-all cursor-pointer">
+                ].map((card, index) => (
+                    <div
+                        key={index}
+                        onClick={() => card.title === 'Repositórios' ? navigate('/octohub/history') : null}
+                        className="group bg-white dark:bg-zinc-900/40 border border-gray-200 dark:border-white/5 p-8 rounded-3xl hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/5 transition-all cursor-pointer"
+                    >
                         <div className="flex justify-between items-start mb-6">
                             <h3 className="text-xl font-bold">{card.title}</h3>
                             <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-lg uppercase tracking-wider">{card.count}</span>

@@ -2,7 +2,7 @@ import React from 'react';
 import termIcon from '../../../assets/images/term.svg';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTerminalStore } from '../terminal/TerminalStore';
-import { Home, LogOut, SquareTerminal, X, FolderSync } from 'lucide-react';
+import { Home, SquareTerminal, X, FolderSync } from 'lucide-react';
 import ToggleThemeButton from '../../shared/components/buttons/ToggleThemeButton';
 
 const FerretShellNavbar: React.FC = () => {
@@ -102,15 +102,6 @@ const FerretShellNavbar: React.FC = () => {
 
             <div className="flex items-center gap-4 flex-shrink-0 pl-4">
                 <ToggleThemeButton />
-
-                <button
-                    onClick={() => navigate('/home')}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 transition-all group"
-                    title="Voltar ao Console"
-                >
-                    <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    <span className="hidden xl:inline">Voltar</span>
-                </button>
             </div>
         </nav>
     );

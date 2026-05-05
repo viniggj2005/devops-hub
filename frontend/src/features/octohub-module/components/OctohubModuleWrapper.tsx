@@ -1,17 +1,18 @@
 import React from 'react';
 import OctohubShell from './OctohubShell';
-import OctohubHomePage from '../pages/OctohubHomePage';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { EventsOn } from '../../../../wailsjs/runtime/runtime';
-import { VerificarLogin, GetUserInfo } from '../../../../wailsjs/go/octohubHandlers/OctohubHandler';
+import OctohubHomePage from '../../../pages/octohub/OctohubHomePage';
+import CommitHistoryPage from '../../../pages/octohub/CommitHistoryPage';
+import { VerifyLogin, GetUserInfo } from '../../../../wailsjs/go/octohubHandlers/OctohubHandler';
 
 const OctohubModuleWrapper: React.FC = () => {
-    const [isLoggedIn, setIsLoggedIn] = React.useState<boolean | null>(null);
     const [githubUser, setGithubUser] = React.useState<any>(null);
+    const [isLoggedIn, setIsLoggedIn] = React.useState<boolean | null>(null);
 
     const checkLogin = React.useCallback(async () => {
         try {
-            const token = await VerificarLogin();
+            const token = await VerifyLogin();
             if (token) {
                 setIsLoggedIn(true);
                 const user = await GetUserInfo();
@@ -21,7 +22,6 @@ const OctohubModuleWrapper: React.FC = () => {
                 setGithubUser(null);
             }
         } catch (error) {
-            console.error("Erro ao verificar login:", error);
             setIsLoggedIn(false);
         }
     }, []);
@@ -45,6 +45,12 @@ const OctohubModuleWrapper: React.FC = () => {
                             githubUser={githubUser}
                             checkLogin={checkLogin}
                         />
+                    }
+                />
+                <Route
+                    path="/octohub/history"
+                    element={
+                        <CommitHistoryPage />
                     }
                 />
                 <Route path="/" element={<Navigate to="/octohub/home" replace />} />

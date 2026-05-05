@@ -9,6 +9,7 @@ require (
 	github.com/docker/docker v28.0.0+incompatible
 	github.com/glebarez/sqlite v1.11.0
 	github.com/google/uuid v1.6.0
+	github.com/joho/godotenv v1.5.1
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/pkg/sftp v1.13.10
 	github.com/rhysd/go-github-selfupdate v1.2.3

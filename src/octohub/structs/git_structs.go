@@ -8,3 +8,8 @@ type Commit struct {
 	Date        string
 	Title       string
 }
+
+type FileModification struct {
+	File   string
+	Status string
+}

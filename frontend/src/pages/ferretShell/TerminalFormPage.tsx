@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Plus, Shield, Terminal, Server } from 'lucide-react';
-import SshConnectionList from './components/SshConnectionList';
-import SshConnectionModal from './components/CreateSshConnectionModal';
+import SshConnectionList from '../../features/ferretShell-module/terminal/components/SshConnectionList';
+import CreateSshConnectionModal from '../../features/ferretShell-module/terminal/components/CreateSshConnectionModal';
+
 
 const TerminalFormPage: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -68,7 +69,7 @@ const TerminalFormPage: React.FC = () => {
         <SshConnectionList key={reloadFlag} token={token} />
       </section>
 
-      <SshConnectionModal
+      <CreateSshConnectionModal
         onCreated={() => setReloadFlag((previous) => previous + 1)}
         open={open}
         onClose={() => setOpen(false)}
