@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
 type GitHandler struct {
@@ -33,6 +34,10 @@ func (handlerStruct *GitHandler) RunGitCommand(args []string) ([]byte, error) {
 	if err != nil {
 		if handlerStruct.ctx.Err() == context.DeadlineExceeded {
 			return nil, fmt.Errorf("o comando git expirou")
+		}
+		if len(out) > 0 {
+
+			return nil, fmt.Errorf("%s", strings.TrimSpace(string(out)))
 		}
 		return nil, err
 	}

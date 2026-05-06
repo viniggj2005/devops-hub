@@ -84,7 +84,24 @@ func (handlerStruct *GitCommitsHandler) GetCommitedFileChanges(commitHash string
 
 	return strings.Join(cleanLines, "\n"), nil
 }
-
+func (handlerStruct *GitCommitsHandler) GetGitStatus() ([]octohubStructs.FilesStatus, error) {
+	args := []string{"status", "-s"}
+	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	if err != nil {
+		return nil, err
+	}
+	var filesStatus []octohubStructs.FilesStatus
+	scanner := bufio.NewScanner(strings.NewReader(string(out)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			continue
+		}
+		filesStatus = append(filesStatus, octohubStructs.FilesStatus{FileName: parts[1], Status: parts[0]})
+	}
+	return filesStatus, nil
+}
 func (handlerStruct *GitCommitsHandler) ListCommits(page int) ([]octohubStructs.Commit, error) {
 
 	args := []string{"log", fmt.Sprintf("--skip=%d", page*15), "-n", "15"}
@@ -129,4 +146,14 @@ func (handlerStruct *GitCommitsHandler) ListCommits(page int) ([]octohubStructs.
 		commits = append(commits, *current)
 	}
 	return commits, nil
+}
+
+func (handlerStruct *GitCommitsHandler) GetUncommitedFileChanges(filePath string) (string, error) {
+	args := []string{"diff", "HEAD", "--", filePath}
+	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	if err != nil {
+		return "", err
+	}
+
+	return string(out), nil
 }

@@ -10,25 +10,43 @@ import { WindowReload, WindowReloadApp } from "../wailsjs/runtime/runtime";
 import React from 'react';
 
 const container = document.getElementById('root');
-document.addEventListener('keydown', (e) => {
-  if (e.key === "F5") {
+document.addEventListener('keydown', (event: KeyboardEvent) => {
+  if (event.key === "F5") {
     WindowReload()
-  } else if (e.shiftKey && e.key === "F5") {
+  } else if (event.shiftKey && event.key === "F5") {
     WindowReloadApp()
   }
 });
 
 const root = createRoot(container!);
 
+const renderApp = () => {
+  root.render(
+    <React.StrictMode>
+      <AuthProvider>
+        <DockerClientProvider>
+          <ThemeProvider>
+            <RouterProvider router={router} />
+          </ThemeProvider>
+        </DockerClientProvider>
+      </AuthProvider>
+    </React.StrictMode>
+  );
+};
 
-root.render(
-  <React.StrictMode>
-    <AuthProvider>
-      <DockerClientProvider>
-        <ThemeProvider>
-          <RouterProvider router={router} />
-        </ThemeProvider>
-      </DockerClientProvider>
-    </AuthProvider>
-  </React.StrictMode>
-);
+if ((window as any).runtime && (window as any).go) {
+  renderApp();
+} else {
+  let attempts = 0;
+  const maxAttempts = 100;
+  const interval = setInterval(() => {
+    attempts++;
+    if (((window as any).runtime && (window as any).go) || attempts >= maxAttempts) {
+      clearInterval(interval);
+      if (attempts >= maxAttempts) {
+        console.warn('Wails runtime not detected after 5 seconds. Rendering anyway...');
+      }
+      renderApp();
+    }
+  }, 50);
+}

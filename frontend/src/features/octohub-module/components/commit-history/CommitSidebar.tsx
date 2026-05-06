@@ -13,21 +13,6 @@ interface CommitSidebarProps {
     lastCommitElementRef: (node: HTMLDivElement | null) => void;
 }
 
-const formatShortDate = (dateString: string) => {
-    const cleaned = dateString.replace('Date:', '').trim();
-    const parts = cleaned.split(' ');
-    if (parts.length >= 4) {
-        return `${parts[1]} ${parts[2]}, ${parts[parts.length - 2]}`;
-    }
-    return new Date(cleaned).toLocaleDateString(undefined, {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-};
-
 const CommitSidebar: React.FC<CommitSidebarProps> = ({
     commits,
     onRefresh,

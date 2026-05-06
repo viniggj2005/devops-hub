@@ -1,16 +1,16 @@
-import React from 'react';
 import OctohubShell from './OctohubShell';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { EventsOn } from '../../../../wailsjs/runtime/runtime';
+import React, { useCallback, useEffect, useState } from 'react';
 import OctohubHomePage from '../../../pages/octohub/OctohubHomePage';
 import CommitHistoryPage from '../../../pages/octohub/CommitHistoryPage';
 import { VerifyLogin, GetUserInfo } from '../../../../wailsjs/go/octohubHandler/OctohubHandler';
 
 const OctohubModuleWrapper: React.FC = () => {
-    const [githubUser, setGithubUser] = React.useState<any>(null);
-    const [isLoggedIn, setIsLoggedIn] = React.useState<boolean | null>(null);
+    const [githubUser, setGithubUser] = useState<any>(null);
+    const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
-    const checkLogin = React.useCallback(async () => {
+    const checkLogin = useCallback(async () => {
         try {
             const token = await VerifyLogin();
             if (token) {
@@ -26,7 +26,7 @@ const OctohubModuleWrapper: React.FC = () => {
         }
     }, []);
 
-    React.useEffect(() => {
+    useEffect(() => {
         checkLogin();
         const unbind = EventsOn('login-success', (success: boolean) => {
             if (success) checkLogin();

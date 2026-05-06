@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Hash, User, Calendar } from 'lucide-react';
 import { octohubStructs } from '../../../../../wailsjs/go/models';
 import { copyToClipboard } from '../../../shared/functions/clipboard';
@@ -10,9 +10,9 @@ interface CommitDetailsHeaderProps {
 const CommitDetailsHeader: React.FC<CommitDetailsHeaderProps> = ({ commit }) => {
     const avatarUrl = `https://github.com/${commit.Author}.png`;
 
-    const [imgError, setImgError] = React.useState(false);
+    const [imgError, setImgError] = useState(false);
 
-    React.useEffect(() => {
+    useEffect(() => {
         setImgError(false);
     }, [commit.Hash]);
 

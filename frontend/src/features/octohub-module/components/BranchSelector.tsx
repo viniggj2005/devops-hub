@@ -1,7 +1,11 @@
+import iziToast from 'izitoast';
 import React, { useState, useEffect } from 'react';
 import StashChangesModal from './StashChangesModal';
+import ConflictResolutionModal from './ConflictResolutionModal';
+import { EventsEmit } from '../../../../wailsjs/runtime/runtime';
 import { GitBranch, Plus, Search, Check, CloudUpload } from 'lucide-react';
-import { GetCurrentBranch, ListBranchs, ChangeBranch, CreateBranch, PublishBranch, HasUncommittedChanges } from '../../../../wailsjs/go/octohubHandler/GitBranchHandler';
+import { GetGitStatus } from '../../../../wailsjs/go/octohubHandler/GitCommitsHandler';
+import { GetCurrentBranch, ListBranchs, ChangeBranch, CreateBranch, PublishBranch, HasUncommittedChanges, OpenFileInEditor, StageFile } from '../../../../wailsjs/go/octohubHandler/GitBranchHandler';
 
 const BranchSelector: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -12,7 +16,28 @@ const BranchSelector: React.FC = () => {
     const [showStashModal, setShowStashModal] = useState(false);
     const [showCreateInput, setShowCreateInput] = useState(false);
     const [currentBranch, setCurrentBranch] = useState<string>('');
+    const [showConflictModal, setShowConflictModal] = useState(false);
+    const [conflictingFiles, setConflictingFiles] = useState<string[]>([]);
     const [pendingBranch, setPendingBranch] = useState<string | null>(null);
+
+    const checkAndShowConflicts = async (errStr: string): Promise<boolean> => {
+        if (errStr.includes('needs merge') || errStr.toLowerCase().includes('conflict')) {
+            try {
+                const status = await GetGitStatus();
+                if (status) {
+                    const conflicts = status.filter((f: any) => f.Status.includes('U') || f.Status === 'AA' || f.Status === 'DD').map((f: any) => f.FileName);
+                    if (conflicts.length > 0) {
+                        setConflictingFiles(conflicts);
+                        setShowConflictModal(true);
+                        return true;
+                    }
+                }
+            } catch (err) {
+                console.error("Erro ao verificar conflitos", err);
+            }
+        }
+        return false;
+    };
 
 
     const loadData = async () => {
@@ -20,7 +45,7 @@ const BranchSelector: React.FC = () => {
             const current = await GetCurrentBranch();
             setCurrentBranch(current);
             const list = await ListBranchs();
-            const cleanList = list.map(b => b.replace('*', '').trim());
+            const cleanList = list.map((branch: string) => branch.replace('*', '').trim());
             setBranches(cleanList);
         } catch (err) {
             console.error("Erro ao carregar branches:", err);
@@ -47,9 +72,16 @@ const BranchSelector: React.FC = () => {
             await ChangeBranch(branch, false);
             setCurrentBranch(branch);
             setIsOpen(false);
-            window.location.reload();
+            EventsEmit('git:branch-changed', branch);
         } catch (err: any) {
-            alert("Erro ao trocar de branch: " + err);
+            const isConflict = await checkAndShowConflicts(String(err));
+            if (!isConflict) {
+                iziToast.error({
+                    title: 'Erro',
+                    message: "Erro ao trocar de branch: " + err,
+                    position: 'bottomRight',
+                });
+            }
         } finally {
             setLoading(false);
         }
@@ -60,9 +92,16 @@ const BranchSelector: React.FC = () => {
         setLoading(true);
         try {
             await ChangeBranch(pendingBranch, action === 'leave');
-            window.location.reload();
+            EventsEmit('git:branch-changed', pendingBranch);
         } catch (err: any) {
-            alert("Erro ao trocar branch: " + err);
+            const isConflict = await checkAndShowConflicts(String(err));
+            if (!isConflict) {
+                iziToast.error({
+                    title: 'Erro',
+                    message: "Erro ao trocar branch: " + err,
+                    position: 'bottomRight',
+                });
+            }
         } finally {
             setLoading(false);
             setShowStashModal(false);
@@ -97,7 +136,7 @@ const BranchSelector: React.FC = () => {
         }
     };
 
-    const filteredBranches = branches.filter(branch =>
+    const filteredBranches = branches.filter((branch: string) =>
         branch.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -139,7 +178,7 @@ const BranchSelector: React.FC = () => {
                                     placeholder="Filter branches..."
                                     className="w-full pl-9 pr-4 py-2 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                     value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    onChange={(event) => setSearchTerm(event.target.value)}
                                 />
                             </div>
 
@@ -198,6 +237,30 @@ const BranchSelector: React.FC = () => {
                 targetBranch={pendingBranch}
                 onConfirm={confirmSwitch}
                 loading={loading}
+            />
+
+            <ConflictResolutionModal
+                isOpen={showConflictModal}
+                onClose={() => setShowConflictModal(false)}
+                conflictingFiles={conflictingFiles}
+                onOpenFile={(file) => {
+                    OpenFileInEditor(file).catch(err => {
+                        iziToast.error({ title: 'Erro', message: "Erro ao abrir no VSCode: " + err, position: 'bottomRight' });
+                    });
+                }}
+                onStageFile={async (file) => {
+                    try {
+                        await StageFile(file);
+                        iziToast.success({ title: 'Resolvido', message: `${file} marcado como resolvido.`, position: 'bottomRight' });
+                        const stillHasConflicts = await checkAndShowConflicts('conflict');
+                        if (!stillHasConflicts) {
+                            setShowConflictModal(false);
+                            iziToast.success({ title: 'Tudo Limpo', message: 'Todos os conflitos foram resolvidos!', position: 'bottomRight' });
+                        }
+                    } catch (err: any) {
+                        iziToast.error({ title: 'Erro', message: "Erro ao marcar como resolvido: " + err, position: 'bottomRight' });
+                    }
+                }}
             />
         </div>
     );
