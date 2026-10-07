@@ -11,6 +11,7 @@ interface CommitSidebarProps {
     selectedCommit: octohubStructs.Commit | null;
     onSelectCommit: (commit: octohubStructs.Commit) => void;
     lastCommitElementRef: (node: HTMLDivElement | null) => void;
+    onCommitContextMenu?: (event: React.MouseEvent, commit: octohubStructs.Commit) => void;
 }
 
 const CommitSidebar: React.FC<CommitSidebarProps> = ({
@@ -21,10 +22,11 @@ const CommitSidebar: React.FC<CommitSidebarProps> = ({
     selectedCommit,
     onSelectCommit,
     onSearchTermChange,
-    lastCommitElementRef
+    onCommitContextMenu,
+    lastCommitElementRef,
 }) => {
     return (
-        <div className="w-full h-full flex flex-col bg-zinc-50 dark:bg-[#0c0c0e] shrink-0">
+        <div className="w-full flex-1 min-h-0 flex flex-col bg-zinc-50 dark:bg-[#0c0c0e]">
             <div className="p-4 border-b border-zinc-200 dark:border-white/5 space-y-3">
                 <div className="flex items-center justify-between">
                     <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">Histórico</h2>
@@ -56,6 +58,11 @@ const CommitSidebar: React.FC<CommitSidebarProps> = ({
                                 key={commit.Hash}
                                 ref={index === commits.length - 1 ? lastCommitElementRef : null}
                                 onClick={() => onSelectCommit(commit)}
+                                onContextMenu={(event) => {
+                                    if (!onCommitContextMenu) return;
+                                    event.preventDefault();
+                                    onCommitContextMenu(event, commit);
+                                }}
                                 className={`p-3 cursor-pointer border-b border-zinc-100 dark:border-white/5 transition-all ${selectedCommit?.Hash === commit.Hash
                                     ? 'bg-emerald-500/10 border-l-2 border-l-emerald-500'
                                     : 'hover:bg-zinc-100 dark:hover:bg-white/5 border-l-2 border-l-transparent'

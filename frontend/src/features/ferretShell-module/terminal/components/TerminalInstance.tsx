@@ -1,9 +1,10 @@
-import 'xterm/css/xterm.css';
-import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
+import '@xterm/xterm/css/xterm.css';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
 import React, { useEffect, useRef } from 'react';
 import { useTerminalStore } from '../TerminalStore';
 import { EventsOn } from '../../../../../wailsjs/runtime/runtime';
+import { attachTerminalShortcuts } from '../functions/TerminalShortcuts';
 import { TerminalInstance as ITerminalInstance } from '../../../../interfaces/TerminalInterfaces';
 import { Send, Resize, Disconnect, ConnectWith, Broadcast } from '../../../../../wailsjs/go/ferretShellHandlers/TerminalHandlerStruct';
 
@@ -62,6 +63,7 @@ const TerminalInstance: React.FC<Props> = ({ instance }) => {
     };
 
     terminal.onData(handleData);
+    const detachShortcuts = attachTerminalShortcuts(terminal, hostRef.current!);
 
     const offData = EventsOn(`ssh:data:${sessionId}`, (chunk: string) => terminal.write(chunk));
     const offExit = EventsOn(`ssh:exit:${sessionId}`, (msg: string) =>
@@ -85,6 +87,7 @@ const TerminalInstance: React.FC<Props> = ({ instance }) => {
       Disconnect(sessionId);
       offData();
       offExit();
+      detachShortcuts();
       terminal.dispose();
       resizeObserver.disconnect();
       window.removeEventListener('resize', onResize);

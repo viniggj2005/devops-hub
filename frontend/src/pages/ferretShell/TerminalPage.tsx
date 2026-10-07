@@ -1,12 +1,13 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Terminal, Plus, Server, Zap } from 'lucide-react';
 import SshConnectionList from '../../features/ferretShell-module/terminal/components/SshConnectionList';
+import CreateSshConnectionModal from '../../features/ferretShell-module/terminal/components/CreateSshConnectionModal';
 
 const TerminalPage: React.FC = () => {
-    const navigate = useNavigate();
     const { token } = useAuth();
+    const [createModalOpen, setCreateModalOpen] = useState(false);
+    const [reloadFlag, setReloadFlag] = useState(0);
 
     return (
         <div className="space-y-12 pb-20">
@@ -25,7 +26,7 @@ const TerminalPage: React.FC = () => {
                     </p>
                     <div className="flex flex-wrap gap-4">
                         <button
-                            onClick={() => navigate('/term/createConnectionForm')}
+                            onClick={() => setCreateModalOpen(true)}
                             className="px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-purple-500/25 hover:scale-105 transition-all flex items-center gap-2"
                         >
                             <Plus className="w-5 h-5" />
@@ -48,8 +49,14 @@ const TerminalPage: React.FC = () => {
                     </div>
                 </div>
 
-                <SshConnectionList token={token || ''} />
+                <SshConnectionList key={reloadFlag} token={token || ''} />
             </section>
+
+            <CreateSshConnectionModal
+                open={createModalOpen}
+                onClose={() => setCreateModalOpen(false)}
+                onCreated={() => setReloadFlag((previous) => previous + 1)}
+            />
         </div>
     );
 };

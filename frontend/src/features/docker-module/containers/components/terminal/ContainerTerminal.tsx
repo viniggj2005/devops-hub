@@ -1,22 +1,22 @@
-import 'xterm/css/xterm.css';
-import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
-import React, { useEffect, useRef } from 'react';
-import { TerminalInstance } from '../../../../../interfaces/TerminalInterfaces';
-import { useDockerClient } from '../../../../../contexts/DockerClientContext';
-import { EventsOn } from '../../../../../../wailsjs/runtime/runtime';
-import { containerExec, terminalWrite, terminalResize, terminalClose } from '../../services/ContainersService';
 import iziToast from 'izitoast';
+import '@xterm/xterm/css/xterm.css';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import React, { useEffect, useRef } from 'react';
+import { EventsOn } from '../../../../../../wailsjs/runtime/runtime';
+import { useDockerClient } from '../../../../../contexts/DockerClientContext';
+import { TerminalInstance } from '../../../../../interfaces/TerminalInterfaces';
+import { containerExec, terminalWrite, terminalResize, terminalClose } from '../../services/ContainersService';
 
 interface Props {
   instance: TerminalInstance;
 }
 
 const ContainerTerminal: React.FC<Props> = ({ instance }) => {
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const terminalRef = useRef<Terminal | null>(null);
-  const fitRef = useRef<FitAddon | null>(null);
   const connectedRef = useRef(false);
+  const fitRef = useRef<FitAddon | null>(null);
+  const terminalRef = useRef<Terminal | null>(null);
+  const hostRef = useRef<HTMLDivElement | null>(null);
   const { selectedCredentialId } = useDockerClient();
 
   const { containerId } = instance;

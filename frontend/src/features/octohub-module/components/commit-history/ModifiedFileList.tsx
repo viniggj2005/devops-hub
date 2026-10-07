@@ -11,9 +11,9 @@ interface ModifiedFileListProps {
 
 const getStatusIcon = (status: string) => {
     switch (status[0]) {
+        case 'D': return <Minus className="w-3 h-3 text-rose-500" />;
         case 'A': return <Plus className="w-3 h-3 text-emerald-500" />;
         case 'M': return <SquareDot className="w-3 h-3 text-amber-500" />;
-        case 'D': return <Minus className="w-3 h-3 text-rose-500" />;
         case 'R': return <SquareArrowRight className="w-3 h-3 text-blue-500" />;
         default: return <FileText className="w-3 h-3 text-zinc-400" />;
     }

@@ -26,23 +26,25 @@ var assets embed.FS
 
 func main() {
 	godotenv.Load()
-	database.InitDb()
 	app := NewApp()
+	database.InitDb()
+	repositoryPath := os.Getenv("REPOSITORY")
 	sessionManager := auth.NewManager(8 * time.Hour)
+	localFileHandler := ferretShellHandlers.NewLocalFileHandler()
+	terminal := ferretShellHandlers.NewTerminalHandler(sessionManager)
 	docker := dockerHandlers.NewDockerHandler(database.DataBase, sessionManager)
 	dockerSdk := dockerHandlers.NewDockerSdkHandler(docker)
 	docker.RegisterDockerSdkHandler(dockerSdk)
-	terminal := ferretShellHandlers.NewTerminalHandler(sessionManager)
 	sftpHandler := ferretShellHandlers.NewSftpHandler(terminal)
+	userHandler := userHandlers.NewUserHandler(database.DataBase, sessionManager)
+	octohubHandler := octohub.NewOctohubHandler(database.DataBase, sessionManager)
 	sshHandler := ferretShellHandlers.NewSshHandler(database.DataBase, sessionManager)
 	authHandler := authHandlers.NewAuthHandler(database.DataBase, sessionManager, app)
-	userHandler := userHandlers.NewUserHandler(database.DataBase, sessionManager)
-	localFileHandler := ferretShellHandlers.NewLocalFileHandler()
-	octohubHandler := octohub.NewOctohubHandler()
-	repositoryPath := os.Getenv("REPOSITORY")
+
 	gitHandler := octohub.NewGitHandler(repositoryPath)
 	branchHandler := octohub.NewGitBranchHandler(gitHandler)
 	commitHandler := octohub.NewGitCommitsHandler(gitHandler)
+	repositoryHandler := octohub.NewRepositoryHandler(database.DataBase, sessionManager, gitHandler)
 	err := wails.Run(&options.App{
 		Title:            "Docker Manager",
 		Width:            1024,
@@ -59,13 +61,14 @@ func main() {
 			docker.Startup(ctx)
 			terminal.Startup(ctx)
 			dockerSdk.Startup(ctx)
+			gitHandler.Startup(ctx)
 			sshHandler.Startup(ctx)
 			sftpHandler.Startup(ctx)
 			authHandler.Startup(ctx)
 			userHandler.Startup(ctx)
 			octohubHandler.Startup(ctx)
-			gitHandler.Startup(ctx)
 			localFileHandler.Startup(ctx)
+			repositoryHandler.Startup(ctx)
 
 		},
 		Windows: &windows.Options{
@@ -87,6 +90,7 @@ func main() {
 			commitHandler,
 			octohubHandler,
 			localFileHandler,
+			repositoryHandler,
 		},
 	})
 

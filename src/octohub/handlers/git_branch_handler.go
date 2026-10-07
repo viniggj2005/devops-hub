@@ -2,10 +2,10 @@ package octohubHandler
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
-	"os/exec"
-	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	octohubStructs "docker-manager-go/src/octohub/structs"
@@ -23,11 +23,22 @@ func NewGitBranchHandler(gitHandler *GitHandler) *GitBranchHandler {
 
 func (handlerStruct *GitBranchHandler) PublishBranch(branchName string) error {
 	args := []string{"push", "-u", "origin", branchName}
+	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-parse", "--abbrev-ref", branchName + "@{upstream}"}); err == nil {
+		args = []string{"push"}
+	}
 	_, err := handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (handlerStruct *GitBranchHandler) CreateAndCheckoutBranch(branchName string) error {
+	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"check-ref-format", "--branch", branchName}); err != nil {
+		return fmt.Errorf("nome de branch inválido: %s", branchName)
+	}
+	_, err := handlerStruct.gitHandler.RunGitCommand([]string{"checkout", "-b", branchName})
+	return err
 }
 func (handlerStruct *GitBranchHandler) CreateBranch(branchName string) error {
 	args := []string{"branch", branchName}
@@ -48,7 +59,7 @@ func (handlerStruct *GitBranchHandler) HasUncommittedChanges() (bool, error) {
 	return len(strings.TrimSpace(string(out))) > 0, nil
 }
 
-func (handlerStruct *GitBranchHandler) ChangeBranch(targetBranch string, leaveChanges bool) error {
+func (handlerStruct *GitBranchHandler) ChangeBranch(targetBranch string, isRemote bool, leaveChanges bool) error {
 	var args []string
 	hasChanges, err := handlerStruct.HasUncommittedChanges()
 	if err != nil {
@@ -64,13 +75,16 @@ func (handlerStruct *GitBranchHandler) ChangeBranch(targetBranch string, leaveCh
 	}
 
 	args = []string{"checkout", targetBranch}
-	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	if isRemote {
+		args = []string{"checkout", "--track", targetBranch}
+	}
+	_, err = handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {
 		if hasChanges {
 			args = []string{"stash", "pop"}
 			_, _ = handlerStruct.gitHandler.RunGitCommand(args)
 		}
-		return fmt.Errorf("erro ao trocar branch: %s", string(out))
+		return fmt.Errorf("erro ao trocar branch: %v", err)
 	}
 
 	if hasChanges && !leaveChanges {
@@ -92,30 +106,72 @@ func (handlerStruct *GitBranchHandler) DeleteBranch(branch string) error {
 	return nil
 }
 
-func (handlerStruct *GitBranchHandler) ListBranchs() ([]string, error) {
-	args := []string{"branch"}
+var trackRegex = regexp.MustCompile(`(ahead|behind) (\d+)`)
+
+func (handlerStruct *GitBranchHandler) ListBranches() ([]octohubStructs.BranchInfo, error) {
+	args := []string{
+		"for-each-ref", "--sort=-committerdate",
+		"--format=%(refname)%00%(refname:short)%00%(HEAD)%00%(upstream:short)%00%(upstream:track,nobracket)",
+		"refs/heads", "refs/remotes",
+	}
 	out, err := handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {
 		return nil, err
 	}
-	var branches []string
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	for scanner.Scan() {
 
-		line := scanner.Text()
-		cleanLine := strings.TrimSpace(line)
-		if cleanLine != "" {
-			branches = append(branches, cleanLine)
+	var local, remote []octohubStructs.BranchInfo
+	localNames := map[string]bool{}
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Split(line, "\x00")
+		if len(fields) < 5 {
+			continue
 		}
+		refName, shortName := fields[0], fields[1]
+
+		if strings.HasPrefix(refName, "refs/remotes/") {
+			if strings.HasSuffix(refName, "/HEAD") {
+				continue
+			}
+			remote = append(remote, octohubStructs.BranchInfo{Name: shortName, IsRemote: true})
+			continue
+		}
+
+		branch := octohubStructs.BranchInfo{
+			Name:      shortName,
+			IsCurrent: fields[2] == "*",
+			Upstream:  fields[3],
+		}
+		for _, match := range trackRegex.FindAllStringSubmatch(fields[4], -1) {
+			count, _ := strconv.Atoi(match[2])
+			if match[1] == "ahead" {
+				branch.Ahead = count
+			} else {
+				branch.Behind = count
+			}
+		}
+		localNames[shortName] = true
+		local = append(local, branch)
+	}
+
+	branches := local
+	for _, branch := range remote {
+		if _, name, found := strings.Cut(branch.Name, "/"); found && !localNames[name] {
+			branches = append(branches, branch)
+		}
+	}
+	if branches == nil {
+		branches = []octohubStructs.BranchInfo{}
 	}
 	return branches, nil
 }
 
 func (handlerStruct *GitBranchHandler) GetCurrentBranch() (string, error) {
-	args := []string{"rev-parse", "--abbrev-ref", "HEAD"}
-	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	out, err := handlerStruct.gitHandler.RunGitCommand([]string{"symbolic-ref", "--short", "-q", "HEAD"})
 	if err != nil {
-		return "", err
+		if errors.Is(err, errNoRepository) {
+			return "", err
+		}
+		return "HEAD", nil
 	}
 	return strings.TrimSpace(string(out)), nil
 }
@@ -217,9 +273,11 @@ func (handlerStruct *GitBranchHandler) GetStashedFileDiff(stashID string, filePa
 		oldPath := strings.TrimSpace(parts[0])
 		newPath := strings.TrimSpace(parts[1])
 
-		args = []string{"diff", "-M", stashID + "^:" + oldPath, stashID + ":" + newPath}
+		args = append([]string{"diff"}, diffFlags...)
+		args = append(args, "-M", stashID+"^:"+oldPath, stashID+":"+newPath)
 	} else {
-		args = []string{"stash", "show", "-p", stashID, "--", filePath}
+		args = append([]string{"stash", "show", "-p"}, diffFlags...)
+		args = append(args, stashID, "--", filePath)
 	}
 
 	out, err := handlerStruct.gitHandler.RunGitCommand(args)
@@ -227,31 +285,7 @@ func (handlerStruct *GitBranchHandler) GetStashedFileDiff(stashID string, filePa
 		return "", err
 	}
 
-	lines := strings.Split(string(out), "\n")
-	var cleanLines []string
-	for _, line := range lines {
-		if strings.HasPrefix(line, "diff --git") ||
-			strings.HasPrefix(line, "index ") ||
-			strings.HasPrefix(line, "--- ") ||
-			strings.HasPrefix(line, "+++ ") {
-			continue
-		}
-		cleanLines = append(cleanLines, line)
-	}
-
-	return strings.Join(cleanLines, "\n"), nil
-}
-
-func (handlerStruct *GitBranchHandler) OpenFileInEditor(filePath string) error {
-	fullPath := filepath.Join(handlerStruct.gitHandler.repoPath, filePath)
-
-	cmd := exec.Command("cmd", "/c", "code", fullPath)
-	err := cmd.Start()
-	if err != nil {
-		cmd = exec.Command("cmd", "/c", "start", "\"\"", fullPath)
-		return cmd.Start()
-	}
-	return nil
+	return string(out), nil
 }
 
 func (handlerStruct *GitBranchHandler) StageFile(filePath string) error {
