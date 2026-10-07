@@ -52,16 +52,18 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   };
 
   useEffect(() => {
-    const off = EventsOn('auth:changed', (isLogged: boolean) => {
-      if (!isLogged) {
-        setUser(null);
-        setToken(null);
-        tokenRef.current = null;
-      }
-    });
-    return () => {
-      if (typeof off === 'function') off();
-    };
+    if (typeof window !== 'undefined' && (window as any).runtime) {
+      const off = EventsOn('auth:changed', (isLogged: boolean) => {
+        if (!isLogged) {
+          setUser(null);
+          setToken(null);
+          tokenRef.current = null;
+        }
+      });
+      return () => {
+        if (typeof off === 'function') off();
+      };
+    }
   }, []);
 
   const value = useMemo(

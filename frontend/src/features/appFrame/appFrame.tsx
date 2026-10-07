@@ -26,6 +26,7 @@ export function AppFrame() {
     if (type === 'home') return <Home className="w-4 h-4" />;
     if (type === 'docker') return <Box className="w-4 h-4 text-blue-500" />;
     if (type === 'ferretshell') return <Terminal className="w-4 h-4 text-purple-500" />;
+    if (type === 'octohub') return <img src="/gitoctocat.svg" className="w-4 h-4 brightness-0 dark:invert" />;
     return null;
   };
 

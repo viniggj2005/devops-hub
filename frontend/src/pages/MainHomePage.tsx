@@ -32,7 +32,7 @@ const MainHomePage: React.FC = () => {
             description: 'Configurações de acesso, chaves SSH e certificados TLS.',
             icon: <img src="/gitoctocat.svg" alt="git" className="w-14 h-14 brightness-0 invert" />,
             color: 'from-emerald-500 to-emerald-700',
-            status: 'Inativo'
+            status: 'Ativo'
         },
         {
             id: 'vulpes',
@@ -83,6 +83,7 @@ const MainHomePage: React.FC = () => {
                                         openTab(module.id, module.title);
                                         if (module.id === 'ferretshell') navigate('/term/home');
                                         if (module.id === 'docker') navigate('/docker/home');
+                                        if (module.id === 'octohub') navigate('/octohub/home');
                                     }
                                 }}
                                 className={`group relative overflow-hidden rounded-3xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-white/5 p-8 ${module.status === 'Ativo' ? 'cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:shadow-blue-500/10' : 'opacity-70 cursor-not-allowed'} transition-all`}

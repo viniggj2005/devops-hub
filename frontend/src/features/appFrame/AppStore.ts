@@ -33,6 +33,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     let defaultTitle = title || type;
     if (type === 'docker') defaultTitle = 'Docker Manager';
     if (type === 'ferretshell') defaultTitle = 'FerretShell';
+    if (type === 'octohub') defaultTitle = 'OctoHub';
     if (type === 'home') defaultTitle = 'Início';
 
     const newTab: AppTab = { id, type, title: defaultTitle };

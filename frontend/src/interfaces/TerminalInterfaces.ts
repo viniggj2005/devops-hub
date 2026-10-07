@@ -1,13 +1,13 @@
-import type { dtos, ferretShellDtos } from '../../wailsjs/go/models';
-export type SSHConnectionDto = ferretShellDtos.SSHConnectionDto;
+import type {ferretshellDtos } from '../../wailsjs/go/models';
+export type SSHConnectionDto = ferretshellDtos.SSHConnectionDto;
 
 export interface TerminalProps {
   id?: string;
   open: boolean;
   title?: string;
   onClose: () => void;
-  configure?: SSHConnectionDto;
   minimized?: boolean;
+  configure?: SSHConnectionDto;
   onMinimize?: (value: boolean) => void;
 }
 
@@ -27,8 +27,8 @@ export interface CreateSshConnectionInterface {
   port?: number;
   alias?: string;
   userId?: number;
-  systemUser: string;
   password?: string;
+  systemUser: string;
   knownHosts?: string;
 }
 
@@ -48,8 +48,8 @@ export interface SshDto {
   alias?: string;
   systemUser: string;
   keyPath?: string | null;
-  passphrase?: string | null;
   password?: string | null;
+  passphrase?: string | null;
   key?: number[] | string | null;
   knownHostsData?: string | null;
 }
@@ -74,9 +74,9 @@ export interface ModalProps {
 export interface TerminalInstance {
   id: string;
   title: string;
-  config?: SSHConnectionDto;
   containerId?: string;
   containerName?: string;
+  config?: SSHConnectionDto;
 }
 
 export interface TerminalTab {

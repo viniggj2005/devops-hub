@@ -41,6 +41,9 @@ func InitDb() {
 		&models.UserModel{},
 		&models.DockerCredentialsModel{},
 		&models.SshConnectionModel{},
+		&models.GithubAccountModel{},
+		&models.OctohubModel{},
+		&models.GitCredentialModel{},
 	); err != nil {
 		log.Fatalf("erro ao migrar modelos: %v", err)
 	}

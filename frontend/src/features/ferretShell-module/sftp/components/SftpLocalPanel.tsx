@@ -1,7 +1,7 @@
 import React from 'react';
 import SftpFileRow from './SftpFileRow';
 import { Monitor, ArrowUp, Trash2, Edit3 } from 'lucide-react';
-import { ferretShellHandlers } from '../../../../../wailsjs/go/models';
+import { ferretshellHandlers } from '../../../../../wailsjs/go/models';
 
 interface SftpLocalPanelProps {
     onUp: () => void;
@@ -11,7 +11,7 @@ interface SftpLocalPanelProps {
     onRename: (index: number) => void;
     onDirClick: (path: string) => void;
     onSetSelection: (indices: number[]) => void;
-    localFiles: ferretShellHandlers.LocalFileInfo[];
+    localFiles: ferretshellHandlers.LocalFileInfo[];
     onDragStart: (event: React.DragEvent, index: number) => void;
     onFileClick: (index: number, event: React.MouseEvent) => void;
     onDrop: (event: React.DragEvent, overridePath?: string) => void;

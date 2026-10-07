@@ -1,4 +1,4 @@
-package ferretShellHandlers
+package ferretshellHandlers
 
 import (
 	"context"

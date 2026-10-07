@@ -1,12 +1,12 @@
 import React from 'react';
-import ImagesPage from '../../../pages/ImagesPage';
-import VolumesPage from '../../../pages/VolumesPage';
-import NetworksPage from '../../../pages/NetworksPage';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import DockerHomePage from '../../../pages/DockerHomePage';
-import ContainersPage from '../../../pages/ContainersPage';
 import AppShell from '../../shared/components/sidebar/AppShell';
-import DockerCredentialsPage from '../../../pages/DockerCredentialsPage';
+import ImagesPage from '../../../pages/dockerManager/ImagesPage';
+import VolumesPage from '../../../pages/dockerManager/VolumesPage';
+import NetworksPage from '../../../pages/dockerManager/NetworksPage';
+import DockerHomePage from '../../../pages/dockerManager/DockerHomePage';
+import ContainersPage from '../../../pages/dockerManager/ContainersPage';
+import DockerCredentialsPage from '../../../pages/dockerManager/DockerCredentialsPage';
 
 const DockerModuleWrapper: React.FC = () => {
   return (

@@ -4,6 +4,7 @@ import appIcon from '../assets/images/hub.svg';
 import { useNavigate } from 'react-router-dom';
 import { Container, Layers, Server } from 'lucide-react';
 import CreateUserForm from '../features/users/components/forms/CreateUserForm';
+
 const CreateAccountPage: React.FC = () => {
   const navigate = useNavigate();
 

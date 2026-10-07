@@ -1,7 +1,7 @@
 import React from 'react';
 import SftpFileRow from './SftpFileRow';
 import { Link2, ArrowUp } from 'lucide-react';
-import { ferretShellHandlers } from '../../../../../wailsjs/go/models';
+import { ferretshellHandlers } from '../../../../../wailsjs/go/models';
 
 interface SftpRemotePanelProps {
     onUp: () => void;
@@ -10,7 +10,7 @@ interface SftpRemotePanelProps {
     sessionId: string | null;
     selectedIndices: number[];
     onDirClick: (name: string) => void;
-    remoteFiles: ferretShellHandlers.SftpFileInfo[];
+    remoteFiles: ferretshellHandlers.SftpFileInfo[];
     onDragStart: (event: React.DragEvent, index: number) => void;
     onFileClick: (index: number, event: React.MouseEvent) => void;
     onDrop: (event: React.DragEvent, overridePath?: string) => void;
