@@ -2,13 +2,13 @@ import iziToast from 'izitoast';
 import { Box } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { PortsSection } from '../create-modal/PortsSection';
+import { dockerDtos, image } from '../../../../../../wailsjs/go/models';
+import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { EnvVarsSection } from '../create-modal/EnvVarsSection';
 import { VolumesSection } from '../create-modal/VolumesSection';
 import { BasicInfoSection } from '../create-modal/BasicInfoSection';
-import { dockerDtos, image } from '../../../../../../wailsjs/go/models';
 import { ResourceLimitsSection } from '../create-modal/ResourceLimitsSection';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
-import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { CreateContainer, ImagesList, ListVolumes, ListNetworks } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
 import { CreateContainerPortMapping, CreateContainerEnvVar, CreateContainerVolumeMapping } from '../../../../../interfaces/ContainerInterfaces';
 

@@ -6,8 +6,8 @@ export interface TerminalProps {
   open: boolean;
   title?: string;
   onClose: () => void;
-  minimized?: boolean;
   configure?: SSHConnectionDto;
+  minimized?: boolean;
   onMinimize?: (value: boolean) => void;
 }
 
@@ -27,8 +27,8 @@ export interface CreateSshConnectionInterface {
   port?: number;
   alias?: string;
   userId?: number;
-  password?: string;
   systemUser: string;
+  password?: string;
   knownHosts?: string;
 }
 
@@ -48,8 +48,8 @@ export interface SshDto {
   alias?: string;
   systemUser: string;
   keyPath?: string | null;
-  password?: string | null;
   passphrase?: string | null;
+  password?: string | null;
   key?: number[] | string | null;
   knownHostsData?: string | null;
 }
@@ -74,9 +74,9 @@ export interface ModalProps {
 export interface TerminalInstance {
   id: string;
   title: string;
+  config?: SSHConnectionDto;
   containerId?: string;
   containerName?: string;
-  config?: SSHConnectionDto;
 }
 
 export interface TerminalTab {

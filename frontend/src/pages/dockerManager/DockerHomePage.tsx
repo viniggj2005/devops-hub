@@ -1,13 +1,6 @@
 import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
 import React, { useEffect, useState } from 'react';
-<<<<<<<< HEAD:frontend/src/pages/DockerHomePage.tsx
-import { useDockerClient } from '../contexts/DockerClientContext';
-import { GetInfo } from '../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
-import StatsGrid from '../features/docker-module/dashboard/components/cards/StatsGrid';
-import RecentActivity from '../features/docker-module/dashboard/components/cards/RecentActivity';
-import ManagementCards from '../features/docker-module/dashboard/components/cards/ManagementCards';
-========
 import { dockerDtos } from '../../../wailsjs/go/models';
 import { useDockerClient } from '../../contexts/DockerClientContext';
 import { GetInfo } from '../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
@@ -15,7 +8,6 @@ import StatsGrid from '../../features/docker-module/dashboard/components/cards/S
 import RecentActivity from '../../features/docker-module/dashboard/components/cards/RecentActivity';
 import ManagementCards from '../../features/docker-module/dashboard/components/cards/ManagementCards';
 
->>>>>>>> develop:frontend/src/pages/dockerManager/DockerHomePage.tsx
 
 const HomePage: React.FC = () => {
   const { selectedCredentialId, dockerClientId } = useDockerClient();

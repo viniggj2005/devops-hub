@@ -60,7 +60,6 @@ func main() {
 			app.startup(ctx)
 			docker.Startup(ctx)
 			terminal.Startup(ctx)
-			sftpHandler.Startup(ctx)
 			dockerSdk.Startup(ctx)
 			gitHandler.Startup(ctx)
 			sshHandler.Startup(ctx)
