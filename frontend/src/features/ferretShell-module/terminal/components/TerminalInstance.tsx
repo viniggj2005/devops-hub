@@ -6,7 +6,7 @@ import { useTerminalStore } from '../TerminalStore';
 import { EventsOn } from '../../../../../wailsjs/runtime/runtime';
 import { attachTerminalShortcuts } from '../functions/TerminalShortcuts';
 import { TerminalInstance as ITerminalInstance } from '../../../../interfaces/TerminalInterfaces';
-import { Send, Resize, Disconnect, ConnectWith, Broadcast } from '../../../../../wailsjs/go/ferretShellHandlers/TerminalHandlerStruct';
+import { Send, Resize, Disconnect, ConnectWith, Broadcast } from '../../../../../wailsjs/go/ferretshellHandlers/TerminalHandlerStruct';
 
 interface Props {
   instance: ITerminalInstance;

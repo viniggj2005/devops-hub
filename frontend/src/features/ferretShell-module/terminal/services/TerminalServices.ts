@@ -1,6 +1,6 @@
 import { normalizeKey } from '../functions/TreatmentFunctions';
 import type { CreateSshConnectionInterface, SSHConnectionDto, SshDto } from '../../../../interfaces/TerminalInterfaces';
-import { GetById, DeleteConnection, CreateSshConnection, UpdateSshConnection, FindAllConnectionByUser } from '../../../../../wailsjs/go/ferretShellHandlers/SshHandlerStruct';
+import { GetById, DeleteConnection, CreateSshConnection, UpdateSshConnection, FindAllConnectionByUser } from '../../../../../wailsjs/go/ferretshellHandlers/SshHandlerStruct';
 
 export function toSshConn(dto: SshDto): SSHConnectionDto {
   return {

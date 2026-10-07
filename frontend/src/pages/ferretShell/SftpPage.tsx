@@ -1,9 +1,9 @@
 import iziToast from 'izitoast';
 import { useAuth } from '../../contexts/AuthContext';
 import React, { useState, useEffect, useRef } from 'react';
-import * as Ssh from '../../../wailsjs/go/ferretShellHandlers/SshHandlerStruct';
-import * as Sftp from '../../../wailsjs/go/ferretShellHandlers/SftpHandlerStruct';
-import * as Local from '../../../wailsjs/go/ferretShellHandlers/LocalFileHandler';
+import * as Ssh from '../../../wailsjs/go/ferretshellHandlers/SshHandlerStruct';
+import * as Sftp from '../../../wailsjs/go/ferretshellHandlers/SftpHandlerStruct';
+import * as Local from '../../../wailsjs/go/ferretshellHandlers/LocalFileHandler';
 import { ferretshellHandlers, ferretshellDtos } from '../../../wailsjs/go/models';
 import SftpSidebar from '../../features/ferretShell-module/sftp/components/SftpSidebar';
 import RenameModal from '../../features/ferretShell-module/sftp/components/RenameModal';
@@ -62,7 +62,7 @@ const SftpPage: React.FC = () => {
     const loadRemoteFiles = async (sessionId: string, path: string) => {
         try {
             const list = await Sftp.ListFiles(sessionId, path);
-            setRemoteFiles(list.sort((a, b) => (a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1)));
+            setRemoteFiles(list.sort((first, second) => (first.isDir === second.isDir ? first.name.localeCompare(second.name) : first.isDir ? -1 : 1)));
         } catch (err: any) {
             setError(err.message);
         }
@@ -71,7 +71,7 @@ const SftpPage: React.FC = () => {
     const loadLocalFiles = async (path: string) => {
         try {
             const list = await Local.ListLocalFiles(path);
-            setLocalFiles(list.sort((a, b) => (a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1)));
+            setLocalFiles(list.sort((first, second) => (first.isDir === second.isDir ? first.name.localeCompare(second.name) : first.isDir ? -1 : 1)));
         } catch (err: any) { console.error(err); }
     };
 
