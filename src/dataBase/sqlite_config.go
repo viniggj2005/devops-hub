@@ -39,12 +39,17 @@ func InitDb() {
 
 	if err := DataBase.AutoMigrate(
 		&models.UserModel{},
-		&models.DockerCredentialsModel{},
+		&models.OctohubModel{},
 		&models.SshConnectionModel{},
 		&models.GithubAccountModel{},
-		&models.OctohubModel{},
 		&models.GitCredentialModel{},
+		&models.GeneralConfigsModel{},
+		&models.DockerCredentialsModel{},
 	); err != nil {
 		log.Fatalf("erro ao migrar modelos: %v", err)
+	}
+
+	if err := syncCheckConstraints(DataBase, &models.GeneralConfigsModel{}); err != nil {
+		log.Fatalf("erro ao atualizar constraints: %v", err)
 	}
 }

@@ -79,30 +79,34 @@ export interface TerminalInstance {
   containerName?: string;
 }
 
+export type TerminalLayout = 'vertical' | 'horizontal' | 'grid';
+
+export type TerminalDropZone = 'left' | 'right' | 'top' | 'bottom' | 'center';
+
 export interface TerminalTab {
   id: string;
   title: string;
   instances: TerminalInstance[];
-  preferredLayout?: 'vertical' | 'horizontal' | 'grid';
+  preferredLayout?: TerminalLayout;
 }
 
 export interface TerminalStateProps {
-  tabs: TerminalTab[];
-  activeTabId: string | null;
-  viewMode: 'page' | 'terminal';
-  broadcastActive: boolean;
-  setBroadcastActive: (value: boolean) => void;
-  setViewMode: (mode: 'page' | 'terminal') => void;
-
-  createTab: (instance: Omit<TerminalInstance, 'id'>) => void;
-  closeTab: (tabId: string) => void;
-  setActiveTab: (tabId: string | null) => void;
-  addInstanceToTab: (tabId: string, instance: Omit<TerminalInstance, 'id'>, index?: number, layout?: 'vertical' | 'horizontal' | 'grid') => void;
-  removeInstance: (tabId: string, instanceId: string) => void;
-  setLayout: (tabId: string, layout: 'vertical' | 'horizontal' | 'grid') => void;
-
   open: boolean;
+  tabs: TerminalTab[];
+  broadcastActive: boolean;
+  activeTabId: string | null;
+  draggingTabId: string | null;
+  viewMode: 'page' | 'terminal';
   close: () => void;
+  closeTab: (tabId: string) => void;
+  setBroadcastActive: (value: boolean) => void;
+  setActiveTab: (tabId: string | null) => void;
+  setDraggingTabId: (tabId: string | null) => void;
+  setViewMode: (mode: 'page' | 'terminal') => void;
+  detachInstance: (tabId: string, instanceId: string) => void;
+  removeInstance: (tabId: string, instanceId: string) => void;
+  createTab: (instance: Omit<TerminalInstance, 'id'>) => void;
+  mergeTabInto: (sourceTabId: string, targetTabId: string, dropZone: TerminalDropZone) => void;
 }
 
 

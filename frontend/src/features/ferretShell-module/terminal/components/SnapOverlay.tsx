@@ -1,62 +1,84 @@
-import React from 'react';
-import { Columns, Rows, LayoutGrid, LayoutList } from 'lucide-react';
+import React, { useState } from 'react';
+import { Ban, Columns2, LayoutGrid, Rows2 } from 'lucide-react';
+import { TerminalDropZone } from '../../../../interfaces/TerminalInterfaces';
 
 interface SnapOverlayProps {
-    onDrop: (layout: 'left' | 'right' | 'top' | 'bottom' | 'grid', e: React.DragEvent) => void;
+    canDrop: boolean;
+    draggedTitle: string;
+    onCancel: () => void;
+    resultingCount: number;
+    onDrop: (dropZone: TerminalDropZone) => void;
 }
 
-const SnapOverlay: React.FC<SnapOverlayProps> = ({ onDrop }) => {
+const edgeThreshold = 0.25;
+
+const zonePreviews: Record<TerminalDropZone, { label: string; className: string; icon: React.ElementType }> = {
+    center: { label: 'Organizar em grade', className: 'inset-0', icon: LayoutGrid },
+    top: { label: 'Dividir em cima', className: 'inset-x-0 top-0 h-1/2', icon: Rows2 },
+    bottom: { label: 'Dividir embaixo', className: 'inset-x-0 bottom-0 h-1/2', icon: Rows2 },
+    left: { label: 'Dividir à esquerda', className: 'inset-y-0 left-0 w-1/2', icon: Columns2 },
+    right: { label: 'Dividir à direita', className: 'inset-y-0 right-0 w-1/2', icon: Columns2 },
+};
+
+const zoneFromPointer = (event: React.DragEvent<HTMLDivElement>): TerminalDropZone => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const horizontalPosition = (event.clientX - bounds.left) / bounds.width;
+    const verticalPosition = (event.clientY - bounds.top) / bounds.height;
+    if (verticalPosition < edgeThreshold) return 'top';
+    if (horizontalPosition < edgeThreshold) return 'left';
+    if (verticalPosition > 1 - edgeThreshold) return 'bottom';
+    if (horizontalPosition > 1 - edgeThreshold) return 'right';
+    return 'center';
+};
+
+const SnapOverlay: React.FC<SnapOverlayProps> = ({ canDrop, draggedTitle, resultingCount, onDrop, onCancel }) => {
+    const [hoveredZone, setHoveredZone] = useState<TerminalDropZone>('center');
+    const preview = zonePreviews[hoveredZone];
+    const PreviewIcon = preview.icon;
+
+    if (!canDrop) {
+        return (
+            <div
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                    event.preventDefault();
+                    onCancel();
+                }}
+                className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px]"
+            >
+                <div className="flex items-center gap-3 rounded-2xl border border-red-500/30 bg-zinc-900/95 px-6 py-4 text-sm text-red-300 shadow-2xl">
+                    <Ban className="w-5 h-5 shrink-0" />
+                    Esta tela comportaria {resultingCount} terminais. O limite é 4 por tela.
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px] z-50 flex items-center justify-center p-12">
-            <div className="grid grid-cols-2 grid-rows-2 gap-4 w-full max-w-2xl aspect-video">
-
-                <div
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => onDrop('left', e)}
-                    className="group relative bg-white/5 border-2 border-dashed border-white/20 rounded-2xl hover:bg-purple-500/20 hover:border-purple-500/50 transition-all flex flex-col items-center justify-center gap-3 overflow-hidden"
-                >
-                    <div className="absolute inset-y-0 left-0 w-1/2 bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors" />
-                    <Columns className="w-8 h-8 text-white/40 group-hover:text-purple-400 group-hover:scale-110 transition-all" />
-                    <span className="text-sm font-bold text-white/40 group-hover:text-purple-400">Dividir Esquerda</span>
-                </div>
-
-                <div
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => onDrop('right', e)}
-                    className="group relative bg-white/5 border-2 border-dashed border-white/20 rounded-2xl hover:bg-purple-500/20 hover:border-purple-500/50 transition-all flex flex-col items-center justify-center gap-3 overflow-hidden"
-                >
-                    <div className="absolute inset-y-0 right-0 w-1/2 bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors" />
-                    <Columns className="w-8 h-8 text-white/40 group-hover:text-purple-400 group-hover:scale-110 transition-all" />
-                    <span className="text-sm font-bold text-white/40 group-hover:text-purple-400">Dividir Direita</span>
-                </div>
-                <div
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => onDrop('top', e)}
-                    className="group relative bg-white/5 border-2 border-dashed border-white/20 rounded-2xl hover:bg-purple-500/20 hover:border-purple-500/50 transition-all flex flex-col items-center justify-center gap-3 overflow-hidden"
-                >
-                    <div className="absolute inset-x-0 top-0 h-1/2 bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors" />
-                    <Rows className="w-8 h-8 text-white/40 group-hover:text-purple-400 group-hover:scale-110 transition-all" />
-                    <span className="text-sm font-bold text-white/40 group-hover:text-purple-400">Dividir Topo</span>
-                </div>
-
-                <div
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => onDrop('grid', e)}
-                    className="group relative bg-white/5 border-2 border-dashed border-white/20 rounded-2xl hover:bg-purple-500/20 hover:border-purple-500/50 transition-all flex flex-col items-center justify-center gap-3 overflow-hidden"
-                >
-                    <div className="grid grid-cols-2 grid-rows-2 gap-1 absolute inset-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <div className="bg-purple-500 rounded-sm" />
-                        <div className="bg-purple-500 rounded-sm" />
-                        <div className="bg-purple-500 rounded-sm" />
-                        <div className="bg-purple-500 rounded-sm" />
-                    </div>
-                    <LayoutGrid className="w-8 h-8 text-white/40 group-hover:text-purple-400 group-hover:scale-110 transition-all" />
-                    <span className="text-sm font-bold text-white/40 group-hover:text-purple-400">Layout em Grade</span>
+        <div
+            onDragOver={(event) => {
+                event.preventDefault();
+                const zone = zoneFromPointer(event);
+                if (zone !== hoveredZone) setHoveredZone(zone);
+            }}
+            onDrop={(event) => {
+                event.preventDefault();
+                onDrop(zoneFromPointer(event));
+            }}
+            className="absolute inset-0 z-50 bg-black/30 backdrop-blur-[1px]"
+        >
+            <div
+                className={`pointer-events-none absolute m-2 flex items-center justify-center rounded-xl border-2 border-dashed border-purple-400 bg-purple-500/20 transition-all duration-150 ${preview.className}`}
+            >
+                <div className="flex flex-col items-center gap-2 rounded-xl bg-zinc-900/90 px-5 py-3 text-center shadow-xl">
+                    <PreviewIcon className="w-6 h-6 text-purple-400" />
+                    <span className="text-sm font-semibold text-white">{preview.label}</span>
+                    <span className="max-w-[16rem] truncate text-xs text-zinc-400">“{draggedTitle}”</span>
                 </div>
             </div>
 
-            <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-zinc-900/90 border border-white/10 px-6 py-2 rounded-full text-white/60 text-sm font-medium backdrop-blur-md">
-                Solte em uma zona para organizar o terminal
+            <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-zinc-900/90 px-4 py-1.5 text-xs text-zinc-300">
+                Solte perto de uma borda para dividir, ou no centro para grade · {resultingCount} de 4 terminais
             </div>
         </div>
     );

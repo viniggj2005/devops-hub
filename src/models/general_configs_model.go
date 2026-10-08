@@ -5,13 +5,14 @@ import "gorm.io/gorm"
 type ConfigType string
 
 const (
-	Theme ConfigType = "theme"
-	User  ConfigType = "user"
+	User   ConfigType = "user"
+	Theme  ConfigType = "theme"
+	Colors ConfigType = "colors"
 )
 
 func (configType ConfigType) IsValid() bool {
 	switch configType {
-	case Theme, User:
+	case User, Theme, Colors:
 		return true
 	}
 	return false
@@ -20,22 +21,26 @@ func (configType ConfigType) IsValid() bool {
 type ModuleName string
 
 const (
-	DockerManager ModuleName = "docker-manager"
-	FerretShell   ModuleName = "ferretshell"
+	Vulpes        ModuleName = "vulpes"
 	OctoHub       ModuleName = "octohub"
+	FerretShell   ModuleName = "ferretshell"
+	DockerManager ModuleName = "docker-manager"
 )
 
 func (module ModuleName) IsValid() bool {
 	switch module {
-	case DockerManager, FerretShell, OctoHub:
+	case Vulpes, OctoHub, FerretShell, DockerManager:
 		return true
 	}
 	return false
 }
 
-type generalConfigsModel struct {
+type GeneralConfigsModel struct {
 	gorm.Model
-	ModuleName ModuleName `gorm:"type:text;not null;check:chk_module_name,module_name IN ('docker-manager','ferretshell','octohub')"`
-	ConfigType ConfigType `gorm:"type:text;not null;check:chk_config_type,config_type IN ('theme','user')"`
 	Config     string     `gorm:"type:json;not null"`
+	IsActive   bool       `gorm:"not null;default:true"`
+	UserID     uint       `gorm:"not null;uniqueIndex:idx_user_module_config"`
+	User       UserModel  `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	ConfigType ConfigType `gorm:"type:text;not null;uniqueIndex:idx_user_module_config;check:chk_config_type,config_type IN ('theme','user','colors')"`
+	ModuleName ModuleName `gorm:"type:text;not null;uniqueIndex:idx_user_module_config;check:chk_module_name,module_name IN ('docker-manager','ferretshell','octohub','vulpes')"`
 }

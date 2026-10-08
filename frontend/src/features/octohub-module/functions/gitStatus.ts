@@ -9,12 +9,12 @@ export const isConflictError = (error: unknown) => {
 };
 
 export const fileKindStyles: Record<string, { label: string; title: string; className: string }> = {
-    deleted: { label: 'D', title: 'Removido', className: 'text-red-500 bg-red-500/10 border-red-500/20' },
-    renamed: { label: 'R', title: 'Renomeado', className: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
-    modified: { label: 'M', title: 'Modificado', className: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
-    added: { label: 'A', title: 'Adicionado', className: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
-    conflicted: { label: '!', title: 'Em conflito', className: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
-    untracked: { label: 'U', title: 'Novo (não rastreado)', className: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
+    added: { label: 'A', title: 'Adicionado', className: 'text-git-added bg-git-added/10 border-git-added/20' },
+    deleted: { label: 'D', title: 'Removido', className: 'text-git-deleted bg-git-deleted/10 border-git-deleted/20' },
+    renamed: { label: 'R', title: 'Renomeado', className: 'text-git-renamed bg-git-renamed/10 border-git-renamed/20' },
+    modified: { label: 'M', title: 'Modificado', className: 'text-git-modified bg-git-modified/10 border-git-modified/20' },
+    conflicted: { label: '!', title: 'Em conflito', className: 'text-git-conflicted bg-git-conflicted/10 border-git-conflicted/20' },
+    untracked: { label: 'U', title: 'Novo (não rastreado)', className: 'text-git-untracked bg-git-untracked/10 border-git-untracked/20' },
 };
 
 const authMarker = /\s*\[auth:([^\]]+)\]/;

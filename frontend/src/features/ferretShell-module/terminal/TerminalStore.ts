@@ -1,110 +1,126 @@
 import { create } from 'zustand';
-import { TerminalStateProps, TerminalTab, TerminalInstance } from '../../../interfaces/TerminalInterfaces';
+import {
+  TerminalTab,
+  TerminalLayout,
+  TerminalInstance,
+  TerminalDropZone,
+  TerminalStateProps,
+} from '../../../interfaces/TerminalInterfaces';
+
+export const maxInstancesPerTab = 4;
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
+const dropZoneLayouts: Record<TerminalDropZone, { layout: TerminalLayout; insertAtStart: boolean }> = {
+  center: { layout: 'grid', insertAtStart: false },
+  left: { layout: 'vertical', insertAtStart: true },
+  top: { layout: 'horizontal', insertAtStart: true },
+  right: { layout: 'vertical', insertAtStart: false },
+  bottom: { layout: 'horizontal', insertAtStart: false },
+};
+
+const buildInstance = (instanceData: Omit<TerminalInstance, 'id'>): TerminalInstance => {
+  const instanceId = generateId();
+  return {
+    ...instanceData,
+    id: instanceId,
+    config: instanceData.config ? { ...instanceData.config, SshSessionId: instanceId } : undefined,
+  };
+};
+
+const withoutId = ({ id: _instanceId, ...instanceData }: TerminalInstance): Omit<TerminalInstance, 'id'> => instanceData;
+
+const pickActiveTabId = (tabs: TerminalTab[], currentActiveId: string | null) => {
+  if (tabs.some(tab => tab.id === currentActiveId)) return currentActiveId;
+  return tabs.length > 0 ? tabs[tabs.length - 1].id : null;
+};
+
 export const useTerminalStore = create<TerminalStateProps>((set) => ({
   tabs: [],
-  activeTabId: null,
-  viewMode: 'page',
   open: false,
+  viewMode: 'page',
+  activeTabId: null,
+  draggingTabId: null,
   broadcastActive: false,
 
-  setBroadcastActive: (value) => set({ broadcastActive: value }),
   setViewMode: (mode) => set({ viewMode: mode }),
+  setActiveTab: (tabId) => set({ activeTabId: tabId }),
+  setDraggingTabId: (tabId) => set({ draggingTabId: tabId }),
+  setBroadcastActive: (value) => set({ broadcastActive: value }),
 
   createTab: (instanceData) => {
-    const instanceId = generateId();
-    const tabId = generateId();
-
-    const newInstance: TerminalInstance = { ...instanceData, id: instanceId };
-    if (newInstance.config) {
-      newInstance.config.SshSessionId = instanceId;
-    }
-
     const newTab: TerminalTab = {
-      id: tabId,
+      id: generateId(),
       title: instanceData.title,
-      instances: [newInstance],
+      instances: [buildInstance(instanceData)],
     };
-
     set((state) => ({
-      tabs: [...state.tabs, newTab],
-      activeTabId: tabId,
-      viewMode: 'terminal',
       open: true,
+      viewMode: 'terminal',
+      activeTabId: newTab.id,
+      tabs: [...state.tabs, newTab],
     }));
   },
 
   closeTab: (tabId) => {
     set((state) => {
-      const newTabs = state.tabs.filter((t) => t.id !== tabId);
-      let newActiveId = state.activeTabId;
-      if (state.activeTabId === tabId) {
-        newActiveId = newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null;
-      }
+      const remainingTabs = state.tabs.filter((tab) => tab.id !== tabId);
       return {
-        tabs: newTabs,
-        activeTabId: newActiveId,
-        open: newTabs.length > 0,
+        tabs: remainingTabs,
+        open: remainingTabs.length > 0,
+        activeTabId: pickActiveTabId(remainingTabs, state.activeTabId),
       };
     });
   },
 
-  setActiveTab: (tabId) => set({ activeTabId: tabId }),
-
-  addInstanceToTab: (tabId, instanceData, index, layout) => {
+  mergeTabInto: (sourceTabId, targetTabId, dropZone) => {
     set((state) => {
-      const instanceId = generateId();
-      const newInstance: TerminalInstance = { ...instanceData, id: instanceId };
-      if (newInstance.config) {
-        newInstance.config.SshSessionId = instanceId;
-      }
+      const sourceTab = state.tabs.find((tab) => tab.id === sourceTabId);
+      const targetTab = state.tabs.find((tab) => tab.id === targetTabId);
+      if (!sourceTab || !targetTab || sourceTabId === targetTabId) return {};
+      if (sourceTab.instances.length + targetTab.instances.length > maxInstancesPerTab) return {};
 
-      const newTabs = state.tabs.map((tab) => {
-        if (tab.id === tabId && tab.instances.length < 4) {
-          const newInstances = [...tab.instances];
-          if (typeof index === 'number') {
-            newInstances.splice(index, 0, newInstance);
-          } else {
-            newInstances.push(newInstance);
-          }
-          return { 
-            ...tab, 
-            instances: newInstances,
-            preferredLayout: layout || tab.preferredLayout
-          };
-        }
-        return tab;
-      });
-      return { tabs: newTabs };
+      const { layout, insertAtStart } = dropZoneLayouts[dropZone];
+      const movedInstances = sourceTab.instances.map((instance) => buildInstance(withoutId(instance)));
+      const mergedInstances = insertAtStart
+        ? [...movedInstances, ...targetTab.instances]
+        : [...targetTab.instances, ...movedInstances];
+
+      const tabs = state.tabs
+        .filter((tab) => tab.id !== sourceTabId)
+        .map((tab) => (tab.id === targetTabId ? { ...tab, instances: mergedInstances, preferredLayout: layout } : tab));
+
+      return { tabs, activeTabId: targetTabId, draggingTabId: null };
     });
   },
-  
-  setLayout: (tabId, layout) => {
-    set((state) => ({
-      tabs: state.tabs.map(t => t.id === tabId ? { ...t, preferredLayout: layout } : t)
-    }));
+
+  detachInstance: (tabId, instanceId) => {
+    set((state) => {
+      const originTab = state.tabs.find((tab) => tab.id === tabId);
+      const detachedInstance = originTab?.instances.find((instance) => instance.id === instanceId);
+      if (!originTab || !detachedInstance || originTab.instances.length < 2) return {};
+
+      const newTab: TerminalTab = {
+        id: generateId(),
+        title: detachedInstance.title,
+        instances: [buildInstance(withoutId(detachedInstance))],
+      };
+      const tabs = state.tabs.flatMap((tab) => {
+        if (tab.id !== tabId) return [tab];
+        return [{ ...tab, instances: tab.instances.filter((instance) => instance.id !== instanceId) }, newTab];
+      });
+      return { tabs };
+    });
   },
 
   removeInstance: (tabId, instanceId) => {
     set((state) => {
-      const newTabs = state.tabs.map((tab) => {
-        if (tab.id === tabId) {
-          const newInstances = tab.instances.filter((i) => i.id !== instanceId);
-          return { ...tab, instances: newInstances };
-        }
-        return tab;
-      }).filter(tab => tab.instances.length > 0);
-
-      let newActiveId = state.activeTabId;
-      if (!newTabs.find(t => t.id === state.activeTabId)) {
-        newActiveId = newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null;
-      }
-
-      return { tabs: newTabs, activeTabId: newActiveId, open: newTabs.length > 0 };
+      const tabs = state.tabs
+        .map((tab) => (tab.id === tabId ? { ...tab, instances: tab.instances.filter((instance) => instance.id !== instanceId) } : tab))
+        .filter((tab) => tab.instances.length > 0);
+      return { tabs, open: tabs.length > 0, activeTabId: pickActiveTabId(tabs, state.activeTabId) };
     });
   },
 
-  close: () => set({ tabs: [], activeTabId: null, open: false }),
+  close: () => set({ tabs: [], activeTabId: null, open: false, draggingTabId: null }),
 }));

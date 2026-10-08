@@ -11,6 +11,7 @@ import (
 	authHandlers "docker-manager-go/src/auth/handlers"
 	octohub "docker-manager-go/src/octohub/handlers"
 	userHandlers "docker-manager-go/src/user/handlers"
+	generalConfigsHandlers "docker-manager-go/src/generalConfigs/handlers"
 	"embed"
 	"time"
 
@@ -40,6 +41,7 @@ func main() {
 	octohubHandler := octohub.NewOctohubHandler(database.DataBase, sessionManager)
 	sshHandler := ferretShellHandlers.NewSshHandler(database.DataBase, sessionManager)
 	authHandler := authHandlers.NewAuthHandler(database.DataBase, sessionManager, app)
+	generalConfigsHandler := generalConfigsHandlers.NewGeneralConfigsHandler(database.DataBase, sessionManager)
 
 	gitHandler := octohub.NewGitHandler(repositoryPath)
 	branchHandler := octohub.NewGitBranchHandler(gitHandler)
@@ -69,6 +71,7 @@ func main() {
 			octohubHandler.Startup(ctx)
 			localFileHandler.Startup(ctx)
 			repositoryHandler.Startup(ctx)
+			generalConfigsHandler.Startup(ctx)
 
 		},
 		Windows: &windows.Options{
@@ -91,6 +94,7 @@ func main() {
 			octohubHandler,
 			localFileHandler,
 			repositoryHandler,
+			generalConfigsHandler,
 		},
 	})
 
