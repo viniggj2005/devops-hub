@@ -2,18 +2,19 @@ package ferretshellHandlers
 
 import (
 	"context"
-	ferretShellDtos "docker-manager-go/src/ferretshell/dtos"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 
 	"github.com/google/uuid"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
+
+	"docker-manager-go/src/processes"
+	ferretShellDtos "docker-manager-go/src/ferretshell/dtos"
 )
 
 type SftpHandlerStruct struct {
@@ -212,7 +213,7 @@ func (handlerStruct *SftpHandlerStruct) UploadDirectory(sessionId string, remote
 	session := value.(*sftpSession)
 
 	localTar := filepath.Join(os.TempDir(), "upload_"+uuid.New().String()+".tar.gz")
-	tarCmd := exec.Command("tar", "-czf", localTar, "-C", filepath.Dir(localPath), filepath.Base(localPath))
+	tarCmd := processes.Command("tar", "-czf", localTar, "-C", filepath.Dir(localPath), filepath.Base(localPath))
 	if err := tarCmd.Run(); err != nil {
 		return fmt.Errorf("falha ao compactar localmente: %w", err)
 	}
@@ -268,7 +269,7 @@ func (handlerStruct *SftpHandlerStruct) DownloadDirectory(sessionId string, remo
 	}
 	defer os.Remove(localTar)
 
-	extractCmd := exec.Command("tar", "-xzf", localTar, "-C", localDir)
+	extractCmd := processes.Command("tar", "-xzf", localTar, "-C", localDir)
 	if err := extractCmd.Run(); err != nil {
 		return fmt.Errorf("falha ao extrair localmente: %w", err)
 	}

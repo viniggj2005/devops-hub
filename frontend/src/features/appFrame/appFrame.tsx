@@ -1,8 +1,8 @@
+import { useAppStore } from "./AppStore";
 import { useEffect, useState } from "react";
-import { CircleX, Copy, Minus, X, Home, Terminal, Box } from "lucide-react";
 import appIcon from "../../assets/images/hub.svg";
 import { Quit, WindowMinimise, WindowIsMaximised, WindowToggleMaximise } from "../../../wailsjs/runtime/runtime";
-import { useAppStore, AppTab } from "./AppStore";
+import { CircleX, Copy, Minus, X, Home, Terminal, Box, Settings } from "lucide-react";
 
 export function AppFrame() {
   const [maximized, setMaximized] = useState(false);
@@ -25,6 +25,7 @@ export function AppFrame() {
   const getTabIcon = (type: string) => {
     if (type === 'home') return <Home className="w-4 h-4" />;
     if (type === 'docker') return <Box className="w-4 h-4 text-blue-500" />;
+    if (type === 'settings') return <Settings className="w-4 h-4 text-gray-500" />;
     if (type === 'ferretshell') return <Terminal className="w-4 h-4 text-purple-500" />;
     if (type === 'octohub') return <img src="/gitoctocat.svg" className="w-4 h-4 brightness-0 dark:invert" />;
     return null;

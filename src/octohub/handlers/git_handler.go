@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+
+	"docker-manager-go/src/processes"
 )
 
 var errNoRepository = errors.New("nenhum repositório selecionado no OctoHub")
@@ -82,7 +84,7 @@ func (handlerStruct *GitHandler) runGit(args []string, input string, extraEnv ..
 		env = append(env, sshEnv...)
 	}
 
-	cmd := exec.CommandContext(handlerStruct.ctx, "git", args...)
+	cmd := processes.CommandContext(handlerStruct.ctx, "git", args...)
 	cmd.Dir = repoPath
 	cmd.Env = env
 	if input != "" {
@@ -115,7 +117,7 @@ func (handlerStruct *GitHandler) runGit(args []string, input string, extraEnv ..
 }
 
 func originURL(repoPath string) string {
-	out, err := exec.Command("git", "-C", repoPath, "remote", "get-url", "origin").Output()
+	out, err := processes.Command("git", "-C", repoPath, "remote", "get-url", "origin").Output()
 	if err != nil {
 		return ""
 	}

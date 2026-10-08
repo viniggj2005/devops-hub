@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/blang/semver"
-	"github.com/rhysd/go-github-selfupdate/selfupdate"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -23,11 +22,11 @@ func NewApp() *App {
 	return &App{}
 }
 
-func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
+func (app *App) startup(ctx context.Context) {
+	app.ctx = ctx
 }
 
-func (a *App) LoadImage(name string) (string, error) {
+func (app *App) LoadImage(name string) (string, error) {
 	execPath, _ := os.Getwd()
 	imgPath := filepath.Join(execPath, "uploads", name)
 
@@ -39,7 +38,7 @@ func (a *App) LoadImage(name string) (string, error) {
 	return base64Str, nil
 }
 
-func (a *App) SaveImage(base64Str, path string) error {
+func (app *App) SaveImage(base64Str, path string) error {
 	parts := strings.Split(base64Str, ",")
 	data, err := base64.StdEncoding.DecodeString(parts[len(parts)-1])
 	if err != nil {
@@ -48,8 +47,8 @@ func (a *App) SaveImage(base64Str, path string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-func (a *App) GetFilePath() string {
-	selection, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+func (app *App) GetFilePath() string {
+	selection, err := runtime.OpenFileDialog(app.ctx, runtime.OpenDialogOptions{
 		Title: "Selecione um arquivo",
 		Filters: []runtime.FileFilter{
 			{
@@ -69,18 +68,18 @@ func (a *App) GetFilePath() string {
 	return selection
 }
 
-func (a *App) AutoCheckForUpdates() {
-	v := semver.MustParse(AppVersion)
-	latest, found, err := selfupdate.DetectLatest(RepoSlug)
+func (app *App) AutoCheckForUpdates() {
+	currentVersion := semver.MustParse(AppVersion)
+	latest, found, err := detectLatestRelease(RepoSlug)
 	if err != nil {
 		return
 	}
 
-	if !found || latest.Version.LTE(v) {
+	if !found || latest.Version.LTE(currentVersion) {
 		return
 	}
 
-	res, err := runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+	res, err := runtime.MessageDialog(app.ctx, runtime.MessageDialogOptions{
 		Type:          runtime.QuestionDialog,
 		Title:         "Atualização disponível",
 		Message:       "Uma nova versão (" + latest.Version.String() + ") está disponível. Deseja atualizar agora?",
@@ -91,8 +90,8 @@ func (a *App) AutoCheckForUpdates() {
 		return
 	}
 
-	if err := selfupdate.UpdateTo(latest.AssetURL, os.Args[0]); err != nil {
-		runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+	if err := applyUpdate(latest.AssetURL); err != nil {
+		runtime.MessageDialog(app.ctx, runtime.MessageDialogOptions{
 			Type:    runtime.ErrorDialog,
 			Title:   "Erro na atualização",
 			Message: "Não foi possível atualizar: " + err.Error(),
@@ -100,22 +99,22 @@ func (a *App) AutoCheckForUpdates() {
 		return
 	}
 
-	runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+	runtime.MessageDialog(app.ctx, runtime.MessageDialogOptions{
 		Type:    runtime.InfoDialog,
 		Title:   "Atualização concluída",
 		Message: "O aplicativo foi atualizado com sucesso. Por favor, reinicie o aplicativo.",
 	})
 }
 
-func (a *App) CheckForUpdates() (string, error) {
-	v := semver.MustParse(AppVersion)
+func (app *App) CheckForUpdates() (string, error) {
+	currentVersion := semver.MustParse(AppVersion)
 
-	latest, found, err := selfupdate.DetectLatest(RepoSlug)
+	latest, found, err := detectLatestRelease(RepoSlug)
 	if err != nil {
 		return "", err
 	}
 
-	if !found || latest.Version.LTE(v) {
+	if !found || latest.Version.LTE(currentVersion) {
 		return "Você já está na versão mais recente.", nil
 	}
 

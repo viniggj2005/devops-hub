@@ -14,8 +14,8 @@ interface DiffViewerProps {
 
 const lineStyles: Record<string, { row: string; prefix: string }> = {
     context: { row: 'text-black dark:text-zinc-300', prefix: ' ' },
-    deletion: { row: 'bg-rose-500/10 dark:bg-rose-500/15 text-rose-700 dark:text-rose-400', prefix: '-' },
-    addition: { row: 'bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400', prefix: '+' },
+    deletion: { row: 'bg-git-deletion/10 dark:bg-git-deletion/15 text-git-deletion-strong dark:text-git-deletion-soft', prefix: '-' },
+    addition: { row: 'bg-git-addition/10 dark:bg-git-addition/15 text-git-addition-strong dark:text-git-addition-soft', prefix: '+' },
 };
 
 const DiffViewer: React.FC<DiffViewerProps> = ({ diff, loading, isLineSelected, onSetLines, onDiscardHunk }) => {

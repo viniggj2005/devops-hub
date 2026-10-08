@@ -2,15 +2,28 @@ import './index.css';
 import { useEffect, useState } from 'react';
 import MainHomePage from './pages/MainHomePage';
 import { AppFrame } from './features/appFrame/appFrame';
+import SettingsPage from './pages/settings/SettingsPage';
 import { useAppStore } from './features/appFrame/AppStore';
+import { useGeneralConfigsStore } from './features/settings/store/GeneralConfigsStore';
 import DockerModuleWrapper from './features/docker-module/components/DockerModuleWrapper';
 import OctohubModuleWrapper from './features/octohub-module/components/OctohubModuleWrapper';
+import { applyOctohubColorVariables } from './features/settings/functions/OctohubColorVariables';
 import FerretShellModuleWrapper from './features/ferretShell-module/components/FerretShellModuleWrapper';
 import { WindowIsFullscreen, WindowFullscreen, WindowUnfullscreen, WindowIsMaximised, WindowUnmaximise } from '../wailsjs/runtime/runtime';
 
 export default function App() {
   const { tabs, activeTabId } = useAppStore();
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const loadGeneralConfigs = useGeneralConfigsStore(state => state.load);
+  const resetGeneralConfigs = useGeneralConfigsStore(state => state.reset);
+  const octohubColors = useGeneralConfigsStore(state => state.octohubColors);
+
+  useEffect(() => {
+    loadGeneralConfigs();
+    return resetGeneralConfigs;
+  }, [loadGeneralConfigs, resetGeneralConfigs]);
+
+  useEffect(() => applyOctohubColorVariables(octohubColors), [octohubColors]);
 
   useEffect(() => {
     const handleResize = async () => {
@@ -62,6 +75,8 @@ export default function App() {
         return <FerretShellModuleWrapper />;
       case 'octohub':
         return <OctohubModuleWrapper />;
+      case 'settings':
+        return <SettingsPage />;
       default:
         return null;
     }

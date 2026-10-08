@@ -1,6 +1,7 @@
 import React from 'react';
 import BranchSelector from './BranchSelector';
 import RepositorySelector from './RepositorySelector';
+import OpenInEditorButton from './OpenInEditorButton';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { GitCommitHorizontal, House } from 'lucide-react';
 import ToggleThemeButton from '../../shared/components/buttons/ToggleThemeButton';
@@ -53,6 +54,7 @@ const OctohubNavbar: React.FC<OctohubNavbarProps> = ({ isLoggedIn, accountSwitch
 
                 <RepositorySelector />
                 <BranchSelector />
+                <OpenInEditorButton />
             </div>
 
             <div className="flex items-center gap-3 shrink-0">

@@ -66,22 +66,34 @@ func vscodeExecutable() (string, error) {
 	return "", errors.New("VS Code não encontrado")
 }
 
-func (handlerStruct *GitBranchHandler) OpenFileInEditor(file string) error {
-	fullPath, err := handlerStruct.repoFile(file)
-	if err != nil {
-		return err
-	}
+func openInVSCode(path string) error {
 	editor, err := vscodeExecutable()
 	if err != nil {
 		return errors.New(`VS Code não encontrado. Instale-o ou adicione o comando "code" ao PATH`)
 	}
-	cmd := exec.Command(editor, fullPath)
+	cmd := exec.Command(editor, path)
 	for _, entry := range os.Environ() {
 		if !strings.HasPrefix(strings.ToUpper(entry), "ELECTRON_RUN_AS_NODE=") {
 			cmd.Env = append(cmd.Env, entry)
 		}
 	}
 	return startDetached(cmd)
+}
+
+func (handlerStruct *GitBranchHandler) OpenFileInEditor(file string) error {
+	fullPath, err := handlerStruct.repoFile(file)
+	if err != nil {
+		return err
+	}
+	return openInVSCode(fullPath)
+}
+
+func (handlerStruct *GitBranchHandler) OpenRepositoryInEditor() error {
+	repoPath := handlerStruct.gitHandler.RepoPath()
+	if repoPath == "" {
+		return errNoRepository
+	}
+	return openInVSCode(repoPath)
 }
 
 func (handlerStruct *GitBranchHandler) RevealInExplorer(file string) error {

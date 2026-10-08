@@ -1,49 +1,80 @@
+import { useAppStore } from '../features/appFrame/AppStore';
 import { createContext, useContext, useEffect, useState } from 'react';
+import { useGeneralConfigsStore } from '../features/settings/store/GeneralConfigsStore';
+import { readStoredGlobalTheme } from '../features/settings/functions/StoredGlobalTheme';
+import { configNameByModuleType, moduleByConfigName } from '../features/shared/constants/AppModules';
+import {
+  buildCustomThemeVariables,
+  clearCustomThemeVariables,
+  applyCustomThemeVariables,
+} from '../features/settings/functions/CustomThemePalette';
 
-enum Themes {
+export enum Themes {
   DARK = 'dark',
   LIGHT = 'light',
 }
 
 interface ThemeContextData {
   theme: Themes;
+  globalTheme: Themes;
   toggleTheme: () => void;
+  setGlobalTheme: (theme: Themes) => void;
 }
 
 const ThemeContext = createContext({} as ThemeContextData);
 export const useTheme = () => {
   const context = useContext(ThemeContext);
-  if (!context) throw new Error('');
+  if (!context) throw new Error('useTheme deve ser usado dentro de ThemeProvider');
   return context;
 };
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [theme, setTheme] = useState<Themes>(() => {
-    const localTheme = localStorage.getItem('theme');
-    if (localTheme === Themes.DARK) return Themes.DARK;
-    return Themes.LIGHT;
-  });
+  const setModuleTheme = useGeneralConfigsStore(state => state.setModuleTheme);
+  const setModuleCustomTheme = useGeneralConfigsStore(state => state.setModuleCustomTheme);
+  const [globalTheme, setGlobalThemeState] = useState<Themes>(() => readStoredGlobalTheme() as Themes);
+  const activeTabType = useAppStore(state => state.tabs.find(tab => tab.id === state.activeTabId)?.type);
+  const activeModule = activeTabType ? configNameByModuleType[activeTabType] : undefined;
+  const activeModuleConfig = useGeneralConfigsStore(state => (activeModule ? state.modules[activeModule] : undefined));
+
+  const modulePreference = activeModuleConfig?.theme;
+  const customTheme = modulePreference === 'custom' ? activeModuleConfig?.customTheme : undefined;
+
+  let theme = modulePreference ? (modulePreference as Themes) : globalTheme;
+  if (customTheme) theme = customTheme.base === 'dark' ? Themes.DARK : Themes.LIGHT;
 
   useEffect(() => {
-    const conditionDarkMode =
-      localStorage.theme === Themes.DARK ||
-      (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    document.documentElement.classList.toggle(Themes.DARK, conditionDarkMode);
-    localStorage.setItem('theme', conditionDarkMode ? Themes.DARK : Themes.LIGHT);
-    setTheme(conditionDarkMode ? Themes.DARK : Themes.LIGHT);
-  }, []);
+    document.documentElement.classList.toggle(Themes.DARK, theme === Themes.DARK);
+  }, [theme]);
 
-  const toggleTheme = () => {
-    if (localStorage.theme === Themes.DARK) {
-      localStorage.theme = Themes.LIGHT;
-      document.documentElement.classList.remove(Themes.DARK);
-      setTheme(Themes.LIGHT);
-    } else {
-      localStorage.theme = Themes.DARK;
-      document.documentElement.classList.add(Themes.DARK);
-      setTheme(Themes.DARK);
+  useEffect(() => {
+    if (!customTheme || !activeModule) {
+      clearCustomThemeVariables();
+      return;
     }
+    applyCustomThemeVariables(buildCustomThemeVariables(customTheme, [moduleByConfigName[activeModule].accentFamily, 'blue']));
+  }, [customTheme, activeModule]);
+
+  const setGlobalTheme = (nextTheme: Themes) => {
+    localStorage.setItem('theme', nextTheme);
+    setGlobalThemeState(nextTheme);
   };
 
-  return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
+  const toggleTheme = () => {
+    const nextTheme = theme === Themes.DARK ? Themes.LIGHT : Themes.DARK;
+    if (activeModule && customTheme) {
+      setModuleCustomTheme(activeModule, { ...customTheme, base: nextTheme });
+      return;
+    }
+    if (activeModule) {
+      setModuleTheme(activeModule, nextTheme);
+      return;
+    }
+    setGlobalTheme(nextTheme);
+  };
+
+  return (
+    <ThemeContext.Provider value={{ theme, globalTheme, toggleTheme, setGlobalTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
 };

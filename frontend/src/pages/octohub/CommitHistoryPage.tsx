@@ -1,63 +1,66 @@
 import iziToast from 'izitoast';
-import { octohubStructs } from '../../../wailsjs/go/models';
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { DiffHunk, parseDiff } from '../../features/octohub-module/functions/diffParser';
-import { useConfirmToast } from '../../features/shared/components/toasts/ConfirmToast';
-import { ClipboardSetText } from '../../../wailsjs/runtime/runtime';
-import StashChangesModal from '../../features/octohub-module/components/StashChangesModal';
-import ContextMenu, { ContextMenuEntry } from '../../features/octohub-module/components/commit-history/ContextMenu';
-import CommitActionModal, { CommitAction } from '../../features/octohub-module/components/commit-history/CommitActionModals';
 import { VsCodeIcon } from '../../features/shared/Icons';
-import { GitCommit, FileCode, Clock, FolderGit2, FolderPlus, GitCommitHorizontal, ArrowUpDown, Undo2, GitBranchPlus, Tag, Cherry, Copy, EyeOff, ClipboardCopy, FolderSearch, ExternalLink, SquareCheck, Square } from 'lucide-react';
-import DiffViewer from '../../features/octohub-module/components/commit-history/DiffViewer';
+import { octohubStructs } from '../../../wailsjs/go/models';
+import { ClipboardSetText } from '../../../wailsjs/runtime/runtime';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useConfirmToast } from '../../features/shared/components/toasts/ConfirmToast';
+import { DiffHunk, parseDiff } from '../../features/octohub-module/functions/diffParser';
 import CommitBox from '../../features/octohub-module/components/commit-history/CommitBox';
+import StashChangesModal from '../../features/octohub-module/components/StashChangesModal';
+import DiffViewer from '../../features/octohub-module/components/commit-history/DiffViewer';
 import CommitSidebar from '../../features/octohub-module/components/commit-history/CommitSidebar';
-import { escapeHtml, getConflictingFiles, isConflictError } from '../../features/octohub-module/functions/gitStatus';
 import ChangesSidebar from '../../features/octohub-module/components/commit-history/ChangesSidebar';
+import OperationBanner from '../../features/octohub-module/components/commit-history/OperationBanner';
 import { useOctohubRepository } from '../../features/octohub-module/contexts/OctohubRepositoryContext';
 import ModifiedFileList from '../../features/octohub-module/components/commit-history/ModifiedFileList';
 import CommitDetailsHeader from '../../features/octohub-module/components/commit-history/CommitDetailsHeader';
-import OperationBanner from '../../features/octohub-module/components/commit-history/OperationBanner';
-import { GetStashedFileDiff, ListStashes, PopStash, DropStash, GetOperationState, ContinueOperation, AbortOperation, SkipRebaseCommit, CheckoutCommit, RevertCommit, HasUncommittedChanges, IgnoreFile, IgnoreExtension, RevealInExplorer, OpenWithDefaultProgram, OpenFileInEditor } from '../../../wailsjs/go/octohubHandler/GitBranchHandler';
+import ContextMenu, { ContextMenuEntry } from '../../features/octohub-module/components/commit-history/ContextMenu';
+import { escapeHtml, getConflictingFiles, isConflictError } from '../../features/octohub-module/functions/gitStatus';
+import CommitActionModal, { CommitAction } from '../../features/octohub-module/components/commit-history/CommitActionModals';
 import { ALL_SELECTED, FileSelection, NONE_SELECTED, selectedLineSet, setLines } from '../../features/octohub-module/functions/lineSelection';
 import { ListCommits, GetCommitModifications, GetCommitedFileChanges, GetGitStatus, GetUncommitedFileChanges, Commit, DiscardChanges } from '../../../wailsjs/go/octohubHandler/GitCommitsHandler';
+import { GitCommit, FileCode, Clock, FolderGit2, FolderPlus, GitCommitHorizontal, ArrowUpDown, Undo2, GitBranchPlus, Tag, Cherry, Copy, EyeOff, ClipboardCopy, FolderSearch, ExternalLink, SquareCheck, Square } from 'lucide-react';
+import { GetStashedFileDiff, ListStashes, PopStash, DropStash, GetOperationState, ContinueOperation, AbortOperation, SkipRebaseCommit, CheckoutCommit, RevertCommit, HasUncommittedChanges, GetCurrentBranch, IgnoreFile, IgnoreExtension, RevealInExplorer, OpenWithDefaultProgram, OpenFileInEditor } from '../../../wailsjs/go/octohubHandler/GitBranchHandler';
 
 type DiffSource = 'working' | 'stash' | 'commit';
 
+const statusKey = (files: octohubStructs.FilesStatus[]) =>
+    files.map(file => `${file.Status}\0${file.FileName}\0${file.OldFileName}`).join('\n');
+
 const CommitHistoryPage: React.FC = () => {
-    const { loading: loadingRepository, repository, revision, currentBranch, notifyChange, addRepository, openConflicts } = useOctohubRepository();
-    const confirmToast = useConfirmToast();
-    const hasRepository = Boolean(repository?.exists);
 
     const [_, setPage] = useState(0);
+    const confirmToast = useConfirmToast();
     const [summary, setSummary] = useState('');
     const [loading, setLoading] = useState(true);
     const [hasMore, setHasMore] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const hasRepository = Boolean(repository?.exists);
     const [description, setDescription] = useState('');
     const [committing, setCommitting] = useState(false);
-    const [operationBusy, setOperationBusy] = useState(false);
-    const [operation, setOperation] = useState<octohubStructs.OperationState | null>(null);
-    const [checkoutBusy, setCheckoutBusy] = useState(false);
-    const [checkoutTarget, setCheckoutTarget] = useState<octohubStructs.Commit | null>(null);
-    const [commitAction, setCommitAction] = useState<{ action: CommitAction; commit: octohubStructs.Commit } | null>(null);
-    const [commitMenu, setCommitMenu] = useState<{ x: number; y: number; commit: octohubStructs.Commit } | null>(null);
-    const [fileMenu, setFileMenu] = useState<{ x: number; y: number; file: octohubStructs.FilesStatus } | null>(null);
     const [loadingMore, setLoadingMore] = useState(false);
     const [loadingDiff, setLoadingDiff] = useState(false);
+    const [checkoutBusy, setCheckoutBusy] = useState(false);
     const [loadingFiles, setLoadingFiles] = useState(false);
+    const [operationBusy, setOperationBusy] = useState(false);
     const observer = useRef<IntersectionObserver | null>(null);
     const [fileDiff, setFileDiff] = useState<string | null>(null);
-    const [diffSource, setDiffSource] = useState<DiffSource>('working');
-    const [fileDiffHash, setFileDiffHash] = useState<string | null>(null);
     const [stashes, setStashes] = useState<octohubStructs.Stash[]>([]);
+    const [diffSource, setDiffSource] = useState<DiffSource>('working');
     const [commits, setCommits] = useState<octohubStructs.Commit[]>([]);
+    const [fileDiffHash, setFileDiffHash] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'changes' | 'history'>('changes');
     const [selections, setSelections] = useState<Record<string, FileSelection>>({});
     const [changedFiles, setChangedFiles] = useState<octohubStructs.FilesStatus[]>([]);
+    const [operation, setOperation] = useState<octohubStructs.OperationState | null>(null);
+    const [checkoutTarget, setCheckoutTarget] = useState<octohubStructs.Commit | null>(null);
     const [selectedCommit, setSelectedCommit] = useState<octohubStructs.Commit | null>(null);
     const [modifications, setModifications] = useState<octohubStructs.FileModification[]>([]);
+    const [fileMenu, setFileMenu] = useState<{ x: number; y: number; file: octohubStructs.FilesStatus } | null>(null);
+    const [commitMenu, setCommitMenu] = useState<{ x: number; y: number; commit: octohubStructs.Commit } | null>(null);
+    const [commitAction, setCommitAction] = useState<{ action: CommitAction; commit: octohubStructs.Commit } | null>(null);
+    const { loading: loadingRepository, repository, revision, currentBranch, notifyChange, addRepository, openConflicts } = useOctohubRepository();
 
     const diffRequest = useRef(0);
     const activeTabRef = useRef(activeTab);
@@ -159,7 +162,8 @@ const CommitHistoryPage: React.FC = () => {
     const fetchGitStatus = async () => {
         try {
             const files = (await GetGitStatus()) || [];
-            setChangedFiles(files);
+            const changed = statusKey(files) !== statusKey(changedFiles);
+            setChangedFiles(previous => statusKey(previous) === statusKey(files) ? previous : files);
             setSelections(previous => Object.fromEntries(
                 files.filter(file => previous[file.FileName]).map(file => [file.FileName, previous[file.FileName]])
             ));
@@ -167,10 +171,66 @@ const CommitHistoryPage: React.FC = () => {
             const stashesList = await ListStashes();
             setStashes(stashesList || []);
             setOperation(await GetOperationState().catch(() => null));
+            return changed;
         } catch (err: any) {
             console.error("Erro ao buscar status do git:", err);
+            return false;
         }
     };
+
+    const refreshSelectedDiff = async () => {
+        if (activeTab !== 'changes' || diffSource !== 'working') return;
+        const file = changedFiles.find(item => item.FileName === selectedFile);
+        if (!file) return;
+        const result = await GetUncommitedFileChanges(file).catch(() => null);
+        if (result && result.Hash !== fileDiffHash) fetchUncommitedDiff(file);
+    };
+
+    const refreshWorkingTree = async () => {
+        const statusChanged = await fetchGitStatus();
+        if (!statusChanged) await refreshSelectedDiff();
+    };
+
+    const syncWithDisk = async () => {
+        if (!hasRepository || committing || operationBusy) return;
+        const [branch, firstPage] = await Promise.all([
+            GetCurrentBranch().catch(() => null),
+            ListCommits(0).catch(() => null),
+        ]);
+        const headMoved = (firstPage?.[0]?.Hash ?? null) !== (commits[0]?.Hash ?? null);
+        if (branch !== currentBranch || headMoved) {
+            notifyChange();
+            return;
+        }
+        await refreshWorkingTree();
+    };
+
+    const syncWithDiskRef = useRef(syncWithDisk);
+    syncWithDiskRef.current = syncWithDisk;
+
+    useEffect(() => {
+        if (!hasRepository) return;
+        let lastSync = 0;
+        const onWindowFocus = () => {
+            if (document.visibilityState === 'hidden' || Date.now() - lastSync < 1000) return;
+            lastSync = Date.now();
+            syncWithDiskRef.current();
+        };
+        const onKeyDown = (event: KeyboardEvent) => {
+            const reloadShortcut = event.key === 'F5' || ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'r');
+            if (!reloadShortcut) return;
+            event.preventDefault();
+            notifyChange();
+        };
+        window.addEventListener('focus', onWindowFocus);
+        window.addEventListener('keydown', onKeyDown);
+        document.addEventListener('visibilitychange', onWindowFocus);
+        return () => {
+            window.removeEventListener('focus', onWindowFocus);
+            window.removeEventListener('keydown', onKeyDown);
+            document.removeEventListener('visibilitychange', onWindowFocus);
+        };
+    }, [hasRepository, notifyChange]);
 
     const runOperation = async (action: () => Promise<octohubStructs.OperationState | void>, doneMessage: string) => {
         setOperationBusy(true);
@@ -464,7 +524,7 @@ const CommitHistoryPage: React.FC = () => {
 
     useEffect(() => {
         if (!hasRepository) return;
-        fetchGitStatus();
+        refreshWorkingTree();
         setPage(0);
         fetchCommits(0);
     }, [repository?.id, hasRepository, revision]);
@@ -674,10 +734,10 @@ const CommitHistoryPage: React.FC = () => {
         <div className="flex flex-col h-full bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-white/5 overflow-hidden">
             {bannerOperation && (
                 <OperationBanner
-                    operation={bannerOperation}
-                    busy={operationBusy}
-                    onSkip={skipRebaseCommit}
-                    onAbort={abortOperation}
+                busy={operationBusy}
+                onAbort={abortOperation}
+                onSkip={skipRebaseCommit}
+                operation={bannerOperation}
                     onContinue={continueOperation}
                     onShowConflicts={openConflicts}
                 />
@@ -721,24 +781,24 @@ const CommitHistoryPage: React.FC = () => {
 
                     {activeTab === 'changes' ? (
                         <ChangesSidebar
-                            files={changedFiles}
                             stashes={stashes}
-                            onPopStash={handlePopStash}
-                            onDropStash={handleDropStash}
-                            onStashFileClick={fetchStashedFileDiff}
-                            onRefresh={fetchGitStatus}
+                            files={changedFiles}
                             searchTerm={searchTerm}
-                            onSearchTermChange={setSearchTerm}
-                            selectionOf={(fileName) => selectionOf(fileName).kind}
-                            selectedFile={selectedFile}
-                            onFileClick={fetchUncommitedDiff}
-                            toggleFileSelection={toggleFileSelection}
-                            toggleAllSelection={toggleAllSelection}
                             onDiscardAll={discardAll}
+                            onPopStash={handlePopStash}
+                            selectedFile={selectedFile}
                             onDiscardFile={discardFile}
-                            onDiscardSelected={discardSelected}
-                            onFileContextMenu={(event, file) => setFileMenu({ x: event.clientX, y: event.clientY, file })}
+                            onDropStash={handleDropStash}
+                            onRefresh={refreshWorkingTree}
+                            onFileClick={fetchUncommitedDiff}
+                            onSearchTermChange={setSearchTerm}
                             selectedCount={selectedFilesCount}
+                            onDiscardSelected={discardSelected}
+                            onStashFileClick={fetchStashedFileDiff}
+                            toggleAllSelection={toggleAllSelection}
+                            toggleFileSelection={toggleFileSelection}
+                            selectionOf={(fileName) => selectionOf(fileName).kind}
+                            onFileContextMenu={(event, file) => setFileMenu({ x: event.clientX, y: event.clientY, file })}
                         >
                             {(commitMode !== 'commit' || !operationKind) && (
                                 <CommitBox
@@ -749,22 +809,22 @@ const CommitHistoryPage: React.FC = () => {
                                     selectedCount={selectedFilesCount}
                                     onDescriptionChange={setDescription}
                                     committing={committing || operationBusy}
-                                    onCommit={commitMode === 'commit' ? handleCommit : continueOperation}
                                     branch={currentBranch === 'HEAD' ? 'HEAD destacado' : currentBranch}
+                                    onCommit={commitMode === 'commit' ? handleCommit : continueOperation}
                                     disabledReason={commitMode === 'commit' && conflicts.length > 0 ? 'Resolva os conflitos antes de fazer o commit' : undefined}
                                 />
                             )}
                         </ChangesSidebar>
                     ) : (
                         <CommitSidebar
+                            searchTerm={searchTerm}
                             commits={filteredCommits}
+                            loadingMore={loadingMore}
                             selectedCommit={selectedCommit}
                             onSelectCommit={setSelectedCommit}
-                            searchTerm={searchTerm}
                             onSearchTermChange={setSearchTerm}
-                            onRefresh={() => { setPage(0); fetchCommits(0); }}
-                            loadingMore={loadingMore}
                             lastCommitElementRef={lastCommitElementRef}
+                            onRefresh={() => { setPage(0); fetchCommits(0); }}
                             onCommitContextMenu={(event, commit) => setCommitMenu({ x: event.clientX, y: event.clientY, commit })}
                         />
                     )}
@@ -834,9 +894,9 @@ const CommitHistoryPage: React.FC = () => {
                             <div className="flex-1 flex min-h-0 overflow-hidden">
                                 <div style={{ width: filesWidth }} className="flex flex-col shrink-0 border-r border-zinc-200 dark:border-white/5 bg-zinc-50/30 dark:bg-black/10">
                                     <ModifiedFileList
-                                        modifications={modifications}
                                         loadingFiles={loadingFiles}
                                         selectedFile={selectedFile}
+                                        modifications={modifications}
                                         onFileClick={(file) => fetchFileDiff(file)}
                                     />
                                 </div>

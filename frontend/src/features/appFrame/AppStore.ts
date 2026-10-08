@@ -1,19 +1,19 @@
 import { create } from 'zustand';
 
-export type ModuleType = 'home' | 'docker' | 'ferretshell' | 'vulpes' | 'octohub';
+export type ModuleType = 'home' | 'docker' | 'ferretshell' | 'vulpes' | 'octohub' | 'settings';
 
 export interface AppTab {
   id: string;
-  type: ModuleType;
   title: string;
+  type: ModuleType;
 }
 
 interface AppState {
   tabs: AppTab[];
   activeTabId: string | null;
-  openTab: (type: ModuleType, title?: string) => void;
   closeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
+  openTab: (type: ModuleType, title?: string) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -31,10 +31,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const id = type === 'home' ? 'home' : `${type}-${Date.now()}`;
     let defaultTitle = title || type;
-    if (type === 'docker') defaultTitle = 'Docker Manager';
-    if (type === 'ferretshell') defaultTitle = 'FerretShell';
-    if (type === 'octohub') defaultTitle = 'OctoHub';
     if (type === 'home') defaultTitle = 'Início';
+    if (type === 'octohub') defaultTitle = 'OctoHub';
+    if (type === 'docker') defaultTitle = 'Docker Manager';
+    if (type === 'settings') defaultTitle = 'Configurações';
+    if (type === 'ferretshell') defaultTitle = 'FerretShell';
 
     const newTab: AppTab = { id, type, title: defaultTitle };
 

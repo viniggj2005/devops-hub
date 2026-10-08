@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -18,6 +17,7 @@ import (
 
 	auth "docker-manager-go/src/auth/functions"
 	"docker-manager-go/src/models"
+	"docker-manager-go/src/processes"
 	octohubDtos "docker-manager-go/src/octohub/dtos"
 )
 
@@ -266,7 +266,7 @@ func (handlerStruct *RepositoryHandler) localGithubRepositories(userID uint, git
 
 	result := map[string]models.OctohubModel{}
 	for _, repository := range repositories {
-		out, err := exec.Command("git", "-C", repository.LocalPath, "remote", "get-url", "origin").Output()
+		out, err := processes.Command("git", "-C", repository.LocalPath, "remote", "get-url", "origin").Output()
 		if err != nil {
 			continue
 		}
@@ -349,7 +349,7 @@ func (handlerStruct *RepositoryHandler) clone(userID uint, remoteURL, parentFold
 	}
 	defer cleanup()
 
-	cmd := exec.CommandContext(handlerStruct.ctx, "git", "clone", "--progress", "--", remoteURL, destination)
+	cmd := processes.CommandContext(handlerStruct.ctx, "git", "clone", "--progress", "--", remoteURL, destination)
 	cmd.Env = append(auth.env(), sshEnv...)
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -429,7 +429,7 @@ func (handlerStruct *RepositoryHandler) open(repository *models.OctohubModel, ac
 }
 
 func gitTopLevel(folder string) (string, error) {
-	out, err := exec.Command("git", "-C", folder, "rev-parse", "--show-toplevel").Output()
+	out, err := processes.Command("git", "-C", folder, "rev-parse", "--show-toplevel").Output()
 	if err != nil {
 		return "", errors.New("não é um repositório git")
 	}

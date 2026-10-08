@@ -1,60 +1,34 @@
 import React from 'react';
-import { Box, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useAppStore, ModuleType } from '../features/appFrame/AppStore';
+import { Box, EyeOff, Settings } from 'lucide-react';
+import { useAppStore } from '../features/appFrame/AppStore';
+import { appModules } from '../features/shared/constants/AppModules';
+import { useGeneralConfigsStore } from '../features/settings/store/GeneralConfigsStore';
 
 const MainHomePage: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { openTab } = useAppStore();
+    const configsLoaded = useGeneralConfigsStore(state => state.loaded);
+    const modulesConfig = useGeneralConfigsStore(state => state.modules);
 
-    const modules: { id: ModuleType, title: string, description: string, icon: any, color: string, status: string }[] = [
-        {
-            id: 'docker',
-            title: 'Docker Manager',
-            description: 'Gerencie contêineres, imagens, redes e volumes Docker.',
-            icon: <img src="/docker-manager.svg" alt="Docker Manager" className="w-14 h-14 brightness-0 invert" />,
-            color: 'from-blue-500 to-blue-700',
-            status: 'Ativo'
-        },
-        {
-            id: 'ferretshell',
-            title: 'FerretShell',
-            description: 'Acesse e gerencie seus servidores remotos via terminal SSH.',
-            icon: <img src="/term.svg" alt="Ferretshell" className="w-14 h-14 brightness-0 invert" />,
-            color: 'from-purple-500 to-purple-700',
-            status: 'Ativo'
-        },
-        {
-            id: 'octohub',
-            title: 'OctoHub',
-            description: 'Configurações de acesso, chaves SSH e certificados TLS.',
-            icon: <img src="/gitoctocat.svg" alt="git" className="w-14 h-14 brightness-0 invert" />,
-            color: 'from-emerald-500 to-emerald-700',
-            status: 'Ativo'
-        },
-        {
-            id: 'vulpes',
-            title: 'Vulpes',
-            description: 'Visualize o uso de recursos e logs do sistema em tempo real.',
-            icon: <img src="/fox.svg" alt="fox" className="w-14 h-14 brightness-0 invert" />,
-            color: 'from-amber-500 to-amber-700',
-            status: 'Inativo'
-        }
-    ];
+    const visibleModules = appModules.filter(module => modulesConfig[module.configName].showOnHome);
+    const hasVisibleActiveModule = visibleModules.some(module => module.status === 'Ativo');
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0c] text-gray-900 dark:text-white flex flex-col">
 
-            <header className="p-6 md:p-10 flex justify-between items-center">
+            <header className="relative z-10 p-6 md:p-10 flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">DeployOps Console</h1>
                     <p className="text-gray-500 dark:text-zinc-400 mt-1">Bem-vindo de volta, {user?.nome || 'Usuário'}</p>
                 </div>
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => { }}
+                        onClick={() => openTab('settings')}
+                        aria-label="Configurações"
+                        title="Configurações"
                         className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-white/5 transition-colors"
                     >
                         <Settings className="w-5 h-5 text-gray-500" />
@@ -74,17 +48,27 @@ const MainHomePage: React.FC = () => {
                         </p>
                     </div>
 
+                    {configsLoaded && !hasVisibleActiveModule && (
+                        <div className="flex flex-col items-center gap-4 rounded-3xl border border-dashed border-gray-300 dark:border-white/10 p-10 mb-6 text-center">
+                            <EyeOff className="w-8 h-8 text-gray-400 dark:text-zinc-500" />
+                            <p className="text-gray-500 dark:text-zinc-400">Nenhum módulo ativo está visível na tela inicial.</p>
+                            <button
+                                onClick={() => openTab('settings')}
+                                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                            >
+                                Escolher módulos
+                            </button>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {modules.map((module, index) => (
+                        {configsLoaded && visibleModules.map(module => (
                             <div
-                                key={`${module.id}-${index}`}
+                                key={module.id}
                                 onClick={() => {
-                                    if (module.status === 'Ativo') {
-                                        openTab(module.id, module.title);
-                                        if (module.id === 'ferretshell') navigate('/term/home');
-                                        if (module.id === 'docker') navigate('/docker/home');
-                                        if (module.id === 'octohub') navigate('/octohub/home');
-                                    }
+                                    if (module.status !== 'Ativo') return;
+                                    openTab(module.id, module.title);
+                                    if (module.homePath) navigate(module.homePath);
                                 }}
                                 className={`group relative overflow-hidden rounded-3xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-white/5 p-8 ${module.status === 'Ativo' ? 'cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:shadow-blue-500/10' : 'opacity-70 cursor-not-allowed'} transition-all`}
                             >
@@ -92,7 +76,7 @@ const MainHomePage: React.FC = () => {
 
                                 <div className="flex items-start justify-between mb-6">
                                     <div className={`p-4 rounded-2xl bg-gradient-to-br ${module.color} text-white shadow-lg shadow-blue-500/20`}>
-                                        {module.icon}
+                                        <img src={module.icon} alt={module.title} className="w-14 h-14 brightness-0 invert" />
                                     </div>
                                     <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${module.status === 'Ativo' ? 'bg-green-500/10 text-green-500' :
                                         module.status === 'Beta' ? 'bg-amber-500/10 text-amber-500' : module.status === 'Inativo' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
