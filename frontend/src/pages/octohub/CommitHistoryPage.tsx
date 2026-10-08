@@ -27,6 +27,9 @@ type DiffSource = 'working' | 'stash' | 'commit';
 const statusKey = (files: octohubStructs.FilesStatus[]) =>
     files.map(file => `${file.Status}\0${file.FileName}\0${file.OldFileName}`).join('\n');
 
+const commitsKey = (commits: octohubStructs.Commit[]) =>
+    commits.map(commit => `${commit.Hash}\0${(commit.Tags ?? []).join('\0')}`).join('\n');
+
 const CommitHistoryPage: React.FC = () => {
 
     const [_, setPage] = useState(0);
@@ -35,7 +38,6 @@ const CommitHistoryPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [hasMore, setHasMore] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const hasRepository = Boolean(repository?.exists);
     const [description, setDescription] = useState('');
     const [committing, setCommitting] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -66,6 +68,7 @@ const CommitHistoryPage: React.FC = () => {
     const activeTabRef = useRef(activeTab);
     const selectionsRef = useRef(selections);
     const selectedFileRef = useRef(selectedFile);
+    const hasRepository = Boolean(repository?.exists);
     activeTabRef.current = activeTab;
     selectionsRef.current = selections;
     selectedFileRef.current = selectedFile;
@@ -197,8 +200,10 @@ const CommitHistoryPage: React.FC = () => {
             GetCurrentBranch().catch(() => null),
             ListCommits(0).catch(() => null),
         ]);
-        const headMoved = (firstPage?.[0]?.Hash ?? null) !== (commits[0]?.Hash ?? null);
-        if (branch !== currentBranch || headMoved) {
+        const latestCommits = firstPage ?? [];
+        const historyChanged = commitsKey(latestCommits) !== commitsKey(commits.slice(0, latestCommits.length))
+            || (latestCommits.length === 0 && commits.length > 0);
+        if (branch !== currentBranch || historyChanged) {
             notifyChange();
             return;
         }
@@ -674,7 +679,8 @@ const CommitHistoryPage: React.FC = () => {
     const filteredCommits = commits.filter(commit =>
         commit.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         commit.Hash.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        commit.Author.toLowerCase().includes(searchTerm.toLowerCase())
+        commit.Author.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (commit.Tags ?? []).some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     if (loadingRepository) {
@@ -890,7 +896,7 @@ const CommitHistoryPage: React.FC = () => {
                         )
                     ) : selectedCommit ? (
                         <>
-                            <CommitDetailsHeader commit={selectedCommit} />
+                            <CommitDetailsHeader commit={commits.find(commit => commit.Hash === selectedCommit.Hash) ?? selectedCommit} />
                             <div className="flex-1 flex min-h-0 overflow-hidden">
                                 <div style={{ width: filesWidth }} className="flex flex-col shrink-0 border-r border-zinc-200 dark:border-white/5 bg-zinc-50/30 dark:bg-black/10">
                                     <ModifiedFileList
