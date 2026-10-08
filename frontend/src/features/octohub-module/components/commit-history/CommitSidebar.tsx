@@ -1,4 +1,5 @@
 import React from 'react';
+import TagBadge from './TagBadge';
 import { Search, RotateCcw, GitCommit } from 'lucide-react';
 import { octohubStructs } from '../../../../../wailsjs/go/models';
 
@@ -76,6 +77,11 @@ const CommitSidebar: React.FC<CommitSidebarProps> = ({
                                         <div className="flex justify-between items-start">
                                             <h3 className="text-xs font-bold truncate pr-2 text-zinc-900 dark:text-white leading-tight">{commit.Title}</h3>
                                         </div>
+                                        {commit.Tags?.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                                {commit.Tags.map(tag => <TagBadge key={tag} name={tag} />)}
+                                            </div>
+                                        )}
                                         <div className="flex items-center justify-between mt-1">
                                             <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
                                                 <span className="font-medium text-zinc-600 dark:text-zinc-400 truncate max-w-[80px]">{commit.Author}</span>

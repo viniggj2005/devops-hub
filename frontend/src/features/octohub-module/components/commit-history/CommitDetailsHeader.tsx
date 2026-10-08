@@ -1,3 +1,4 @@
+import TagBadge from './TagBadge';
 import React, { useEffect, useState } from 'react';
 import { Hash, User, Calendar } from 'lucide-react';
 import { octohubStructs } from '../../../../../wailsjs/go/models';
@@ -28,6 +29,12 @@ const CommitDetailsHeader: React.FC<CommitDetailsHeaderProps> = ({ commit }) => 
                     {commit.Hash}
                 </div>
             </div>
+
+            {commit.Tags?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 -mt-2 mb-4">
+                    {commit.Tags.map(tag => <TagBadge key={tag} name={tag} size="md" />)}
+                </div>
+            )}
 
             <div className="flex items-center gap-8">
                 <div className="flex items-center gap-2.5">

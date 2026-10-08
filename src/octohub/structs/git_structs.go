@@ -7,6 +7,7 @@ type Commit struct {
 	PseudoEmail string
 	Date        string
 	Title       string
+	Tags        []string
 }
 
 type FileModification struct {

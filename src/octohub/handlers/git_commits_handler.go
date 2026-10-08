@@ -5,6 +5,7 @@ import (
 	"context"
 	octohubStructs "docker-manager-go/src/octohub/structs"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -261,46 +262,45 @@ func (handlerStruct *GitCommitsHandler) ListCommits(page int) ([]octohubStructs.
 		return []octohubStructs.Commit{}, nil
 	}
 
-	args := []string{"log", fmt.Sprintf("--skip=%d", page*15), "-n", "15"}
+	args := []string{
+		"log",
+		"-n", "15",
+		"--date=iso-strict",
+		"--no-show-signature",
+		"--decorate-refs=refs/tags/",
+		fmt.Sprintf("--skip=%d", page*15),
+		"--format=%H%x1f%an%x1f%ae%x1f%ad%x1f%s%x1f%D%x1e",
+	}
 	out, err := handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {
 		return nil, err
 	}
-	var commits []octohubStructs.Commit
-	var current *octohubStructs.Commit
 
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if strings.HasPrefix(line, "commit") {
-			if current != nil {
-				commits = append(commits, *current)
-			}
-			current = &octohubStructs.Commit{}
-			current.Hash = strings.TrimSpace(strings.TrimPrefix(line, "commit "))
+	commits := []octohubStructs.Commit{}
+	for _, record := range strings.Split(string(out), "\x1e") {
+		fields := strings.Split(strings.TrimLeft(record, "\r\n"), "\x1f")
+		if len(fields) < 6 {
 			continue
 		}
-		if current != nil {
-			if strings.HasPrefix(line, "Author:") {
-				pieces := strings.Split(line, "<")
-				if len(pieces) == 2 {
-					current.PseudoEmail = strings.TrimSuffix(pieces[1], ">")
-					current.Author = strings.TrimSpace(strings.TrimPrefix(pieces[0], "Author:"))
-				}
-			} else if strings.HasPrefix(line, "Date:") {
-				current.Date = strings.TrimSpace(strings.TrimPrefix(line, "Date:"))
-			} else if strings.HasPrefix(line, "    ") {
-				title := strings.TrimSpace(line)
-				if title != "" && current.Title == "" {
-					current.Title = title
-				}
-			}
-		}
-	}
-
-	if current != nil {
-		commits = append(commits, *current)
+		commits = append(commits, octohubStructs.Commit{
+			Hash:        fields[0],
+			Author:      fields[1],
+			PseudoEmail: fields[2],
+			Date:        fields[3],
+			Title:       fields[4],
+			Tags:        parseTagDecorations(fields[5]),
+		})
 	}
 	return commits, nil
+}
+
+func parseTagDecorations(decorations string) []string {
+	tags := []string{}
+	for _, decoration := range strings.Split(strings.TrimSpace(decorations), ", ") {
+		if tag, isTag := strings.CutPrefix(decoration, "tag: "); isTag {
+			tags = append(tags, tag)
+		}
+	}
+	slices.Sort(tags)
+	return tags
 }
