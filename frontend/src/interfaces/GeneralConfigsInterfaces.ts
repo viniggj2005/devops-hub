@@ -68,3 +68,21 @@ export type OctohubColorKey =
   | 'conflicted';
 
 export type OctohubColors = Record<OctohubColorKey, string>;
+
+export interface ThemeProfileModuleTheme {
+  theme: ModuleThemePreference;
+  customTheme: CustomThemeColors;
+}
+
+export interface ThemeProfileConfig {
+  globalTheme: ThemeBase;
+  octohubColors: OctohubColors;
+  terminalTheme: TerminalThemeConfig;
+  modules: Record<ConfigurableModule, ThemeProfileModuleTheme>;
+}
+
+export interface ThemeProfile {
+  id: number;
+  name: string;
+  config: ThemeProfileConfig;
+}

@@ -1,0 +1,341 @@
+export interface PostgresConnection {
+  id: number;
+  alias: string;
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  sslMode: string;
+  hasPassword: boolean;
+}
+
+export interface PostgresConnectionInput {
+  alias?: string;
+  host: string;
+  port?: number;
+  database?: string;
+  username: string;
+  password?: string;
+  sslMode?: string;
+  clearPassword?: boolean;
+}
+
+export interface ConnectionTestResult {
+  serverVersion: string;
+  latencyMs: number;
+}
+
+export interface DatabaseInfo {
+  name: string;
+  owner: string;
+  encoding: string;
+  sizeBytes: number | null;
+  allowConnect: boolean;
+  comment: string | null;
+}
+
+export interface SchemaInfo {
+  name: string;
+  owner: string;
+  comment: string | null;
+}
+
+export interface RelationInfo {
+  name: string;
+  kind: string;
+  estimatedRows: number;
+  comment: string | null;
+}
+
+export interface FunctionInfo {
+  oid: number;
+  name: string;
+  arguments: string;
+  resultType: string;
+  kind: string;
+}
+
+export interface SchemaObjects {
+  tables: RelationInfo[];
+  views: RelationInfo[];
+  materializedViews: RelationInfo[];
+  sequences: RelationInfo[];
+  functions: FunctionInfo[];
+}
+
+export interface ColumnInfo {
+  position: number;
+  name: string;
+  quotedName: string;
+  dataType: string;
+  notNull: boolean;
+  defaultValue: string | null;
+  isPrimaryKey: boolean;
+  isForeignKey: boolean;
+  identity: string;
+  generated: string;
+  collation: string | null;
+  comment: string | null;
+}
+
+export interface IndexInfo {
+  name: string;
+  quotedName: string;
+  definition: string;
+  isUnique: boolean;
+  isPrimary: boolean;
+  sizeBytes: number;
+  constraintBacked: boolean;
+}
+
+export interface ConstraintInfo {
+  name: string;
+  quotedName: string;
+  type: string;
+  definition: string;
+  isLocal: boolean;
+}
+
+export interface TriggerInfo {
+  name: string;
+  definition: string;
+  enabled: boolean;
+}
+
+export interface TableDetails {
+  schema: string;
+  name: string;
+  kind: string;
+  owner: string;
+  estimatedRows: number;
+  totalSizeBytes: number;
+  tableSizeBytes: number;
+  indexSizeBytes: number;
+  comment: string | null;
+  columns: ColumnInfo[];
+  indexes: IndexInfo[];
+  constraints: ConstraintInfo[];
+  triggers: TriggerInfo[];
+  ddl: string;
+}
+
+export type DdlObjectKind = 'table' | 'view' | 'matview' | 'sequence' | 'function' | 'schema';
+
+export interface ObjectReference {
+  kind: DdlObjectKind;
+  schema: string;
+  name: string;
+  oid: number;
+}
+
+export interface CompletionTable {
+  schema: string;
+  name: string;
+  columns: string[];
+}
+
+export interface QuerySession {
+  sessionId: string;
+  database: string;
+  serverVersion: string;
+  backendPid: number;
+}
+
+export interface QueryColumn {
+  name: string;
+  dataType: string;
+  typeOid: number;
+}
+
+export type QueryCell = string | null;
+
+export interface QueryResultSet {
+  columns: QueryColumn[];
+  rows: QueryCell[][];
+  rowCount: number;
+  truncated: boolean;
+  commandTag: string;
+  rowsAffected: number;
+}
+
+export interface QueryMessage {
+  severity: string;
+  code: string;
+  message: string;
+  detail: string;
+  hint: string;
+  where: string;
+  position: number;
+}
+
+export type TxStatus = 'idle' | 'transaction' | 'failed' | 'closed' | 'unknown';
+
+export interface QueryExecution {
+  resultSets: QueryResultSet[];
+  notices: QueryMessage[];
+  error: QueryMessage | null;
+  durationMs: number;
+  txStatus: TxStatus;
+  reconnected: boolean;
+}
+
+export interface SqlFile {
+  path: string;
+  name: string;
+  content: string;
+}
+
+export interface DatabaseStat {
+  name: string;
+  sizeBytes: number | null;
+  connections: number;
+  xactCommit: number;
+  xactRollback: number;
+  blocksRead: number;
+  blocksHit: number;
+  tupReturned: number;
+  tupFetched: number;
+  tupInserted: number;
+  tupUpdated: number;
+  tupDeleted: number;
+}
+
+export interface ServerSession {
+  pid: number;
+  user: string | null;
+  database: string | null;
+  applicationName: string;
+  clientAddress: string | null;
+  state: string | null;
+  waitEvent: string | null;
+  backendType: string | null;
+  backendSeconds: number | null;
+  transactionSeconds: number | null;
+  querySeconds: number | null;
+  query: string | null;
+  isCurrent: boolean;
+}
+
+export interface ServerDashboard {
+  version: string;
+  serverVersion: string;
+  startTime: string;
+  uptimeSeconds: number;
+  maxConnections: number;
+  currentUser: string;
+  isSuperuser: boolean;
+  inRecovery: boolean;
+  sampledAt: number;
+  databases: DatabaseStat[];
+  sessions: ServerSession[];
+}
+
+export type PostgresView = 'home' | 'workspace';
+
+export type WorkspaceTabType = 'query' | 'table' | 'dashboard';
+
+export interface WorkspaceTab {
+  id: string;
+  key?: string;
+  type: WorkspaceTabType;
+  title: string;
+  connectionId: number;
+  connectionName: string;
+  database: string;
+  schema?: string;
+  objectName?: string;
+  initialSql?: string;
+  autoRun?: boolean;
+}
+
+export type OpenWorkspaceTabInput = Omit<WorkspaceTab, 'id'>;
+
+export interface OpenQueryTabInput {
+  connectionId: number;
+  database?: string;
+  sql?: string;
+  autoRun?: boolean;
+  title?: string;
+}
+
+export interface PostgresStoreState {
+  view: PostgresView;
+  connections: PostgresConnection[];
+  connectionsLoaded: boolean;
+  tabs: WorkspaceTab[];
+  activeTabId: string | null;
+  queryCounter: number;
+  tabTxStatus: Record<string, TxStatus>;
+  setView: (view: PostgresView) => void;
+  loadConnections: (token: string) => Promise<PostgresConnection[]>;
+  openTab: (input: OpenWorkspaceTabInput) => void;
+  openQueryTab: (input: OpenQueryTabInput) => void;
+  closeTab: (id: string) => void;
+  closeConnectionTabs: (connectionId: number) => void;
+  setActiveTab: (id: string) => void;
+  renameTab: (id: string, title: string) => void;
+  setTabTxStatus: (id: string, status: TxStatus) => void;
+  reset: () => void;
+}
+
+export type ExplorerNodeKind =
+  | 'server'
+  | 'database'
+  | 'schema'
+  | 'group'
+  | 'table'
+  | 'view'
+  | 'matview'
+  | 'function'
+  | 'sequence'
+  | 'column';
+
+export type ExplorerGroupKind = 'tables' | 'views' | 'matviews' | 'functions' | 'sequences';
+
+export interface ExplorerNode {
+  id: string;
+  parentId: string | null;
+  kind: ExplorerNodeKind;
+  label: string;
+  detail?: string;
+  expandable: boolean;
+  disabled?: boolean;
+  connectionId: number;
+  database?: string;
+  schema?: string;
+  name?: string;
+  oid?: number;
+  groupKind?: ExplorerGroupKind;
+  relationKind?: string;
+  column?: ColumnInfo;
+}
+
+export interface ExplorerStoreState {
+  rootIds: string[];
+  nodes: Record<string, ExplorerNode>;
+  children: Record<string, string[]>;
+  expanded: Record<string, boolean>;
+  loading: Record<string, boolean>;
+  errors: Record<string, string>;
+  connected: Record<number, boolean>;
+  selectedId: string | null;
+  syncServers: (connections: PostgresConnection[]) => void;
+  toggle: (token: string, id: string) => Promise<void>;
+  expand: (token: string, id: string) => Promise<void>;
+  refresh: (token: string, id: string) => Promise<void>;
+  collapseAll: () => void;
+  select: (id: string | null) => void;
+  resetServer: (connectionId: number) => void;
+  reset: () => void;
+}
+
+export interface QueryHistoryEntry {
+  id: string;
+  sql: string;
+  executedAt: number;
+  durationMs: number;
+  success: boolean;
+  summary: string;
+}
+
+export type RunMode = 'run' | 'explain' | 'explain-analyze';

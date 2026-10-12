@@ -1,26 +1,12 @@
 import { useAppStore } from "./AppStore";
-import { useEffect, useState } from "react";
 import appIcon from "../../assets/images/hub.svg";
-import { Quit, WindowMinimise, WindowIsMaximised, WindowToggleMaximise } from "../../../wailsjs/runtime/runtime";
-import { CircleX, Copy, Minus, X, Home, Terminal, Box, Settings } from "lucide-react";
+import { X, Box, Home, Terminal, Settings } from "lucide-react";
+import { WindowControls, useWindowMaximise } from "./WindowControls";
+import { PostgresModuleIcon } from "../postgres-module/moduleInfo";
 
 export function AppFrame() {
-  const [maximized, setMaximized] = useState(false);
+  const { maximized, toggleMaximise } = useWindowMaximise();
   const { tabs, activeTabId, setActiveTab, closeTab } = useAppStore();
-
-  useEffect(() => {
-    async function check() {
-      const isMax = await WindowIsMaximised();
-      setMaximized(isMax);
-    }
-    check();
-  }, []);
-
-  async function toggleMax() {
-    await WindowToggleMaximise();
-    const isMax = await WindowIsMaximised();
-    setMaximized(isMax);
-  }
 
   const getTabIcon = (type: string) => {
     if (type === 'home') return <Home className="w-4 h-4" />;
@@ -28,6 +14,7 @@ export function AppFrame() {
     if (type === 'settings') return <Settings className="w-4 h-4 text-gray-500" />;
     if (type === 'ferretshell') return <Terminal className="w-4 h-4 text-purple-500" />;
     if (type === 'octohub') return <img src="/gitoctocat.svg" className="w-4 h-4 brightness-0 dark:invert" />;
+    if (type === 'postgres') return <PostgresModuleIcon className="w-4 h-4 text-cyan-500" />;
     return null;
   };
 
@@ -44,7 +31,7 @@ export function AppFrame() {
         select-none
         border-b border-gray-800
       "
-      onDoubleClick={toggleMax}
+      onDoubleClick={toggleMaximise}
     >
       <div className="flex items-center gap-3 w-48 shrink-0">
         <div className="flex items-center justify-center pl-2">
@@ -54,21 +41,23 @@ export function AppFrame() {
             draggable={false}
           />
         </div>
-        <div className="flex flex-col leading-tight cursor-default">
+        <div className="flex flex-col leading-tight">
           <span className="text-xs uppercase tracking-[0.18em] font-medium text-gray-300">
             Devops Hub
           </span>
         </div>
       </div>
 
-      <div className="flex-1 flex items-end h-full overflow-hidden appframe-no-drag pt-2 px-2 gap-1">
+      <div className="flex-1 min-w-0 flex items-end h-full overflow-hidden pt-2 px-2 gap-1">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
           return (
             <div
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              onDoubleClick={(event) => event.stopPropagation()}
               className={`
+                appframe-no-drag
                 group relative flex items-center min-w-[120px] max-w-[200px] h-full px-3 gap-2
                 rounded-t-lg border-t border-x border-transparent
                 cursor-pointer transition-colors
@@ -84,8 +73,8 @@ export function AppFrame() {
 
               {tab.type !== 'home' && (
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={(event) => {
+                    event.stopPropagation();
                     closeTab(tab.id);
                   }}
                   className={`
@@ -102,52 +91,7 @@ export function AppFrame() {
         })}
       </div>
 
-      <div
-        className="
-          appframe-no-drag
-          shrink-0 flex items-center gap-1.5 px-2
-        "
-      >
-        <button
-          onClick={() => WindowMinimise()}
-          className="
-            inline-flex h-8 w-8 items-center justify-center
-            rounded-full
-            text-gray-400 hover:bg-white/10 hover:text-white
-            hover:scale-95 transition
-          "
-          aria-label="Minimizar"
-        >
-          <Minus className="w-5 h-5" />
-        </button>
-
-        <button
-          onClick={toggleMax}
-          className="
-            inline-flex h-8 w-8 items-center justify-center
-            rounded-full
-            text-gray-400 hover:bg-white/10 hover:text-white
-            hover:scale-95 transition
-          "
-          aria-label={maximized ? "Restaurar" : "Maximizar"}
-        >
-          <Copy className="w-4 h-4 rotate-90" />
-        </button>
-
-        <button
-          onClick={() => Quit()}
-          className="
-            inline-flex h-8 w-8 items-center justify-center
-            rounded-full
-            text-red-400/80
-            hover:bg-red-500/20 hover:text-red-300 hover:scale-95
-            transition
-          "
-          aria-label="Fechar"
-        >
-          <CircleX className="w-5 h-5" />
-        </button>
-      </div>
+      <WindowControls maximized={maximized} onToggleMaximise={toggleMaximise} />
     </div>
   );
 }

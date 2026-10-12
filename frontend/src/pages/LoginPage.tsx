@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import appIcon from '../assets/images/hub.svg';
 import LoginForm from '../features/login/LoginForm';
 import { Container, Layers, Server } from 'lucide-react';
+import { AuthWindowBar } from '../features/appFrame/WindowControls';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+      <AuthWindowBar />
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-blue-500/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-purple-500/10 rounded-full blur-3xl" />

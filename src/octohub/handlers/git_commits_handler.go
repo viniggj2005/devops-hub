@@ -6,6 +6,7 @@ import (
 	octohubStructs "docker-manager-go/src/octohub/structs"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -258,6 +259,48 @@ func (handlerStruct *GitCommitsHandler) Commit(request octohubStructs.CommitRequ
 }
 
 func (handlerStruct *GitCommitsHandler) ListCommits(page int) ([]octohubStructs.Commit, error) {
+	return handlerStruct.listCommits(page, "HEAD")
+}
+
+func validateCompareBranch(branch string) error {
+	if strings.TrimSpace(branch) == "" || strings.HasPrefix(branch, "-") || strings.Contains(branch, "..") {
+		return fmt.Errorf("branch inválida para comparação: %q", branch)
+	}
+	return nil
+}
+
+func (handlerStruct *GitCommitsHandler) ListCompareCommits(branch string, direction string, page int) ([]octohubStructs.Commit, error) {
+	if err := validateCompareBranch(branch); err != nil {
+		return nil, err
+	}
+	if direction == "ahead" {
+		return handlerStruct.listCommits(page, branch+"..HEAD")
+	}
+	return handlerStruct.listCommits(page, "HEAD.."+branch)
+}
+
+func (handlerStruct *GitCommitsHandler) CompareBranch(branch string) (octohubStructs.BranchComparison, error) {
+	var comparison octohubStructs.BranchComparison
+	if err := validateCompareBranch(branch); err != nil {
+		return comparison, err
+	}
+	if !handlerStruct.hasHead() {
+		return comparison, nil
+	}
+	out, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-list", "--left-right", "--count", "HEAD..." + branch, "--"})
+	if err != nil {
+		return comparison, err
+	}
+	counts := strings.Fields(string(out))
+	if len(counts) != 2 {
+		return comparison, fmt.Errorf("resposta inesperada do git ao comparar com %s", branch)
+	}
+	comparison.Ahead, _ = strconv.Atoi(counts[0])
+	comparison.Behind, _ = strconv.Atoi(counts[1])
+	return comparison, nil
+}
+
+func (handlerStruct *GitCommitsHandler) listCommits(page int, revisionRange string) ([]octohubStructs.Commit, error) {
 	if !handlerStruct.hasHead() {
 		return []octohubStructs.Commit{}, nil
 	}
@@ -270,6 +313,8 @@ func (handlerStruct *GitCommitsHandler) ListCommits(page int) ([]octohubStructs.
 		"--decorate-refs=refs/tags/",
 		fmt.Sprintf("--skip=%d", page*15),
 		"--format=%H%x1f%an%x1f%ae%x1f%ad%x1f%s%x1f%D%x1e",
+		revisionRange,
+		"--",
 	}
 	out, err := handlerStruct.gitHandler.RunGitCommand(args)
 	if err != nil {

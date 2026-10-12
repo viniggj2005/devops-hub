@@ -13,6 +13,7 @@ type MergeStrategy = 'merge' | 'no-ff' | 'squash' | 'rebase';
 interface MergeBranchModalProps {
     open: boolean;
     onClose: () => void;
+    initialBranch?: string | null;
 }
 
 const strategies: { value: MergeStrategy; label: string; description: string }[] = [
@@ -24,7 +25,7 @@ const strategies: { value: MergeStrategy; label: string; description: string }[]
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
-const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose }) => {
+const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, initialBranch }) => {
     const navigate = useNavigate();
     const [filter, setFilter] = useState('');
     const [summary, setSummary] = useState('');
@@ -62,7 +63,7 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose }) =>
         setStashChanges(true);
         HasUncommittedChanges().then(setDirty).catch(() => setDirty(false));
         GetDefaultBranch()
-            .then((defaultBranch) => loadBranches(defaultBranch && defaultBranch !== currentBranch ? defaultBranch : null))
+            .then((defaultBranch) => loadBranches(initialBranch || (defaultBranch && defaultBranch !== currentBranch ? defaultBranch : null)))
             .catch((error) => iziToast.error({ title: 'Erro', message: escapeHtml(String(error)), position: 'bottomRight' }));
     }, [open]);
 

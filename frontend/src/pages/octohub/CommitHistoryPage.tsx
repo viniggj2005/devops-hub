@@ -17,8 +17,9 @@ import CommitDetailsHeader from '../../features/octohub-module/components/commit
 import ContextMenu, { ContextMenuEntry } from '../../features/octohub-module/components/commit-history/ContextMenu';
 import { escapeHtml, getConflictingFiles, isConflictError } from '../../features/octohub-module/functions/gitStatus';
 import CommitActionModal, { CommitAction } from '../../features/octohub-module/components/commit-history/CommitActionModals';
+import BranchCompareBar, { CompareDirection } from '../../features/octohub-module/components/commit-history/BranchCompareBar';
 import { ALL_SELECTED, FileSelection, NONE_SELECTED, selectedLineSet, setLines } from '../../features/octohub-module/functions/lineSelection';
-import { ListCommits, GetCommitModifications, GetCommitedFileChanges, GetGitStatus, GetUncommitedFileChanges, Commit, DiscardChanges } from '../../../wailsjs/go/octohubHandler/GitCommitsHandler';
+import { ListCommits, ListCompareCommits, GetCommitModifications, GetCommitedFileChanges, GetGitStatus, GetUncommitedFileChanges, Commit, DiscardChanges } from '../../../wailsjs/go/octohubHandler/GitCommitsHandler';
 import { GitCommit, FileCode, Clock, FolderGit2, FolderPlus, GitCommitHorizontal, ArrowUpDown, Undo2, GitBranchPlus, Tag, Cherry, Copy, EyeOff, ClipboardCopy, FolderSearch, ExternalLink, SquareCheck, Square } from 'lucide-react';
 import { GetStashedFileDiff, ListStashes, PopStash, DropStash, GetOperationState, ContinueOperation, AbortOperation, SkipRebaseCommit, CheckoutCommit, RevertCommit, HasUncommittedChanges, GetCurrentBranch, IgnoreFile, IgnoreExtension, RevealInExplorer, OpenWithDefaultProgram, OpenFileInEditor } from '../../../wailsjs/go/octohubHandler/GitBranchHandler';
 
@@ -52,9 +53,11 @@ const CommitHistoryPage: React.FC = () => {
     const [commits, setCommits] = useState<octohubStructs.Commit[]>([]);
     const [fileDiffHash, setFileDiffHash] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<string | null>(null);
+    const [compareBranch, setCompareBranch] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'changes' | 'history'>('changes');
     const [selections, setSelections] = useState<Record<string, FileSelection>>({});
     const [changedFiles, setChangedFiles] = useState<octohubStructs.FilesStatus[]>([]);
+    const [compareDirection, setCompareDirection] = useState<CompareDirection>('behind');
     const [operation, setOperation] = useState<octohubStructs.OperationState | null>(null);
     const [checkoutTarget, setCheckoutTarget] = useState<octohubStructs.Commit | null>(null);
     const [selectedCommit, setSelectedCommit] = useState<octohubStructs.Commit | null>(null);
@@ -65,13 +68,16 @@ const CommitHistoryPage: React.FC = () => {
     const { loading: loadingRepository, repository, revision, currentBranch, notifyChange, addRepository, openConflicts } = useOctohubRepository();
 
     const diffRequest = useRef(0);
+    const commitsRequest = useRef(0);
     const activeTabRef = useRef(activeTab);
     const selectionsRef = useRef(selections);
     const selectedFileRef = useRef(selectedFile);
     const hasRepository = Boolean(repository?.exists);
+    const compareRef = useRef({ branch: compareBranch, direction: compareDirection });
     activeTabRef.current = activeTab;
     selectionsRef.current = selections;
     selectedFileRef.current = selectedFile;
+    compareRef.current = { branch: compareBranch, direction: compareDirection };
 
     const [filesWidth, setFilesWidth] = useState(350);
     const [sidebarWidth, setSidebarWidth] = useState(300);
@@ -132,12 +138,19 @@ const CommitHistoryPage: React.FC = () => {
         if (node) observer.current.observe(node);
     }, [loading, loadingMore, hasMore]);
 
+    const listCommitsPage = (pageNumber: number) => {
+        const { branch, direction } = compareRef.current;
+        return branch ? ListCompareCommits(branch, direction, pageNumber) : ListCommits(pageNumber);
+    };
+
     const fetchCommits = async (pageNum = 0, append = false) => {
+        const requestId = ++commitsRequest.current;
         if (append) setLoadingMore(true);
         else setLoading(true);
 
         try {
-            const data = await ListCommits(pageNum);
+            const data = await listCommitsPage(pageNum);
+            if (requestId !== commitsRequest.current) return;
             if (data && data.length > 0) {
                 if (append) {
                     setCommits(previousCommits => [...previousCommits, ...data]);
@@ -157,8 +170,10 @@ const CommitHistoryPage: React.FC = () => {
         } catch (err: any) {
             console.error("Erro ao buscar commits:", err);
         } finally {
-            setLoading(false);
-            setLoadingMore(false);
+            if (requestId === commitsRequest.current) {
+                setLoading(false);
+                setLoadingMore(false);
+            }
         }
     };
 
@@ -198,7 +213,7 @@ const CommitHistoryPage: React.FC = () => {
         if (!hasRepository || committing || operationBusy) return;
         const [branch, firstPage] = await Promise.all([
             GetCurrentBranch().catch(() => null),
-            ListCommits(0).catch(() => null),
+            listCommitsPage(0).catch(() => null),
         ]);
         const latestCommits = firstPage ?? [];
         const historyChanged = commitsKey(latestCommits) !== commitsKey(commits.slice(0, latestCommits.length))
@@ -328,6 +343,8 @@ const CommitHistoryPage: React.FC = () => {
 
     const copyText = (text: string, success: string) => runFileAction(() => ClipboardSetText(text), success);
 
+    const openInEditor = (file: string) => runFileAction(() => OpenFileInEditor(file.split(' -> ').pop() ?? file));
+
     const absolutePath = (file: string) => {
         const root = (repository?.path ?? '').replace(/[\\/]+$/, '');
         const separator = root.includes('\\') ? '\\' : '/';
@@ -373,7 +390,7 @@ const CommitHistoryPage: React.FC = () => {
             { label: 'Copiar caminho relativo', icon: ClipboardCopy, onClick: () => copyText(file.FileName, 'Caminho relativo copiado.') },
             'separator',
             { label: 'Mostrar no Explorer', icon: FolderSearch, onClick: () => runFileAction(() => RevealInExplorer(file.FileName)) },
-            { label: 'Abrir no VS Code', icon: VsCodeIcon, disabled: !exists, onClick: () => runFileAction(() => OpenFileInEditor(file.FileName)) },
+            { label: 'Abrir no VS Code', icon: VsCodeIcon, disabled: !exists, onClick: () => openInEditor(file.FileName) },
             { label: 'Abrir com o programa padrão', icon: ExternalLink, disabled: !exists, onClick: () => runFileAction(() => OpenWithDefaultProgram(file.FileName)) },
         );
         return entries;
@@ -517,6 +534,7 @@ const CommitHistoryPage: React.FC = () => {
         setSelectedFile(null);
         setSelectedCommit(null);
         setOperation(null);
+        setCompareBranch(null);
     }, [repository?.id]);
 
     const operationKey = operation?.Kind ? `${operation.Kind}\n${operation.Message}` : '';
@@ -530,9 +548,13 @@ const CommitHistoryPage: React.FC = () => {
     useEffect(() => {
         if (!hasRepository) return;
         refreshWorkingTree();
+    }, [repository?.id, hasRepository, revision]);
+
+    useEffect(() => {
+        if (!hasRepository) return;
         setPage(0);
         fetchCommits(0);
-    }, [repository?.id, hasRepository, revision]);
+    }, [repository?.id, hasRepository, revision, compareBranch, compareDirection]);
 
     useEffect(() => {
         if (activeTabRef.current !== 'changes') return;
@@ -797,6 +819,7 @@ const CommitHistoryPage: React.FC = () => {
                             onDropStash={handleDropStash}
                             onRefresh={refreshWorkingTree}
                             onFileClick={fetchUncommitedDiff}
+                            onFileDoubleClick={(file) => file.Kind !== 'deleted' && openInEditor(file.FileName)}
                             onSearchTermChange={setSearchTerm}
                             selectedCount={selectedFilesCount}
                             onDiscardSelected={discardSelected}
@@ -831,6 +854,16 @@ const CommitHistoryPage: React.FC = () => {
                             onSearchTermChange={setSearchTerm}
                             lastCommitElementRef={lastCommitElementRef}
                             onRefresh={() => { setPage(0); fetchCommits(0); }}
+                            compareBar={
+                                <BranchCompareBar
+                                    revision={revision}
+                                    branch={compareBranch}
+                                    direction={compareDirection}
+                                    currentBranch={currentBranch}
+                                    onBranchChange={setCompareBranch}
+                                    onDirectionChange={setCompareDirection}
+                                />
+                            }
                             onCommitContextMenu={(event, commit) => setCommitMenu({ x: event.clientX, y: event.clientY, commit })}
                         />
                     )}
@@ -904,6 +937,7 @@ const CommitHistoryPage: React.FC = () => {
                                         selectedFile={selectedFile}
                                         modifications={modifications}
                                         onFileClick={(file) => fetchFileDiff(file)}
+                                        onFileDoubleClick={openInEditor}
                                     />
                                 </div>
                                 <div
@@ -934,7 +968,11 @@ const CommitHistoryPage: React.FC = () => {
                                 <GitCommit className="w-16 h-16 opacity-10" />
                             </div>
                             <p className="text-sm font-medium italic">
-                                {commits.length === 0 ? 'Este repositório ainda não tem commits' : 'Selecione um commit para ver os detalhes'}
+                                {commits.length > 0
+                                    ? 'Selecione um commit para ver os detalhes'
+                                    : compareBranch
+                                        ? 'Nenhum commit nesta comparação'
+                                        : 'Este repositório ainda não tem commits'}
                             </p>
                         </div>
                     )}

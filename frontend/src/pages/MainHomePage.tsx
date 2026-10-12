@@ -5,6 +5,8 @@ import { Box, EyeOff, Settings } from 'lucide-react';
 import { useAppStore } from '../features/appFrame/AppStore';
 import { appModules } from '../features/shared/constants/AppModules';
 import { useGeneralConfigsStore } from '../features/settings/store/GeneralConfigsStore';
+import { POSTGRES_MODULE, PostgresModuleIcon } from '../features/postgres-module/moduleInfo';
+import { moduleIconBackground } from '../features/settings/functions/ModuleIconBackground';
 
 const MainHomePage: React.FC = () => {
     const { user } = useAuth();
@@ -13,11 +15,28 @@ const MainHomePage: React.FC = () => {
     const configsLoaded = useGeneralConfigsStore(state => state.loaded);
     const modulesConfig = useGeneralConfigsStore(state => state.modules);
 
-    const visibleModules = appModules.filter(module => modulesConfig[module.configName].showOnHome);
+    const visibleModules = [
+        ...appModules
+            .filter(module => modulesConfig[module.configName].showOnHome)
+            .map(module => ({
+                ...module,
+                iconNode: <img src={module.icon} alt={module.title} className="w-14 h-14 brightness-0 invert" />,
+            })),
+        {
+            id: 'postgres' as const,
+            configName: undefined,
+            homePath: undefined as string | undefined,
+            title: POSTGRES_MODULE.name,
+            description: POSTGRES_MODULE.description,
+            color: POSTGRES_MODULE.gradient,
+            status: 'Ativo' as const,
+            iconNode: <PostgresModuleIcon className="w-14 h-14 text-white" />,
+        },
+    ];
     const hasVisibleActiveModule = visibleModules.some(module => module.status === 'Ativo');
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0c] text-gray-900 dark:text-white flex flex-col">
+        <div className="h-full overflow-y-auto bg-gray-50 dark:bg-[#0a0a0c] text-gray-900 dark:text-white flex flex-col">
 
             <header className="relative z-10 p-6 md:p-10 flex justify-between items-center">
                 <div>
@@ -75,8 +94,8 @@ const MainHomePage: React.FC = () => {
                                 <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${module.color} opacity-0 group-hover:opacity-10 blur-3xl transition-opacity`} />
 
                                 <div className="flex items-start justify-between mb-6">
-                                    <div className={`p-4 rounded-2xl bg-gradient-to-br ${module.color} text-white shadow-lg shadow-blue-500/20`}>
-                                        <img src={module.icon} alt={module.title} className="w-14 h-14 brightness-0 invert" />
+                                    <div style={module.configName ? moduleIconBackground(modulesConfig[module.configName]) : undefined} className={`p-4 rounded-2xl bg-gradient-to-br ${module.color} text-white shadow-lg shadow-blue-500/20`}>
+                                        {module.iconNode}
                                     </div>
                                     <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${module.status === 'Ativo' ? 'bg-green-500/10 text-green-500' :
                                         module.status === 'Beta' ? 'bg-amber-500/10 text-amber-500' : module.status === 'Inativo' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'

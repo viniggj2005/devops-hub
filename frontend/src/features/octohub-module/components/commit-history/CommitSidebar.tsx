@@ -7,6 +7,7 @@ interface CommitSidebarProps {
     searchTerm: string;
     loadingMore: boolean;
     onRefresh: () => void;
+    compareBar?: React.ReactNode;
     commits: octohubStructs.Commit[];
     onSearchTermChange: (term: string) => void;
     selectedCommit: octohubStructs.Commit | null;
@@ -18,6 +19,7 @@ interface CommitSidebarProps {
 const CommitSidebar: React.FC<CommitSidebarProps> = ({
     commits,
     onRefresh,
+    compareBar,
     searchTerm,
     loadingMore,
     selectedCommit,
@@ -49,6 +51,7 @@ const CommitSidebar: React.FC<CommitSidebarProps> = ({
                         onChange={(event) => onSearchTermChange(event.target.value)}
                     />
                 </div>
+                {compareBar}
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar">

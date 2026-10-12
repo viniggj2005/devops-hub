@@ -43,8 +43,10 @@ func InitDb() {
 		&models.SshConnectionModel{},
 		&models.GithubAccountModel{},
 		&models.GitCredentialModel{},
+		&models.ThemeProfileModel{},
 		&models.GeneralConfigsModel{},
 		&models.DockerCredentialsModel{},
+		&models.PostgresConnectionModel{},
 	); err != nil {
 		log.Fatalf("erro ao migrar modelos: %v", err)
 	}

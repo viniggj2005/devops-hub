@@ -6,6 +6,7 @@ import (
 	dockerHandlers "docker-manager-go/src/dockermanager/handlers"
 	ferretShellHandlers "docker-manager-go/src/ferretshell/handlers"
 	"os"
+	postgresHandlers "docker-manager-go/src/postgres/handlers"
 
 	auth "docker-manager-go/src/auth/functions"
 	authHandlers "docker-manager-go/src/auth/handlers"
@@ -42,6 +43,8 @@ func main() {
 	sshHandler := ferretShellHandlers.NewSshHandler(database.DataBase, sessionManager)
 	authHandler := authHandlers.NewAuthHandler(database.DataBase, sessionManager, app)
 	generalConfigsHandler := generalConfigsHandlers.NewGeneralConfigsHandler(database.DataBase, sessionManager)
+	postgresHandler := postgresHandlers.NewPostgresHandler(database.DataBase, sessionManager)
+	postgresClient := postgresHandlers.NewPostgresClientHandler(postgresHandler)
 
 	gitHandler := octohub.NewGitHandler(repositoryPath)
 	branchHandler := octohub.NewGitBranchHandler(gitHandler)
@@ -72,6 +75,8 @@ func main() {
 			localFileHandler.Startup(ctx)
 			repositoryHandler.Startup(ctx)
 			generalConfigsHandler.Startup(ctx)
+			postgresHandler.Startup(ctx)
+			postgresClient.Startup(ctx)
 
 		},
 		Windows: &windows.Options{
@@ -95,6 +100,8 @@ func main() {
 			localFileHandler,
 			repositoryHandler,
 			generalConfigsHandler,
+			postgresHandler,
+			postgresClient,
 		},
 	})
 

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import ModuleThemeSettings from '../../features/settings/components/ModuleThemeSettings';
 import HomeModulesSettings from '../../features/settings/components/HomeModulesSettings';
-import { GitBranch, LayoutGrid, LucideIcon, Palette, SquareTerminal } from 'lucide-react';
+import ThemeProfilesSettings from '../../features/settings/components/ThemeProfilesSettings';
+import { GitBranch, LayoutGrid, LucideIcon, Palette, SquareTerminal, SwatchBook } from 'lucide-react';
 import TerminalThemeSettings from '../../features/settings/components/TerminalThemeSettings';
 import OctohubColorsSettings from '../../features/settings/components/OctohubColorsSettings';
 
-type SettingsSection = 'home-modules' | 'module-theme' | 'terminal-theme' | 'octohub-colors';
+type SettingsSection = 'home-modules' | 'module-theme' | 'theme-profiles' | 'terminal-theme' | 'octohub-colors';
 
 const sections: { id: SettingsSection; label: string; icon: LucideIcon }[] = [
   { id: 'module-theme', label: 'Tema por módulo', icon: Palette },
+  { id: 'theme-profiles', label: 'Perfis de tema', icon: SwatchBook },
   { id: 'home-modules', label: 'Módulos na Home', icon: LayoutGrid },
   { id: 'octohub-colors', label: 'Cores do OctoHub', icon: GitBranch },
   { id: 'terminal-theme', label: 'Terminal (FerretShell)', icon: SquareTerminal },
@@ -17,6 +19,7 @@ const sections: { id: SettingsSection; label: string; icon: LucideIcon }[] = [
 const sectionContent: Record<SettingsSection, React.ReactNode> = {
   'module-theme': <ModuleThemeSettings />,
   'home-modules': <HomeModulesSettings />,
+  'theme-profiles': <ThemeProfilesSettings />,
   'terminal-theme': <TerminalThemeSettings />,
   'octohub-colors': <OctohubColorsSettings />,
 };

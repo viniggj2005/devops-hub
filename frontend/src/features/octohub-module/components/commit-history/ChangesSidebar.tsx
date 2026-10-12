@@ -24,6 +24,7 @@ interface ChangesSidebarProps {
     selectionOf: (fileName: string) => SelectionState;
     onFileClick: (file: octohubStructs.FilesStatus) => void;
     onDiscardFile: (file: octohubStructs.FilesStatus) => void;
+    onFileDoubleClick?: (file: octohubStructs.FilesStatus) => void;
     onStashFileClick?: (stashID: string, filePath: string) => void;
     onFileContextMenu?: (event: React.MouseEvent, file: octohubStructs.FilesStatus) => void;
 }
@@ -74,6 +75,7 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
     selectedCount,
     onDiscardFile,
     onStashFileClick,
+    onFileDoubleClick,
     onFileContextMenu,
     onDiscardSelected,
     onSearchTermChange,
@@ -282,6 +284,7 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                                         : 'hover:bg-zinc-100 dark:hover:bg-white/5 border-l-transparent'
                                         }`}
                                     onClick={() => onFileClick(file)}
+                                    onDoubleClick={() => onFileDoubleClick?.(file)}
                                     onContextMenu={(event) => {
                                         if (!onFileContextMenu) return;
                                         event.preventDefault();

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import appIcon from '../assets/images/hub.svg';
 import { useNavigate } from 'react-router-dom';
 import { Container, Layers, Server } from 'lucide-react';
+import { AuthWindowBar } from '../features/appFrame/WindowControls';
 import CreateUserForm from '../features/users/components/forms/CreateUserForm';
 
 const CreateAccountPage: React.FC = () => {
@@ -10,6 +11,7 @@ const CreateAccountPage: React.FC = () => {
 
   return (
     <div className="h-full relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <AuthWindowBar />
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-purple-500/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-blue-500/10 rounded-full blur-3xl" />

@@ -46,50 +46,80 @@ func (handlerStruct *GeneralConfigsHandlerStruct) FindAll(token string) ([]gener
 	return configs, nil
 }
 
+func validateGeneralConfig(body generalConfigsDtos.SaveGeneralConfigInputDto) error {
+	if !models.ModuleName(body.ModuleName).IsValid() {
+		return errors.New("módulo inválido: " + body.ModuleName)
+	}
+	if !models.ConfigType(body.ConfigType).IsValid() {
+		return errors.New("tipo de configuração inválido: " + body.ConfigType)
+	}
+	var configObject map[string]any
+	if err := json.Unmarshal([]byte(body.Config), &configObject); err != nil {
+		return errors.New("a configuração precisa ser um objeto JSON válido")
+	}
+	return nil
+}
+
+func upsertGeneralConfig(transaction *gorm.DB, userID uint, body generalConfigsDtos.SaveGeneralConfigInputDto) (models.GeneralConfigsModel, error) {
+	var configModel models.GeneralConfigsModel
+	configType := models.ConfigType(body.ConfigType)
+	moduleName := models.ModuleName(body.ModuleName)
+	findError := transaction.
+		Where("user_id = ? AND module_name = ? AND config_type = ?", userID, moduleName, configType).
+		First(&configModel).Error
+	if errors.Is(findError, gorm.ErrRecordNotFound) {
+		configModel = models.GeneralConfigsModel{
+			Config:     body.Config,
+			IsActive:   true,
+			UserID:     userID,
+			ConfigType: configType,
+			ModuleName: moduleName,
+		}
+		return configModel, transaction.Create(&configModel).Error
+	}
+	if findError != nil {
+		return configModel, findError
+	}
+	configModel.Config = body.Config
+	configModel.IsActive = true
+	return configModel, transaction.Save(&configModel).Error
+}
+
 func (handlerStruct *GeneralConfigsHandlerStruct) Save(token string, body generalConfigsDtos.SaveGeneralConfigInputDto) (*generalConfigsDtos.GeneralConfigDto, error) {
+	configs, err := handlerStruct.SaveMany(token, []generalConfigsDtos.SaveGeneralConfigInputDto{body})
+	if err != nil {
+		return nil, err
+	}
+	return &configs[0], nil
+}
+
+func (handlerStruct *GeneralConfigsHandlerStruct) SaveMany(token string, bodies []generalConfigsDtos.SaveGeneralConfigInputDto) ([]generalConfigsDtos.GeneralConfigDto, error) {
 	session, err := handlerStruct.Session.Validate(token)
 	if err != nil {
 		return nil, err
 	}
-
-	configType := models.ConfigType(body.ConfigType)
-	moduleName := models.ModuleName(body.ModuleName)
-	if !moduleName.IsValid() {
-		return nil, errors.New("módulo inválido: " + body.ModuleName)
+	if len(bodies) == 0 {
+		return []generalConfigsDtos.GeneralConfigDto{}, nil
 	}
-	if !configType.IsValid() {
-		return nil, errors.New("tipo de configuração inválido: " + body.ConfigType)
-	}
-
-	var configObject map[string]any
-	if err := json.Unmarshal([]byte(body.Config), &configObject); err != nil {
-		return nil, errors.New("a configuração precisa ser um objeto JSON válido")
+	for _, body := range bodies {
+		if err := validateGeneralConfig(body); err != nil {
+			return nil, err
+		}
 	}
 
-	var configModel models.GeneralConfigsModel
+	configs := make([]generalConfigsDtos.GeneralConfigDto, 0, len(bodies))
 	err = handlerStruct.DataBase.WithContext(handlerStruct.context).Transaction(func(transaction *gorm.DB) error {
-		findError := transaction.
-			Where("user_id = ? AND module_name = ? AND config_type = ?", session.UserID, moduleName, configType).
-			First(&configModel).Error
-		if errors.Is(findError, gorm.ErrRecordNotFound) {
-			configModel = models.GeneralConfigsModel{
-				Config:     body.Config,
-				IsActive:   true,
-				UserID:     session.UserID,
-				ConfigType: configType,
-				ModuleName: moduleName,
+		for _, body := range bodies {
+			configModel, err := upsertGeneralConfig(transaction, session.UserID, body)
+			if err != nil {
+				return err
 			}
-			return transaction.Create(&configModel).Error
+			configs = append(configs, *generalConfigsDtos.ToDTO(&configModel))
 		}
-		if findError != nil {
-			return findError
-		}
-		configModel.Config = body.Config
-		configModel.IsActive = true
-		return transaction.Save(&configModel).Error
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return generalConfigsDtos.ToDTO(&configModel), nil
+	return configs, nil
 }

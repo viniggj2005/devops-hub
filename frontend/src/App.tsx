@@ -9,6 +9,7 @@ import DockerModuleWrapper from './features/docker-module/components/DockerModul
 import OctohubModuleWrapper from './features/octohub-module/components/OctohubModuleWrapper';
 import { applyOctohubColorVariables } from './features/settings/functions/OctohubColorVariables';
 import FerretShellModuleWrapper from './features/ferretShell-module/components/FerretShellModuleWrapper';
+import PostgresModuleWrapper from './features/postgres-module/components/PostgresModuleWrapper';
 import { WindowIsFullscreen, WindowFullscreen, WindowUnfullscreen, WindowIsMaximised, WindowUnmaximise } from '../wailsjs/runtime/runtime';
 
 export default function App() {
@@ -77,6 +78,8 @@ export default function App() {
         return <OctohubModuleWrapper />;
       case 'settings':
         return <SettingsPage />;
+      case 'postgres':
+        return <PostgresModuleWrapper />;
       default:
         return null;
     }
