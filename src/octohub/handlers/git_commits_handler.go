@@ -235,7 +235,7 @@ func (handlerStruct *GitCommitsHandler) Commit(request octohubStructs.CommitRequ
 	}
 
 	if len(fullPaths) > 0 {
-		args := []string{"--literal-pathspecs", "add", "-A", "--pathspec-from-file=-", "--pathspec-file-nul"}
+		args := []string{"--literal-pathspecs", "add", "-A", "--force", "--pathspec-from-file=-", "--pathspec-file-nul"}
 		if _, err := handlerStruct.gitHandler.RunGitCommandWithInput(args, strings.Join(fullPaths, "\x00")); err != nil {
 			resetIndex()
 			return "", fmt.Errorf("erro ao adicionar arquivos ao commit: %w", err)

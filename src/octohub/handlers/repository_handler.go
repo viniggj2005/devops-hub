@@ -304,7 +304,7 @@ func (handlerStruct *RepositoryHandler) GetCloneFolder(token string) (string, er
 
 func (handlerStruct *RepositoryHandler) ChooseCloneFolder(currentFolder string) (string, error) {
 	return runtime.OpenDirectoryDialog(handlerStruct.ctx, runtime.OpenDialogOptions{
-		Title:            "Escolha onde clonar o repositório",
+		Title:            "Escolha a pasta de destino do repositório",
 		DefaultDirectory: currentFolder,
 	})
 }

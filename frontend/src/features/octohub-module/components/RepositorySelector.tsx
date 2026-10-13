@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
 import { useListNavigation } from '../hooks/useListNavigation';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
-import { Check, ChevronDown, CloudDownload, FolderGit2, FolderPlus, KeyRound, Search, TriangleAlert, X } from 'lucide-react';
+import { Check, ChevronDown, CloudDownload, FolderGit2, FolderInput, FolderPlus, KeyRound, Search, TriangleAlert, X } from 'lucide-react';
 
 const RepositorySelector: React.FC = () => {
     const [filter, setFilter] = useState('');
     const query = filter.trim().toLowerCase();
     const [isOpen, setIsOpen] = useState(false);
-    const { repository, repositories, githubAccount, addRepository, openCloneModal, openCredentials, selectRepository, removeRepository } = useOctohubRepository();
+    const { repository, repositories, githubAccount, addRepository, openCloneModal, openCreateModal, openCredentials, selectRepository, removeRepository } = useOctohubRepository();
 
     const filtered = repositories.filter(
         (item) => item.name.toLowerCase().includes(query) || item.path.toLowerCase().includes(query)
     );
     const cloneIndex = filtered.length;
-    const addIndex = filtered.length + 1;
-    const credentialsIndex = filtered.length + 2;
+    const createIndex = filtered.length + 1;
+    const addIndex = filtered.length + 2;
+    const credentialsIndex = filtered.length + 3;
 
     const close = () => {
         setIsOpen(false);
@@ -25,6 +26,11 @@ const RepositorySelector: React.FC = () => {
         if (index === cloneIndex) {
             close();
             openCloneModal();
+            return;
+        }
+        if (index === createIndex) {
+            close();
+            openCreateModal();
             return;
         }
         if (index === credentialsIndex) {
@@ -43,7 +49,7 @@ const RepositorySelector: React.FC = () => {
         if (!target.isCurrent) selectRepository(target.id);
     };
 
-    const { activeIndex, setActiveIndex, onKeyDown, listRef } = useListNavigation(filtered.length + 3, choose, close);
+    const { activeIndex, setActiveIndex, onKeyDown, listRef } = useListNavigation(filtered.length + 4, choose, close);
 
     const actionClass = (index: number) =>
         `flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 cursor-pointer ${activeIndex === index ? 'bg-emerald-500/10' : 'hover:bg-emerald-500/5'}`;
@@ -145,12 +151,21 @@ const RepositorySelector: React.FC = () => {
                                 Clonar repositório...
                             </div>
                             <div
+                                data-active={activeIndex === createIndex}
+                                onMouseEnter={() => setActiveIndex(createIndex)}
+                                onClick={() => choose(createIndex)}
+                                className={actionClass(createIndex)}
+                            >
+                                <FolderPlus className="w-4 h-4" />
+                                Criar repositório local...
+                            </div>
+                            <div
                                 data-active={activeIndex === addIndex}
                                 onMouseEnter={() => setActiveIndex(addIndex)}
                                 onClick={() => choose(addIndex)}
                                 className={actionClass(addIndex)}
                             >
-                                <FolderPlus className="w-4 h-4" />
+                                <FolderInput className="w-4 h-4" />
                                 Adicionar repositório local...
                             </div>
                             <div

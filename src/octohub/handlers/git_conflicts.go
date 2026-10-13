@@ -102,7 +102,7 @@ func (handlerStruct *GitBranchHandler) CheckConflicts(tracked []string) (octohub
 	}
 
 	if len(toAdd) > 0 {
-		args := []string{"--literal-pathspecs", "add", "--pathspec-from-file=-", "--pathspec-file-nul"}
+		args := []string{"--literal-pathspecs", "add", "--force", "--pathspec-from-file=-", "--pathspec-file-nul"}
 		if _, err := handlerStruct.gitHandler.RunGitCommandWithInput(args, strings.Join(toAdd, "\x00")); err != nil {
 			return report, err
 		}
@@ -142,9 +142,9 @@ func (handlerStruct *GitBranchHandler) ResolveConflict(file, resolution string) 
 		if err := run("checkout", "--"+resolution); err != nil {
 			return err
 		}
-		return run("add")
+		return run("add", "--force")
 	case "keep":
-		return run("add")
+		return run("add", "--force")
 	case "delete":
 		return run("rm", "-q")
 	}

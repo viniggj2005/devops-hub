@@ -317,7 +317,7 @@ func (handlerStruct *GitBranchHandler) stageResolvedFiles(files []string) ([]str
 		resolved = append(resolved, file)
 	}
 	if len(resolved) > 0 {
-		args := []string{"--literal-pathspecs", "add", "--pathspec-from-file=-", "--pathspec-file-nul"}
+		args := []string{"--literal-pathspecs", "add", "--force", "--pathspec-from-file=-", "--pathspec-file-nul"}
 		if _, err := handlerStruct.gitHandler.RunGitCommandWithInput(args, strings.Join(resolved, "\x00")); err != nil {
 			return pending, err
 		}

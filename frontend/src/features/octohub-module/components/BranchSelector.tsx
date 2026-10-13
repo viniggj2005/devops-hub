@@ -7,8 +7,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import { getConflictingFiles, isConflictError } from '../functions/gitStatus';
 import { GetGitStatus } from '../../../../wailsjs/go/octohubHandler/GitCommitsHandler';
-import { Check, ChevronDown, Cloud, CloudUpload, GitBranch, GitBranchPlus, GitMerge, Search } from 'lucide-react';
-import { ListBranches, ChangeBranch, CreateAndCheckoutBranch, PublishBranch, HasUncommittedChanges } from '../../../../wailsjs/go/octohubHandler/GitBranchHandler';
+import { Check, ChevronDown, Cloud, CloudUpload, GitBranch, GitBranchPlus, GitMerge, RefreshCw, Search } from 'lucide-react';
+import { ListBranches, ChangeBranch, CreateAndCheckoutBranch, PublishBranch, FetchRemotes, GetOriginURL, HasUncommittedChanges } from '../../../../wailsjs/go/octohubHandler/GitBranchHandler';
 
 type BranchItem = { type: 'create' } | { type: 'branch'; branch: octohubStructs.BranchInfo };
 
@@ -16,10 +16,12 @@ const localName = (branch: octohubStructs.BranchInfo) =>
     branch.IsRemote ? branch.Name.slice(branch.Name.indexOf('/') + 1) : branch.Name;
 
 const BranchSelector: React.FC = () => {
-    const { repository, currentBranch, revision, notifyChange, openConflicts, handleGitError } = useOctohubRepository();
+    const { repository, currentBranch, revision, notifyChange, openConflicts, handleGitError, openPublishModal } = useOctohubRepository();
     const [filter, setFilter] = useState('');
+    const [originUrl, setOriginUrl] = useState('');
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(false);
     const [mergeOpen, setMergeOpen] = useState(false);
     const [showStashModal, setShowStashModal] = useState(false);
     const [branches, setBranches] = useState<octohubStructs.BranchInfo[]>([]);
@@ -32,10 +34,12 @@ const BranchSelector: React.FC = () => {
     const loadBranches = useCallback(async () => {
         if (!hasRepository) {
             setBranches([]);
+            setOriginUrl('');
             return;
         }
         try {
             setBranches(await ListBranches());
+            setOriginUrl(await GetOriginURL());
         } catch {
             setBranches([]);
         }
@@ -123,6 +127,10 @@ const BranchSelector: React.FC = () => {
 
     const handlePublish = async () => {
         if (!currentBranch) return;
+        if (!originUrl) {
+            openPublishModal();
+            return;
+        }
         setLoading(true);
         try {
             await PublishBranch(currentBranch);
@@ -132,6 +140,19 @@ const BranchSelector: React.FC = () => {
             handleGitError(error, 'Erro ao enviar branch', handlePublish);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleFetch = async () => {
+        setFetching(true);
+        try {
+            await FetchRemotes();
+            iziToast.success({ title: 'Fetch', message: 'Remotos atualizados.', position: 'bottomRight' });
+            notifyChange();
+        } catch (error) {
+            handleGitError(error, 'Erro ao buscar do remoto', handleFetch);
+        } finally {
+            setFetching(false);
         }
     };
 
@@ -178,16 +199,28 @@ const BranchSelector: React.FC = () => {
                     <span className="text-xs font-bold hidden md:inline text-zinc-700 dark:text-zinc-300">Mesclar</span>
                 </button>
 
+                <button
+                    onClick={handleFetch}
+                    disabled={!hasRepository || !originUrl || loading || fetching}
+                    title={originUrl ? 'Buscar atualizações de todos os remotos (git fetch --all --prune)' : 'Repositório sem remoto'}
+                    className="p-2 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/10 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <RefreshCw className={`w-4 h-4 text-emerald-500 ${fetching ? 'animate-spin' : ''}`} />
+                    <span className="text-xs font-bold hidden md:inline text-zinc-700 dark:text-zinc-300">
+                        {current && current.Behind > 0 ? `Fetch ↓${current.Behind}` : 'Fetch'}
+                    </span>
+                </button>
+
                 {showPublish && (
                     <button
                         onClick={handlePublish}
                         disabled={loading}
                         className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50"
-                        title={current?.Upstream ? `Enviar commits para ${current.Upstream}` : 'Publicar a branch em origin'}
+                        title={!originUrl ? 'Criar o repositório no GitHub e enviar' : current?.Upstream ? `Enviar commits para ${current.Upstream}` : 'Publicar a branch em origin'}
                     >
                         <CloudUpload className="w-4 h-4" />
                         <span className="text-xs font-bold hidden md:inline">
-                            {current?.Upstream ? `Enviar ↑${current.Ahead}` : 'Publicar'}
+                            {!originUrl ? 'Publicar repositório' : current?.Upstream ? `Enviar ↑${current.Ahead}` : 'Publicar'}
                         </span>
                     </button>
                 )}

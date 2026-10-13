@@ -33,6 +33,10 @@ func (handlerStruct *GitBranchHandler) PublishBranch(branchName string) error {
 	return nil
 }
 
+func (handlerStruct *GitBranchHandler) GetOriginURL() string {
+	return originURL(handlerStruct.gitHandler.RepoPath())
+}
+
 func (handlerStruct *GitBranchHandler) CreateAndCheckoutBranch(branchName string) error {
 	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"check-ref-format", "--branch", branchName}); err != nil {
 		return fmt.Errorf("nome de branch inválido: %s", branchName)
@@ -289,7 +293,7 @@ func (handlerStruct *GitBranchHandler) GetStashedFileDiff(stashID string, filePa
 }
 
 func (handlerStruct *GitBranchHandler) StageFile(filePath string) error {
-	args := []string{"add", filePath}
+	args := []string{"add", "--force", "--", filePath}
 	_, err := handlerStruct.gitHandler.RunGitCommand(args)
 	return err
 }

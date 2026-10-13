@@ -1,6 +1,6 @@
 import colors from 'tailwindcss/colors';
 
-const themeableFamilies = ['gray', 'zinc', 'slate', 'blue', 'purple', 'emerald', 'amber'];
+const themeableFamilies = ['gray', 'zinc', 'slate', 'blue', 'cyan', 'purple', 'emerald', 'amber'];
 
 const hexToRgbChannels = (hex) => {
   const value = parseInt(hex.replace('#', ''), 16);

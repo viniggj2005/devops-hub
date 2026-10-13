@@ -5,7 +5,6 @@ import { Box, EyeOff, Settings } from 'lucide-react';
 import { useAppStore } from '../features/appFrame/AppStore';
 import { appModules } from '../features/shared/constants/AppModules';
 import { useGeneralConfigsStore } from '../features/settings/store/GeneralConfigsStore';
-import { POSTGRES_MODULE, PostgresModuleIcon } from '../features/postgres-module/moduleInfo';
 import { moduleIconBackground } from '../features/settings/functions/ModuleIconBackground';
 
 const MainHomePage: React.FC = () => {
@@ -15,24 +14,7 @@ const MainHomePage: React.FC = () => {
     const configsLoaded = useGeneralConfigsStore(state => state.loaded);
     const modulesConfig = useGeneralConfigsStore(state => state.modules);
 
-    const visibleModules = [
-        ...appModules
-            .filter(module => modulesConfig[module.configName].showOnHome)
-            .map(module => ({
-                ...module,
-                iconNode: <img src={module.icon} alt={module.title} className="w-14 h-14 brightness-0 invert" />,
-            })),
-        {
-            id: 'postgres' as const,
-            configName: undefined,
-            homePath: undefined as string | undefined,
-            title: POSTGRES_MODULE.name,
-            description: POSTGRES_MODULE.description,
-            color: POSTGRES_MODULE.gradient,
-            status: 'Ativo' as const,
-            iconNode: <PostgresModuleIcon className="w-14 h-14 text-white" />,
-        },
-    ];
+    const visibleModules = appModules.filter(module => modulesConfig[module.configName].showOnHome);
     const hasVisibleActiveModule = visibleModules.some(module => module.status === 'Ativo');
 
     return (
@@ -94,8 +76,8 @@ const MainHomePage: React.FC = () => {
                                 <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${module.color} opacity-0 group-hover:opacity-10 blur-3xl transition-opacity`} />
 
                                 <div className="flex items-start justify-between mb-6">
-                                    <div style={module.configName ? moduleIconBackground(modulesConfig[module.configName]) : undefined} className={`p-4 rounded-2xl bg-gradient-to-br ${module.color} text-white shadow-lg shadow-blue-500/20`}>
-                                        {module.iconNode}
+                                    <div style={moduleIconBackground(modulesConfig[module.configName])} className={`p-4 rounded-2xl bg-gradient-to-br ${module.color} text-white shadow-lg shadow-blue-500/20`}>
+                                        <img src={module.icon} alt={module.title} className="w-14 h-14 brightness-0 invert" />
                                     </div>
                                     <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${module.status === 'Ativo' ? 'bg-green-500/10 text-green-500' :
                                         module.status === 'Beta' ? 'bg-amber-500/10 text-amber-500' : module.status === 'Inativo' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'

@@ -5,14 +5,14 @@ import (
 	database "docker-manager-go/src/dataBase"
 	dockerHandlers "docker-manager-go/src/dockermanager/handlers"
 	ferretShellHandlers "docker-manager-go/src/ferretshell/handlers"
-	"os"
 	postgresHandlers "docker-manager-go/src/postgres/handlers"
+	"os"
 
 	auth "docker-manager-go/src/auth/functions"
 	authHandlers "docker-manager-go/src/auth/handlers"
+	generalConfigsHandlers "docker-manager-go/src/generalConfigs/handlers"
 	octohub "docker-manager-go/src/octohub/handlers"
 	userHandlers "docker-manager-go/src/user/handlers"
-	generalConfigsHandlers "docker-manager-go/src/generalConfigs/handlers"
 	"embed"
 	"time"
 
@@ -51,7 +51,7 @@ func main() {
 	commitHandler := octohub.NewGitCommitsHandler(gitHandler)
 	repositoryHandler := octohub.NewRepositoryHandler(database.DataBase, sessionManager, gitHandler)
 	err := wails.Run(&options.App{
-		Title:            "Docker Manager",
+		Title:            "Devops-hub",
 		Width:            1024,
 		Height:           768,
 		Fullscreen:       false,

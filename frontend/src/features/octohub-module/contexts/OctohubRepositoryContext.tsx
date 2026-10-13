@@ -5,18 +5,31 @@ import { useConfirmToast } from '../../shared/components/toasts/ConfirmToast';
 import { authHostFromError, escapeHtml, gitErrorMessage } from '../functions/gitStatus';
 import { GetCurrentBranch } from '../../../../wailsjs/go/octohubHandler/GitBranchHandler';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { AddRepository, CloneRepository, GetCurrentRepository, ListRepositories, RemoveRepository, SelectRepository } from '../../../../wailsjs/go/octohubHandler/RepositoryHandler';
+import { AddRepository, CloneRepository, CreateRepository, GetCurrentRepository, ListRepositories, PublishRepository, RemoveRepository, SelectRepository } from '../../../../wailsjs/go/octohubHandler/RepositoryHandler';
+
+export interface PublishRepositoryInput {
+    name: string;
+    owner: string;
+    private: boolean;
+    description: string;
+}
 
 interface OctohubRepositoryContextValue {
     loading: boolean;
     revision: number;
     conflictsOpen: boolean;
     cloneModalOpen: boolean;
+    createModalOpen: boolean;
+    publishModalOpen: boolean;
     notifyChange: () => void;
     openConflicts: () => void;
     closeConflicts: () => void;
     openCloneModal: () => void;
     closeCloneModal: () => void;
+    openCreateModal: () => void;
+    closeCreateModal: () => void;
+    openPublishModal: () => void;
+    closePublishModal: () => void;
     credentialsRevision: number;
     currentBranch: string | null;
     closeCredentials: () => void;
@@ -30,6 +43,8 @@ interface OctohubRepositoryContextValue {
     openCredentials: (host?: string, retry?: () => void) => void;
     removeRepository: (repository: octohubDtos.RepositoryDto) => void;
     handleGitError: (error: unknown, prefix: string, retry?: () => void) => void;
+    publishRepository: (input: PublishRepositoryInput) => Promise<boolean>;
+    createRepository: (parentFolder: string, name: string, withReadme: boolean) => Promise<boolean>;
     cloneRepository: (remoteUrl: string, parentFolder: string, retry?: () => void) => Promise<boolean>;
 }
 
@@ -54,6 +69,8 @@ export const OctohubRepositoryProvider: React.FC<OctohubRepositoryProviderProps>
     const [loading, setLoading] = useState(true);
     const [conflictsOpen, setConflictsOpen] = useState(false);
     const [cloneModalOpen, setCloneModalOpen] = useState(false);
+    const [createModalOpen, setCreateModalOpen] = useState(false);
+    const [publishModalOpen, setPublishModalOpen] = useState(false);
     const [credentialsRevision, setCredentialsRevision] = useState(0);
     const [currentBranch, setCurrentBranch] = useState<string | null>(null);
     const [repositories, setRepositories] = useState<octohubDtos.RepositoryDto[]>([]);
@@ -141,6 +158,35 @@ export const OctohubRepositoryProvider: React.FC<OctohubRepositoryProviderProps>
         }
     }, [token, handleGitError]);
 
+    const createRepository = useCallback(async (parentFolder: string, name: string, withReadme: boolean) => {
+        if (!token) return false;
+        try {
+            const created = await CreateRepository(token, parentFolder, name, withReadme);
+            setRepository(created);
+            setRepositories(await ListRepositories(token));
+            iziToast.success({ title: 'OctoHub', message: `Repositório ${escapeHtml(created.name)} criado.`, position: 'bottomRight' });
+            return true;
+        } catch (error) {
+            showError(error);
+            await refresh();
+            return false;
+        }
+    }, [token, refresh]);
+
+    const publishRepository = useCallback(async (input: PublishRepositoryInput) => {
+        if (!token) return false;
+        try {
+            await PublishRepository(token, input.owner, input.name, input.description, input.private);
+            iziToast.success({ title: 'OctoHub', message: `Repositório publicado em ${escapeHtml(`${input.owner}/${input.name}`)}.`, position: 'bottomRight' });
+            return true;
+        } catch (error) {
+            handleGitError(error, 'Erro ao publicar');
+            return false;
+        } finally {
+            notifyChange();
+        }
+    }, [token, handleGitError, notifyChange]);
+
     const removeRepository = (target: octohubDtos.RepositoryDto) => {
         if (!token) return;
         confirmToast({
@@ -168,16 +214,24 @@ export const OctohubRepositoryProvider: React.FC<OctohubRepositoryProviderProps>
                 conflictsOpen,
                 cloneModalOpen,
                 handleGitError,
+                createModalOpen,
                 openCredentials,
                 cloneRepository,
+                publishModalOpen,
+                createRepository,
                 selectRepository,
                 removeRepository,
+                publishRepository,
                 credentialsTarget,
                 credentialsRevision,
                 openConflicts: () => setConflictsOpen(true),
                 openCloneModal: () => setCloneModalOpen(true),
                 closeConflicts: () => setConflictsOpen(false),
+                openCreateModal: () => setCreateModalOpen(true),
                 closeCloneModal: () => setCloneModalOpen(false),
+                openPublishModal: () => setPublishModalOpen(true),
+                closeCreateModal: () => setCreateModalOpen(false),
+                closePublishModal: () => setPublishModalOpen(false),
                 closeCredentials: () => setCredentialsTarget(null),
                 notifyCredentialsChange: () => setCredentialsRevision((previous) => previous + 1),
             }}

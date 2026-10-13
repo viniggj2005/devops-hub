@@ -3,6 +3,8 @@ import OctohubShell from './OctohubShell';
 import GitCredentialsModal from './GitCredentialsModal';
 import { useAuth } from '../../../contexts/AuthContext';
 import CloneRepositoryModal from './CloneRepositoryModal';
+import CreateRepositoryModal from './CreateRepositoryModal';
+import PublishRepositoryModal from './PublishRepositoryModal';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import GithubAccountSwitcher from './GithubAccountSwitcher';
 import { octohubDtos } from '../../../../wailsjs/go/models';
@@ -151,6 +153,8 @@ const OctohubModuleWrapper: React.FC = () => {
                 </Routes>
                 <DeviceLoginModal state={loginState} onRetry={startLogin} onClose={closeLogin} />
                 <CloneRepositoryModal />
+                <CreateRepositoryModal />
+                <PublishRepositoryModal />
                 <ConflictResolutionModal />
                 <GitCredentialsModal />
             </OctohubShell>

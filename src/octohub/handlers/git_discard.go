@@ -118,7 +118,7 @@ func (handlerStruct *GitCommitsHandler) backupChanges(paths []string) error {
 	if _, err := run("", "read-tree", "HEAD"); err != nil {
 		return err
 	}
-	if _, err := run(strings.Join(paths, "\x00"), "--literal-pathspecs", "add", "-A", "--pathspec-from-file=-", "--pathspec-file-nul"); err != nil {
+	if _, err := run(strings.Join(paths, "\x00"), "--literal-pathspecs", "add", "-A", "--force", "--pathspec-from-file=-", "--pathspec-file-nul"); err != nil {
 		return err
 	}
 	tree, err := run("", "write-tree")

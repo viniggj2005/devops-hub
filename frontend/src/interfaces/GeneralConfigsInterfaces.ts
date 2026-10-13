@@ -4,9 +4,9 @@ export type ThemeBase = 'light' | 'dark';
 
 export type ModuleThemePreference = 'light' | 'dark' | 'custom';
 
-export type AccentFamily = 'blue' | 'purple' | 'amber' | 'emerald';
+export type AccentFamily = 'blue' | 'cyan' | 'purple' | 'amber' | 'emerald';
 
-export type ConfigurableModule = 'vulpes' | 'octohub' | 'ferretshell' | 'docker-manager';
+export type ConfigurableModule = 'vulpes' | 'octohub' | 'ferretshell' | 'docker-manager' | 'postgres-manager';
 
 export interface CustomThemeColors {
   text: string;

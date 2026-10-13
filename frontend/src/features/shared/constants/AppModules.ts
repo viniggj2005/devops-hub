@@ -1,4 +1,5 @@
 import { ModuleType } from '../../appFrame/AppStore';
+import { POSTGRES_MODULE } from '../../postgres-module/moduleInfo';
 import { AccentFamily, ConfigurableModule, CustomThemeColors } from '../../../interfaces/GeneralConfigsInterfaces';
 
 export interface AppModuleDefinition {
@@ -50,6 +51,17 @@ export const appModules: AppModuleDefinition[] = [
     accentFamily: 'emerald',
     color: 'from-emerald-500 to-emerald-700',
     description: 'Configurações de acesso, chaves SSH e certificados TLS.',
+  },
+  {
+    id: 'postgres',
+    status: 'Ativo',
+    accentFamily: 'cyan',
+    accentColor: '#06b6d4',
+    title: POSTGRES_MODULE.name,
+    color: POSTGRES_MODULE.gradient,
+    configName: 'postgres-manager',
+    icon: '/postgres-manager.svg',
+    description: POSTGRES_MODULE.description,
   },
   {
     id: 'vulpes',
