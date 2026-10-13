@@ -1,8 +1,11 @@
+import { postgresDtos } from '../../../../wailsjs/go/models';
 import * as ConnectionsApi from '../../../../wailsjs/go/postgresHandlers/PostgresHandlerStruct';
 import * as ClientApi from '../../../../wailsjs/go/postgresHandlers/PostgresClientHandlerStruct';
 import type {
   ColumnInfo,
   SqlFile,
+  TableChanges,
+  TableSaveResult,
   SchemaInfo,
   DatabaseInfo,
   TableDetails,
@@ -191,6 +194,11 @@ export const PostgresServices = {
 
   async cancelQuery(token: string, sessionId: string): Promise<void> {
     return ClientApi.CancelQuery(token, sessionId);
+  },
+
+  async saveTableChanges(token: string, sessionId: string, changes: TableChanges): Promise<TableSaveResult> {
+    const payload = postgresDtos.TableChangesDto.createFrom(changes);
+    return (await ClientApi.SaveTableChanges(token, sessionId, payload)) as unknown as TableSaveResult;
   },
 
   async getServerDashboard(

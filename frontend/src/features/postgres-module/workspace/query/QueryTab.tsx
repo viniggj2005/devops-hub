@@ -23,7 +23,9 @@ import {
 import type {
   RunMode,
   TxStatus,
+  TableChanges,
   WorkspaceTab,
+  TableSaveResult,
   QuerySession,
   QueryExecution,
   QueryHistoryEntry,
@@ -34,6 +36,15 @@ const safeFileName = (title: string) =>
     .replace(/\.sql$/i, '')
     .replace(/[\\/:*?"<>|]+/g, '_')
     .trim() || 'query';
+
+const summarizeSave = (result: TableSaveResult) =>
+  [
+    result.inserted && `${result.inserted} inserida(s)`,
+    result.updated && `${result.updated} atualizada(s)`,
+    result.deleted && `${result.deleted} excluída(s)`,
+  ]
+    .filter(Boolean)
+    .join(', ');
 
 const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, active }) => {
   const { token } = useAuth();
@@ -47,6 +58,7 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
   const sessionRef = useRef<string | null>(null);
   const editorRef = useRef<SqlEditorHandle>(null);
   const openingRef = useRef<Promise<string> | null>(null);
+  const lastRunRef = useRef<{ mode: RunMode; text: string } | null>(null);
 
   const [elapsed, setElapsed] = useState(0);
   const [maxRows, setMaxRows] = useState(1000);
@@ -137,13 +149,13 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       ].slice(0, 50)
     );
 
-  const run = async (mode: RunMode = 'run') => {
+  const run = async (mode: RunMode = 'run', rerunText?: string) => {
     const editor = editorRef.current;
     if (!editor || !token || runningRef.current) return;
 
     const selection = editor.getSelection();
-    const useSelection = selection.text.trim().length > 0;
-    const text = useSelection ? selection.text : editor.getValue();
+    const useSelection = rerunText === undefined && selection.text.trim().length > 0;
+    const text = rerunText ?? (useSelection ? selection.text : editor.getValue());
     if (!text.trim()) {
       iziToast.warning({
         title: 'Atenção',
@@ -159,6 +171,8 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
           ? 'EXPLAIN (ANALYZE, BUFFERS) '
           : '';
     const offset = useSelection ? selection.from : 0;
+    const markable = rerunText === undefined;
+    lastRunRef.current = { mode, text };
 
     editor.markError(null);
     runningRef.current = true;
@@ -187,7 +201,7 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       if (result.error) {
         setPanel('messages');
         const position = result.error.position - 1 - prefix.length;
-        if (result.error.position > 0 && position >= 0) {
+        if (markable && result.error.position > 0 && position >= 0) {
           editor.markError(offset + position, result.error.message);
           setErrorPlace(locateError(editor.getValue(), offset + position + 1));
         }
@@ -295,6 +309,28 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
     }
   };
 
+  const saveChanges = async (changes: TableChanges) => {
+    const sessionId = sessionRef.current;
+    if (!token || !sessionId) return false;
+    try {
+      const result = await PostgresServices.saveTableChanges(token, sessionId, changes);
+      setTxStatus(result.txStatus);
+      iziToast.success({
+        title: result.committed ? 'Alterações salvas' : 'Alterações na transação',
+        message: result.committed
+          ? summarizeSave(result)
+          : `${summarizeSave(result)}. Execute COMMIT para confirmar ou ROLLBACK para desfazer.`,
+        position: 'bottomRight',
+      });
+      const lastRun = lastRunRef.current;
+      if (lastRun) run(lastRun.mode, lastRun.text);
+      return true;
+    } catch (error) {
+      iziToast.error({ title: 'Erro ao salvar', message: errorMessage(error), position: 'bottomRight' });
+      return false;
+    }
+  };
+
   const startSplit = (event: React.MouseEvent) => {
     const container = splitRef.current;
     if (!container) return;
@@ -355,6 +391,7 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
               editorRef.current?.focus();
             }}
             onExport={exportResult}
+            onSaveChanges={saveChanges}
           />
         </div>
       </div>

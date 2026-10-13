@@ -1,3 +1,5 @@
+import type { SplitDropZone, SplitLayout } from './SplitInterfaces';
+
 export interface PostgresConnection {
   id: number;
   alias: string;
@@ -149,6 +151,14 @@ export interface QueryColumn {
 
 export type QueryCell = string | null;
 
+export interface EditableTable {
+  name: string;
+  schema: string;
+  tableOid: number;
+  keyColumns: number[];
+  columnNumbers: number[];
+}
+
 export interface QueryResultSet {
   columns: QueryColumn[];
   rows: QueryCell[][];
@@ -156,6 +166,32 @@ export interface QueryResultSet {
   truncated: boolean;
   commandTag: string;
   rowsAffected: number;
+  editable: EditableTable | null;
+}
+
+export interface CellValue {
+  column: number;
+  value: QueryCell;
+}
+
+export interface RowChange {
+  key: CellValue[];
+  values: CellValue[];
+}
+
+export interface TableChanges {
+  tableOid: number;
+  updates: RowChange[];
+  deletes: RowChange[];
+  inserts: RowChange[];
+}
+
+export interface TableSaveResult {
+  updated: number;
+  deleted: number;
+  inserted: number;
+  committed: boolean;
+  txStatus: TxStatus;
 }
 
 export interface QueryMessage {
@@ -258,24 +294,39 @@ export interface OpenQueryTabInput {
   title?: string;
 }
 
+export interface WorkspaceGroup {
+  id: string;
+  layout: SplitLayout;
+  paneIds: string[];
+  focusedPaneId: string;
+}
+
 export interface PostgresStoreState {
   view: PostgresView;
-  connections: PostgresConnection[];
-  connectionsLoaded: boolean;
-  tabs: WorkspaceTab[];
-  activeTabId: string | null;
   queryCounter: number;
+  tabs: WorkspaceTab[];
+  groups: WorkspaceGroup[];
+  connectionsLoaded: boolean;
+  activeTabId: string | null;
+  activeGroupId: string | null;
+  draggingGroupId: string | null;
+  connections: PostgresConnection[];
   tabTxStatus: Record<string, TxStatus>;
+  reset: () => void;
+  closeTab: (id: string) => void;
+  detachPane: (id: string) => void;
+  setActiveTab: (id: string) => void;
+  closeGroup: (groupId: string) => void;
   setView: (view: PostgresView) => void;
-  loadConnections: (token: string) => Promise<PostgresConnection[]>;
+  setActiveGroup: (groupId: string) => void;
+  renameTab: (id: string, title: string) => void;
   openTab: (input: OpenWorkspaceTabInput) => void;
   openQueryTab: (input: OpenQueryTabInput) => void;
-  closeTab: (id: string) => void;
+  setDraggingGroup: (groupId: string | null) => void;
   closeConnectionTabs: (connectionId: number) => void;
-  setActiveTab: (id: string) => void;
-  renameTab: (id: string, title: string) => void;
   setTabTxStatus: (id: string, status: TxStatus) => void;
-  reset: () => void;
+  loadConnections: (token: string) => Promise<PostgresConnection[]>;
+  mergeGroupInto: (sourceGroupId: string, targetGroupId: string, dropZone: SplitDropZone) => void;
 }
 
 export type ExplorerNodeKind =

@@ -1,14 +1,16 @@
-import ResultGrid from './ResultGrid';
 import HistoryPanel from './HistoryPanel';
 import MessagesPanel from './MessagesPanel';
-import React, { useMemo, useState } from 'react';
 import CellViewerModal from './CellViewerModal';
-import { Braces, Copy, Download } from 'lucide-react';
+import { useGridEdits } from '../hooks/useGridEdits';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import ResultGrid, { type ResultGridHandle } from './ResultGrid';
 import { copyToClipboard } from '../../../../shared/functions/clipboard';
 import { formatNumber, rowsToTsv } from '../../../functions/TreatmentFunctions';
+import { Ban, Braces, Copy, Download, Loader2, Pencil, Plus, Save, Trash2, Undo2 } from 'lucide-react';
 import type {
   QueryCell,
   QueryColumn,
+  TableChanges,
   QueryExecution,
   QueryHistoryEntry,
 } from '../../../../../interfaces/PostgresInterfaces';
@@ -27,6 +29,7 @@ interface ResultsPanelProps {
   onResultIndexChange: (index: number) => void;
   onLoadHistory: (sql: string) => void;
   onExport: (format: 'csv' | 'json', resultIndex: number) => void;
+  onSaveChanges: (changes: TableChanges) => Promise<boolean>;
 }
 
 const ResultsPanel: React.FC<ResultsPanelProps> = ({
@@ -41,14 +44,45 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
   onResultIndexChange,
   onLoadHistory,
   onExport,
+  onSaveChanges,
 }) => {
+  const gridRef = useRef<ResultGridHandle>(null);
+  const [saving, setSaving] = useState(false);
   const [cell, setCell] = useState<{ value: QueryCell; column: QueryColumn } | null>(null);
+  const [gridSelection, setGridSelection] = useState<{ rowRef: number | null; column: number | null }>({
+    rowRef: null,
+    column: null,
+  });
   const gridSets = useMemo(
     () => execution?.resultSets.filter((resultSet) => resultSet.columns.length > 0) ?? [],
     [execution]
   );
   const current = gridSets[resultIndex] ?? null;
   const isPlan = current?.columns.length === 1 && current.columns[0].name === 'QUERY PLAN';
+  const { editable, editing, pendingCount, addRow, toggleDeleted, discard, buildChanges } = useGridEdits(
+    isPlan ? null : current
+  );
+
+  useEffect(() => setGridSelection({ rowRef: null, column: null }), [current]);
+
+  const selectedRow = gridSelection.rowRef;
+  const selectedColumn = gridSelection.column;
+  const canSetNull =
+    selectedRow !== null && selectedColumn !== null && editing.canEditColumn(selectedColumn) && !editing.isDeleted(selectedRow);
+
+  const saveChanges = async () => {
+    const changes = buildChanges();
+    if (!changes || saving || pendingCount === 0) return;
+    setSaving(true);
+    const saved = await onSaveChanges(changes);
+    setSaving(false);
+    if (saved) discard();
+  };
+
+  const insertRow = () => {
+    const rowRef = addRow();
+    window.requestAnimationFrame(() => gridRef.current?.selectRow(rowRef));
+  };
   const hasError = Boolean(execution?.error || runError);
   const hasNotices = Boolean(execution?.notices.length);
 
@@ -150,7 +184,68 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
         )}
       </div>
 
-      <div className="flex-1 min-h-0">
+      {panel === 'results' && editable && (
+        <div className="flex items-center gap-1 h-9 px-2 border-b border-gray-200 dark:border-white/5 flex-shrink-0">
+          <span
+            title="As alterações viram UPDATE/INSERT/DELETE pela chave primária. Sem transação aberta, são confirmadas ao salvar; dentro de um BEGIN, ficam na transação."
+            className="flex items-center gap-1.5 px-2 text-[11px] text-gray-500 dark:text-zinc-400 truncate"
+          >
+            <Pencil className="w-3.5 h-3.5 text-cyan-500 flex-shrink-0" />
+            Editável · <span className="font-mono">{editable.schema}.{editable.name}</span>
+          </span>
+          <div className="ml-auto flex items-center gap-1">
+            <button className={toolButton} onClick={insertRow} disabled={saving} title="Adicionar uma linha nova">
+              <Plus className="w-3.5 h-3.5" />
+              Linha
+            </button>
+            <button
+              className={`${toolButton} disabled:opacity-40`}
+              disabled={selectedRow === null || saving}
+              onClick={() => selectedRow !== null && toggleDeleted(selectedRow)}
+              title="Marcar/desmarcar a linha selecionada para exclusão (Delete com a linha inteira selecionada)"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {selectedRow !== null && editing.isDeleted(selectedRow) ? 'Restaurar' : 'Excluir'}
+            </button>
+            <button
+              className={`${toolButton} disabled:opacity-40`}
+              disabled={!canSetNull || saving}
+              onClick={() => selectedRow !== null && selectedColumn !== null && editing.setCell(selectedRow, selectedColumn, null)}
+              title="Definir a célula selecionada como NULL (Delete)"
+            >
+              <Ban className="w-3.5 h-3.5" />
+              NULL
+            </button>
+            {pendingCount > 0 && (
+              <>
+                <button className={toolButton} onClick={discard} disabled={saving} title="Descartar as alterações pendentes">
+                  <Undo2 className="w-3.5 h-3.5" />
+                  Descartar
+                </button>
+                <button
+                  onClick={saveChanges}
+                  disabled={saving}
+                  title="Salvar alterações (Ctrl+S)"
+                  className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-bold text-white bg-cyan-600 hover:bg-cyan-700 disabled:opacity-60 transition-colors"
+                >
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  Salvar ({pendingCount})
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div
+        className="flex-1 min-h-0"
+        onKeyDown={(event) => {
+          if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && pendingCount > 0) {
+            event.preventDefault();
+            saveChanges();
+          }
+        }}
+      >
         {panel === 'results' &&
           (current ? (
             isPlan ? (
@@ -159,7 +254,11 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
               </pre>
             ) : (
               <ResultGrid
+                ref={gridRef}
                 resultSet={current}
+                editing={editable ? editing : undefined}
+                onDeleteRow={toggleDeleted}
+                onSelectionChange={(rowRef, column) => setGridSelection({ rowRef, column })}
                 onOpenCell={(value, columnIndex) =>
                   setCell({ value, column: current.columns[columnIndex] })
                 }

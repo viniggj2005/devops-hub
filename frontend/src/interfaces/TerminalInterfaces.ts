@@ -1,4 +1,5 @@
-import type {ferretshellDtos } from '../../wailsjs/go/models';
+import type { ferretshellDtos } from '../../wailsjs/go/models';
+import type { SplitDropZone, SplitLayout } from './SplitInterfaces';
 export type SSHConnectionDto = ferretshellDtos.SSHConnectionDto;
 
 export interface TerminalProps {
@@ -79,9 +80,9 @@ export interface TerminalInstance {
   containerName?: string;
 }
 
-export type TerminalLayout = 'vertical' | 'horizontal' | 'grid';
+export type TerminalLayout = SplitLayout;
 
-export type TerminalDropZone = 'left' | 'right' | 'top' | 'bottom' | 'center';
+export type TerminalDropZone = SplitDropZone;
 
 export interface TerminalTab {
   id: string;

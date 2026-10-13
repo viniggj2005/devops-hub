@@ -307,6 +307,7 @@ func (handlerStruct *PostgresClientHandlerStruct) ExecuteQuery(token string, ses
 	}
 
 	handlerStruct.resolveUnknownTypes(session, execution.ResultSets)
+	handlerStruct.resolveEditableTables(session, execution.ResultSets)
 	return execution, nil
 }
 
@@ -318,9 +319,11 @@ func (handlerStruct *PostgresClientHandlerStruct) readResultSet(reader *pgconn.R
 	}
 	for index, field := range fields {
 		resultSet.Columns[index] = postgresDtos.QueryColumnDto{
-			Name:     field.Name,
-			TypeOid:  field.DataTypeOID,
-			DataType: handlerStruct.builtinTypeName(field.DataTypeOID),
+			Name:           field.Name,
+			TypeOid:        field.DataTypeOID,
+			SourceTableOid: field.TableOID,
+			SourceColumn:   field.TableAttributeNumber,
+			DataType:       handlerStruct.builtinTypeName(field.DataTypeOID),
 		}
 	}
 

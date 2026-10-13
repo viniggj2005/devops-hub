@@ -1,7 +1,7 @@
 import React from 'react';
 import { Radio } from 'lucide-react';
 import SplitLayout from './SplitLayout';
-import SnapOverlay from './SnapOverlay';
+import SnapOverlay from '../../../shared/components/split/SnapOverlay';
 import { maxInstancesPerTab, useTerminalStore } from '../TerminalStore';
 import { useGeneralConfigsStore } from '../../../settings/store/GeneralConfigsStore';
 
@@ -50,6 +50,8 @@ const TerminalTabArea: React.FC = () => {
 
                 {isDraggingOtherTab && draggedTab && (
                     <SnapOverlay
+                        accent="purple"
+                        itemNoun="terminais"
                         draggedTitle={draggedTab.title}
                         resultingCount={resultingCount}
                         onCancel={() => setDraggingTabId(null)}

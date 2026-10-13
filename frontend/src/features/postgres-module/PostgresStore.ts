@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 import { PostgresServices } from './services/PostgresServices';
 import { connectionLabel, generateId } from './functions/TreatmentFunctions';
+import { maxSplitPanes, splitDropZoneLayouts } from '../shared/constants/SplitDropZones';
 import type {
-  PostgresStoreState,
   TxStatus,
   WorkspaceTab,
+  WorkspaceGroup,
+  PostgresStoreState,
 } from '../../interfaces/PostgresInterfaces';
 
 const initialState = {
@@ -12,9 +14,51 @@ const initialState = {
   connections: [],
   connectionsLoaded: false,
   tabs: [] as WorkspaceTab[],
+  groups: [] as WorkspaceGroup[],
   activeTabId: null,
+  activeGroupId: null,
+  draggingGroupId: null,
   queryCounter: 0,
   tabTxStatus: {} as Record<string, TxStatus>,
+};
+
+type WorkspaceSlice = Pick<PostgresStoreState, 'tabs' | 'groups' | 'activeTabId' | 'activeGroupId' | 'tabTxStatus'>;
+
+const groupOfPane = (groups: WorkspaceGroup[], paneId: string) =>
+  groups.find((group) => group.paneIds.includes(paneId));
+
+const singlePaneGroup = (paneId: string): WorkspaceGroup => ({
+  id: generateId(),
+  layout: 'vertical',
+  paneIds: [paneId],
+  focusedPaneId: paneId,
+});
+
+const removePanes = (state: WorkspaceSlice, removedIds: Set<string>): WorkspaceSlice => {
+  const removedGroupIndex = state.groups.findIndex((group) => group.id === state.activeGroupId);
+  const groups = state.groups
+    .map((group) => {
+      const paneIds = group.paneIds.filter((paneId) => !removedIds.has(paneId));
+      const focusedPaneId = paneIds.includes(group.focusedPaneId) ? group.focusedPaneId : paneIds[0];
+      return { ...group, paneIds, focusedPaneId };
+    })
+    .filter((group) => group.paneIds.length > 0);
+
+  const activeGroup =
+    groups.find((group) => group.id === state.activeGroupId) ??
+    groups[Math.min(Math.max(0, removedGroupIndex - 1), groups.length - 1)];
+
+  const tabTxStatus = Object.fromEntries(
+    Object.entries(state.tabTxStatus).filter(([paneId]) => !removedIds.has(paneId))
+  );
+
+  return {
+    groups,
+    tabTxStatus,
+    activeGroupId: activeGroup?.id ?? null,
+    activeTabId: activeGroup?.focusedPaneId ?? null,
+    tabs: state.tabs.filter((tab) => !removedIds.has(tab.id)),
+  };
 };
 
 export const usePostgresStore = create<PostgresStoreState>((set, get) => ({
@@ -31,11 +75,19 @@ export const usePostgresStore = create<PostgresStoreState>((set, get) => ({
   openTab: (input) => {
     const existing = input.key ? get().tabs.find((tab) => tab.key === input.key) : undefined;
     if (existing) {
-      set({ activeTabId: existing.id, view: 'workspace' });
+      get().setActiveTab(existing.id);
+      set({ view: 'workspace' });
       return;
     }
     const tab: WorkspaceTab = { ...input, id: generateId() };
-    set((state) => ({ tabs: [...state.tabs, tab], activeTabId: tab.id, view: 'workspace' }));
+    const group = singlePaneGroup(tab.id);
+    set((state) => ({
+      view: 'workspace',
+      activeTabId: tab.id,
+      activeGroupId: group.id,
+      tabs: [...state.tabs, tab],
+      groups: [...state.groups, group],
+    }));
   },
 
   openQueryTab: ({ connectionId, database, sql, autoRun, title }) => {
@@ -53,30 +105,75 @@ export const usePostgresStore = create<PostgresStoreState>((set, get) => ({
     });
   },
 
-  closeTab: (id) => {
-    set((state) => {
-      const index = state.tabs.findIndex((tab) => tab.id === id);
-      const tabs = state.tabs.filter((tab) => tab.id !== id);
-      let activeTabId = state.activeTabId;
-      if (state.activeTabId === id) {
-        activeTabId = tabs.length ? tabs[Math.max(0, index - 1)].id : null;
-      }
-      const { [id]: _removed, ...tabTxStatus } = state.tabTxStatus;
-      return { tabs, activeTabId, tabTxStatus };
-    });
-  },
+  closeTab: (id) => set((state) => removePanes(state, new Set([id]))),
 
-  closeConnectionTabs: (connectionId) => {
+  closeGroup: (groupId) =>
     set((state) => {
-      const tabs = state.tabs.filter((tab) => tab.connectionId !== connectionId);
-      const activeTabId = tabs.some((tab) => tab.id === state.activeTabId)
-        ? state.activeTabId
-        : (tabs[tabs.length - 1]?.id ?? null);
-      return { tabs, activeTabId };
-    });
-  },
+      const group = state.groups.find((item) => item.id === groupId);
+      return group ? removePanes(state, new Set(group.paneIds)) : {};
+    }),
 
-  setActiveTab: (id) => set({ activeTabId: id }),
+  closeConnectionTabs: (connectionId) =>
+    set((state) => {
+      const removedIds = state.tabs.filter((tab) => tab.connectionId === connectionId).map((tab) => tab.id);
+      return removePanes(state, new Set(removedIds));
+    }),
+
+  setActiveTab: (id) =>
+    set((state) => {
+      const group = groupOfPane(state.groups, id);
+      if (!group) return {};
+      return {
+        activeTabId: id,
+        activeGroupId: group.id,
+        groups: state.groups.map((item) => (item.id === group.id ? { ...item, focusedPaneId: id } : item)),
+      };
+    }),
+
+  setActiveGroup: (groupId) =>
+    set((state) => {
+      const group = state.groups.find((item) => item.id === groupId);
+      return group ? { activeGroupId: group.id, activeTabId: group.focusedPaneId } : {};
+    }),
+
+  setDraggingGroup: (groupId) => set({ draggingGroupId: groupId }),
+
+  mergeGroupInto: (sourceGroupId, targetGroupId, dropZone) =>
+    set((state) => {
+      const sourceGroup = state.groups.find((group) => group.id === sourceGroupId);
+      const targetGroup = state.groups.find((group) => group.id === targetGroupId);
+      if (!sourceGroup || !targetGroup || sourceGroupId === targetGroupId) return { draggingGroupId: null };
+      if (sourceGroup.paneIds.length + targetGroup.paneIds.length > maxSplitPanes) return { draggingGroupId: null };
+
+      const { layout, insertAtStart } = splitDropZoneLayouts[dropZone];
+      const paneIds = insertAtStart
+        ? [...sourceGroup.paneIds, ...targetGroup.paneIds]
+        : [...targetGroup.paneIds, ...sourceGroup.paneIds];
+      const mergedGroup = { ...targetGroup, layout, paneIds, focusedPaneId: sourceGroup.focusedPaneId };
+
+      return {
+        draggingGroupId: null,
+        activeGroupId: targetGroupId,
+        activeTabId: mergedGroup.focusedPaneId,
+        groups: state.groups
+          .filter((group) => group.id !== sourceGroupId)
+          .map((group) => (group.id === targetGroupId ? mergedGroup : group)),
+      };
+    }),
+
+  detachPane: (id) =>
+    set((state) => {
+      const originGroup = groupOfPane(state.groups, id);
+      if (!originGroup || originGroup.paneIds.length < 2) return {};
+      const detachedGroup = singlePaneGroup(id);
+      const remainingIds = originGroup.paneIds.filter((paneId) => paneId !== id);
+      const groups = state.groups.flatMap((group) => {
+        if (group.id !== originGroup.id) return [group];
+        const focusedPaneId = remainingIds.includes(group.focusedPaneId) ? group.focusedPaneId : remainingIds[0];
+        return [{ ...group, paneIds: remainingIds, focusedPaneId }, detachedGroup];
+      });
+      return { groups, activeGroupId: detachedGroup.id, activeTabId: id };
+    }),
 
   renameTab: (id, title) =>
     set((state) => ({ tabs: state.tabs.map((tab) => (tab.id === id ? { ...tab, title } : tab)) })),

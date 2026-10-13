@@ -29,6 +29,7 @@ import {
   ListOrdered,
   CircleAlert,
   ChevronRight,
+  PanelLeftClose,
   SquareFunction,
   ChevronsDownUp,
 } from 'lucide-react';
@@ -109,7 +110,7 @@ function computeFilter(
   return { visible, forceExpanded };
 }
 
-const ObjectExplorer: React.FC = () => {
+const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) => {
   const { token } = useAuth();
   const actions = useExplorerActions();
   const [filter, setFilter] = useState('');
@@ -270,6 +271,9 @@ const ObjectExplorer: React.FC = () => {
               className={headerButton}
             >
               <ChevronsDownUp className="w-4 h-4" />
+            </button>
+            <button title="Recolher explorador (Ctrl+B)" onClick={onCollapse} className={headerButton}>
+              <PanelLeftClose className="w-4 h-4" />
             </button>
           </div>
         </div>
