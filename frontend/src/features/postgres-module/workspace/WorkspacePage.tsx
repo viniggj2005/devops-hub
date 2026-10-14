@@ -1,4 +1,5 @@
 import QueryTab from './query/QueryTab';
+import DiagramTab from './diagram/DiagramTab';
 import { tabIcons } from './constants/TabIcons';
 import { usePostgresStore } from '../PostgresStore';
 import { useAppStore } from '../../appFrame/AppStore';
@@ -41,6 +42,8 @@ const renderTab = (tab: WorkspaceTab, focused: boolean, visible: boolean) => {
       return <QueryTab tab={tab} active={focused} />;
     case 'table':
       return <TablePropertiesTab tab={tab} />;
+    case 'diagram':
+      return <DiagramTab tab={tab} />;
     case 'dashboard':
       return <ServerDashboardTab tab={tab} active={visible} />;
   }

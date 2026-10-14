@@ -14,14 +14,16 @@ import {
   Eye,
   Copy,
   Hash,
+  Rows3,
   Unplug,
+  Network,
   Activity,
   FileCode2,
   RefreshCw,
-  TableProperties,
-  ScrollText,
   FilePlus2,
-  Rows3,
+  ScrollText,
+  DatabaseZap,
+  TableProperties,
 } from 'lucide-react';
 import {
   quoteIdent,
@@ -43,7 +45,11 @@ const ddlKinds: Partial<Record<ExplorerNode['kind'], DdlObjectKind>> = {
   schema: 'schema',
 };
 
-export function useExplorerActions() {
+interface ExplorerActionsOptions {
+  onCreateDatabase: (connectionId: number) => void;
+}
+
+export function useExplorerActions({ onCreateDatabase }: ExplorerActionsOptions) {
   const { token } = useAuth();
   const { connections, openQueryTab, openTab } = usePostgresStore();
 
@@ -75,6 +81,17 @@ export function useExplorerActions() {
       database: node.database as string,
       schema: node.schema,
       objectName: node.name,
+    });
+
+  const openDiagram = (node: ExplorerNode) =>
+    openTab({
+      key: `diagram:${node.connectionId}:${node.database}:${node.schema ?? '*'}`,
+      type: 'diagram',
+      title: node.schema ? `Diagrama ${node.schema}` : `Diagrama ${node.database}`,
+      connectionId: node.connectionId,
+      connectionName: nameOf(node.connectionId),
+      database: node.database as string,
+      schema: node.schema,
     });
 
   const openDashboard = (node: ExplorerNode) => {
@@ -196,12 +213,19 @@ export function useExplorerActions() {
       onClick: () => refresh(node),
     };
     const separator: ContextMenuItem = { separator: true };
+    const createDatabase: ContextMenuItem = {
+      label: 'Criar banco de dados…',
+      icon: DatabaseZap,
+      onClick: () => onCreateDatabase(node.connectionId),
+    };
+    const diagram: ContextMenuItem = { label: 'Diagrama ER', icon: Network, onClick: () => openDiagram(node) };
 
     switch (node.kind) {
       case 'server':
         return [
           { label: 'Nova query', icon: FileCode2, onClick: () => newQuery(node) },
           { label: 'Dashboard', icon: Activity, onClick: () => openDashboard(node) },
+          createDatabase,
           separator,
           refreshItem,
           {
@@ -215,6 +239,8 @@ export function useExplorerActions() {
       case 'database':
         return [
           { label: 'Nova query', icon: FileCode2, onClick: () => newQuery(node) },
+          diagram,
+          createDatabase,
           separator,
           refreshItem,
           copy,
@@ -222,6 +248,7 @@ export function useExplorerActions() {
       case 'schema':
         return [
           { label: 'Nova query', icon: FileCode2, onClick: () => newQuery(node) },
+          diagram,
           { label: 'Script CREATE', icon: ScrollText, onClick: () => scriptCreate(node) },
           separator,
           refreshItem,

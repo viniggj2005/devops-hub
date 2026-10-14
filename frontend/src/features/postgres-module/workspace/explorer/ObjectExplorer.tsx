@@ -6,8 +6,9 @@ import { usePostgresStore } from '../../PostgresStore';
 import { useExplorerActions } from './useExplorerActions';
 import { useAuth } from '../../../../contexts/AuthContext';
 import type { ContextMenuItem } from '../components/ContextMenu';
-import { errorMessage } from '../../functions/TreatmentFunctions';
+import CreateDatabaseModal from './CreateDatabaseModal';
 import ConnectionFormModal from '../../home/components/ConnectionFormModal';
+import { connectionLabel, errorMessage } from '../../functions/TreatmentFunctions';
 import type { ExplorerNode, PostgresConnection } from '../../../../interfaces/PostgresInterfaces';
 import {
   X,
@@ -112,10 +113,12 @@ function computeFilter(
 
 const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) => {
   const { token } = useAuth();
-  const actions = useExplorerActions();
   const [filter, setFilter] = useState('');
   const [formOpen, setFormOpen] = useState(false);
+  const connections = usePostgresStore((state) => state.connections);
   const loadConnections = usePostgresStore((state) => state.loadConnections);
+  const [createDatabaseFor, setCreateDatabaseFor] = useState<number | null>(null);
+  const actions = useExplorerActions({ onCreateDatabase: setCreateDatabaseFor });
   const { rootIds, nodes, children, expanded, loading, errors, connected, selectedId } =
     useExplorerStore();
   const [menu, setMenu] = useState<{
@@ -338,6 +341,13 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
           useExplorerStore.getState().select(serverNodeId(saved.id));
         }}
         connection={null}
+      />
+
+      <CreateDatabaseModal
+        connectionId={createDatabaseFor}
+        onClose={() => setCreateDatabaseFor(null)}
+        connectionName={connectionLabel(connections.find((connection) => connection.id === createDatabaseFor))}
+        onCreated={(connectionId) => token && useExplorerStore.getState().refresh(token, serverNodeId(connectionId))}
       />
     </div>
   );

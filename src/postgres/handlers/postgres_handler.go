@@ -203,6 +203,9 @@ func (handlerStruct *PostgresHandlerStruct) DeleteConnection(token string, id ui
 	if result.RowsAffected == 0 {
 		return errors.New("conexão não encontrada")
 	}
+	if err := handlerStruct.deleteDiagramLayouts(userID, id); err != nil {
+		return fmt.Errorf("conexão excluída, mas os layouts de diagrama não foram removidos: %w", err)
+	}
 
 	if handlerStruct.client != nil {
 		handlerStruct.client.closeConnectionResources(userID, id)

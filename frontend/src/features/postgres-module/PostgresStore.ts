@@ -175,8 +175,10 @@ export const usePostgresStore = create<PostgresStoreState>((set, get) => ({
       return { groups, activeGroupId: detachedGroup.id, activeTabId: id };
     }),
 
-  renameTab: (id, title) =>
-    set((state) => ({ tabs: state.tabs.map((tab) => (tab.id === id ? { ...tab, title } : tab)) })),
+  renameTab: (id, title) => get().updateTab(id, { title }),
+
+  updateTab: (id, changes) =>
+    set((state) => ({ tabs: state.tabs.map((tab) => (tab.id === id ? { ...tab, ...changes } : tab)) })),
 
   setTabTxStatus: (id, status) =>
     set((state) => ({ tabTxStatus: { ...state.tabTxStatus, [id]: status } })),

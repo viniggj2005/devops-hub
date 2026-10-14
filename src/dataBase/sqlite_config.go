@@ -47,6 +47,7 @@ func InitDb() {
 		&models.GeneralConfigsModel{},
 		&models.DockerCredentialsModel{},
 		&models.PostgresConnectionModel{},
+		&models.PostgresDiagramLayoutModel{},
 	); err != nil {
 		log.Fatalf("erro ao migrar modelos: %v", err)
 	}

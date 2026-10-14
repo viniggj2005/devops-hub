@@ -17,6 +17,7 @@ var fileFilters = map[string]runtime.FileFilter{
 	".sql":  {DisplayName: "Arquivos SQL (*.sql)", Pattern: "*.sql"},
 	".csv":  {DisplayName: "CSV (*.csv)", Pattern: "*.csv"},
 	".json": {DisplayName: "JSON (*.json)", Pattern: "*.json"},
+	".svg":  {DisplayName: "Imagem SVG (*.svg)", Pattern: "*.svg"},
 }
 
 var allFilesFilter = runtime.FileFilter{DisplayName: "Todos os arquivos (*.*)", Pattern: "*.*"}

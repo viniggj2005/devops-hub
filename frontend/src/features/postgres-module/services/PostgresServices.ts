@@ -6,6 +6,10 @@ import type {
   SqlFile,
   TableChanges,
   TableSaveResult,
+  DatabaseOptions,
+  DatabaseDiagram,
+  SavedDiagramLayout,
+  CreateDatabaseInput,
   SchemaInfo,
   DatabaseInfo,
   TableDetails,
@@ -126,6 +130,41 @@ export const PostgresServices = {
     object: ObjectReference
   ): Promise<string> {
     return ClientApi.GetObjectDdl(token, connectionId, database, object);
+  },
+
+  async getDatabaseOptions(token: string, connectionId: number): Promise<DatabaseOptions> {
+    return (await ClientApi.GetDatabaseOptions(token, connectionId)) as DatabaseOptions;
+  },
+
+  async previewCreateDatabase(input: CreateDatabaseInput): Promise<string> {
+    return ClientApi.PreviewCreateDatabase(input);
+  },
+
+  async createDatabase(token: string, connectionId: number, input: CreateDatabaseInput): Promise<void> {
+    return ClientApi.CreateDatabase(token, connectionId, input);
+  },
+
+  async getDatabaseDiagram(
+    token: string,
+    connectionId: number,
+    database: string,
+    schema: string
+  ): Promise<DatabaseDiagram> {
+    return (await ClientApi.GetDatabaseDiagram(token, connectionId, database, schema)) as DatabaseDiagram;
+  },
+
+  async getDiagramLayout(token: string, connectionId: number, database: string, schema: string): Promise<string> {
+    return ConnectionsApi.GetDiagramLayout(token, connectionId, database, schema);
+  },
+
+  async saveDiagramLayout(
+    token: string,
+    connectionId: number,
+    database: string,
+    schema: string,
+    layout: SavedDiagramLayout
+  ): Promise<void> {
+    return ConnectionsApi.SaveDiagramLayout(token, connectionId, database, schema, JSON.stringify(layout));
   },
 
   async countRows(

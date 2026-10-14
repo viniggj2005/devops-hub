@@ -36,6 +36,64 @@ export interface DatabaseInfo {
   comment: string | null;
 }
 
+export interface DatabaseOptions {
+  roles: string[];
+  templates: string[];
+  currentUser: string;
+  defaultCtype: string;
+  defaultCollate: string;
+  defaultEncoding: string;
+}
+
+export interface CreateDatabaseInput {
+  name: string;
+  owner: string;
+  ctype: string;
+  comment: string;
+  collate: string;
+  template: string;
+  encoding: string;
+  connectionLimit: number;
+}
+
+export interface DiagramColumn {
+  name: string;
+  notNull: boolean;
+  isUnique: boolean;
+  dataType: string;
+  isPrimaryKey: boolean;
+  isForeignKey: boolean;
+}
+
+export interface DiagramTable {
+  name: string;
+  kind: string;
+  schema: string;
+  comment: string | null;
+  columns: DiagramColumn[];
+}
+
+export interface DiagramRelation {
+  name: string;
+  sourceTable: string;
+  targetTable: string;
+  sourceSchema: string;
+  targetSchema: string;
+  sourceColumns: string[];
+  targetColumns: string[];
+}
+
+export interface SavedDiagramLayout {
+  keysOnly: boolean;
+  positions: Record<string, { x: number; y: number }>;
+}
+
+export interface DatabaseDiagram {
+  truncated: boolean;
+  tables: DiagramTable[];
+  relations: DiagramRelation[];
+}
+
 export interface SchemaInfo {
   name: string;
   owner: string;
@@ -119,6 +177,46 @@ export interface TableDetails {
   constraints: ConstraintInfo[];
   triggers: TriggerInfo[];
   ddl: string;
+}
+
+export interface ColumnDraft {
+  id: string;
+  name: string;
+  comment: string;
+  dropped: boolean;
+  notNull: boolean;
+  dataType: string;
+  defaultValue: string;
+  original: ColumnInfo | null;
+}
+
+export interface IndexDraft {
+  id: string;
+  name: string;
+  method: string;
+  unique: boolean;
+  columns: string;
+}
+
+export type ConstraintDraftType = 'p' | 'u' | 'c' | 'f';
+
+export interface ConstraintDraft {
+  id: string;
+  name: string;
+  columns: string;
+  expression: string;
+  references: string;
+  type: ConstraintDraftType;
+}
+
+export interface TableDraft {
+  name: string;
+  comment: string;
+  columns: ColumnDraft[];
+  newIndexes: IndexDraft[];
+  droppedIndexes: string[];
+  droppedConstraints: string[];
+  newConstraints: ConstraintDraft[];
 }
 
 export type DdlObjectKind = 'table' | 'view' | 'matview' | 'sequence' | 'function' | 'schema';
@@ -268,7 +366,7 @@ export interface ServerDashboard {
 
 export type PostgresView = 'home' | 'workspace';
 
-export type WorkspaceTabType = 'query' | 'table' | 'dashboard';
+export type WorkspaceTabType = 'query' | 'table' | 'diagram' | 'dashboard';
 
 export interface WorkspaceTab {
   id: string;
@@ -320,6 +418,7 @@ export interface PostgresStoreState {
   setView: (view: PostgresView) => void;
   setActiveGroup: (groupId: string) => void;
   renameTab: (id: string, title: string) => void;
+  updateTab: (id: string, changes: Partial<OpenWorkspaceTabInput>) => void;
   openTab: (input: OpenWorkspaceTabInput) => void;
   openQueryTab: (input: OpenQueryTabInput) => void;
   setDraggingGroup: (groupId: string | null) => void;

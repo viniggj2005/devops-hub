@@ -101,6 +101,59 @@ type ObjectReferenceDto struct {
 	Oid    uint32 `json:"oid"`
 }
 
+type DatabaseOptionsDto struct {
+	Roles           []string `json:"roles"`
+	Templates       []string `json:"templates"`
+	CurrentUser     string   `json:"currentUser"`
+	DefaultCtype    string   `json:"defaultCtype"`
+	DefaultCollate  string   `json:"defaultCollate"`
+	DefaultEncoding string   `json:"defaultEncoding"`
+}
+
+type CreateDatabaseInputDto struct {
+	Name            string `json:"name"`
+	Owner           string `json:"owner"`
+	Ctype           string `json:"ctype"`
+	Comment         string `json:"comment"`
+	Collate         string `json:"collate"`
+	Template        string `json:"template"`
+	Encoding        string `json:"encoding"`
+	ConnectionLimit int    `json:"connectionLimit"`
+}
+
+type DiagramColumnDto struct {
+	Name         string `json:"name"`
+	NotNull      bool   `json:"notNull"`
+	IsUnique     bool   `json:"isUnique"`
+	DataType     string `json:"dataType"`
+	IsPrimaryKey bool   `json:"isPrimaryKey"`
+	IsForeignKey bool   `json:"isForeignKey"`
+}
+
+type DiagramTableDto struct {
+	Name    string             `json:"name"`
+	Kind    string             `json:"kind"`
+	Schema  string             `json:"schema"`
+	Comment *string            `json:"comment"`
+	Columns []DiagramColumnDto `json:"columns"`
+}
+
+type DiagramRelationDto struct {
+	Name          string   `json:"name" db:"name"`
+	SourceTable   string   `json:"sourceTable" db:"source_table"`
+	TargetTable   string   `json:"targetTable" db:"target_table"`
+	SourceSchema  string   `json:"sourceSchema" db:"source_schema"`
+	TargetSchema  string   `json:"targetSchema" db:"target_schema"`
+	SourceColumns []string `json:"sourceColumns" db:"source_columns"`
+	TargetColumns []string `json:"targetColumns" db:"target_columns"`
+}
+
+type DatabaseDiagramDto struct {
+	Truncated bool                 `json:"truncated"`
+	Tables    []DiagramTableDto    `json:"tables"`
+	Relations []DiagramRelationDto `json:"relations"`
+}
+
 type CompletionTableDto struct {
 	Schema  string   `json:"schema" db:"schema"`
 	Name    string   `json:"name" db:"name"`
