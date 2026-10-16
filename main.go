@@ -34,6 +34,7 @@ func main() {
 	sessionManager := auth.NewManager(8 * time.Hour)
 	localFileHandler := ferretShellHandlers.NewLocalFileHandler()
 	terminal := ferretShellHandlers.NewTerminalHandler(sessionManager)
+	localTerminal := ferretShellHandlers.NewLocalTerminalHandler()
 	docker := dockerHandlers.NewDockerHandler(database.DataBase, sessionManager)
 	dockerSdk := dockerHandlers.NewDockerSdkHandler(docker)
 	docker.RegisterDockerSdkHandler(dockerSdk)
@@ -71,12 +72,13 @@ func main() {
 			sftpHandler.Startup(ctx)
 			authHandler.Startup(ctx)
 			userHandler.Startup(ctx)
+			localTerminal.Startup(ctx)
 			octohubHandler.Startup(ctx)
+			postgresClient.Startup(ctx)
+			postgresHandler.Startup(ctx)
 			localFileHandler.Startup(ctx)
 			repositoryHandler.Startup(ctx)
 			generalConfigsHandler.Startup(ctx)
-			postgresHandler.Startup(ctx)
-			postgresClient.Startup(ctx)
 
 		},
 		Windows: &windows.Options{
@@ -94,14 +96,15 @@ func main() {
 			sftpHandler,
 			authHandler,
 			userHandler,
+			localTerminal,
 			branchHandler,
 			commitHandler,
+			postgresClient,
 			octohubHandler,
+			postgresHandler,
 			localFileHandler,
 			repositoryHandler,
 			generalConfigsHandler,
-			postgresHandler,
-			postgresClient,
 		},
 	})
 

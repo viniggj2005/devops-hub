@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -18,9 +19,10 @@ import (
 )
 
 type sshConnection struct {
-	client  *ssh.Client
-	session *ssh.Session
-	stdin   io.WriteCloser
+	stdin          io.WriteCloser
+	client         *ssh.Client
+	session        *ssh.Session
+	closedByClient atomic.Bool
 }
 
 type TerminalHandlerStruct struct {
@@ -110,6 +112,8 @@ func (handlerStruct *TerminalHandlerStruct) createSshClient(configure ferretShel
 }
 
 func (handlerStruct *TerminalHandlerStruct) ConnectWith(configure ferretShellDtos.SSHConnectionDto) error {
+	handlerStruct.Disconnect(configure.SshSessionId)
+
 	sshClient, err := handlerStruct.createSshClient(configure)
 	if err != nil {
 		return err
@@ -148,45 +152,98 @@ func (handlerStruct *TerminalHandlerStruct) ConnectWith(configure ferretShellDto
 		sshClient.Close()
 		return err
 	}
-	handlerStruct.AddSession(configure.SshSessionId, &sshConnection{
+	connection := &sshConnection{
 		client:  sshClient,
 		session: session,
 		stdin:   standardInput,
-	})
+	}
+	handlerStruct.AddSession(configure.SshSessionId, connection)
+
+	sessionDone := make(chan struct{})
+	dataEvent := fmt.Sprintf("ssh:data:%s", configure.SshSessionId)
+
+	var readersGroup sync.WaitGroup
+	readersGroup.Add(2)
+	go handlerStruct.pipeOutput(stdout, dataEvent, 8192, &readersGroup)
+	go handlerStruct.pipeOutput(stderr, dataEvent, 4096, &readersGroup)
+	go keepConnectionAlive(sshClient, sessionDone)
+
 	go func() {
-		standardOutputBuffer := make([]byte, 8192)
-		for {
-			n, err := stdout.Read(standardOutputBuffer)
-			if n > 0 {
-				runtime.EventsEmit(handlerStruct.context, fmt.Sprintf("ssh:data:%s", configure.SshSessionId), string(standardOutputBuffer[:n]))
-			}
-			if err != nil {
-				break
-			}
+		waitError := session.Wait()
+		close(sessionDone)
+		readersGroup.Wait()
+
+		_ = sshClient.Close()
+		handlerStruct.sshSessions.CompareAndDelete(configure.SshSessionId, connection)
+
+		if connection.closedByClient.Load() {
+			return
 		}
-	}()
-	go func() {
-		standardErrorBuffer := make([]byte, 4096)
-		for {
-			n, err := stderr.Read(standardErrorBuffer)
-			if n > 0 {
-				runtime.EventsEmit(handlerStruct.context, fmt.Sprintf("ssh:data:%s", configure.SshSessionId), string(standardErrorBuffer[:n]))
-			}
-			if err != nil {
-				break
-			}
-		}
-	}()
-	go func() {
-		err := session.Wait()
-		message := ""
-		if err != nil {
-			message = err.Error()
-		}
-		runtime.EventsEmit(handlerStruct.context, fmt.Sprintf("ssh:exit:%s", configure.SshSessionId), message)
+		runtime.EventsEmit(handlerStruct.context, fmt.Sprintf("ssh:exit:%s", configure.SshSessionId), describeSessionExit(waitError))
 	}()
 
 	return nil
+}
+
+func (handlerStruct *TerminalHandlerStruct) pipeOutput(reader io.Reader, eventName string, bufferSize int, readersGroup *sync.WaitGroup) {
+	defer readersGroup.Done()
+	buffer := make([]byte, bufferSize)
+	for {
+		bytesRead, readError := reader.Read(buffer)
+		if bytesRead > 0 {
+			runtime.EventsEmit(handlerStruct.context, eventName, string(buffer[:bytesRead]))
+		}
+		if readError != nil {
+			return
+		}
+	}
+}
+
+func keepConnectionAlive(sshClient *ssh.Client, sessionDone <-chan struct{}) {
+	const maxFailures = 3
+	const interval = 30 * time.Second
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	failures := 0
+	for {
+		select {
+		case <-sessionDone:
+			return
+		case <-ticker.C:
+			if _, _, requestError := sshClient.SendRequest("keepalive@openssh.com", true, nil); requestError != nil {
+				failures++
+				if failures >= maxFailures {
+					_ = sshClient.Close()
+					return
+				}
+				continue
+			}
+			failures = 0
+		}
+	}
+}
+
+func describeSessionExit(waitError error) string {
+	if waitError == nil {
+		return "sessão finalizada"
+	}
+
+	var exitError *ssh.ExitError
+	if errors.As(waitError, &exitError) {
+		if exitError.Signal() != "" {
+			return fmt.Sprintf("sessão finalizada pelo sinal %s", exitError.Signal())
+		}
+		return fmt.Sprintf("sessão finalizada com código %d", exitError.ExitStatus())
+	}
+
+	var exitMissingError *ssh.ExitMissingError
+	if errors.As(waitError, &exitMissingError) || errors.Is(waitError, io.EOF) {
+		return "conexão perdida com o servidor"
+	}
+
+	return fmt.Sprintf("conexão perdida: %s", waitError.Error())
 }
 
 func (handlerStruct *TerminalHandlerStruct) Send(sessionId string, data string) error {
@@ -222,11 +279,12 @@ func (handlerStruct *TerminalHandlerStruct) Disconnect(sessionId string) {
 		return
 	}
 
+	conn.closedByClient.Store(true)
+	handlerStruct.sshSessions.CompareAndDelete(sessionId, conn)
+
 	_ = conn.session.Close()
 
 	if conn.client != nil {
 		_ = conn.client.Close()
 	}
-
-	handlerStruct.sshSessions.Delete(sessionId)
 }

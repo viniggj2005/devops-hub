@@ -29,11 +29,11 @@ const PresetSample: React.FC<{ colors: SqlEditorColors }> = ({ colors }) => (
 );
 
 const SqlEditorThemeSettings: React.FC = () => {
-  const saveTheme = useCallback(setSqlEditorTheme, [setSqlEditorTheme]);
   const savedTheme = useGeneralConfigsStore(state => state.sqlEditorTheme);
-  const [draftTheme, setDraftTheme] = useDebouncedDraft(savedTheme, saveTheme);
   const setSqlEditorTheme = useGeneralConfigsStore(state => state.setSqlEditorTheme);
   const moduleConfig = useGeneralConfigsStore(state => state.modules['postgres-manager']);
+  const saveTheme = useCallback(setSqlEditorTheme, [setSqlEditorTheme]);
+  const [draftTheme, setDraftTheme] = useDebouncedDraft(savedTheme, saveTheme);
 
   const moduleIsDark =
     moduleConfig.theme === 'dark' || (moduleConfig.theme === 'custom' && moduleConfig.customTheme.base === 'dark');

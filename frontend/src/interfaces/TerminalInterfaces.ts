@@ -72,12 +72,22 @@ export interface ModalProps {
   onCreated: () => void;
 }
 
+export type LocalShellKind = 'cmd' | 'wsl' | 'unix' | 'gitbash' | 'powershell';
+
+export interface LocalShell {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  kind: LocalShellKind;
+}
+
 export interface TerminalInstance {
   id: string;
   title: string;
-  config?: SSHConnectionDto;
   containerId?: string;
+  localShell?: LocalShell;
   containerName?: string;
+  config?: SSHConnectionDto;
 }
 
 export type TerminalLayout = SplitLayout;

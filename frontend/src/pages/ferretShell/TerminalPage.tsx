@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Terminal, Plus, Server, Zap } from 'lucide-react';
+import { Terminal, Plus, Server, Zap, Laptop } from 'lucide-react';
+import LocalShellList from '../../features/ferretShell-module/terminal/components/LocalShellList';
+import { useLocalShells } from '../../features/ferretShell-module/terminal/functions/useLocalShells';
 import SshConnectionList from '../../features/ferretShell-module/terminal/components/SshConnectionList';
 import CreateSshConnectionModal from '../../features/ferretShell-module/terminal/components/CreateSshConnectionModal';
 
@@ -8,6 +10,7 @@ const TerminalPage: React.FC = () => {
     const { token } = useAuth();
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [reloadFlag, setReloadFlag] = useState(0);
+    const { shells, loading, defaultShell, openShell } = useLocalShells();
 
     return (
         <div className="space-y-12 pb-20">
@@ -32,11 +35,35 @@ const TerminalPage: React.FC = () => {
                             <Plus className="w-5 h-5" />
                             Nova Conexão
                         </button>
+                        {defaultShell && (
+                            <button
+                                onClick={() => openShell(defaultShell)}
+                                title={`Abrir ${defaultShell.name}`}
+                                className="px-8 py-4 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-2xl font-bold hover:scale-105 transition-all flex items-center gap-2"
+                            >
+                                <Laptop className="w-5 h-5" />
+                                Terminal local
+                                <span className="text-xs font-medium text-gray-500 dark:text-zinc-400">({defaultShell.name})</span>
+                            </button>
+                        )}
                     </div>
                 </div>
                 <div className="absolute top-1/2 right-0 -translate-y-1/2 opacity-10 dark:opacity-20 hidden lg:block">
                     <Terminal className="w-96 h-96 text-purple-600" />
                 </div>
+            </section>
+            <section className="bg-white dark:bg-zinc-900/30 border border-gray-200 dark:border-white/5 rounded-3xl p-8">
+                <div className="flex items-center gap-4 mb-8">
+                    <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl">
+                        <Laptop className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Terminal local</h2>
+                        <p className="text-gray-500 dark:text-zinc-400">Abra um shell desta máquina em uma nova aba.</p>
+                    </div>
+                </div>
+
+                <LocalShellList shells={shells} loading={loading} onOpen={openShell} />
             </section>
             <section className="bg-white dark:bg-zinc-900/30 border border-gray-200 dark:border-white/5 rounded-3xl p-8">
                 <div className="flex items-center gap-4 mb-8">
