@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { useDismiss } from '../../shared/hooks/useDismiss';
 import { useListNavigation } from '../hooks/useListNavigation';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import { Check, ChevronDown, CloudDownload, FolderGit2, FolderInput, FolderPlus, KeyRound, Search, TriangleAlert, X } from 'lucide-react';
@@ -7,6 +8,7 @@ const RepositorySelector: React.FC = () => {
     const [filter, setFilter] = useState('');
     const query = filter.trim().toLowerCase();
     const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
     const { repository, repositories, githubAccount, addRepository, openCloneModal, openCreateModal, openCredentials, selectRepository, removeRepository } = useOctohubRepository();
 
     const filtered = repositories.filter(
@@ -21,6 +23,8 @@ const RepositorySelector: React.FC = () => {
         setIsOpen(false);
         setFilter('');
     };
+
+    useDismiss(containerRef, isOpen, close);
 
     const choose = (index: number) => {
         if (index === cloneIndex) {
@@ -55,7 +59,7 @@ const RepositorySelector: React.FC = () => {
         `flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 cursor-pointer ${activeIndex === index ? 'bg-emerald-500/10' : 'hover:bg-emerald-500/5'}`;
 
     return (
-        <div className="relative">
+        <div ref={containerRef} className="relative">
             <button
                 onClick={() => (isOpen ? close() : setIsOpen(true))}
                 title={repository?.path}
@@ -73,7 +77,6 @@ const RepositorySelector: React.FC = () => {
 
             {isOpen && (
                 <>
-                    <div className="fixed inset-0 z-30" onClick={close} />
                     <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-xl shadow-2xl z-40 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="p-3 border-b border-zinc-100 dark:border-white/5 space-y-2">
                             <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">

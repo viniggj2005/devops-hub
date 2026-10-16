@@ -1,12 +1,13 @@
 import iziToast from 'izitoast';
 import React, { useMemo, useState } from 'react';
 import ContextMenu from '../components/ContextMenu';
-import { serverNodeId, useExplorerStore } from './ExplorerStore';
 import { usePostgresStore } from '../../PostgresStore';
+import CreateDatabaseModal from './CreateDatabaseModal';
 import { useExplorerActions } from './useExplorerActions';
 import { useAuth } from '../../../../contexts/AuthContext';
+import { serverNodeId, useExplorerStore } from './ExplorerStore';
 import type { ContextMenuItem } from '../components/ContextMenu';
-import CreateDatabaseModal from './CreateDatabaseModal';
+import DropObjectModal, { type DropTarget } from './DropObjectModal';
 import ConnectionFormModal from '../../home/components/ConnectionFormModal';
 import { connectionLabel, errorMessage } from '../../functions/TreatmentFunctions';
 import type { ExplorerNode, PostgresConnection } from '../../../../interfaces/PostgresInterfaces';
@@ -20,11 +21,11 @@ import {
   Server,
   Folder,
   Table2,
+  Loader2,
+  ScanEye,
   Columns3,
   Database,
   KeyRound,
-  Loader2,
-  ScanEye,
   RefreshCw,
   FolderOpen,
   ListOrdered,
@@ -117,8 +118,9 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
   const [formOpen, setFormOpen] = useState(false);
   const connections = usePostgresStore((state) => state.connections);
   const loadConnections = usePostgresStore((state) => state.loadConnections);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [createDatabaseFor, setCreateDatabaseFor] = useState<number | null>(null);
-  const actions = useExplorerActions({ onCreateDatabase: setCreateDatabaseFor });
+  const actions = useExplorerActions({ onDropObject: setDropTarget, onCreateDatabase: setCreateDatabaseFor });
   const { rootIds, nodes, children, expanded, loading, errors, connected, selectedId } =
     useExplorerStore();
   const [menu, setMenu] = useState<{
@@ -349,6 +351,8 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
         connectionName={connectionLabel(connections.find((connection) => connection.id === createDatabaseFor))}
         onCreated={(connectionId) => token && useExplorerStore.getState().refresh(token, serverNodeId(connectionId))}
       />
+
+      <DropObjectModal target={dropTarget} onClose={() => setDropTarget(null)} />
     </div>
   );
 };

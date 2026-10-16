@@ -2,8 +2,9 @@ import HistoryPanel from './HistoryPanel';
 import MessagesPanel from './MessagesPanel';
 import CellViewerModal from './CellViewerModal';
 import { useGridEdits } from '../hooks/useGridEdits';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ResultGrid, { type ResultGridHandle } from './ResultGrid';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import CellEditorModal, { type CellEditTarget } from './CellEditorModal';
 import { copyToClipboard } from '../../../../shared/functions/clipboard';
 import { formatNumber, rowsToTsv } from '../../../functions/TreatmentFunctions';
 import { Ban, Braces, Copy, Download, Loader2, Pencil, Plus, Save, Trash2, Undo2 } from 'lucide-react';
@@ -18,39 +19,40 @@ import type {
 export type ResultsPanelTab = 'results' | 'messages' | 'history';
 
 interface ResultsPanelProps {
-  panel: ResultsPanelTab;
   running: boolean;
-  runError: string | null;
   resultIndex: number;
+  panel: ResultsPanelTab;
+  runError: string | null;
   history: QueryHistoryEntry[];
   execution: QueryExecution | null;
-  errorLocation: { line: number; column: number } | null;
-  onPanelChange: (panel: ResultsPanelTab) => void;
-  onResultIndexChange: (index: number) => void;
   onLoadHistory: (sql: string) => void;
-  onExport: (format: 'csv' | 'json', resultIndex: number) => void;
+  onResultIndexChange: (index: number) => void;
+  onPanelChange: (panel: ResultsPanelTab) => void;
+  errorLocation: { line: number; column: number } | null;
   onSaveChanges: (changes: TableChanges) => Promise<boolean>;
+  onExport: (format: 'csv' | 'json', resultIndex: number) => void;
 }
 
 const ResultsPanel: React.FC<ResultsPanelProps> = ({
   panel,
   running,
-  runError,
-  resultIndex,
   history,
+  runError,
+  onExport,
   execution,
+  resultIndex,
   errorLocation,
   onPanelChange,
-  onResultIndexChange,
   onLoadHistory,
-  onExport,
   onSaveChanges,
+  onResultIndexChange,
 }) => {
-  const gridRef = useRef<ResultGridHandle>(null);
   const [saving, setSaving] = useState(false);
+  const gridRef = useRef<ResultGridHandle>(null);
+  const [cellEdit, setCellEdit] = useState<CellEditTarget | null>(null);
   const [cell, setCell] = useState<{ value: QueryCell; column: QueryColumn } | null>(null);
-  const [gridSelection, setGridSelection] = useState<{ rowRef: number | null; column: number | null }>({
-    rowRef: null,
+  const [gridSelection, setGridSelection] = useState<{ rowRefs: number[]; column: number | null }>({
+    rowRefs: [],
     column: null,
   });
   const gridSets = useMemo(
@@ -59,16 +61,49 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
   );
   const current = gridSets[resultIndex] ?? null;
   const isPlan = current?.columns.length === 1 && current.columns[0].name === 'QUERY PLAN';
-  const { editable, editing, pendingCount, addRow, toggleDeleted, discard, buildChanges } = useGridEdits(
+  const { editable, editing, pendingCount, addRow, setDeleted, discard, buildChanges } = useGridEdits(
     isPlan ? null : current
   );
 
-  useEffect(() => setGridSelection({ rowRef: null, column: null }), [current]);
+  useEffect(() => {
+    setCellEdit(null);
+    setGridSelection({ rowRefs: [], column: null });
+  }, [current]);
 
-  const selectedRow = gridSelection.rowRef;
+  const openCellEditor = (rowRef: number, columnIndex: number) => {
+    if (!current) return;
+    const isNewRow = editing.isInserted(rowRef);
+    const keyLabel = (editable?.keyColumns ?? [])
+      .map((keyColumn) => `${current.columns[keyColumn].name} = ${current.rows[rowRef]?.[keyColumn] ?? 'NULL'}`)
+      .join(', ');
+    setCellEdit({
+      rowRef,
+      isNewRow,
+      columnIndex,
+      column: current.columns[columnIndex],
+      value: editing.valueAt(rowRef, columnIndex),
+      modified: editing.isModified(rowRef, columnIndex),
+      original: isNewRow ? undefined : current.rows[rowRef][columnIndex],
+      rowLabel: isNewRow ? 'linha nova' : keyLabel || `linha ${rowRef + 1}`,
+    });
+  };
+
+  const closeCellEditor = () => {
+    setCellEdit(null);
+    window.requestAnimationFrame(() => gridRef.current?.focus());
+  };
+
+  const selectedRefs = gridSelection.rowRefs.filter((rowRef) => rowRef < editing.existingRows + editing.insertedRows);
   const selectedColumn = gridSelection.column;
+  const selectedCellRow = selectedColumn !== null && selectedRefs.length === 1 ? selectedRefs[0] : null;
   const canSetNull =
-    selectedRow !== null && selectedColumn !== null && editing.canEditColumn(selectedColumn) && !editing.isDeleted(selectedRow);
+    selectedCellRow !== null && selectedColumn !== null && editing.canEditColumn(selectedColumn) && !editing.isDeleted(selectedCellRow);
+  const allSelectedDeleted = selectedRefs.length > 0 && selectedRefs.every((rowRef) => editing.isDeleted(rowRef));
+
+  const toggleRowsDeletion = (rowRefs: number[]) => {
+    if (!rowRefs.length) return;
+    setDeleted(rowRefs, !rowRefs.every((rowRef) => editing.isDeleted(rowRef)));
+  };
 
   const saveChanges = async () => {
     const changes = buildChanges();
@@ -155,6 +190,9 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
               {current.truncated
                 ? `Exibindo ${formatNumber(current.rows.length)} de ${formatNumber(current.rowCount)} linhas`
                 : `${formatNumber(current.rowCount)} ${current.rowCount === 1 ? 'linha' : 'linhas'}`}
+              {selectedColumn === null && selectedRefs.length > 1 && (
+                <span className="text-cyan-600 dark:text-cyan-400"> · {formatNumber(selectedRefs.length)} selecionadas</span>
+              )}
             </span>
             <button
               className={toolButton}
@@ -200,17 +238,18 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
             </button>
             <button
               className={`${toolButton} disabled:opacity-40`}
-              disabled={selectedRow === null || saving}
-              onClick={() => selectedRow !== null && toggleDeleted(selectedRow)}
-              title="Marcar/desmarcar a linha selecionada para exclusão (Delete com a linha inteira selecionada)"
+              disabled={!selectedRefs.length || saving}
+              onClick={() => toggleRowsDeletion(selectedRefs)}
+              title="Marcar/desmarcar as linhas selecionadas para exclusão (Delete com as linhas selecionadas)"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              {selectedRow !== null && editing.isDeleted(selectedRow) ? 'Restaurar' : 'Excluir'}
+              {allSelectedDeleted ? 'Restaurar' : 'Excluir'}
+              {selectedRefs.length > 1 && ` (${formatNumber(selectedRefs.length)})`}
             </button>
             <button
               className={`${toolButton} disabled:opacity-40`}
               disabled={!canSetNull || saving}
-              onClick={() => selectedRow !== null && selectedColumn !== null && editing.setCell(selectedRow, selectedColumn, null)}
+              onClick={() => selectedCellRow !== null && selectedColumn !== null && editing.setCell(selectedCellRow, selectedColumn, null)}
               title="Definir a célula selecionada como NULL (Delete)"
             >
               <Ban className="w-3.5 h-3.5" />
@@ -257,8 +296,9 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
                 ref={gridRef}
                 resultSet={current}
                 editing={editable ? editing : undefined}
-                onDeleteRow={toggleDeleted}
-                onSelectionChange={(rowRef, column) => setGridSelection({ rowRef, column })}
+                onDeleteRows={toggleRowsDeletion}
+                onEditCell={openCellEditor}
+                onSelectionChange={(rowRefs, column) => setGridSelection({ rowRefs, column })}
                 onOpenCell={(value, columnIndex) =>
                   setCell({ value, column: current.columns[columnIndex] })
                 }
@@ -280,6 +320,18 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
       </div>
 
       <CellViewerModal cell={cell} onClose={() => setCell(null)} />
+      <CellEditorModal
+        target={cellEdit}
+        onClose={closeCellEditor}
+        onApply={(value) => {
+          if (cellEdit) editing.setCell(cellEdit.rowRef, cellEdit.columnIndex, value);
+          closeCellEditor();
+        }}
+        onReset={() => {
+          if (cellEdit) editing.resetCell(cellEdit.rowRef, cellEdit.columnIndex);
+          closeCellEditor();
+        }}
+      />
     </div>
   );
 };

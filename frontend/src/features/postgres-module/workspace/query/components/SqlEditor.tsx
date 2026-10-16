@@ -1,85 +1,96 @@
 import { basicSetup } from 'codemirror';
-import { diagnosticCount, setDiagnostics } from '@codemirror/lint';
+import { tags } from '@lezer/highlight';
 import { indentWithTab } from '@codemirror/commands';
 import { useTheme } from '../../../../../hooks/use-theme';
-import { oneDarkHighlightStyle } from '@codemirror/theme-one-dark';
+import { diagnosticCount, setDiagnostics } from '@codemirror/lint';
 import { Compartment, EditorState, Prec } from '@codemirror/state';
 import { PostgreSQL, sql, type SQLNamespace } from '@codemirror/lang-sql';
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { hexToRgb } from '../../../../settings/functions/CustomThemePalette';
+import { useGeneralConfigsStore } from '../../../../settings/store/GeneralConfigsStore';
+import type { SqlEditorColors } from '../../../../../interfaces/GeneralConfigsInterfaces';
 import { EditorView, keymap, placeholder as placeholderExtension } from '@codemirror/view';
-import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import { isDarkBackground, resolveSqlEditorColors } from '../../../../settings/constants/SqlEditorThemePresets';
 
 export interface SqlEditorHandle {
+  focus: () => void;
   getValue: () => string;
   setValue: (value: string) => void;
   getSelection: () => { text: string; from: number; to: number };
-  focus: () => void;
   markError: (position: number | null, message?: string) => void;
 }
 
 interface SqlEditorProps {
-  initialValue?: string;
   readOnly?: boolean;
+  onRun?: () => void;
+  onSave?: () => void;
   placeholder?: string;
+  initialValue?: string;
   schema?: SQLNamespace;
   defaultSchema?: string;
-  onRun?: () => void;
   onExplain?: (analyze: boolean) => void;
-  onSave?: () => void;
 }
 
-function buildTheme(dark: boolean) {
+const withAlpha = (hex: string, alpha: number) => `rgba(${hexToRgb(hex).join(', ')}, ${alpha})`;
+
+function buildTheme(colors: SqlEditorColors, fontSize: number) {
+  const dark = isDarkBackground(colors.background);
+  const highlightStyle = HighlightStyle.define([
+    { tag: tags.keyword, color: colors.keyword },
+    { tag: tags.typeName, color: colors.type },
+    { tag: tags.string, color: colors.string },
+    { tag: tags.operator, color: colors.operator },
+    { tag: tags.standard(tags.name), color: colors.function },
+    { tag: [tags.number, tags.bool, tags.null], color: colors.number },
+    { tag: [tags.name, tags.special(tags.string), tags.special(tags.name)], color: colors.identifier },
+    { tag: [tags.comment, tags.lineComment, tags.blockComment], color: colors.comment, fontStyle: 'italic' },
+  ]);
+
   return [
     EditorView.theme(
       {
         '&': {
           height: '100%',
-          fontSize: '13px',
-          backgroundColor: dark ? '#0b1120' : '#ffffff',
-          color: dark ? '#e4e4e7' : '#18181b',
+          fontSize: `${fontSize}px`,
+          color: colors.foreground,
+          backgroundColor: colors.background,
         },
         '.cm-scroller': {
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
           lineHeight: '1.6',
         },
         '.cm-gutters': {
-          backgroundColor: dark ? '#0b1120' : '#f9fafb',
-          color: dark ? '#52525b' : '#9ca3af',
           border: 'none',
-          borderRight: `1px solid ${dark ? 'rgba(255,255,255,0.06)' : '#e5e7eb'}`,
+          color: colors.lineNumbers,
+          backgroundColor: colors.background,
+          borderRight: `1px solid ${withAlpha(colors.foreground, 0.08)}`,
         },
-        '.cm-activeLine': {
-          backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(6,182,212,0.05)',
-        },
-        '.cm-activeLineGutter': {
-          backgroundColor: 'transparent',
-          color: dark ? '#a1a1aa' : '#52525b',
-        },
+        '.cm-activeLine': { backgroundColor: colors.activeLine },
+        '.cm-activeLineGutter': { backgroundColor: 'transparent', color: colors.foreground },
         '&.cm-focused': { outline: 'none' },
-        '.cm-cursor, .cm-dropCursor': { borderLeftColor: dark ? '#22d3ee' : '#0891b2' },
+        '.cm-cursor, .cm-dropCursor': { borderLeftColor: colors.cursor },
         '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection':
-          { backgroundColor: dark ? 'rgba(34,211,238,0.22)' : 'rgba(8,145,178,0.18)' },
-        '.cm-matchingBracket': {
-          backgroundColor: dark ? 'rgba(34,211,238,0.18)' : 'rgba(8,145,178,0.15)',
-        },
+          { backgroundColor: colors.selection },
+        '.cm-matchingBracket': { backgroundColor: withAlpha(colors.cursor, 0.2) },
         '.cm-tooltip': {
-          border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : '#e5e7eb'}`,
-          backgroundColor: dark ? '#18181b' : '#ffffff',
-          color: dark ? '#e4e4e7' : '#18181b',
-          borderRadius: '10px',
           overflow: 'hidden',
+          borderRadius: '10px',
+          color: colors.foreground,
+          backgroundColor: colors.background,
           boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+          border: `1px solid ${withAlpha(colors.foreground, 0.12)}`,
         },
         '.cm-tooltip-autocomplete > ul > li': { padding: '2px 10px' },
         '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
-          backgroundColor: dark ? 'rgba(34,211,238,0.2)' : 'rgba(8,145,178,0.12)',
-          color: dark ? '#ffffff' : '#0e7490',
+          color: colors.foreground,
+          backgroundColor: colors.selection,
         },
-        '.cm-placeholder': { color: dark ? '#52525b' : '#9ca3af' },
+        '.cm-placeholder': { color: colors.lineNumbers },
       },
       { dark }
     ),
-    syntaxHighlighting(dark ? oneDarkHighlightStyle : defaultHighlightStyle),
+    syntaxHighlighting(highlightStyle),
   ];
 }
 
@@ -98,6 +109,13 @@ const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
     ref
   ) => {
     const { theme } = useTheme();
+    const editorTheme = useGeneralConfigsStore((state) => state.sqlEditorTheme);
+    const moduleConfig = useGeneralConfigsStore((state) => state.modules['postgres-manager']);
+    const customTheme = moduleConfig.theme === 'custom' ? moduleConfig.customTheme : null;
+    const editorColors = useMemo(
+      () => resolveSqlEditorColors(editorTheme, theme === 'dark', customTheme),
+      [editorTheme, theme, customTheme]
+    );
     const containerRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<EditorView | null>(null);
     const callbacks = useRef({ onRun, onExplain, onSave });
@@ -152,7 +170,7 @@ const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
             compartments.language.of(
               sql({ dialect: PostgreSQL, upperCaseKeywords: true, schema, defaultSchema })
             ),
-            compartments.theme.of(buildTheme(theme === 'dark')),
+            compartments.theme.of(buildTheme(editorColors, editorTheme.fontSize)),
             compartments.readOnly.of([
               EditorState.readOnly.of(readOnly),
               EditorView.editable.of(!readOnly),
@@ -178,9 +196,9 @@ const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
 
     useEffect(() => {
       viewRef.current?.dispatch({
-        effects: compartments.theme.reconfigure(buildTheme(theme === 'dark')),
+        effects: compartments.theme.reconfigure(buildTheme(editorColors, editorTheme.fontSize)),
       });
-    }, [theme, compartments]);
+    }, [editorColors, editorTheme.fontSize, compartments]);
 
     useEffect(() => {
       viewRef.current?.dispatch({

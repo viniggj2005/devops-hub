@@ -1,6 +1,6 @@
-export type ConfigType = 'user' | 'theme' | 'colors';
-
 export type ThemeBase = 'light' | 'dark';
+
+export type ConfigType = 'user' | 'theme' | 'colors';
 
 export type ModuleThemePreference = 'light' | 'dark' | 'custom';
 
@@ -69,6 +69,30 @@ export type OctohubColorKey =
 
 export type OctohubColors = Record<OctohubColorKey, string>;
 
+export type SqlEditorColorKey =
+  | 'type'
+  | 'cursor'
+  | 'string'
+  | 'number'
+  | 'keyword'
+  | 'comment'
+  | 'operator'
+  | 'function'
+  | 'selection'
+  | 'background'
+  | 'foreground'
+  | 'identifier'
+  | 'activeLine'
+  | 'lineNumbers';
+
+export type SqlEditorColors = Record<SqlEditorColorKey, string>;
+
+export interface SqlEditorThemeConfig {
+  preset: string;
+  fontSize: number;
+  colors: SqlEditorColors;
+}
+
 export interface ThemeProfileModuleTheme {
   theme: ModuleThemePreference;
   customTheme: CustomThemeColors;
@@ -78,6 +102,7 @@ export interface ThemeProfileConfig {
   globalTheme: ThemeBase;
   octohubColors: OctohubColors;
   terminalTheme: TerminalThemeConfig;
+  sqlEditorTheme: SqlEditorThemeConfig;
   modules: Record<ConfigurableModule, ThemeProfileModuleTheme>;
 }
 

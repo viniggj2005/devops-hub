@@ -20,11 +20,13 @@ import {
   Activity,
   FileCode2,
   RefreshCw,
+  Trash2,
   FilePlus2,
   ScrollText,
   DatabaseZap,
   TableProperties,
 } from 'lucide-react';
+import type { DropObjectType, DropTarget } from './DropObjectModal';
 import {
   quoteIdent,
   errorMessage,
@@ -46,10 +48,11 @@ const ddlKinds: Partial<Record<ExplorerNode['kind'], DdlObjectKind>> = {
 };
 
 interface ExplorerActionsOptions {
+  onDropObject: (target: DropTarget) => void;
   onCreateDatabase: (connectionId: number) => void;
 }
 
-export function useExplorerActions({ onCreateDatabase }: ExplorerActionsOptions) {
+export function useExplorerActions({ onDropObject, onCreateDatabase }: ExplorerActionsOptions) {
   const { token } = useAuth();
   const { connections, openQueryTab, openTab } = usePostgresStore();
 
@@ -219,6 +222,20 @@ export function useExplorerActions({ onCreateDatabase }: ExplorerActionsOptions)
       onClick: () => onCreateDatabase(node.connectionId),
     };
     const diagram: ContextMenuItem = { label: 'Diagrama ER', icon: Network, onClick: () => openDiagram(node) };
+    const dropItem = (type: DropObjectType, name: string): ContextMenuItem => ({
+      label: 'Excluir…',
+      icon: Trash2,
+      danger: true,
+      onClick: () =>
+        onDropObject({
+          type,
+          name,
+          schema: node.schema ?? '',
+          database: node.database ?? '',
+          parentNodeId: node.parentId,
+          connectionId: node.connectionId,
+        }),
+    });
 
     switch (node.kind) {
       case 'server':
@@ -244,6 +261,8 @@ export function useExplorerActions({ onCreateDatabase }: ExplorerActionsOptions)
           separator,
           refreshItem,
           copy,
+          separator,
+          dropItem('database', node.database ?? node.label),
         ];
       case 'schema':
         return [
@@ -253,6 +272,8 @@ export function useExplorerActions({ onCreateDatabase }: ExplorerActionsOptions)
           separator,
           refreshItem,
           copy,
+          separator,
+          dropItem('schema', node.schema ?? node.label),
         ];
       case 'group':
         return [refreshItem];
@@ -299,6 +320,8 @@ export function useExplorerActions({ onCreateDatabase }: ExplorerActionsOptions)
           separator,
           refreshItem,
           copy,
+          separator,
+          dropItem(node.kind, node.name ?? node.label),
         ];
       case 'function':
       case 'sequence':

@@ -56,6 +56,16 @@ export interface CreateDatabaseInput {
   connectionLimit: number;
 }
 
+export type DropObjectKind = 'database' | 'schema' | 'relation';
+
+export interface DropObjectInput {
+  name: string;
+  force: boolean;
+  schema: string;
+  cascade: boolean;
+  kind: DropObjectKind;
+}
+
 export interface DiagramColumn {
   name: string;
   notNull: boolean;
@@ -83,9 +93,31 @@ export interface DiagramRelation {
   targetColumns: string[];
 }
 
+export type DiagramLineStyle = 'curved' | 'straight' | 'orthogonal';
+
+export interface DiagramPoint {
+  x: number;
+  y: number;
+}
+
+export type DiagramAnchorSide = 'left' | 'right' | 'top' | 'bottom';
+
+export interface DiagramEdgeAnchor {
+  side: DiagramAnchorSide;
+  offset: number | null;
+}
+
+export interface DiagramEdgeAnchors {
+  source?: DiagramEdgeAnchor;
+  target?: DiagramEdgeAnchor;
+}
+
 export interface SavedDiagramLayout {
   keysOnly: boolean;
-  positions: Record<string, { x: number; y: number }>;
+  lineStyle: DiagramLineStyle;
+  edges: Record<string, DiagramPoint[]>;
+  positions: Record<string, DiagramPoint>;
+  anchors: Record<string, DiagramEdgeAnchors>;
 }
 
 export interface DatabaseDiagram {
@@ -423,6 +455,7 @@ export interface PostgresStoreState {
   openQueryTab: (input: OpenQueryTabInput) => void;
   setDraggingGroup: (groupId: string | null) => void;
   closeConnectionTabs: (connectionId: number) => void;
+  closeMatchingTabs: (matches: (tab: WorkspaceTab) => boolean) => void;
   setTabTxStatus: (id: string, status: TxStatus) => void;
   loadConnections: (token: string) => Promise<PostgresConnection[]>;
   mergeGroupInto: (sourceGroupId: string, targetGroupId: string, dropZone: SplitDropZone) => void;

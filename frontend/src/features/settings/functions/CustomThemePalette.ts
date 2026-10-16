@@ -69,6 +69,17 @@ export const buildCustomThemeVariables = (colors: CustomThemeColors, accentFamil
   return variables;
 };
 
+const channelsToHex = (channels: string) =>
+  `#${channels
+    .split(' ')
+    .map(channel => Number(channel).toString(16).padStart(2, '0'))
+    .join('')}`;
+
+export const customThemeShades = (colors: CustomThemeColors) => {
+  const variables = buildCustomThemeVariables(colors, ['cyan']);
+  return (family: 'zinc' | 'cyan', shade: number) => channelsToHex(variables[`--color-${family}-${shade}`]);
+};
+
 export const applyCustomThemeVariables = (variables: Record<string, string>) => {
   clearCustomThemeVariables();
   const rootStyle = document.documentElement.style;

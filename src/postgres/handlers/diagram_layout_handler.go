@@ -63,6 +63,15 @@ func (handlerStruct *PostgresHandlerStruct) upsertDiagramLayout(record models.Po
 		Create(&record).Error
 }
 
+func (handlerStruct *PostgresHandlerStruct) deleteDiagramLayoutsIn(userID uint, connectionID uint, database string, schema string) error {
+	query := handlerStruct.DataBase.WithContext(handlerStruct.databaseContext()).
+		Where("user_id = ? AND connection_id = ? AND database_name = ?", userID, connectionID, database)
+	if schema != "" {
+		query = query.Where("schema_name = ?", schema)
+	}
+	return query.Delete(&models.PostgresDiagramLayoutModel{}).Error
+}
+
 func (handlerStruct *PostgresHandlerStruct) deleteDiagramLayouts(userID uint, connectionID uint) error {
 	return handlerStruct.DataBase.WithContext(handlerStruct.databaseContext()).
 		Where("user_id = ? AND connection_id = ?", userID, connectionID).

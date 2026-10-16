@@ -1,4 +1,5 @@
 import React from 'react';
+import { useDismiss } from '../../hooks/useDismiss';
 import { SelectOption, SelectProps, SelectVariant } from '../../../../interfaces/SharedInterfaces';
 
 const buttonBaseClass =
@@ -48,27 +49,11 @@ const Select: React.FC<SelectProps> = ({
     [options, value]
   );
 
-  const handleDocumentClick = React.useCallback(
-    (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    },
-    [containerRef]
-  );
+  useDismiss(containerRef, open, () => setOpen(false));
 
   React.useEffect(() => {
     optionRefs.current = [];
   }, [options]);
-
-  React.useEffect(() => {
-    if (open) {
-      document.addEventListener('mousedown', handleDocumentClick);
-      return () => document.removeEventListener('mousedown', handleDocumentClick);
-    }
-
-    return undefined;
-  }, [open, handleDocumentClick]);
 
   React.useEffect(() => {
     if (open) {

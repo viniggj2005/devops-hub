@@ -1,6 +1,6 @@
 import type { GridEditing } from '../hooks/useGridEdits';
-import { ArrowDown, ArrowUp, KeyRound } from 'lucide-react';
 import { startDrag } from '../../../functions/DragFunctions';
+import { ArrowDown, ArrowUp, KeyRound, ListChecks } from 'lucide-react';
 import { copyToClipboard } from '../../../../shared/functions/clipboard';
 import { displayCell, isNumericType, rowsToTsv } from '../../../functions/TreatmentFunctions';
 import type { QueryCell, QueryResultSet } from '../../../../../interfaces/PostgresInterfaces';
@@ -13,20 +13,20 @@ const HEADER_HEIGHT = 44;
 const MAX_CELL_CHARS = 300;
 
 export interface ResultGridHandle {
+  focus: () => void;
   selectRow: (rowRef: number) => void;
 }
 
 interface ResultGridProps {
   editing?: GridEditing;
   resultSet: QueryResultSet;
-  onDeleteRow?: (rowRef: number) => void;
+  onDeleteRows?: (rowRefs: number[]) => void;
+  onEditCell?: (rowRef: number, column: number) => void;
   onOpenCell: (value: QueryCell, columnIndex: number) => void;
-  onSelectionChange?: (rowRef: number | null, column: number | null) => void;
+  onSelectionChange?: (rowRefs: number[], column: number | null) => void;
 }
 
 type GridSelection = { row: number; column: number | null } | null;
-
-type CellEditor = { row: number; column: number; draft: string; initialDraft: string; selectAll: boolean };
 
 function initialWidths(resultSet: QueryResultSet): number[] {
   const sample = resultSet.rows.slice(0, 200);
@@ -43,13 +43,13 @@ function initialWidths(resultSet: QueryResultSet): number[] {
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
-  ({ editing, resultSet, onOpenCell, onDeleteRow, onSelectionChange }, ref) => {
+  ({ editing, resultSet, onOpenCell, onEditCell, onDeleteRows, onSelectionChange }, ref) => {
+    const anchorRowRef = useRef(0);
     const containerRef = useRef<HTMLDivElement>(null);
-    const cellEditorRef = useRef<CellEditor | null>(null);
     const [scrollTop, setScrollTop] = useState(0);
     const [viewportHeight, setViewportHeight] = useState(400);
     const [selection, setSelection] = useState<GridSelection>(null);
-    const [cellEditor, setCellEditor] = useState<CellEditor | null>(null);
+    const [selectedRows, setSelectedRows] = useState<Set<number>>(() => new Set());
     const [widths, setWidths] = useState<number[]>(() => initialWidths(resultSet));
     const [sort, setSort] = useState<{ column: number; direction: 'asc' | 'desc' } | null>(null);
 
@@ -59,8 +59,7 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
       setWidths(initialWidths(resultSet));
       setSort(null);
       setSelection(null);
-      setCellEditor(null);
-      cellEditorRef.current = null;
+      setSelectedRows(new Set());
       setScrollTop(0);
       containerRef.current?.scrollTo({ top: 0, left: 0 });
     }, [resultSet]);
@@ -96,6 +95,15 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
       [sortedRefs, insertedRows, resultSet]
     );
 
+    useEffect(() => {
+      const existing = new Set(rowRefs);
+      setSelectedRows((current) => {
+        const kept = [...current].filter((rowRef) => existing.has(rowRef));
+        return kept.length === current.size ? current : new Set(kept);
+      });
+      setSelection((current) => (current && current.row >= rowRefs.length ? null : current));
+    }, [rowRefs]);
+
     const total = rowRefs.length;
     const columnCount = resultSet.columns.length;
     const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
@@ -108,9 +116,53 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
     const canEdit = (rowRef: number, column: number) =>
       Boolean(editing?.canEditColumn(column) && !editing.isDeleted(rowRef));
 
+    const orderedSelection = (refs: Set<number>) => rowRefs.filter((rowRef) => refs.has(rowRef));
+
     const select = (next: GridSelection) => {
       setSelection(next);
-      onSelectionChange?.(next ? rowRefs[next.row] : null, next?.column ?? null);
+      if (next) anchorRowRef.current = next.row;
+      const rows = next && next.column === null ? new Set([rowRefs[next.row]]) : new Set<number>();
+      setSelectedRows(rows);
+      onSelectionChange?.(next ? [rowRefs[next.row]] : [], next?.column ?? null);
+    };
+
+    const selectRows = (refs: Set<number>, cursorRow: number) => {
+      setSelection({ row: cursorRow, column: null });
+      setSelectedRows(refs);
+      onSelectionChange?.(orderedSelection(refs), null);
+    };
+
+    const rangeRefs = (fromRow: number, toRow: number) =>
+      new Set(rowRefs.slice(Math.min(fromRow, toRow), Math.max(fromRow, toRow) + 1));
+
+    const allSelected = total > 0 && selection?.column === null && selectedRows.size === total;
+
+    const selectAll = () => {
+      if (!total) return;
+      anchorRowRef.current = 0;
+      selectRows(new Set(rowRefs), selection?.row ?? 0);
+      containerRef.current?.focus();
+    };
+
+    const clearRowSelection = () => selectRows(new Set(), selection?.row ?? 0);
+
+    const toggleAll = () => {
+      if (allSelected) clearRowSelection();
+      else selectAll();
+      containerRef.current?.focus();
+    };
+
+    const handleRowHeaderClick = (event: React.MouseEvent, rowIndex: number) => {
+      const rowRef = rowRefs[rowIndex];
+      if (event.shiftKey) {
+        selectRows(rangeRefs(anchorRowRef.current, rowIndex), rowIndex);
+        return;
+      }
+      const next = new Set(selection?.column === null ? selectedRows : []);
+      if (next.has(rowRef)) next.delete(rowRef);
+      else next.add(rowRef);
+      anchorRowRef.current = rowIndex;
+      selectRows(next, rowIndex);
     };
 
     const scrollToRow = (rowIndex: number) => {
@@ -124,6 +176,7 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
     };
 
     useImperativeHandle(ref, () => ({
+      focus: () => containerRef.current?.focus(),
       selectRow: (rowRef) => {
         const rowIndex = rowRefs.indexOf(rowRef);
         const index = rowIndex >= 0 ? rowIndex : rowRefs.length;
@@ -153,41 +206,43 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
       );
     };
 
-    const startEdit = (row: number, column: number, draft?: string) => {
+    const requestEdit = (row: number, column: number) => {
       const rowRef = rowRefs[row];
-      if (!canEdit(rowRef, column)) return false;
-      const currentText = valueAt(rowRef, column) ?? '';
-      const editor = { row, column, draft: draft ?? currentText, initialDraft: currentText, selectAll: draft === undefined };
-      cellEditorRef.current = editor;
-      setCellEditor(editor);
+      if (!onEditCell || !canEdit(rowRef, column)) return false;
+      select({ row, column });
+      onEditCell(rowRef, column);
       return true;
     };
 
-    const finishEdit = (save: boolean, move: [number, number] = [0, 0]) => {
-      const editor = cellEditorRef.current;
-      if (!editor) return;
-      cellEditorRef.current = null;
-      setCellEditor(null);
-      const changed = editor.draft !== editor.initialDraft || !editor.selectAll;
-      if (save && changed) editing?.setCell(rowRefs[editor.row], editor.column, editor.draft);
-      const row = clamp(editor.row + move[0], 0, total - 1);
-      const column = clamp(editor.column + move[1], 0, columnCount - 1);
-      select({ row, column });
-      scrollToRow(row);
-      containerRef.current?.focus();
-    };
+    const currentValues = (rowRef: number) => resultSet.columns.map((_column, column) => valueAt(rowRef, column) ?? null);
 
     const copySelection = () => {
       if (!selection) return;
-      const rowRef = rowRefs[selection.row];
-      if (rowRef === undefined) return;
-      const currentRow = resultSet.columns.map((_column, column) => valueAt(rowRef, column) ?? null);
-      if (selection.column === null) copyToClipboard(rowsToTsv(resultSet, [currentRow], false), 'Linha copiada');
-      else copyToClipboard(currentRow[selection.column] ?? '', 'Valor copiado');
+      if (selection.column !== null) {
+        const rowRef = rowRefs[selection.row];
+        if (rowRef !== undefined) copyToClipboard(currentValues(rowRef)[selection.column] ?? '', 'Valor copiado');
+        return;
+      }
+      const refs = orderedSelection(selectedRows);
+      if (!refs.length) return;
+      const multiple = refs.length > 1;
+      copyToClipboard(
+        rowsToTsv(resultSet, refs.map(currentValues), multiple),
+        multiple ? `${refs.length} linhas copiadas` : 'Linha copiada'
+      );
     };
 
     const handleKeyDown = (event: React.KeyboardEvent) => {
-      if (cellEditor) return;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
+        event.preventDefault();
+        selectAll();
+        return;
+      }
+      if (event.key === 'Escape' && selection?.column === null && selectedRows.size) {
+        event.preventDefault();
+        clearRowSelection();
+        return;
+      }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
         event.preventDefault();
         copySelection();
@@ -198,8 +253,16 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
 
       if (event.key === 'Delete' && editing) {
         event.preventDefault();
-        if (selection.column === null) onDeleteRow?.(rowRef);
+        if (selection.column === null) onDeleteRows?.(orderedSelection(selectedRows));
         else if (canEdit(rowRef, selection.column)) editing.setCell(rowRef, selection.column, null);
+        return;
+      }
+
+      if (event.shiftKey && selection.column === null && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+        event.preventDefault();
+        const row = clamp(selection.row + (event.key === 'ArrowDown' ? 1 : -1), 0, total - 1);
+        selectRows(rangeRefs(anchorRowRef.current, row), row);
+        scrollToRow(row);
         return;
       }
 
@@ -211,12 +274,7 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
         }
         if ((event.key === 'Enter' || event.key === 'F2') && editableCell) {
           event.preventDefault();
-          startEdit(selection.row, selection.column);
-          return;
-        }
-        if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey && editableCell) {
-          event.preventDefault();
-          startEdit(selection.row, selection.column, event.key);
+          requestEdit(selection.row, selection.column);
           return;
         }
       }
@@ -242,20 +300,6 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
           : clamp(selection.column + move[1], 0, columnCount - 1);
       select({ row, column });
       scrollToRow(row);
-    };
-
-    const handleEditorKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-      event.stopPropagation();
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        finishEdit(false);
-      } else if (event.key === 'Enter') {
-        event.preventDefault();
-        finishEdit(true, [1, 0]);
-      } else if (event.key === 'Tab') {
-        event.preventDefault();
-        finishEdit(true, [0, event.shiftKey ? -1 : 1]);
-      }
     };
 
     const spacer = (height: number) => (
@@ -287,7 +331,17 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
           </colgroup>
           <thead>
             <tr style={{ height: HEADER_HEIGHT }}>
-              <th className="sticky top-0 left-0 z-30 bg-gray-100 dark:bg-zinc-800 border-b border-r border-gray-200 dark:border-white/10" />
+              <th
+                onClick={toggleAll}
+                title={allSelected ? "Desmarcar todas as linhas" : "Selecionar todas as linhas (Ctrl+A)"}
+                className={`sticky top-0 left-0 z-30 border-b border-r border-gray-200 dark:border-white/10 cursor-pointer transition-colors ${
+                  allSelected
+                    ? 'bg-cyan-500/20 dark:bg-cyan-500/25'
+                    : 'bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700'
+                }`}
+              >
+                <ListChecks className={`w-3.5 h-3.5 mx-auto ${allSelected ? 'text-cyan-600 dark:text-cyan-400' : 'text-gray-400'}`} />
+              </th>
               {resultSet.columns.map((column, index) => (
                 <th
                   key={index}
@@ -323,13 +377,16 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
             {start > 0 && spacer(start * ROW_HEIGHT)}
             {rowRefs.slice(start, end).map((rowRef, offset) => {
               const rowIndex = start + offset;
-              const rowSelected = selection?.row === rowIndex && selection.column === null;
+              const rowSelected = selection?.column === null && selectedRows.has(rowRef);
               const inserted = editing?.isInserted(rowRef) ?? false;
               return (
                 <tr key={rowRef} style={{ height: ROW_HEIGHT }} className={rowClassName(rowRef, rowSelected)}>
                   <td
-                    onClick={() => select({ row: rowIndex, column: null })}
-                    className="sticky left-0 z-10 bg-gray-50 dark:bg-zinc-900 border-b border-r border-gray-200 dark:border-white/10 px-2 text-right text-[11px] text-gray-400 cursor-pointer tabular-nums"
+                    onClick={(event) => handleRowHeaderClick(event, rowIndex)}
+                    title="Clique para marcar ou desmarcar a linha · Shift+clique seleciona um intervalo · Esc limpa a seleção"
+                    className={`sticky left-0 z-10 border-b border-r border-gray-200 dark:border-white/10 px-2 text-right text-[11px] cursor-pointer tabular-nums select-none ${
+                      rowSelected ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300' : 'bg-gray-50 dark:bg-zinc-900 text-gray-400'
+                    }`}
                   >
                     {inserted ? <span className="font-bold text-emerald-500">+</span> : rowIndex + 1}
                   </td>
@@ -337,7 +394,6 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
                     const cell = valueAt(rowRef, columnIndex);
                     const selected = selection?.row === rowIndex && selection.column === columnIndex;
                     const modified = editing?.isModified(rowRef, columnIndex) ?? false;
-                    const isEditingCell = cellEditor?.row === rowIndex && cellEditor.column === columnIndex;
                     const text = cell === undefined ? 'DEFAULT' : displayCell(cell, column.dataType);
                     const muted = cell === null || cell === undefined;
                     return (
@@ -345,39 +401,15 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
                         key={columnIndex}
                         onClick={() => select({ row: rowIndex, column: columnIndex })}
                         onDoubleClick={() => {
-                          if (!startEdit(rowIndex, columnIndex)) onOpenCell(cell ?? null, columnIndex);
+                          if (!requestEdit(rowIndex, columnIndex)) onOpenCell(cell ?? null, columnIndex);
                         }}
                         className={`border-b border-r border-gray-100 dark:border-white/5 px-2 font-mono whitespace-nowrap overflow-hidden text-ellipsis ${
                           isNumericType(column.dataType) ? 'text-right tabular-nums' : ''
                         } ${muted ? 'italic text-gray-400 dark:text-zinc-600' : 'text-gray-800 dark:text-zinc-200'} ${
                           modified ? 'bg-amber-500/15' : ''
-                        } ${selected ? 'outline outline-2 -outline-offset-2 outline-cyan-500 bg-cyan-500/10' : ''} ${
-                          isEditingCell ? 'p-0' : ''
-                        }`}
+                        } ${selected ? 'outline outline-2 -outline-offset-2 outline-cyan-500 bg-cyan-500/10' : ''}`}
                       >
-                        {isEditingCell ? (
-                          <input
-                            autoFocus
-                            value={cellEditor.draft}
-                            onKeyDown={handleEditorKeyDown}
-                            onBlur={() => finishEdit(true)}
-                            onFocus={(event) => {
-                              const input = event.currentTarget;
-                              if (cellEditor.selectAll) input.select();
-                              else input.setSelectionRange(input.value.length, input.value.length);
-                            }}
-                            onChange={(event) => {
-                              const editor = { ...cellEditor, draft: event.target.value };
-                              cellEditorRef.current = editor;
-                              setCellEditor(editor);
-                            }}
-                            className="w-full h-full px-2 font-mono not-italic text-xs text-gray-900 dark:text-white bg-white dark:bg-zinc-800 outline outline-2 -outline-offset-2 outline-cyan-500"
-                          />
-                        ) : text.length > MAX_CELL_CHARS ? (
-                          `${text.slice(0, MAX_CELL_CHARS)}…`
-                        ) : (
-                          text
-                        )}
+                        {text.length > MAX_CELL_CHARS ? `${text.slice(0, MAX_CELL_CHARS)}…` : text}
                       </td>
                     );
                   })}

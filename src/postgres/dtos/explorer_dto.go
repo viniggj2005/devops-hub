@@ -121,6 +121,14 @@ type CreateDatabaseInputDto struct {
 	ConnectionLimit int    `json:"connectionLimit"`
 }
 
+type DropObjectInputDto struct {
+	Kind    string `json:"kind"`
+	Name    string `json:"name"`
+	Force   bool   `json:"force"`
+	Schema  string `json:"schema"`
+	Cascade bool   `json:"cascade"`
+}
+
 type DiagramColumnDto struct {
 	Name         string `json:"name"`
 	NotNull      bool   `json:"notNull"`

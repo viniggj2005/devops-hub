@@ -6,6 +6,7 @@ import { readStoredGlobalTheme } from '../functions/StoredGlobalTheme';
 import { defaultOctohubColors } from '../constants/OctohubColorDefaults';
 import { appModules, defaultCustomTheme } from '../../shared/constants/AppModules';
 import { defaultTerminalTheme, terminalFontSizeRange } from '../constants/TerminalThemePresets';
+import { defaultSqlEditorTheme, sqlEditorFontSizeRange } from '../constants/SqlEditorThemePresets';
 import {
   saveThemeProfileApi,
   saveGeneralConfigApi,
@@ -24,6 +25,7 @@ import {
   ConfigurableModule,
   ThemeProfileConfig,
   TerminalThemeConfig,
+  SqlEditorThemeConfig,
   ModuleThemePreference,
   SaveGeneralConfigPayload,
 } from '../../../interfaces/GeneralConfigsInterfaces';
@@ -37,18 +39,20 @@ interface GeneralConfigsState {
   modules: ModulesConfig;
   load: () => Promise<void>;
   octohubColors: OctohubColors;
-  terminalTheme: TerminalThemeConfig;
   themeProfiles: ThemeProfile[];
-  deleteThemeProfile: (profile: ThemeProfile) => Promise<void>;
+  terminalTheme: TerminalThemeConfig;
+  sqlEditorTheme: SqlEditorThemeConfig;
   restoreDefaultThemes: () => Promise<ThemeBase | null>;
+  deleteThemeProfile: (profile: ThemeProfile) => Promise<void>;
   applyThemeProfile: (profile: ThemeProfile) => Promise<boolean>;
   buildThemeSnapshot: (globalTheme: ThemeBase) => ThemeProfileConfig;
-  createThemeProfile: (name: string, globalTheme: ThemeBase) => Promise<boolean>;
-  renameThemeProfile: (profile: ThemeProfile, name: string) => Promise<boolean>;
-  overwriteThemeProfile: (profile: ThemeProfile, globalTheme: ThemeBase) => Promise<void>;
   setOctohubColors: (octohubColors: OctohubColors) => Promise<void>;
   setTerminalTheme: (terminalTheme: TerminalThemeConfig) => Promise<void>;
+  setSqlEditorTheme: (sqlEditorTheme: SqlEditorThemeConfig) => Promise<void>;
+  renameThemeProfile: (profile: ThemeProfile, name: string) => Promise<boolean>;
+  createThemeProfile: (name: string, globalTheme: ThemeBase) => Promise<boolean>;
   setShowOnHome: (moduleName: ConfigurableModule, showOnHome: boolean) => Promise<void>;
+  overwriteThemeProfile: (profile: ThemeProfile, globalTheme: ThemeBase) => Promise<void>;
   setModuleTheme: (moduleName: ConfigurableModule, theme: ModuleThemePreference) => Promise<void>;
   setModuleCustomTheme: (moduleName: ConfigurableModule, customTheme: CustomThemeColors) => Promise<void>;
 }
@@ -96,16 +100,28 @@ const parseColorRecord = <Colors extends Record<string, string>>(value: unknown,
   ) as Colors;
 };
 
-const parseTerminalTheme = (values: Record<string, unknown>): TerminalThemeConfig => {
-  const fallback = defaultTerminalTheme();
+const parseFontTheme = <Config extends { preset: string; fontSize: number; colors: Record<string, string> }>(
+  values: Record<string, unknown>,
+  fallback: Config,
+  fontSizeRange: { min: number; max: number },
+): Config => {
   const fontSize = Number(values.fontSize);
-  const isValidFontSize = Number.isInteger(fontSize) && fontSize >= terminalFontSizeRange.min && fontSize <= terminalFontSizeRange.max;
+  const isValidFontSize = Number.isInteger(fontSize) && fontSize >= fontSizeRange.min && fontSize <= fontSizeRange.max;
   return {
+    ...fallback,
     preset: typeof values.preset === 'string' ? values.preset : fallback.preset,
     fontSize: isValidFontSize ? fontSize : fallback.fontSize,
     colors: parseColorRecord(values.colors, fallback.colors),
   };
 };
+
+const parseTerminalTheme = (values: Record<string, unknown>): TerminalThemeConfig =>
+  parseFontTheme(values, defaultTerminalTheme(), terminalFontSizeRange);
+
+const parseSqlEditorTheme = (values: Record<string, unknown>): SqlEditorThemeConfig =>
+  parseFontTheme(values, defaultSqlEditorTheme(), sqlEditorFontSizeRange);
+
+const asValues = (value: unknown) => (value && typeof value === 'object' ? (value as Record<string, unknown>) : {});
 
 const themeConfig = (moduleConfig: ModuleConfig) => ({
   mode: moduleConfig.theme,
@@ -126,11 +142,11 @@ const parseThemeProfileConfig = (rawConfig: string): ThemeProfileConfig => {
       }];
     }),
   ) as ThemeProfileConfig['modules'];
-  const terminalValues = values.terminalTheme && typeof values.terminalTheme === 'object' ? values.terminalTheme as Record<string, unknown> : {};
   return {
     globalTheme: values.globalTheme === 'dark' || values.globalTheme === 'light' ? values.globalTheme : readStoredGlobalTheme(),
     octohubColors: parseColorRecord(values.octohubColors, { ...defaultOctohubColors }),
-    terminalTheme: parseTerminalTheme(terminalValues),
+    terminalTheme: parseTerminalTheme(asValues(values.terminalTheme)),
+    sqlEditorTheme: parseSqlEditorTheme(asValues(values.sqlEditorTheme)),
     modules,
   };
 };
@@ -182,7 +198,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
     }
   };
 
-  const saveModuleColors = async <Key extends 'terminalTheme' | 'octohubColors'>(
+  const saveModuleColors = async <Key extends 'terminalTheme' | 'octohubColors' | 'sqlEditorTheme'>(
     stateKey: Key,
     moduleName: ConfigurableModule,
     nextValue: GeneralConfigsState[Key],
@@ -205,11 +221,12 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
   };
 
   const buildThemeSnapshot = (globalTheme: ThemeBase): ThemeProfileConfig => {
-    const { modules, octohubColors, terminalTheme } = get();
+    const { modules, octohubColors, terminalTheme, sqlEditorTheme } = get();
     return {
       globalTheme,
       octohubColors: { ...octohubColors },
       terminalTheme: { ...terminalTheme, colors: { ...terminalTheme.colors } },
+      sqlEditorTheme: { ...sqlEditorTheme, colors: { ...sqlEditorTheme.colors } },
       modules: Object.fromEntries(
         appModules.map(module => [module.configName, {
           theme: modules[module.configName].theme,
@@ -224,6 +241,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
     themeProfiles: [],
     modules: buildDefaultModules(),
     terminalTheme: defaultTerminalTheme(),
+    sqlEditorTheme: defaultSqlEditorTheme(),
     octohubColors: { ...defaultOctohubColors },
 
     buildThemeSnapshot,
@@ -233,6 +251,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
       themeProfiles: [],
       modules: buildDefaultModules(),
       terminalTheme: defaultTerminalTheme(),
+      sqlEditorTheme: defaultSqlEditorTheme(),
       octohubColors: { ...defaultOctohubColors },
     }),
 
@@ -247,6 +266,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
         const themeProfiles = sortProfiles((savedProfiles ?? []).map(toThemeProfile));
         const modules = buildDefaultModules();
         let terminalTheme = defaultTerminalTheme();
+        let sqlEditorTheme = defaultSqlEditorTheme();
         let octohubColors = { ...defaultOctohubColors };
         for (const savedConfig of savedConfigs) {
           const moduleName = savedConfig.moduleName as ConfigurableModule;
@@ -262,11 +282,14 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
           if (savedConfig.configType === 'colors' && moduleName === 'ferretshell') {
             terminalTheme = parseTerminalTheme(values);
           }
+          if (savedConfig.configType === 'colors' && moduleName === 'postgres-manager') {
+            sqlEditorTheme = parseSqlEditorTheme(values);
+          }
           if (savedConfig.configType === 'colors' && moduleName === 'octohub') {
             octohubColors = parseColorRecord(values, octohubColors);
           }
         }
-        set({ modules, terminalTheme, octohubColors, themeProfiles, loaded: true });
+        set({ modules, terminalTheme, sqlEditorTheme, octohubColors, themeProfiles, loaded: true });
       } catch (error) {
         set({ loaded: true });
         showError('Falha ao carregar as configurações', error);
@@ -285,6 +308,8 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
     setOctohubColors: octohubColors => saveModuleColors('octohubColors', 'octohub', octohubColors),
 
     setTerminalTheme: terminalTheme => saveModuleColors('terminalTheme', 'ferretshell', terminalTheme),
+
+    setSqlEditorTheme: sqlEditorTheme => saveModuleColors('sqlEditorTheme', 'postgres-manager', sqlEditorTheme),
 
     createThemeProfile: async (name, globalTheme) => {
       try {
@@ -338,6 +363,7 @@ function buildDefaultThemeConfig(): ThemeProfileConfig {
   return {
     globalTheme,
     terminalTheme: defaultTerminalTheme(),
+    sqlEditorTheme: defaultSqlEditorTheme(),
     octohubColors: { ...defaultOctohubColors },
     modules: Object.fromEntries(
       appModules.map(module => [module.configName, { theme: globalTheme, customTheme: defaultCustomTheme(module.configName) }]),
@@ -347,7 +373,12 @@ function buildDefaultThemeConfig(): ThemeProfileConfig {
 
 async function applyThemeConfig(config: ThemeProfileConfig, errorMessage: string): Promise<boolean> {
   const { getState, setState } = useGeneralConfigsStore;
-  const { modules: previousModules, octohubColors: previousOctohubColors, terminalTheme: previousTerminalTheme } = getState();
+  const {
+    modules: previousModules,
+    octohubColors: previousOctohubColors,
+    terminalTheme: previousTerminalTheme,
+    sqlEditorTheme: previousSqlEditorTheme,
+  } = getState();
   const modules = Object.fromEntries(
     appModules.map(module => [module.configName, {
       ...previousModules[module.configName],
@@ -363,13 +394,24 @@ async function applyThemeConfig(config: ThemeProfileConfig, errorMessage: string
     })),
     { moduleName: 'octohub', configType: 'colors', config: { ...config.octohubColors } },
     { moduleName: 'ferretshell', configType: 'colors', config: { ...config.terminalTheme } },
+    { moduleName: 'postgres-manager', configType: 'colors', config: { ...config.sqlEditorTheme } },
   ];
-  setState({ modules, octohubColors: config.octohubColors, terminalTheme: config.terminalTheme });
+  setState({
+    modules,
+    octohubColors: config.octohubColors,
+    terminalTheme: config.terminalTheme,
+    sqlEditorTheme: config.sqlEditorTheme,
+  });
   try {
     await saveManyGeneralConfigsApi(getToken() ?? '', payloads);
     return true;
   } catch (error) {
-    setState({ modules: previousModules, octohubColors: previousOctohubColors, terminalTheme: previousTerminalTheme });
+    setState({
+      modules: previousModules,
+      octohubColors: previousOctohubColors,
+      terminalTheme: previousTerminalTheme,
+      sqlEditorTheme: previousSqlEditorTheme,
+    });
     showError(errorMessage, error);
     return false;
   }

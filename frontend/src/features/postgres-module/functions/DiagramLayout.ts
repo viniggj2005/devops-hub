@@ -2,7 +2,11 @@ import type {
   DiagramTable,
   DiagramColumn,
   DatabaseDiagram,
+  DiagramLineStyle,
+  DiagramAnchorSide,
+  DiagramEdgeAnchor,
   SavedDiagramLayout,
+  DiagramEdgeAnchors,
 } from '../../../interfaces/PostgresInterfaces';
 
 export const DIAGRAM_BADGE_GAP = 3;
@@ -215,21 +219,76 @@ const isPoint = (value: unknown): value is Point =>
   Number.isFinite((value as Point).x) &&
   Number.isFinite((value as Point).y);
 
+const lineStyles: DiagramLineStyle[] = ['curved', 'straight', 'orthogonal'];
+
+const anchorSides: DiagramAnchorSide[] = ['left', 'right', 'top', 'bottom'];
+
+const isAnchor = (value: unknown): value is DiagramEdgeAnchor => {
+  const anchor = value as DiagramEdgeAnchor;
+  return (
+    Boolean(value) &&
+    typeof value === 'object' &&
+    anchorSides.includes(anchor.side) &&
+    (anchor.offset === null || (Number.isFinite(anchor.offset) && anchor.offset >= 0 && anchor.offset <= 1))
+  );
+};
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+
 export function parseSavedLayout(raw: string): SavedDiagramLayout | null {
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw);
-    const savedPositions = parsed?.positions && typeof parsed.positions === 'object' ? parsed.positions : {};
-    const positions = Object.fromEntries(Object.entries(savedPositions).filter(([, point]) => isPoint(point))) as Record<string, Point>;
-    return { keysOnly: parsed?.keysOnly === true, positions };
+    const parsed = asRecord(JSON.parse(raw));
+    const positions = Object.fromEntries(
+      Object.entries(asRecord(parsed.positions)).filter(([, point]) => isPoint(point))
+    ) as Record<string, Point>;
+    const edges = Object.fromEntries(
+      Object.entries(asRecord(parsed.edges))
+        .filter(([, points]) => Array.isArray(points) && points.length > 0 && points.every(isPoint))
+    ) as Record<string, Point[]>;
+    const lineStyle = lineStyles.includes(parsed.lineStyle as DiagramLineStyle) ? (parsed.lineStyle as DiagramLineStyle) : 'curved';
+    const anchors = Object.fromEntries(
+      Object.entries(asRecord(parsed.anchors))
+        .map(([key, value]) => {
+          const record = asRecord(value);
+          const edgeAnchors: DiagramEdgeAnchors = {};
+          if (isAnchor(record.source)) edgeAnchors.source = record.source;
+          if (isAnchor(record.target)) edgeAnchors.target = record.target;
+          return [key, edgeAnchors] as const;
+        })
+        .filter(([, edgeAnchors]) => edgeAnchors.source || edgeAnchors.target)
+    );
+    return { keysOnly: parsed.keysOnly === true, lineStyle, edges, positions, anchors };
   } catch {
     return null;
   }
 }
 
+const roundPoint = (point: Point): Point => ({ x: Math.round(point.x), y: Math.round(point.y) });
+
 export function roundPositions(positions: Record<string, Point>): Record<string, Point> {
+  return Object.fromEntries(Object.entries(positions).map(([key, point]) => [key, roundPoint(point)]));
+}
+
+export function roundAnchors(
+  anchors: Record<string, DiagramEdgeAnchors>,
+  keepKeys: Set<string>
+): Record<string, DiagramEdgeAnchors> {
+  const roundAnchor = (anchor?: DiagramEdgeAnchor) =>
+    anchor && { side: anchor.side, offset: anchor.offset === null ? null : Math.round(anchor.offset * 1000) / 1000 };
   return Object.fromEntries(
-    Object.entries(positions).map(([key, point]) => [key, { x: Math.round(point.x), y: Math.round(point.y) }])
+    Object.entries(anchors)
+      .filter(([key, edgeAnchors]) => keepKeys.has(key) && (edgeAnchors.source || edgeAnchors.target))
+      .map(([key, edgeAnchors]) => [key, { source: roundAnchor(edgeAnchors.source), target: roundAnchor(edgeAnchors.target) }])
+  );
+}
+
+export function roundEdges(edges: Record<string, Point[]>, keepKeys: Set<string>): Record<string, Point[]> {
+  return Object.fromEntries(
+    Object.entries(edges)
+      .filter(([key, points]) => keepKeys.has(key) && points.length > 0)
+      .map(([key, points]) => [key, points.map(roundPoint)])
   );
 }
 
@@ -264,40 +323,4 @@ export function columnAnchorY(node: DiagramNode, columnName: string | undefined)
   const index = columnName ? node.columns.findIndex((column) => column.name === columnName) : -1;
   if (index < 0) return DIAGRAM_HEADER_HEIGHT / 2;
   return DIAGRAM_HEADER_HEIGHT + index * DIAGRAM_ROW_HEIGHT + DIAGRAM_ROW_HEIGHT / 2 + 3;
-}
-
-export function relationPath(
-  source: DiagramNode,
-  sourcePosition: Point,
-  sourceColumn: string | undefined,
-  target: DiagramNode,
-  targetPosition: Point,
-  targetColumn: string | undefined
-) {
-  const sourceY = sourcePosition.y + columnAnchorY(source, sourceColumn);
-  const targetY = targetPosition.y + columnAnchorY(target, targetColumn);
-
-  if (source === target) {
-    const edgeX = sourcePosition.x + source.width;
-    const loop = 36;
-    return {
-      end: { x: edgeX, y: targetY },
-      path: `M ${edgeX} ${sourceY} C ${edgeX + loop} ${sourceY}, ${edgeX + loop} ${targetY}, ${edgeX} ${targetY}`,
-      endsOnLeft: false,
-    };
-  }
-
-  const sourceCenter = sourcePosition.x + source.width / 2;
-  const targetCenter = targetPosition.x + target.width / 2;
-  const goesLeft = sourceCenter >= targetCenter;
-  const startX = goesLeft ? sourcePosition.x : sourcePosition.x + source.width;
-  const endX = goesLeft ? targetPosition.x + target.width : targetPosition.x;
-  const bend = Math.max(48, Math.abs(endX - startX) / 2);
-  const direction = goesLeft ? -1 : 1;
-
-  return {
-    end: { x: endX, y: targetY },
-    endsOnLeft: !goesLeft,
-    path: `M ${startX} ${sourceY} C ${startX + bend * direction} ${sourceY}, ${endX - bend * direction} ${targetY}, ${endX} ${targetY}`,
-  };
 }

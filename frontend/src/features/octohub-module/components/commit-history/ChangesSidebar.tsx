@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import SelectionCheckbox from './SelectionCheckbox';
 import { fileKindStyles } from '../../functions/gitStatus';
+import { useDismiss } from '../../../shared/hooks/useDismiss';
 import { SelectionState } from '../../functions/lineSelection';
 import { octohubStructs } from '../../../../../wailsjs/go/models';
 import { GetStashModifications } from '../../../../../wailsjs/go/octohubHandler/GitBranchHandler';
@@ -82,10 +83,13 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
     toggleAllSelection,
     toggleFileSelection,
 }) => {
+    const discardMenuRef = useRef<HTMLDivElement>(null);
     const [discardMenuOpen, setDiscardMenuOpen] = useState(false);
     const [loadingStashFiles, setLoadingStashFiles] = useState(false);
     const [expandedStash, setExpandedStash] = useState<string | null>(null);
     const [stashFiles, setStashFiles] = useState<octohubStructs.FileModification[]>([]);
+
+    useDismiss(discardMenuRef, discardMenuOpen, () => setDiscardMenuOpen(false));
 
     const handleExpandStash = async (stashID: string) => {
         if (expandedStash === stashID) {
@@ -131,7 +135,7 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                         </h2>
                     </div>
                     <div className="flex items-center gap-1">
-                        <div className="relative">
+                        <div ref={discardMenuRef} className="relative">
                             <button
                                 disabled={files.length === 0}
                                 onClick={() => setDiscardMenuOpen((open) => !open)}
@@ -144,7 +148,6 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                             </button>
                             {discardMenuOpen && (
                                 <>
-                                    <div className="fixed inset-0 z-30" onClick={() => setDiscardMenuOpen(false)} />
                                     <div className="absolute right-0 top-full mt-1 w-64 z-40 p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-xl shadow-2xl">
                                         <button
                                             disabled={selectedCount === 0}

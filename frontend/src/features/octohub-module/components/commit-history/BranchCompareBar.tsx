@@ -1,8 +1,9 @@
 import iziToast from 'izitoast';
 import MergeBranchModal from '../MergeBranchModal';
 import { escapeHtml } from '../../functions/gitStatus';
-import React, { useEffect, useMemo, useState } from 'react';
+import { useDismiss } from '../../../shared/hooks/useDismiss';
 import { octohubStructs } from '../../../../../wailsjs/go/models';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Cloud, GitBranch, GitCompare, GitMerge, Search, X } from 'lucide-react';
 import { ListBranches } from '../../../../../wailsjs/go/octohubHandler/GitBranchHandler';
 import { CompareBranch } from '../../../../../wailsjs/go/octohubHandler/GitCommitsHandler';
@@ -27,12 +28,15 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
     onDirectionChange,
 }) => {
     const [filter, setFilter] = useState('');
-    const [pickerOpen, setPickerOpen] = useState(false);
+    const pickerRef = useRef<HTMLDivElement>(null);
     const [mergeOpen, setMergeOpen] = useState(false);
+    const [pickerOpen, setPickerOpen] = useState(false);
     const [branches, setBranches] = useState<octohubStructs.BranchInfo[]>([]);
     const [comparison, setComparison] = useState<octohubStructs.BranchComparison | null>(null);
 
     const currentLabel = currentBranch === 'HEAD' ? 'HEAD destacado' : currentBranch || '';
+
+    useDismiss(pickerRef, pickerOpen, () => setPickerOpen(false));
 
     useEffect(() => {
         if (!pickerOpen) return;
@@ -79,7 +83,7 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
 
     if (!branch) {
         return (
-            <div className="relative">
+            <div ref={pickerRef} className="relative">
                 <button
                     onClick={() => setPickerOpen((open) => !open)}
                     className="w-full flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 rounded-lg text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
@@ -89,7 +93,6 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
                 </button>
                 {pickerOpen && (
                     <>
-                        <div className="fixed inset-0 z-30" onClick={() => setPickerOpen(false)} />
                         <div className="absolute left-0 right-0 mt-1 z-40 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-lg shadow-xl overflow-hidden">
                             <div className="p-2 border-b border-zinc-200 dark:border-white/5 relative">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />

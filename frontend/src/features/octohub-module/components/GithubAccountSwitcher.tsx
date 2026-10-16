@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { useDismiss } from '../../shared/hooks/useDismiss';
 import { octohubDtos } from '../../../../wailsjs/go/models';
 import { Check, ChevronDown, Plus, Trash2, User } from 'lucide-react';
 
@@ -23,14 +24,7 @@ const GithubAccountSwitcher: React.FC<GithubAccountSwitcherProps> = ({ accounts,
     const containerRef = useRef<HTMLDivElement>(null);
     const activeAccount = accounts.find((account) => account.isActive);
 
-    useEffect(() => {
-        if (!open) return;
-        const onClickOutside = (event: MouseEvent) => {
-            if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
-        };
-        document.addEventListener('mousedown', onClickOutside);
-        return () => document.removeEventListener('mousedown', onClickOutside);
-    }, [open]);
+    useDismiss(containerRef, open, () => setOpen(false));
 
     return (
         <div ref={containerRef} className="relative">

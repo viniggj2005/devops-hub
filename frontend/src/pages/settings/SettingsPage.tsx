@@ -2,17 +2,19 @@ import React, { useState } from 'react';
 import ModuleThemeSettings from '../../features/settings/components/ModuleThemeSettings';
 import HomeModulesSettings from '../../features/settings/components/HomeModulesSettings';
 import ThemeProfilesSettings from '../../features/settings/components/ThemeProfilesSettings';
-import { GitBranch, LayoutGrid, LucideIcon, Palette, SquareTerminal, SwatchBook } from 'lucide-react';
 import TerminalThemeSettings from '../../features/settings/components/TerminalThemeSettings';
 import OctohubColorsSettings from '../../features/settings/components/OctohubColorsSettings';
+import SqlEditorThemeSettings from '../../features/settings/components/SqlEditorThemeSettings';
+import { Database, GitBranch, LayoutGrid, LucideIcon, Palette, SquareTerminal, SwatchBook } from 'lucide-react';
 
-type SettingsSection = 'home-modules' | 'module-theme' | 'theme-profiles' | 'terminal-theme' | 'octohub-colors';
+type SettingsSection = 'home-modules' | 'module-theme' | 'theme-profiles' | 'terminal-theme' | 'octohub-colors' | 'sql-editor-theme';
 
 const sections: { id: SettingsSection; label: string; icon: LucideIcon }[] = [
   { id: 'module-theme', label: 'Tema por módulo', icon: Palette },
-  { id: 'theme-profiles', label: 'Perfis de tema', icon: SwatchBook },
   { id: 'home-modules', label: 'Módulos na Home', icon: LayoutGrid },
+  { id: 'theme-profiles', label: 'Perfis de tema', icon: SwatchBook },
   { id: 'octohub-colors', label: 'Cores do OctoHub', icon: GitBranch },
+  { id: 'sql-editor-theme', label: 'Editor SQL (Postgres)', icon: Database },
   { id: 'terminal-theme', label: 'Terminal (FerretShell)', icon: SquareTerminal },
 ];
 
@@ -22,6 +24,7 @@ const sectionContent: Record<SettingsSection, React.ReactNode> = {
   'theme-profiles': <ThemeProfilesSettings />,
   'terminal-theme': <TerminalThemeSettings />,
   'octohub-colors': <OctohubColorsSettings />,
+  'sql-editor-theme': <SqlEditorThemeSettings />,
 };
 
 const SettingsPage: React.FC = () => {

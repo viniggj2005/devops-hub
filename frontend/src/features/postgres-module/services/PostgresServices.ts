@@ -6,6 +6,7 @@ import type {
   SqlFile,
   TableChanges,
   TableSaveResult,
+  DropObjectInput,
   DatabaseOptions,
   DatabaseDiagram,
   SavedDiagramLayout,
@@ -142,6 +143,14 @@ export const PostgresServices = {
 
   async createDatabase(token: string, connectionId: number, input: CreateDatabaseInput): Promise<void> {
     return ClientApi.CreateDatabase(token, connectionId, input);
+  },
+
+  async previewDropObject(token: string, connectionId: number, database: string, input: DropObjectInput): Promise<string> {
+    return ClientApi.PreviewDropObject(token, connectionId, database, input);
+  },
+
+  async dropObject(token: string, connectionId: number, database: string, input: DropObjectInput): Promise<void> {
+    return ClientApi.DropObject(token, connectionId, database, input);
   },
 
   async getDatabaseDiagram(

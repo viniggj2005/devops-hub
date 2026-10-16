@@ -56,6 +56,12 @@ export function AppFrame() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               onDoubleClick={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.button === 1 && event.preventDefault()}
+              onAuxClick={(event) => {
+                if (event.button !== 1 || tab.type === 'home') return;
+                event.preventDefault();
+                closeTab(tab.id);
+              }}
               className={`
                 appframe-no-drag
                 group relative flex items-center min-w-[120px] max-w-[200px] h-full px-3 gap-2

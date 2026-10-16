@@ -133,7 +133,7 @@ func (handlerStruct *PostgresClientHandlerStruct) openPool(params postgresFuncti
 	config.MinConns = 0
 	config.MaxConnIdleTime = 5 * time.Minute
 	config.HealthCheckPeriod = time.Minute
-	// Sem prepared statements nomeados: mantém compatibilidade com PgBouncer em modo transaction.
+
 	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeCacheDescribe
 
 	connectContext, cancel := context.WithTimeout(handlerStruct.baseContext(), 20*time.Second)
@@ -154,6 +154,22 @@ func (handlerStruct *PostgresClientHandlerStruct) openPool(params postgresFuncti
 }
 
 func (handlerStruct *PostgresClientHandlerStruct) closeResources(match func(key string, session *querySession) bool) {
+	pools := handlerStruct.detachResources(match)
+
+	go func() {
+		for _, pool := range pools {
+			pool.Close()
+		}
+	}()
+}
+
+func (handlerStruct *PostgresClientHandlerStruct) closeResourcesAndWait(match func(key string, session *querySession) bool) {
+	for _, pool := range handlerStruct.detachResources(match) {
+		pool.Close()
+	}
+}
+
+func (handlerStruct *PostgresClientHandlerStruct) detachResources(match func(key string, session *querySession) bool) []*pgxpool.Pool {
 	var pools []*pgxpool.Pool
 	var sessions []*querySession
 
@@ -175,12 +191,7 @@ func (handlerStruct *PostgresClientHandlerStruct) closeResources(match func(key 
 	for _, session := range sessions {
 		session.close()
 	}
-	// Close aguarda as conexões em uso serem devolvidas; não precisa travar a chamada do frontend.
-	go func() {
-		for _, pool := range pools {
-			pool.Close()
-		}
-	}()
+	return pools
 }
 
 func (handlerStruct *PostgresClientHandlerStruct) closeConnectionResources(userID uint, connectionID uint) {
@@ -225,7 +236,7 @@ func (handlerStruct *PostgresClientHandlerStruct) TestConnection(token string, c
 
 	connection := &models.PostgresConnectionModel{}
 	if connectionId != 0 {
-		// Na edição a senha vem vazia quando não foi alterada: reaproveita a salva.
+
 		connection, err = handlerStruct.postgres.findConnection(userID, connectionId)
 		if err != nil {
 			return nil, err

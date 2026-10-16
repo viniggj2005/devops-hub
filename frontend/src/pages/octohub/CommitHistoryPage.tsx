@@ -70,12 +70,18 @@ const CommitHistoryPage: React.FC = () => {
     const diffRequest = useRef(0);
     const commitsRequest = useRef(0);
     const activeTabRef = useRef(activeTab);
+    const diffSourceRef = useRef(diffSource);
     const selectionsRef = useRef(selections);
+    const fileDiffHashRef = useRef(fileDiffHash);
+    const changedFilesRef = useRef(changedFiles);
     const selectedFileRef = useRef(selectedFile);
     const hasRepository = Boolean(repository?.exists);
     const compareRef = useRef({ branch: compareBranch, direction: compareDirection });
     activeTabRef.current = activeTab;
+    diffSourceRef.current = diffSource;
     selectionsRef.current = selections;
+    fileDiffHashRef.current = fileDiffHash;
+    changedFilesRef.current = changedFiles;
     selectedFileRef.current = selectedFile;
     compareRef.current = { branch: compareBranch, direction: compareDirection };
 
@@ -180,7 +186,7 @@ const CommitHistoryPage: React.FC = () => {
     const fetchGitStatus = async () => {
         try {
             const files = (await GetGitStatus()) || [];
-            const changed = statusKey(files) !== statusKey(changedFiles);
+            const changed = statusKey(files) !== statusKey(changedFilesRef.current);
             setChangedFiles(previous => statusKey(previous) === statusKey(files) ? previous : files);
             setSelections(previous => Object.fromEntries(
                 files.filter(file => previous[file.FileName]).map(file => [file.FileName, previous[file.FileName]])
@@ -197,11 +203,13 @@ const CommitHistoryPage: React.FC = () => {
     };
 
     const refreshSelectedDiff = async () => {
-        if (activeTab !== 'changes' || diffSource !== 'working') return;
-        const file = changedFiles.find(item => item.FileName === selectedFile);
+        if (activeTabRef.current !== 'changes' || diffSourceRef.current !== 'working') return;
+        const openFileName = selectedFileRef.current;
+        const file = changedFilesRef.current.find(item => item.FileName === openFileName);
         if (!file) return;
         const result = await GetUncommitedFileChanges(file).catch(() => null);
-        if (result && result.Hash !== fileDiffHash) fetchUncommitedDiff(file);
+        if (!result || selectedFileRef.current !== openFileName || diffSourceRef.current !== 'working') return;
+        if (result.Hash !== fileDiffHashRef.current) fetchUncommitedDiff(file);
     };
 
     const refreshWorkingTree = async () => {
@@ -557,7 +565,7 @@ const CommitHistoryPage: React.FC = () => {
     }, [repository?.id, hasRepository, revision, compareBranch, compareDirection]);
 
     useEffect(() => {
-        if (activeTabRef.current !== 'changes') return;
+        if (activeTabRef.current !== 'changes' || diffSourceRef.current === 'stash') return;
         const target = changedFiles.find(file => file.FileName === selectedFileRef.current) ?? changedFiles[0];
         if (target) {
             fetchUncommitedDiff(target);

@@ -1,9 +1,10 @@
 import iziToast from 'izitoast';
 import MergeBranchModal from './MergeBranchModal';
 import StashChangesModal from './StashChangesModal';
+import { useDismiss } from '../../shared/hooks/useDismiss';
 import { octohubStructs } from '../../../../wailsjs/go/models';
 import { useListNavigation } from '../hooks/useListNavigation';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import { getConflictingFiles, isConflictError } from '../functions/gitStatus';
 import { GetGitStatus } from '../../../../wailsjs/go/octohubHandler/GitCommitsHandler';
@@ -18,11 +19,13 @@ const localName = (branch: octohubStructs.BranchInfo) =>
 const BranchSelector: React.FC = () => {
     const { repository, currentBranch, revision, notifyChange, openConflicts, handleGitError, openPublishModal } = useOctohubRepository();
     const [filter, setFilter] = useState('');
-    const [originUrl, setOriginUrl] = useState('');
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const panelRef = useRef<HTMLDivElement>(null);
+    const [originUrl, setOriginUrl] = useState('');
     const [fetching, setFetching] = useState(false);
     const [mergeOpen, setMergeOpen] = useState(false);
+    const triggerRef = useRef<HTMLButtonElement>(null);
     const [showStashModal, setShowStashModal] = useState(false);
     const [branches, setBranches] = useState<octohubStructs.BranchInfo[]>([]);
     const [pendingBranch, setPendingBranch] = useState<octohubStructs.BranchInfo | null>(null);
@@ -63,6 +66,8 @@ const BranchSelector: React.FC = () => {
         setIsOpen(false);
         setFilter('');
     };
+
+    useDismiss([triggerRef, panelRef], isOpen, close);
 
     const showConflictsOrError = async (error: unknown, prefix: string) => {
         if (isConflictError(error)) {
@@ -171,6 +176,7 @@ const BranchSelector: React.FC = () => {
         <div className="relative">
             <div className="flex items-center gap-2">
                 <button
+                    ref={triggerRef}
                     onClick={() => (isOpen ? close() : setIsOpen(true))}
                     disabled={!hasRepository || loading}
                     className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/10 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -228,8 +234,7 @@ const BranchSelector: React.FC = () => {
 
             {isOpen && (
                 <>
-                    <div className="fixed inset-0 z-30" onClick={close} />
-                    <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-xl shadow-2xl z-40 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div ref={panelRef} className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-xl shadow-2xl z-40 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="p-3 border-b border-zinc-100 dark:border-white/5">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />

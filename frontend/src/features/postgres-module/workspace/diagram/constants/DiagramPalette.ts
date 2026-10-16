@@ -1,4 +1,6 @@
 import type { DiagramBadge } from '../../../functions/DiagramLayout';
+import { customThemeShades } from '../../../../settings/functions/CustomThemePalette';
+import type { CustomThemeColors } from '../../../../../interfaces/GeneralConfigsInterfaces';
 
 export interface BadgeColors {
   fill: string;
@@ -60,3 +62,40 @@ export const diagramPalettes: Record<'light' | 'dark', DiagramPalette> = {
     },
   },
 };
+
+export function buildDiagramPalette(dark: boolean, customTheme: CustomThemeColors | null): DiagramPalette {
+  const base = diagramPalettes[dark ? 'dark' : 'light'];
+  if (!customTheme) return base;
+  const shade = customThemeShades(customTheme);
+
+  if (dark) {
+    return {
+      ...base,
+      dot: shade('zinc', 700),
+      node: shade('zinc', 900),
+      text: shade('zinc', 200),
+      edge: shade('cyan', 400),
+      muted: shade('zinc', 400),
+      canvas: shade('zinc', 950),
+      border: shade('zinc', 700),
+      accent: shade('cyan', 300),
+      header: shade('cyan', 700),
+      partitionedHeader: shade('cyan', 800),
+      badges: { ...base.badges, NN: { fill: shade('zinc', 800), text: shade('zinc', 400) } },
+    };
+  }
+  return {
+    ...base,
+    dot: shade('zinc', 300),
+    node: shade('zinc', 50),
+    text: shade('zinc', 900),
+    edge: shade('cyan', 600),
+    muted: shade('zinc', 500),
+    canvas: shade('zinc', 50),
+    border: shade('zinc', 300),
+    accent: shade('cyan', 500),
+    header: shade('cyan', 600),
+    partitionedHeader: shade('cyan', 700),
+    badges: { ...base.badges, NN: { fill: shade('zinc', 100), text: shade('zinc', 600) } },
+  };
+}

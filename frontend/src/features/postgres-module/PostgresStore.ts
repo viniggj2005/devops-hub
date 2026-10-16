@@ -113,10 +113,12 @@ export const usePostgresStore = create<PostgresStoreState>((set, get) => ({
       return group ? removePanes(state, new Set(group.paneIds)) : {};
     }),
 
-  closeConnectionTabs: (connectionId) =>
+  closeConnectionTabs: (connectionId) => get().closeMatchingTabs((tab) => tab.connectionId === connectionId),
+
+  closeMatchingTabs: (matches) =>
     set((state) => {
-      const removedIds = state.tabs.filter((tab) => tab.connectionId === connectionId).map((tab) => tab.id);
-      return removePanes(state, new Set(removedIds));
+      const removedIds = state.tabs.filter(matches).map((tab) => tab.id);
+      return removedIds.length ? removePanes(state, new Set(removedIds)) : {};
     }),
 
   setActiveTab: (id) =>
