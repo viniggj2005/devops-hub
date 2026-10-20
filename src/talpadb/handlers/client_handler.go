@@ -3,7 +3,6 @@ package talpadbHandlers
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -11,7 +10,9 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"docker-manager-go/src/desktop"
 	"docker-manager-go/src/models"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 	talpadbFunctions "docker-manager-go/src/talpadb/functions"
@@ -32,25 +33,40 @@ type TalpadbClientHandlerStruct struct {
 	talpadb      *TalpadbHandlerStruct
 	typeMap      *pgtype.Map
 	mutex        sync.Mutex
-	pools        map[string]*poolEntry
+	pools        map[poolIdentity]*poolEntry
 	sessions     map[string]*querySession
-	genericPools map[string]*genericEntry
+	genericPools map[poolIdentity]*genericEntry
+}
+
+type poolIdentity struct {
+	userID       uint
+	database     string
+	windowName   string
+	connectionID uint
 }
 
 func NewTalpadbClientHandler(talpadbHandler *TalpadbHandlerStruct) *TalpadbClientHandlerStruct {
 	handler := &TalpadbClientHandlerStruct{
 		talpadb:      talpadbHandler,
 		typeMap:      pgtype.NewMap(),
-		pools:        make(map[string]*poolEntry),
+		pools:        make(map[poolIdentity]*poolEntry),
 		sessions:     make(map[string]*querySession),
-		genericPools: make(map[string]*genericEntry),
+		genericPools: make(map[poolIdentity]*genericEntry),
 	}
 	talpadbHandler.client = handler
 	return handler
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) Startup(context context.Context) {
+func (handlerStruct *TalpadbClientHandlerStruct) ServiceStartup(context context.Context, _ application.ServiceOptions) error {
 	handlerStruct.context = context
+	desktop.OnWindowClosed(handlerStruct.releaseWindowResources)
+	return nil
+}
+
+func (handlerStruct *TalpadbClientHandlerStruct) releaseWindowResources(windowName string) {
+	handlerStruct.closeResources(func(identity poolIdentity) bool {
+		return identity.windowName == windowName
+	})
 }
 
 func (handlerStruct *TalpadbClientHandlerStruct) baseContext() context.Context {
@@ -62,10 +78,6 @@ func (handlerStruct *TalpadbClientHandlerStruct) baseContext() context.Context {
 
 func (handlerStruct *TalpadbClientHandlerStruct) queryContext() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(handlerStruct.baseContext(), time.Minute)
-}
-
-func poolKey(userID uint, connectionID uint, database string) string {
-	return fmt.Sprintf("%d/%d/%s", userID, connectionID, database)
 }
 
 func connectionParams(connection *models.TalpadbConnectionModel, database string) talpadbFunctions.ConnectionParams {
@@ -83,15 +95,15 @@ func connectionParams(connection *models.TalpadbConnectionModel, database string
 	}
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) getPool(token string, connectionID uint, database string) (*poolEntry, error) {
+func (handlerStruct *TalpadbClientHandlerStruct) getPool(callContext context.Context, token string, connectionID uint, database string) (*poolEntry, error) {
 	userID, err := handlerStruct.talpadb.authenticate(token)
 	if err != nil {
 		return nil, err
 	}
-	return handlerStruct.getPoolForUser(userID, connectionID, database)
+	return handlerStruct.getPoolForUser(desktop.CallingWindowName(callContext), userID, connectionID, database)
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) getPoolForUser(userID uint, connectionID uint, database string) (*poolEntry, error) {
+func (handlerStruct *TalpadbClientHandlerStruct) getPoolForUser(windowName string, userID uint, connectionID uint, database string) (*poolEntry, error) {
 	connection, err := handlerStruct.talpadb.findConnection(userID, connectionID)
 	if err != nil {
 		return nil, err
@@ -102,7 +114,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) getPoolForUser(userID uint, con
 	if database == "" {
 		database = connection.Database
 	}
-	key := poolKey(userID, connectionID, database)
+	key := poolIdentity{userID: userID, database: database, windowName: windowName, connectionID: connectionID}
 
 	handlerStruct.mutex.Lock()
 	entry, exists := handlerStruct.pools[key]
@@ -159,7 +171,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) openPool(params talpadbFunction
 	return &poolEntry{pool: pool, versionNumber: versionNumber, typeNames: make(map[uint32]string)}, nil
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) closeResources(match func(key string, session *querySession) bool) {
+func (handlerStruct *TalpadbClientHandlerStruct) closeResources(match func(identity poolIdentity) bool) {
 	closers := handlerStruct.detachResources(match)
 
 	go func() {
@@ -169,32 +181,32 @@ func (handlerStruct *TalpadbClientHandlerStruct) closeResources(match func(key s
 	}()
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) closeResourcesAndWait(match func(key string, session *querySession) bool) {
+func (handlerStruct *TalpadbClientHandlerStruct) closeResourcesAndWait(match func(identity poolIdentity) bool) {
 	for _, closePool := range handlerStruct.detachResources(match) {
 		closePool()
 	}
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) detachResources(match func(key string, session *querySession) bool) []func() {
+func (handlerStruct *TalpadbClientHandlerStruct) detachResources(match func(identity poolIdentity) bool) []func() {
 	var closers []func()
 	var sessions []*querySession
 
 	handlerStruct.mutex.Lock()
 	for key, entry := range handlerStruct.pools {
-		if match(key, nil) {
+		if match(key) {
 			closers = append(closers, entry.pool.Close)
 			delete(handlerStruct.pools, key)
 		}
 	}
 	for key, entry := range handlerStruct.genericPools {
-		if match(key, nil) {
+		if match(key) {
 			database := entry.db
 			closers = append(closers, func() { _ = database.Close() })
 			delete(handlerStruct.genericPools, key)
 		}
 	}
 	for id, session := range handlerStruct.sessions {
-		if match("", session) {
+		if match(session.identity()) {
 			sessions = append(sessions, session)
 			delete(handlerStruct.sessions, id)
 		}
@@ -208,35 +220,31 @@ func (handlerStruct *TalpadbClientHandlerStruct) detachResources(match func(key 
 }
 
 func (handlerStruct *TalpadbClientHandlerStruct) closeConnectionResources(userID uint, connectionID uint) {
-	prefix := fmt.Sprintf("%d/%d/", userID, connectionID)
-	handlerStruct.closeResources(func(key string, session *querySession) bool {
-		if session != nil {
-			return session.userID == userID && session.connectionID == connectionID
-		}
-		return strings.HasPrefix(key, prefix)
+	handlerStruct.closeResources(func(identity poolIdentity) bool {
+		return identity.userID == userID && identity.connectionID == connectionID
 	})
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) DisconnectServer(token string, connectionId uint) error {
+func (handlerStruct *TalpadbClientHandlerStruct) DisconnectServer(callContext context.Context, token string, connectionId uint) error {
 	userID, err := handlerStruct.talpadb.authenticate(token)
 	if err != nil {
 		return err
 	}
-	handlerStruct.closeConnectionResources(userID, connectionId)
+	windowName := desktop.CallingWindowName(callContext)
+	handlerStruct.closeResources(func(identity poolIdentity) bool {
+		return identity.windowName == windowName && identity.userID == userID && identity.connectionID == connectionId
+	})
 	return nil
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) DisconnectAll(token string) error {
+func (handlerStruct *TalpadbClientHandlerStruct) DisconnectAll(callContext context.Context, token string) error {
 	userID, err := handlerStruct.talpadb.authenticate(token)
 	if err != nil {
 		return err
 	}
-	prefix := fmt.Sprintf("%d/", userID)
-	handlerStruct.closeResources(func(key string, session *querySession) bool {
-		if session != nil {
-			return session.userID == userID
-		}
-		return strings.HasPrefix(key, prefix)
+	windowName := desktop.CallingWindowName(callContext)
+	handlerStruct.closeResources(func(identity poolIdentity) bool {
+		return identity.windowName == windowName && identity.userID == userID
 	})
 	return nil
 }

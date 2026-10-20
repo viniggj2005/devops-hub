@@ -2,12 +2,13 @@ import iziToast from 'izitoast';
 import React, { useState } from 'react';
 import { DockerImageIcon } from '../../../../../features/shared/Icons';
 import { BookSearch, Copy, Tag, Trash2 } from 'lucide-react';
+import { errorMessage } from '../../../../shared/functions/ErrorMessage';
 import { copyToClipboard } from '../../../../../features/shared/functions/clipboard';
 import InspectModal from '../../../../../features/shared/components/modals/InspectModal';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
 import { ImageProps } from '../../../../../interfaces/ContainerImagesInterfaces';
 import { useConfirmToast } from '../../../../../features/shared/components/toasts/ConfirmToast';
-import { RemoveImage, InspectImage } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
+import { RemoveImage, InspectImage } from '../../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 import { FmtAgo, FormatBytes, EpochToDateStr, ParseNameAndTag } from '../../../../../features/shared/functions/TreatmentFunction';
 
 const ImageCard: React.FC<ImageProps> = ({ image, onDeleted }) => {
@@ -60,7 +61,7 @@ const ImageCard: React.FC<ImageProps> = ({ image, onDeleted }) => {
       });
       setIsInspectOpen(true);
     } catch (error: any) {
-      iziToast.error({ title: 'Erro', message: String(error), position: 'bottomRight' });
+      iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
     }
   };
 

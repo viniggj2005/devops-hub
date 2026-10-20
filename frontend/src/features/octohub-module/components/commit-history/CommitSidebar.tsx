@@ -1,7 +1,7 @@
 import React from 'react';
 import TagBadge from './TagBadge';
 import { Search, RotateCcw, GitCommit } from 'lucide-react';
-import { octohubStructs } from '../../../../../wailsjs/go/models';
+import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 
 interface CommitSidebarProps {
     searchTerm: string;

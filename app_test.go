@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/base64"
 	"io"
 	"net/http"
@@ -20,7 +19,6 @@ func (function roundTripFunc) RoundTrip(request *http.Request) (*http.Response, 
 
 func TestAppLoadAndSaveImage(test *testing.T) {
 	appInstance := NewApp()
-	appInstance.startup(context.Background())
 
 	temporaryDir := test.TempDir()
 	originalDirectory, err := os.Getwd()

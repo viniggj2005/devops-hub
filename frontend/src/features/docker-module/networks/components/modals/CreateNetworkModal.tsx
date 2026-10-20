@@ -1,7 +1,7 @@
 import iziToast from 'izitoast';
 import { Network } from 'lucide-react';
 import React, { useState } from 'react';
-import { network } from '../../../../../../wailsjs/go/models';
+import * as network from '../../../../../../bindings/github.com/docker/docker/api/types/network/models';
 import { NetworkService } from '../../services/NetworkService';
 import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { ModalProps } from '../../../../../interfaces/TerminalInterfaces';

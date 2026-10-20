@@ -2,10 +2,10 @@ import iziToast from 'izitoast';
 import Convert from 'ansi-to-html';
 import { FolderOpen, AlertTriangle } from 'lucide-react';
 import React, { useEffect, useState, useRef } from 'react';
-import { GetFilePath } from '../../../../../../wailsjs/go/main/App';
+import { GetFilePath } from '../../../../../../bindings/docker-manager-go/app';
 import TextField from '../../../../../features/login/components/fields/TextField';
-import { EventsOn, EventsOff } from '../../../../../../wailsjs/runtime';
-import { ImageCreate } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
+import { Events } from '@wailsio/runtime';
+import { ImageCreate } from '../../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 
 const converter = new Convert({
     newline: true,
@@ -70,7 +70,7 @@ const ImageBuildForm: React.FC<ImageBuildFormProps> = ({ clientId, onClose, onSu
         setBuilding(true);
         setLogs([]);
 
-        EventsOn('image:build', (data: any) => {
+        const offBuildLogs = Events.On('image:build', ({ data }) => {
             if (data && data.log) {
                 setLogs((previousLogs) => [...previousLogs, data.log]);
             }
@@ -91,7 +91,7 @@ const ImageBuildForm: React.FC<ImageBuildFormProps> = ({ clientId, onClose, onSu
             iziToast.error({ title: 'Erro', message: error.message || 'Falha ao construir imagem.', position: 'bottomRight' });
             onClose?.();
         } finally {
-            EventsOff('image:build');
+            offBuildLogs();
             setBuilding(false);
         }
     };

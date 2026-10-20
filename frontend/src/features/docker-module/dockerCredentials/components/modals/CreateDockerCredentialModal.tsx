@@ -2,6 +2,7 @@ import iziToast from "izitoast";
 import { Shield } from "lucide-react";
 import React, { useState } from "react";
 import { FileUploader } from "react-drag-drop-files";
+import { errorMessage } from '../../../../shared/functions/ErrorMessage';
 import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { ModalButton } from '../../../../../features/shared/components/modals/ModalButton';
 import { DockerCredentialService } from "../../services/DockerCredentialService";
@@ -61,7 +62,7 @@ export const CreateDockerCredentialModal: React.FC<CreateDockerCredentialModalPr
     } catch (err) {
       iziToast.error({
         title: "Erro",
-        message: String(err),
+        message: errorMessage(err),
         position: "bottomRight",
       });
     } finally {

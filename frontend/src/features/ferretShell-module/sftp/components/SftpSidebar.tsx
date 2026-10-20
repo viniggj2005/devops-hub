@@ -1,5 +1,5 @@
 import React from 'react';
-import { ferretshellDtos } from '../../../../../wailsjs/go/models';
+import * as ferretshellDtos from '../../../../../bindings/docker-manager-go/src/ferretshell/dtos/models';
 
 interface SftpSidebarProps {
     connecting: boolean;

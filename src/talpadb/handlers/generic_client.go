@@ -3,6 +3,7 @@ package talpadbHandlers
 import (
 	"context"
 	"database/sql"
+	"docker-manager-go/src/desktop"
 	"fmt"
 	"time"
 
@@ -51,15 +52,15 @@ func openGenericDatabase(ctx context.Context, engine talpadbEngines.Engine, para
 	return database, nil
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) genericTarget(token string, connectionID uint) (*genericEntry, error) {
+func (handlerStruct *TalpadbClientHandlerStruct) genericTarget(callContext context.Context, token string, connectionID uint) (*genericEntry, error) {
 	userID, err := handlerStruct.talpadb.authenticate(token)
 	if err != nil {
 		return nil, err
 	}
-	return handlerStruct.genericTargetForUser(userID, connectionID)
+	return handlerStruct.genericTargetForUser(desktop.CallingWindowName(callContext), userID, connectionID)
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) genericTargetForUser(userID uint, connectionID uint) (*genericEntry, error) {
+func (handlerStruct *TalpadbClientHandlerStruct) genericTargetForUser(windowName string, userID uint, connectionID uint) (*genericEntry, error) {
 	connection, err := handlerStruct.talpadb.findConnection(userID, connectionID)
 	if err != nil {
 		return nil, err
@@ -73,7 +74,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) genericTargetForUser(userID uin
 		return nil, err
 	}
 
-	key := poolKey(userID, connectionID, "")
+	key := poolIdentity{userID: userID, windowName: windowName, connectionID: connectionID}
 	handlerStruct.mutex.Lock()
 	entry, exists := handlerStruct.genericPools[key]
 	handlerStruct.mutex.Unlock()
@@ -104,9 +105,9 @@ func (handlerStruct *TalpadbClientHandlerStruct) genericTargetForUser(userID uin
 	return entry, nil
 }
 
-func runGeneric[Result any](handlerStruct *TalpadbClientHandlerStruct, token string, connectionID uint, run func(context.Context, *genericEntry) (Result, error)) (Result, bool, error) {
+func runGeneric[Result any](callContext context.Context, handlerStruct *TalpadbClientHandlerStruct, token string, connectionID uint, run func(context.Context, *genericEntry) (Result, error)) (Result, bool, error) {
 	var empty Result
-	entry, err := handlerStruct.genericTarget(token, connectionID)
+	entry, err := handlerStruct.genericTarget(callContext, token, connectionID)
 	if err != nil {
 		return empty, true, err
 	}

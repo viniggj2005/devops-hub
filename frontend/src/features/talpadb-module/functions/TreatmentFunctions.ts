@@ -10,6 +10,8 @@ import type {
   TalpadbConnection,
 } from '../../../interfaces/TalpadbInterfaces';
 
+export { errorMessage } from '../../shared/functions/ErrorMessage';
+
 // Palavras-chave que o PostgreSQL não aceita como identificador sem aspas (mesma regra do quote_ident).
 const RESERVED_WORDS = new Set(
   (
@@ -93,13 +95,6 @@ export function connectionLabel(connection?: TalpadbConnection | null): string {
   if (connection.alias) return connection.alias;
   if (connection.engine === 'sqlite') return fileName(connection.host);
   return `${connection.username}@${connection.host}`;
-}
-
-export function errorMessage(error: unknown): string {
-  if (!error) return 'Erro desconhecido';
-  if (typeof error === 'string') return error;
-  if (error instanceof Error) return error.message;
-  return String(error);
 }
 
 export function isNumericType(dataType: string): boolean {

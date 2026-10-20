@@ -1,7 +1,8 @@
 import iziToast from 'izitoast';
-import { EventsOn } from '../../wailsjs/runtime/runtime';
-import { loginApi, logoutApi } from '../features/login/services/Auth';
+import { Events } from '@wailsio/runtime';
+import { isDetachedWindow } from '../features/appFrame/WindowContext';
 import { AuthContextType, LoginResponse, UserDTO } from '../interfaces/AuthInterfaces';
+import { claimWindowSessionApi, loginApi, logoutApi } from '../features/login/services/Auth';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -9,20 +10,34 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 let tokenRef: { current: string | null } = { current: null };
 export const getToken = () => tokenRef.current;
 
+let windowSessionClaim: Promise<LoginResponse | null> | null = null;
+const claimWindowSessionOnce = () => (windowSessionClaim ??= claimWindowSessionApi());
+
 export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(isDetachedWindow);
   const [user, setUser] = useState<UserDTO | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const applySession = (session: LoginResponse) => {
+    setToken(session.token);
+    setUser(session.user);
+    tokenRef.current = session.token;
+  };
+
+  const clearSession = () => {
+    setUser(null);
+    setToken(null);
+    tokenRef.current = null;
+  };
 
   const login = async (email: string, password: string) => {
     setLoading(true);
     setError(null);
     try {
-      const loginResponse: LoginResponse = await loginApi(email, password);
-      setToken(loginResponse.token);
-      setUser(loginResponse.user);
-      tokenRef.current = loginResponse.token;
+      const loginResponse = await loginApi(email, password);
+      if (!loginResponse) throw new Error('Falha no login');
+      applySession(loginResponse);
     } catch (error: any) {
       const msg = error?.message || error || 'Falha no login';
       setError(msg);
@@ -31,9 +46,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         message: msg,
         position: 'bottomRight',
       });
-      setToken(null);
-      setUser(null);
-      tokenRef.current = null;
+      clearSession();
       throw error;
     } finally {
       setLoading(false);
@@ -44,27 +57,24 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     try {
       if (token) await logoutApi(token);
     } finally {
-      setToken(null);
-      setUser(null);
-      tokenRef.current = null;
+      clearSession();
       setError(null);
     }
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).runtime) {
-      const off = EventsOn('auth:changed', (isLogged: boolean) => {
-        if (!isLogged) {
-          setUser(null);
-          setToken(null);
-          tokenRef.current = null;
-        }
-      });
-      return () => {
-        if (typeof off === 'function') off();
-      };
-    }
+    if (!isDetachedWindow) return;
+    claimWindowSessionOnce()
+      .then(session => {
+        if (session) applySession(session);
+      })
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => Events.On('auth:changed', ({ data: isLogged }) => {
+    if (!isLogged) clearSession();
+  }), []);
 
   const value = useMemo(
     () => ({

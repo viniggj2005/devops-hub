@@ -1,7 +1,7 @@
 import { useTerminalStore } from '../TerminalStore';
 import { useCallback, useEffect, useState } from 'react';
 import { LocalShell } from '../../../../interfaces/TerminalInterfaces';
-import { ListShells } from '../../../../../wailsjs/go/ferretshellHandlers/LocalTerminalHandlerStruct';
+import { ListShells } from '../../../../../bindings/docker-manager-go/src/ferretshell/handlers/localterminalhandlerstruct';
 
 let cachedShellsRequest: Promise<LocalShell[]> | null = null;
 

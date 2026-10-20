@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	authFunctions "docker-manager-go/src/auth/functions"
+	"docker-manager-go/src/desktop"
 	dockerDtos "docker-manager-go/src/dockermanager/dtos"
 	"docker-manager-go/src/models"
 	"docker-manager-go/src/types"
@@ -21,6 +22,7 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/glebarez/sqlite"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 )
 
@@ -45,10 +47,10 @@ func setupDockerTestHandler(test *testing.T) (*DockerHandlerStruct, *DockerSdkHa
 	}
 
 	dockerHandler := NewDockerHandler(dataBase, sessionManager)
-	dockerHandler.Startup(context.Background())
+	dockerHandler.ServiceStartup(context.Background(), application.ServiceOptions{})
 
 	sdkHandler := NewDockerSdkHandler(dockerHandler)
-	sdkHandler.Startup(context.Background())
+	sdkHandler.ServiceStartup(context.Background(), application.ServiceOptions{})
 
 	return dockerHandler, sdkHandler, token
 }
@@ -60,11 +62,12 @@ func TestDockerHandlerCRUD(test *testing.T) {
 		test.Fatalf("expected error with invalid token")
 	}
 
+	dockerHandler.dockerSdk = nil
 	if err := dockerHandler.ConnectDockerCredential(token, 1); err == nil {
 		test.Fatalf("expected error when sdkHandler is not registered")
 	}
 
-	dockerHandler.RegisterDockerSdkHandler(sdkHandler)
+	dockerHandler.registerDockerSdkHandler(sdkHandler)
 
 	if err := dockerHandler.ConnectDockerCredential(token, 999); err == nil {
 		test.Fatalf("expected error when credential does not exist")
@@ -138,7 +141,7 @@ func TestDockerHandlerCRUD(test *testing.T) {
 		test.Fatalf("unexpected connection by ID: %+v, err=%v", found, err)
 	}
 
-	withoutToken, err := dockerHandler.GetDockerConnectionByIdWithoutToken(connectionID)
+	withoutToken, err := dockerHandler.getDockerConnectionByIdWithoutToken(connectionID)
 	if err != nil || withoutToken.Alias != "Prod Docker" {
 		test.Fatalf("unexpected connection without token: %+v, err=%v", withoutToken, err)
 	}
@@ -160,7 +163,7 @@ func TestDockerSdkHandlerAndMockEngine(test *testing.T) {
 		test.Fatalf("unexpected APIError string: %s", apiErr.Error())
 	}
 
-	if _, _, err := sdkHandler.CatchClient(404); err == nil {
+	if _, _, err := sdkHandler.catchClient(404); err == nil {
 		test.Fatalf("expected error catching missing client")
 	}
 
@@ -348,30 +351,30 @@ func TestDockerSdkHandlerAndMockEngine(test *testing.T) {
 		test.Fatalf("unexpected DeleteVolume error: %v", err)
 	}
 
-	if err := sdkHandler.TerminalWrite("missing", "ls\n"); err == nil {
+	if err := sdkHandler.TerminalWrite(context.Background(), "missing", "ls\n"); err == nil {
 		test.Fatalf("expected error writing to missing terminal")
 	}
-	if err := sdkHandler.TerminalResize(1, "missing", 80, 24); err == nil {
+	if err := sdkHandler.TerminalResize(context.Background(), 1, "missing", 80, 24); err == nil {
 		test.Fatalf("expected error resizing missing terminal")
 	}
 
 	clientConn, serverConn := net.Pipe()
 	defer serverConn.Close()
-	sdkHandler.terminalConns["cont-123"] = clientConn
-	sdkHandler.terminalExecIds["cont-123"] = "exec-1"
+	sdkHandler.terminalConns[desktop.ScopedKey("", "cont-123")] = clientConn
+	sdkHandler.terminalExecIds[desktop.ScopedKey("", "cont-123")] = "exec-1"
 
 	go func() {
 		buffer := make([]byte, 16)
 		_, _ = serverConn.Read(buffer)
 	}()
 
-	if err := sdkHandler.TerminalWrite("cont-123", "pwd\n"); err != nil {
+	if err := sdkHandler.TerminalWrite(context.Background(), "cont-123", "pwd\n"); err != nil {
 		test.Fatalf("unexpected TerminalWrite error: %v", err)
 	}
-	if err := sdkHandler.TerminalResize(1, "cont-123", 100, 30); err != nil {
+	if err := sdkHandler.TerminalResize(context.Background(), 1, "cont-123", 100, 30); err != nil {
 		test.Fatalf("unexpected TerminalResize error: %v", err)
 	}
-	if err := sdkHandler.TerminalClose("cont-123"); err != nil {
+	if err := sdkHandler.TerminalClose(context.Background(), "cont-123"); err != nil {
 		test.Fatalf("unexpected TerminalClose error: %v", err)
 	}
 }
@@ -416,3 +419,104 @@ func TestDockerStatsCalculations(test *testing.T) {
 	}
 }
 
+
+func TestDockerClientIsReusedAcrossWindows(test *testing.T) {
+	dockerHandler, sdkHandler, token := setupDockerTestHandler(test)
+	encodedValue := base64.StdEncoding.EncodeToString([]byte("pem-data"))
+	if err := dockerHandler.CreateDockerConnection(token, dockerDtos.CreateDockerConnectionDto{
+		UserID: 1,
+		Alias:  "Shared Docker",
+		Url:    "tcp://127.0.0.1:2376",
+		Key:    encodedValue,
+		Ca:     encodedValue,
+		Cert:   encodedValue,
+	}); err != nil {
+		test.Fatalf("unexpected error creating docker connection: %v", err)
+	}
+
+	existingClient, err := client.NewClientWithOpts(client.WithHost("tcp://127.0.0.1:2376"))
+	if err != nil {
+		test.Fatalf("unexpected error creating docker client: %v", err)
+	}
+	defer existingClient.Close()
+
+	clientContext, cancelClient := context.WithCancel(context.Background())
+	defer cancelClient()
+	streamContext, cancelStream := context.WithCancel(clientContext)
+	defer cancelStream()
+
+	sdkHandler.clients["1"] = existingClient
+	sdkHandler.contexts["1"] = clientContext
+	sdkHandler.clientCancels["1"] = cancelClient
+	sdkHandler.statsCancel["1"] = map[string]context.CancelFunc{desktop.ScopedKey("main", "cont-1"): cancelStream}
+
+	if err := sdkHandler.AddDockerClient(1); err != nil {
+		test.Fatalf("unexpected error reconnecting docker client: %v", err)
+	}
+	if sdkHandler.clients["1"] != existingClient {
+		test.Fatalf("expected a second window to reuse the existing docker client")
+	}
+	if streamContext.Err() != nil {
+		test.Fatalf("expected the first window stats stream to keep running")
+	}
+}
+
+func TestDockerTerminalsAndStatsAreIsolatedPerWindow(test *testing.T) {
+	_, sdkHandler, _ := setupDockerTestHandler(test)
+	mainWindow := desktop.WithWindowName(context.Background(), "main")
+	moduleWindow := desktop.WithWindowName(context.Background(), "module-1")
+	mainKey := desktop.ScopedKey("main", "cont-1")
+	moduleKey := desktop.ScopedKey("module-1", "cont-1")
+
+	mainConnection, mainPeer := net.Pipe()
+	moduleConnection, modulePeer := net.Pipe()
+	defer mainPeer.Close()
+	defer modulePeer.Close()
+	sdkHandler.terminalConns[mainKey] = mainConnection
+	sdkHandler.terminalConns[moduleKey] = moduleConnection
+	sdkHandler.terminalExecIds[mainKey] = "exec-main"
+	sdkHandler.terminalExecIds[moduleKey] = "exec-module"
+
+	received := make(chan string, 1)
+	go func() {
+		buffer := make([]byte, 16)
+		bytesRead, _ := modulePeer.Read(buffer)
+		received <- string(buffer[:bytesRead])
+	}()
+	if err := sdkHandler.TerminalWrite(moduleWindow, "cont-1", "ls\n"); err != nil {
+		test.Fatalf("unexpected error writing to module window terminal: %v", err)
+	}
+	if output := <-received; output != "ls\n" {
+		test.Fatalf("expected input to reach the module window terminal, got %q", output)
+	}
+
+	mainStatsCancelled, moduleStatsCancelled := false, false
+	sdkHandler.statsCancel["1"] = map[string]context.CancelFunc{
+		mainKey:   func() { mainStatsCancelled = true },
+		moduleKey: func() { moduleStatsCancelled = true },
+	}
+
+	sdkHandler.releaseWindowResources("module-1")
+
+	if !moduleStatsCancelled || mainStatsCancelled {
+		test.Fatalf("expected only the closed window stats to stop, main=%v module=%v", mainStatsCancelled, moduleStatsCancelled)
+	}
+	if _, exists := sdkHandler.terminalConns[moduleKey]; exists {
+		test.Fatalf("expected the closed window terminal to be released")
+	}
+	if _, err := moduleConnection.Write([]byte("x")); err == nil {
+		test.Fatalf("expected the closed window terminal connection to be closed")
+	}
+
+	go func() {
+		buffer := make([]byte, 16)
+		bytesRead, _ := mainPeer.Read(buffer)
+		received <- string(buffer[:bytesRead])
+	}()
+	if err := sdkHandler.TerminalWrite(mainWindow, "cont-1", "pwd\n"); err != nil {
+		test.Fatalf("expected the main window terminal to keep working: %v", err)
+	}
+	if output := <-received; output != "pwd\n" {
+		test.Fatalf("expected input to reach the main window terminal, got %q", output)
+	}
+}

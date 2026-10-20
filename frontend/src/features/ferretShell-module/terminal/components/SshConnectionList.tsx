@@ -5,6 +5,7 @@ import { useAuth } from '../../../../contexts/AuthContext';
 import EditSshConnectionModal from './EditSshConnectionModal';
 import React, { useCallback, useEffect, useState } from 'react';
 import { SshDto } from '../../../../interfaces/TerminalInterfaces';
+import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import { TerminalServices, toSshConn } from '../services/TerminalServices';
 import { useConfirmToast } from '../../../shared/components/toasts/ConfirmToast';
 
@@ -80,7 +81,7 @@ const SshConnectionList: React.FC<{ token: string }> = ({ token }) => {
     if (loading) {
       iziToast.info({ title: 'Carregando', message: 'Carregando conexões...', position: 'bottomRight' });
     } else if (error) {
-      iziToast.error({ title: 'Erro', message: error, position: 'bottomRight' });
+      iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
     } else if (!connectionsList.length) {
       iziToast.info({ title: 'Vazio', message: 'Nenhuma conexão listada.', position: 'bottomRight' });
     }

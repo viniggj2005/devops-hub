@@ -57,14 +57,14 @@ JOIN pg_catalog.pg_namespace tn ON tn.oid = tc.relnamespace
 WHERE con.contype = 'f' AND con.conrelid = ANY ($1::oid[]) AND con.confrelid = ANY ($1::oid[]) %s
 ORDER BY sn.nspname, sc.relname, con.conname`
 
-func (handlerStruct *TalpadbClientHandlerStruct) GetDatabaseDiagram(token string, connectionId uint, database string, schema string) (*talpadbDtos.DatabaseDiagramDto, error) {
-	if diagram, handled, err := runGeneric(handlerStruct, token, connectionId, func(ctx context.Context, entry *genericEntry) (*talpadbDtos.DatabaseDiagramDto, error) {
+func (handlerStruct *TalpadbClientHandlerStruct) GetDatabaseDiagram(callContext context.Context, token string, connectionId uint, database string, schema string) (*talpadbDtos.DatabaseDiagramDto, error) {
+	if diagram, handled, err := runGeneric(callContext, handlerStruct, token, connectionId, func(ctx context.Context, entry *genericEntry) (*talpadbDtos.DatabaseDiagramDto, error) {
 		return entry.engine.Diagram(ctx, entry.db, schema)
 	}); handled {
 		return diagram, err
 	}
 
-	entry, err := handlerStruct.getPool(token, connectionId, database)
+	entry, err := handlerStruct.getPool(callContext, token, connectionId, database)
 	if err != nil {
 		return nil, err
 	}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { dockerDtos } from '../../../../../../wailsjs/go/models';
+import * as dockerDtos from '../../../../../../bindings/docker-manager-go/src/dockermanager/dtos/models';
 
 interface RecentActivityProps {
     info: dockerDtos.SystemInfoDto | null;

@@ -1,9 +1,10 @@
 import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
 import React, { useEffect, useState } from 'react';
-import { dockerDtos } from '../../../wailsjs/go/models';
+import { errorMessage } from '../../features/shared/functions/ErrorMessage';
+import * as dockerDtos from '../../../bindings/docker-manager-go/src/dockermanager/dtos/models';
 import { useDockerClient } from '../../contexts/DockerClientContext';
-import { GetInfo } from '../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
+import { GetInfo } from '../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 import StatsGrid from '../../features/docker-module/dashboard/components/cards/StatsGrid';
 import RecentActivity from '../../features/docker-module/dashboard/components/cards/RecentActivity';
 import ManagementCards from '../../features/docker-module/dashboard/components/cards/ManagementCards';
@@ -24,7 +25,7 @@ const HomePage: React.FC = () => {
         console.error("Failed to fetch info:", error);
         iziToast.error({
           title: 'Erro',
-          message: `Falha ao buscar informações do sistema: ${error}`,
+          message: `Falha ao buscar informações do sistema: ${errorMessage(error)}`,
           position: 'topRight'
         });
       }

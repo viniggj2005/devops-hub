@@ -3,8 +3,8 @@ import SelectionCheckbox from './SelectionCheckbox';
 import { fileKindStyles } from '../../functions/gitStatus';
 import { useDismiss } from '../../../shared/hooks/useDismiss';
 import { SelectionState } from '../../functions/lineSelection';
-import { octohubStructs } from '../../../../../wailsjs/go/models';
-import { GetStashModifications } from '../../../../../wailsjs/go/octohubHandler/GitBranchHandler';
+import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
+import { GetStashModifications } from '../../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 import { Search, RotateCcw, FileCode, Package, ArchiveRestore, Trash2, ChevronDown, ChevronUp, Undo2 } from 'lucide-react';
 
 interface ChangesSidebarProps {

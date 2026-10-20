@@ -2,6 +2,7 @@ package dockerHandlers
 
 import (
 	"context"
+	"docker-manager-go/src/desktop"
 	dockerDtos "docker-manager-go/src/dockermanager/dtos"
 	"encoding/json"
 	"fmt"
@@ -10,13 +11,14 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-func (handlerStruct *DockerSdkHandlerStruct) StartContainerStats(clientId int, containerID string) error {
+func (handlerStruct *DockerSdkHandlerStruct) StartContainerStats(ctx context.Context, clientId int, containerID string) error {
 	dockerId := fmt.Sprintf("%d", clientId)
+	windowName := desktop.CallingWindowName(ctx)
+	streamKey := desktop.ScopedKey(windowName, containerID)
 
-	cli, baseCtx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, baseContext, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return err
 	}
@@ -27,26 +29,24 @@ func (handlerStruct *DockerSdkHandlerStruct) StartContainerStats(clientId int, c
 		handlerStruct.statsCancel[dockerId] = make(map[string]context.CancelFunc)
 	}
 
-	if oldCancel, ok := handlerStruct.statsCancel[dockerId][containerID]; ok {
+	if oldCancel, ok := handlerStruct.statsCancel[dockerId][streamKey]; ok {
 		oldCancel()
 	}
 
-	ctx, cancel := context.WithCancel(baseCtx)
-	handlerStruct.statsCancel[dockerId][containerID] = cancel
-
-	appCtx := handlerStruct.contexts[dockerId]
+	streamContext, cancel := context.WithCancel(baseContext)
+	handlerStruct.statsCancel[dockerId][streamKey] = cancel
 
 	handlerStruct.mutex.Unlock()
 
-	go handlerStruct.StreamStats(cli, ctx, containerID, appCtx)
+	go handlerStruct.streamStats(streamContext, dockerClient, containerID, windowName)
 
 	return nil
 }
 
-func (handlerStruct *DockerSdkHandlerStruct) StreamStats(dockerClient *client.Client, ctx context.Context, containerID string, appContext context.Context) {
+func (handlerStruct *DockerSdkHandlerStruct) streamStats(ctx context.Context, dockerClient *client.Client, containerID string, windowName string) {
 	stats, err := dockerClient.ContainerStats(ctx, containerID, true)
 	if err != nil {
-		runtime.EventsEmit(appContext, "container:stats:error", map[string]string{
+		desktop.EmitToWindow(windowName, "container:stats:error", map[string]string{
 			"containerId": containerID,
 			"error":       err.Error(),
 		})
@@ -66,7 +66,7 @@ func (handlerStruct *DockerSdkHandlerStruct) StreamStats(dockerClient *client.Cl
 				if err == io.EOF || ctx.Err() != nil {
 					return
 				}
-				runtime.EventsEmit(appContext, "container:stats:error", map[string]string{
+				desktop.EmitToWindow(windowName, "container:stats:error", map[string]string{
 					"containerId": containerID,
 					"error":       err.Error(),
 				})
@@ -86,13 +86,15 @@ func (handlerStruct *DockerSdkHandlerStruct) StreamStats(dockerClient *client.Cl
 				Time:             time.Now().UnixMilli(),
 			}
 
-			runtime.EventsEmit(appContext, "container:stats", payload)
+			desktop.EmitToWindow(windowName, "container:stats", payload)
 		}
 	}
 }
 
-func (handlerStruct *DockerSdkHandlerStruct) StopContainerStats(clientId int, containerID string) error {
+func (handlerStruct *DockerSdkHandlerStruct) StopContainerStats(ctx context.Context, clientId int, containerID string) error {
 	dockerId := fmt.Sprintf("%d", clientId)
+	windowName := desktop.CallingWindowName(ctx)
+	streamKey := desktop.ScopedKey(windowName, containerID)
 
 	handlerStruct.mutex.Lock()
 	defer handlerStruct.mutex.Unlock()
@@ -102,11 +104,11 @@ func (handlerStruct *DockerSdkHandlerStruct) StopContainerStats(clientId int, co
 		return nil
 	}
 
-	if cancel, ok := cancelsMap[containerID]; ok {
+	if cancel, ok := cancelsMap[streamKey]; ok {
 		cancel()
-		delete(cancelsMap, containerID)
+		delete(cancelsMap, streamKey)
 
-		runtime.EventsEmit(handlerStruct.contexts[dockerId], "container:stats:stopped", map[string]string{
+		desktop.EmitToWindow(windowName, "container:stats:stopped", map[string]string{
 			"containerId": containerID,
 		})
 	}

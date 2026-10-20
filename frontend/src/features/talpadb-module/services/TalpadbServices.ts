@@ -1,6 +1,6 @@
-import { talpadbDtos } from '../../../../wailsjs/go/models';
-import * as ConnectionsApi from '../../../../wailsjs/go/talpadbHandlers/TalpadbHandlerStruct';
-import * as ClientApi from '../../../../wailsjs/go/talpadbHandlers/TalpadbClientHandlerStruct';
+import * as talpadbDtos from '../../../../bindings/docker-manager-go/src/talpadb/dtos/models';
+import * as ConnectionsApi from '../../../../bindings/docker-manager-go/src/talpadb/handlers/talpadbhandlerstruct';
+import * as ClientApi from '../../../../bindings/docker-manager-go/src/talpadb/handlers/talpadbclienthandlerstruct';
 import type {
   ColumnInfo,
   SqlFile,

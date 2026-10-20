@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { octohubDtos } from '../../../wailsjs/go/models';
+import * as octohubDtos from '../../../bindings/docker-manager-go/src/octohub/dtos/models';
 import { ArrowRight, CloudDownload, FolderGit2, FolderPlus, KeyRound, TriangleAlert, User, X } from 'lucide-react';
 import { useOctohubRepository } from '../../features/octohub-module/contexts/OctohubRepositoryContext';
 

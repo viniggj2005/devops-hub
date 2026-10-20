@@ -12,10 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 
 	auth "docker-manager-go/src/auth/functions"
+	"docker-manager-go/src/desktop"
 	"docker-manager-go/src/models"
 	"docker-manager-go/src/processes"
 	octohubDtos "docker-manager-go/src/octohub/dtos"
@@ -50,12 +51,13 @@ func NewRepositoryHandler(dataBase *gorm.DB, sessionManager *auth.ManagerStruct,
 		DataBase:   dataBase,
 		gitHandler: gitHandler,
 		Session:    sessionManager,
-		envPath:    gitHandler.RepoPath(),
+		envPath:    gitHandler.initialPath,
 	}
 }
 
-func (handlerStruct *RepositoryHandler) Startup(ctx context.Context) {
+func (handlerStruct *RepositoryHandler) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	handlerStruct.ctx = ctx
+	return nil
 }
 
 func (handlerStruct *RepositoryHandler) userID(token string) (uint, error) {
@@ -83,7 +85,7 @@ func (handlerStruct *RepositoryHandler) githubScope(userID uint) (*models.Github
 	return &account, account.GithubID, nil
 }
 
-func (handlerStruct *RepositoryHandler) ListRepositories(token string) ([]octohubDtos.RepositoryDto, error) {
+func (handlerStruct *RepositoryHandler) ListRepositories(ctx context.Context, token string) ([]octohubDtos.RepositoryDto, error) {
 	userID, err := handlerStruct.userID(token)
 	if err != nil {
 		return nil, err
@@ -100,10 +102,10 @@ func (handlerStruct *RepositoryHandler) ListRepositories(token string) ([]octohu
 		Find(&repositories).Error; err != nil {
 		return nil, err
 	}
-	return octohubDtos.ToRepositoryDtoList(repositories, handlerStruct.gitHandler.RepoPath()), nil
+	return octohubDtos.ToRepositoryDtoList(repositories, handlerStruct.gitHandler.repositoryPath(ctx)), nil
 }
 
-func (handlerStruct *RepositoryHandler) GetCurrentRepository(token string) (*octohubDtos.RepositoryDto, error) {
+func (handlerStruct *RepositoryHandler) GetCurrentRepository(ctx context.Context, token string) (*octohubDtos.RepositoryDto, error) {
 	userID, err := handlerStruct.userID(token)
 	if err != nil {
 		return nil, err
@@ -113,7 +115,7 @@ func (handlerStruct *RepositoryHandler) GetCurrentRepository(token string) (*oct
 		return nil, err
 	}
 
-	currentPath := handlerStruct.gitHandler.RepoPath()
+	currentPath := handlerStruct.gitHandler.repositoryPath(ctx)
 	var repository models.OctohubModel
 	if currentPath != "" {
 		err := handlerStruct.DataBase.Where("user_id = ? AND github_id = ? AND local_path = ?", userID, githubID, currentPath).Limit(1).Find(&repository).Error
@@ -121,7 +123,7 @@ func (handlerStruct *RepositoryHandler) GetCurrentRepository(token string) (*oct
 			return nil, err
 		}
 		if repository.ID != 0 {
-			return handlerStruct.open(&repository, account)
+			return handlerStruct.open(ctx, &repository, account)
 		}
 	}
 
@@ -129,7 +131,7 @@ func (handlerStruct *RepositoryHandler) GetCurrentRepository(token string) (*oct
 		return nil, err
 	}
 	if repository.ID != 0 {
-		return handlerStruct.open(&repository, account)
+		return handlerStruct.open(ctx, &repository, account)
 	}
 
 	var total int64
@@ -138,14 +140,14 @@ func (handlerStruct *RepositoryHandler) GetCurrentRepository(token string) (*oct
 	}
 	if handlerStruct.envPath != "" && total == 0 {
 		if topLevel, err := gitTopLevel(handlerStruct.envPath); err == nil {
-			return handlerStruct.save(userID, account, topLevel)
+			return handlerStruct.save(ctx, userID, account, topLevel)
 		}
 	}
-	handlerStruct.gitHandler.SetRepoPath("")
+	handlerStruct.gitHandler.setRepoPath(ctx, "")
 	return nil, nil
 }
 
-func (handlerStruct *RepositoryHandler) AddRepository(token string) (*octohubDtos.RepositoryDto, error) {
+func (handlerStruct *RepositoryHandler) AddRepository(ctx context.Context, token string) (*octohubDtos.RepositoryDto, error) {
 	userID, err := handlerStruct.userID(token)
 	if err != nil {
 		return nil, err
@@ -155,7 +157,7 @@ func (handlerStruct *RepositoryHandler) AddRepository(token string) (*octohubDto
 		return nil, err
 	}
 
-	folder, err := runtime.OpenDirectoryDialog(handlerStruct.ctx, runtime.OpenDialogOptions{
+	folder, err := desktop.ChooseDirectory(ctx, desktop.FileDialogOptions{
 		Title: "Selecione a pasta do repositório Git",
 	})
 	if err != nil {
@@ -169,10 +171,10 @@ func (handlerStruct *RepositoryHandler) AddRepository(token string) (*octohubDto
 	if err != nil {
 		return nil, fmt.Errorf("a pasta %s não é um repositório Git", folder)
 	}
-	return handlerStruct.save(userID, account, topLevel)
+	return handlerStruct.save(ctx, userID, account, topLevel)
 }
 
-func (handlerStruct *RepositoryHandler) SelectRepository(token string, repositoryID uint) (*octohubDtos.RepositoryDto, error) {
+func (handlerStruct *RepositoryHandler) SelectRepository(ctx context.Context, token string, repositoryID uint) (*octohubDtos.RepositoryDto, error) {
 	userID, err := handlerStruct.userID(token)
 	if err != nil {
 		return nil, err
@@ -189,7 +191,7 @@ func (handlerStruct *RepositoryHandler) SelectRepository(token string, repositor
 	if _, err := os.Stat(repository.LocalPath); err != nil {
 		return nil, fmt.Errorf("a pasta %s não existe mais", repository.LocalPath)
 	}
-	return handlerStruct.open(&repository, account)
+	return handlerStruct.open(ctx, &repository, account)
 }
 
 func (handlerStruct *RepositoryHandler) RemoveRepository(token string, repositoryID uint) error {
@@ -205,9 +207,7 @@ func (handlerStruct *RepositoryHandler) RemoveRepository(token string, repositor
 	if err := handlerStruct.DataBase.Unscoped().Delete(&repository).Error; err != nil {
 		return err
 	}
-	if repository.LocalPath == handlerStruct.gitHandler.RepoPath() {
-		handlerStruct.gitHandler.SetRepoPath("")
-	}
+	handlerStruct.gitHandler.forgetRepository(repository.LocalPath)
 	return nil
 }
 
@@ -302,24 +302,24 @@ func (handlerStruct *RepositoryHandler) GetCloneFolder(token string) (string, er
 	return "", nil
 }
 
-func (handlerStruct *RepositoryHandler) ChooseCloneFolder(currentFolder string) (string, error) {
-	return runtime.OpenDirectoryDialog(handlerStruct.ctx, runtime.OpenDialogOptions{
-		Title:            "Escolha a pasta de destino do repositório",
-		DefaultDirectory: currentFolder,
+func (handlerStruct *RepositoryHandler) ChooseCloneFolder(ctx context.Context, currentFolder string) (string, error) {
+	return desktop.ChooseDirectory(ctx, desktop.FileDialogOptions{
+		Title:     "Escolha a pasta de destino do repositório",
+		Directory: currentFolder,
 	})
 }
 
-func (handlerStruct *RepositoryHandler) CloneRepository(token, remoteURL, parentFolder string) (*octohubDtos.RepositoryDto, error) {
+func (handlerStruct *RepositoryHandler) CloneRepository(ctx context.Context, token, remoteURL, parentFolder string) (*octohubDtos.RepositoryDto, error) {
 	userID, err := handlerStruct.userID(token)
 	if err != nil {
 		return nil, err
 	}
-	return handlerStruct.clone(userID, remoteURL, parentFolder, func(line string) {
-		runtime.EventsEmit(handlerStruct.ctx, CloneProgressEvent, line)
+	return handlerStruct.clone(ctx, userID, remoteURL, parentFolder, func(line string) {
+		desktop.EmitToWindow(desktop.CallingWindowName(ctx), CloneProgressEvent, line)
 	})
 }
 
-func (handlerStruct *RepositoryHandler) clone(userID uint, remoteURL, parentFolder string, onProgress func(string)) (*octohubDtos.RepositoryDto, error) {
+func (handlerStruct *RepositoryHandler) clone(ctx context.Context, userID uint, remoteURL, parentFolder string, onProgress func(string)) (*octohubDtos.RepositoryDto, error) {
 	account, _, err := handlerStruct.githubScope(userID)
 	if err != nil {
 		return nil, err
@@ -392,10 +392,10 @@ func (handlerStruct *RepositoryHandler) clone(userID uint, remoteURL, parentFold
 	if err != nil {
 		return nil, err
 	}
-	return handlerStruct.save(userID, account, topLevel)
+	return handlerStruct.save(ctx, userID, account, topLevel)
 }
 
-func (handlerStruct *RepositoryHandler) save(userID uint, account *models.GithubAccountModel, path string) (*octohubDtos.RepositoryDto, error) {
+func (handlerStruct *RepositoryHandler) save(ctx context.Context, userID uint, account *models.GithubAccountModel, path string) (*octohubDtos.RepositoryDto, error) {
 	githubID := int64(0)
 	if account != nil {
 		githubID = account.GithubID
@@ -416,15 +416,15 @@ func (handlerStruct *RepositoryHandler) save(userID uint, account *models.Github
 			return nil, err
 		}
 	}
-	return handlerStruct.open(&repository, account)
+	return handlerStruct.open(ctx, &repository, account)
 }
 
-func (handlerStruct *RepositoryHandler) open(repository *models.OctohubModel, account *models.GithubAccountModel) (*octohubDtos.RepositoryDto, error) {
+func (handlerStruct *RepositoryHandler) open(ctx context.Context, repository *models.OctohubModel, account *models.GithubAccountModel) (*octohubDtos.RepositoryDto, error) {
 	if err := handlerStruct.DataBase.Model(repository).Update("last_opened_at", time.Now()).Error; err != nil {
 		return nil, err
 	}
 	auth := handlerStruct.repositoryAuth(repository.UserID, account, repository.GithubID, originURL(repository.LocalPath))
-	handlerStruct.gitHandler.setRepository(repository.LocalPath, auth)
+	handlerStruct.gitHandler.setRepository(ctx, repository.LocalPath, auth)
 	return octohubDtos.ToRepositoryDto(repository, repository.LocalPath), nil
 }
 

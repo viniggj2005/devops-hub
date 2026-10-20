@@ -1,5 +1,5 @@
 import React from 'react';
-import { octohubStructs } from '../../../../../wailsjs/go/models';
+import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { Ban, GitMerge, ListChecks, Play, SkipForward } from 'lucide-react';
 
 interface OperationBannerProps {

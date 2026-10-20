@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 )
 
@@ -34,7 +35,7 @@ func setupGeneralConfigsTestHandler(test *testing.T) (*GeneralConfigsHandlerStru
 	}
 
 	handler := NewGeneralConfigsHandler(dataBase, sessionManager)
-	handler.Startup(context.Background())
+	handler.ServiceStartup(context.Background(), application.ServiceOptions{})
 
 	return handler, token
 }

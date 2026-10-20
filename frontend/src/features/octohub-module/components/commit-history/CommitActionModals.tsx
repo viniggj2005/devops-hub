@@ -2,10 +2,10 @@ import iziToast from 'izitoast';
 import React, { useEffect, useState } from 'react';
 import { escapeHtml } from '../../functions/gitStatus';
 import { Modal } from '../../../shared/components/modals/Modal';
-import { octohubStructs } from '../../../../../wailsjs/go/models';
+import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { useOctohubRepository } from '../../contexts/OctohubRepositoryContext';
 import { ArrowUpDown, ChevronDown, ChevronUp, Cherry, GitBranch, GitBranchPlus, LockKeyhole, Search, Tag } from 'lucide-react';
-import { CherryPickCommit, CreateBranchFromCommit, CreateTag, HasUncommittedChanges, ListBranches, ListReorderableCommits, PushTag, ReorderCommits } from '../../../../../wailsjs/go/octohubHandler/GitBranchHandler';
+import { CherryPickCommit, CreateBranchFromCommit, CreateTag, HasUncommittedChanges, ListBranches, ListReorderableCommits, PushTag, ReorderCommits } from '../../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 
 export type CommitAction = 'branch' | 'tag' | 'cherry-pick' | 'reorder';
 

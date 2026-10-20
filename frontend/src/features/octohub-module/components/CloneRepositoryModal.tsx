@@ -1,13 +1,14 @@
 import { useNavigate } from 'react-router-dom';
 import { remoteHost } from '../functions/gitStatus';
 import { useAuth } from '../../../contexts/AuthContext';
-import { octohubDtos } from '../../../../wailsjs/go/models';
+import { errorMessage } from '../../shared/functions/ErrorMessage';
+import * as octohubDtos from '../../../../bindings/docker-manager-go/src/octohub/dtos/models';
 import { Modal } from '../../shared/components/modals/Modal';
-import { EventsOn } from '../../../../wailsjs/runtime/runtime';
+import { Events } from '@wailsio/runtime';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import { Archive, Check, CloudDownload, FolderOpen, GitFork, Globe, KeyRound, Link, Lock, Plus, RefreshCw, Search, Server } from 'lucide-react';
-import { ChooseCloneFolder, GetCloneFolder, ListGitCredentials, ListGitlabProjects, ListRemoteRepositories } from '../../../../wailsjs/go/octohubHandler/RepositoryHandler';
+import { ChooseCloneFolder, GetCloneFolder, ListGitCredentials, ListGitlabProjects, ListRemoteRepositories } from '../../../../bindings/docker-manager-go/src/octohub/handlers/repositoryhandler';
 
 interface RemoteListState {
     loading: boolean;
@@ -61,7 +62,7 @@ const CloneRepositoryModal: React.FC = () => {
         setGithub(emptyList);
         ListRemoteRepositories(token)
             .then((items) => setGithub({ loading: false, error: null, items: items || [] }))
-            .catch((err) => setGithub({ loading: false, error: String(err), items: [] }));
+            .catch((err) => setGithub({ loading: false, error: errorMessage(err), items: [] }));
     }, [cloneModalOpen, token, githubAccount?.id]);
 
     useEffect(() => {
@@ -86,7 +87,7 @@ const CloneRepositoryModal: React.FC = () => {
         setServerLists((previous) => ({ ...previous, [host]: emptyList }));
         ListGitlabProjects(token, host)
             .then((items) => setServerLists((previous) => ({ ...previous, [host]: { loading: false, error: null, items: items || [] } })))
-            .catch((err) => setServerLists((previous) => ({ ...previous, [host]: { loading: false, error: String(err), items: [] } })));
+            .catch((err) => setServerLists((previous) => ({ ...previous, [host]: { loading: false, error: errorMessage(err), items: [] } })));
     };
 
     useEffect(() => {
@@ -95,7 +96,7 @@ const CloneRepositoryModal: React.FC = () => {
 
     useEffect(() => {
         if (!cloning) return;
-        return EventsOn('octohub:clone-progress', (line: string) => setProgress(line));
+        return Events.On('octohub:clone-progress', ({ data: line }) => setProgress(line));
     }, [cloning]);
 
     const listState = tab === 'github' ? github : serverHost ? serverLists[serverHost] ?? emptyList : null;

@@ -1,6 +1,7 @@
 package octohubHandler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -29,8 +30,8 @@ func startDetached(cmd *exec.Cmd) error {
 	return nil
 }
 
-func (handlerStruct *GitBranchHandler) repoFile(file string) (string, error) {
-	repoPath := handlerStruct.gitHandler.RepoPath()
+func (handlerStruct *GitBranchHandler) repoFile(ctx context.Context, file string) (string, error) {
+	repoPath := handlerStruct.gitHandler.repositoryPath(ctx)
 	if repoPath == "" {
 		return "", errNoRepository
 	}
@@ -80,27 +81,27 @@ func openInVSCode(paths ...string) error {
 	return startDetached(cmd)
 }
 
-func (handlerStruct *GitBranchHandler) OpenFileInEditor(file string) error {
-	fullPath, err := handlerStruct.repoFile(file)
+func (handlerStruct *GitBranchHandler) OpenFileInEditor(ctx context.Context, file string) error {
+	fullPath, err := handlerStruct.repoFile(ctx, file)
 	if err != nil {
 		return err
 	}
 	if _, err := os.Stat(fullPath); err != nil {
 		return fmt.Errorf("o arquivo %s não existe mais no disco", file)
 	}
-	return openInVSCode(filepath.Clean(handlerStruct.gitHandler.RepoPath()), fullPath)
+	return openInVSCode(filepath.Clean(handlerStruct.gitHandler.repositoryPath(ctx)), fullPath)
 }
 
-func (handlerStruct *GitBranchHandler) OpenRepositoryInEditor() error {
-	repoPath := handlerStruct.gitHandler.RepoPath()
+func (handlerStruct *GitBranchHandler) OpenRepositoryInEditor(ctx context.Context) error {
+	repoPath := handlerStruct.gitHandler.repositoryPath(ctx)
 	if repoPath == "" {
 		return errNoRepository
 	}
 	return openInVSCode(repoPath)
 }
 
-func (handlerStruct *GitBranchHandler) RevealInExplorer(file string) error {
-	fullPath, err := handlerStruct.repoFile(file)
+func (handlerStruct *GitBranchHandler) RevealInExplorer(ctx context.Context, file string) error {
+	fullPath, err := handlerStruct.repoFile(ctx, file)
 	if err != nil {
 		return err
 	}
@@ -122,8 +123,8 @@ func (handlerStruct *GitBranchHandler) RevealInExplorer(file string) error {
 	}
 }
 
-func (handlerStruct *GitBranchHandler) OpenWithDefaultProgram(file string) error {
-	fullPath, err := handlerStruct.repoFile(file)
+func (handlerStruct *GitBranchHandler) OpenWithDefaultProgram(ctx context.Context, file string) error {
+	fullPath, err := handlerStruct.repoFile(ctx, file)
 	if err != nil {
 		return err
 	}
@@ -159,26 +160,26 @@ func escapeGitignorePattern(value string) string {
 	return result
 }
 
-func (handlerStruct *GitBranchHandler) IgnoreFile(file string) error {
-	if _, err := handlerStruct.repoFile(file); err != nil {
+func (handlerStruct *GitBranchHandler) IgnoreFile(ctx context.Context, file string) error {
+	if _, err := handlerStruct.repoFile(ctx, file); err != nil {
 		return err
 	}
-	return handlerStruct.appendGitignore("/" + escapeGitignorePattern(file))
+	return handlerStruct.appendGitignore(ctx, "/"+escapeGitignorePattern(file))
 }
 
-func (handlerStruct *GitBranchHandler) IgnoreExtension(extension string) error {
+func (handlerStruct *GitBranchHandler) IgnoreExtension(ctx context.Context, extension string) error {
 	extension = strings.TrimPrefix(strings.TrimSpace(extension), ".")
 	if extension == "" || strings.ContainsAny(extension, `/\`) {
 		return fmt.Errorf("extensão inválida: %q", extension)
 	}
-	return handlerStruct.appendGitignore("*." + escapeGitignorePattern(extension))
+	return handlerStruct.appendGitignore(ctx, "*."+escapeGitignorePattern(extension))
 }
 
-func (handlerStruct *GitBranchHandler) appendGitignore(pattern string) error {
+func (handlerStruct *GitBranchHandler) appendGitignore(ctx context.Context, pattern string) error {
 	if strings.ContainsAny(pattern, "\r\n") {
 		return fmt.Errorf("padrão inválido para o .gitignore")
 	}
-	repoPath := handlerStruct.gitHandler.RepoPath()
+	repoPath := handlerStruct.gitHandler.repositoryPath(ctx)
 	if repoPath == "" {
 		return errNoRepository
 	}

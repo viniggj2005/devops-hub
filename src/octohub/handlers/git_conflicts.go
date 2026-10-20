@@ -2,6 +2,7 @@ package octohubHandler
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,8 +21,8 @@ var conflictKinds = map[string]string{
 	"UD": "deleted-by-them",
 }
 
-func (handlerStruct *GitBranchHandler) unmergedEntries() (map[string]string, []string, error) {
-	out, err := handlerStruct.gitHandler.RunGitCommand([]string{"status", "--porcelain=v1", "-z", "--untracked-files=no"})
+func (handlerStruct *GitBranchHandler) unmergedEntries(ctx context.Context) (map[string]string, []string, error) {
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"status", "--porcelain=v1", "-z", "--untracked-files=no"})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -65,14 +66,14 @@ func sameContent(first, second []byte) bool {
 	return bytes.Equal(bytes.ReplaceAll(first, crlf, lf), bytes.ReplaceAll(second, crlf, lf))
 }
 
-func (handlerStruct *GitBranchHandler) CheckConflicts(tracked []string) (octohubStructs.ConflictReport, error) {
+func (handlerStruct *GitBranchHandler) CheckConflicts(ctx context.Context, tracked []string) (octohubStructs.ConflictReport, error) {
 	report := octohubStructs.ConflictReport{Files: []octohubStructs.ConflictFile{}}
-	kinds, order, err := handlerStruct.unmergedEntries()
+	kinds, order, err := handlerStruct.unmergedEntries(ctx)
 	if err != nil {
 		return report, err
 	}
 
-	root := handlerStruct.gitHandler.RepoPath()
+	root := handlerStruct.gitHandler.repositoryPath(ctx)
 	var toAdd, toRemove []string
 	for _, file := range order {
 		item := octohubStructs.ConflictFile{File: file, Kind: kinds[file]}
@@ -90,7 +91,7 @@ func (handlerStruct *GitBranchHandler) CheckConflicts(tracked []string) (octohub
 		}
 		textConflict := item.Kind == "both-modified" || item.Kind == "both-added"
 		if readErr == nil && textConflict && !item.Binary && item.Markers == 0 && !hasConflictMarkers(content) {
-			ours, err := handlerStruct.gitHandler.RunGitCommand([]string{"show", ":2:" + file})
+			ours, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"show", ":2:" + file})
 			if err == nil && sameContent(ours, content) {
 				item.SameAsOurs = true
 			} else {
@@ -103,13 +104,13 @@ func (handlerStruct *GitBranchHandler) CheckConflicts(tracked []string) (octohub
 
 	if len(toAdd) > 0 {
 		args := []string{"--literal-pathspecs", "add", "--force", "--pathspec-from-file=-", "--pathspec-file-nul"}
-		if _, err := handlerStruct.gitHandler.RunGitCommandWithInput(args, strings.Join(toAdd, "\x00")); err != nil {
+		if _, err := handlerStruct.gitHandler.runGitCommandWithInput(ctx, args, strings.Join(toAdd, "\x00")); err != nil {
 			return report, err
 		}
 	}
 	if len(toRemove) > 0 {
 		args := []string{"--literal-pathspecs", "rm", "-q", "--ignore-unmatch", "--pathspec-from-file=-", "--pathspec-file-nul"}
-		if _, err := handlerStruct.gitHandler.RunGitCommandWithInput(args, strings.Join(toRemove, "\x00")); err != nil {
+		if _, err := handlerStruct.gitHandler.runGitCommandWithInput(ctx, args, strings.Join(toRemove, "\x00")); err != nil {
 			return report, err
 		}
 	}
@@ -120,12 +121,12 @@ func (handlerStruct *GitBranchHandler) CheckConflicts(tracked []string) (octohub
 		}
 	}
 
-	report.Operation, err = handlerStruct.GetOperationState()
+	report.Operation, err = handlerStruct.GetOperationState(ctx)
 	return report, err
 }
 
-func (handlerStruct *GitBranchHandler) ResolveConflict(file, resolution string) error {
-	kinds, _, err := handlerStruct.unmergedEntries()
+func (handlerStruct *GitBranchHandler) ResolveConflict(ctx context.Context, file, resolution string) error {
+	kinds, _, err := handlerStruct.unmergedEntries(ctx)
 	if err != nil {
 		return err
 	}
@@ -134,7 +135,7 @@ func (handlerStruct *GitBranchHandler) ResolveConflict(file, resolution string) 
 	}
 
 	run := func(args ...string) error {
-		_, err := handlerStruct.gitHandler.RunGitCommand(append(append([]string{"--literal-pathspecs"}, args...), "--", file))
+		_, err := handlerStruct.gitHandler.runGitCommand(ctx, append(append([]string{"--literal-pathspecs"}, args...), "--", file))
 		return err
 	}
 	switch resolution {

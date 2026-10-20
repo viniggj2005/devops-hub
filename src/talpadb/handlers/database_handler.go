@@ -1,6 +1,7 @@
 package talpadbHandlers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -72,8 +73,8 @@ func buildCreateDatabaseSql(input talpadbDtos.CreateDatabaseInputDto) (string, s
 	return createSql, commentSql, nil
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) GetDatabaseOptions(token string, connectionId uint) (*talpadbDtos.DatabaseOptionsDto, error) {
-	entry, err := handlerStruct.getPool(token, connectionId, "")
+func (handlerStruct *TalpadbClientHandlerStruct) GetDatabaseOptions(callContext context.Context, token string, connectionId uint) (*talpadbDtos.DatabaseOptionsDto, error) {
+	entry, err := handlerStruct.getPool(callContext, token, connectionId, "")
 	if err != nil {
 		return nil, err
 	}
@@ -119,12 +120,12 @@ func (handlerStruct *TalpadbClientHandlerStruct) PreviewCreateDatabase(input tal
 	return createSql + "\n\n" + commentSql, nil
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) CreateDatabase(token string, connectionId uint, input talpadbDtos.CreateDatabaseInputDto) error {
+func (handlerStruct *TalpadbClientHandlerStruct) CreateDatabase(callContext context.Context, token string, connectionId uint, input talpadbDtos.CreateDatabaseInputDto) error {
 	createSql, commentSql, err := buildCreateDatabaseSql(input)
 	if err != nil {
 		return err
 	}
-	entry, err := handlerStruct.getPool(token, connectionId, "")
+	entry, err := handlerStruct.getPool(callContext, token, connectionId, "")
 	if err != nil {
 		return err
 	}

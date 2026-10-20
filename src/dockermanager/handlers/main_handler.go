@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 )
 
@@ -24,11 +25,12 @@ func NewDockerHandler(dataBase *gorm.DB, sessionManager *auth.ManagerStruct) *Do
 	return &DockerHandlerStruct{DataBase: dataBase, Session: sessionManager}
 }
 
-func (handlerStruct *DockerHandlerStruct) Startup(context context.Context) {
+func (handlerStruct *DockerHandlerStruct) ServiceStartup(context context.Context, _ application.ServiceOptions) error {
 	handlerStruct.context = context
+	return nil
 }
 
-func (handlerStruct *DockerHandlerStruct) RegisterDockerSdkHandler(sdkHandler *DockerSdkHandlerStruct) {
+func (handlerStruct *DockerHandlerStruct) registerDockerSdkHandler(sdkHandler *DockerSdkHandlerStruct) {
 	handlerStruct.dockerSdk = sdkHandler
 }
 
@@ -114,7 +116,7 @@ func (handlerStruct *DockerHandlerStruct) GetDockerConnectionById(token string, 
 	return dockerConnections, nil
 }
 
-func (handlerStruct *DockerHandlerStruct) GetDockerConnectionByIdWithoutToken(id int) (models.DockerCredentialsModel, error) {
+func (handlerStruct *DockerHandlerStruct) getDockerConnectionByIdWithoutToken(id int) (models.DockerCredentialsModel, error) {
 	var dockerConnections models.DockerCredentialsModel
 	if err := handlerStruct.DataBase.WithContext(handlerStruct.context).Where("id = ?", id).First(&dockerConnections).Error; err != nil {
 		return models.DockerCredentialsModel{}, err

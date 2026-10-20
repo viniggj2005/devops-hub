@@ -21,9 +21,9 @@ func NewGitCommitsHandler(gitHandler *GitHandler) *GitCommitsHandler {
 		gitHandler: gitHandler,
 	}
 }
-func (handlerStruct *GitCommitsHandler) GetCommitModifications(commitHash string) ([]octohubStructs.FileModification, error) {
+func (handlerStruct *GitCommitsHandler) GetCommitModifications(ctx context.Context, commitHash string) ([]octohubStructs.FileModification, error) {
 	args := []string{"show", "--name-status", "--format=", commitHash}
-	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (handlerStruct *GitCommitsHandler) GetCommitModifications(commitHash string
 	return filesModified, nil
 }
 
-func (handlerStruct *GitCommitsHandler) GetCommitedFileChanges(commitHash string, filePath string) (string, error) {
+func (handlerStruct *GitCommitsHandler) GetCommitedFileChanges(ctx context.Context, commitHash string, filePath string) (string, error) {
 	args := append([]string{"diff"}, diffFlags...)
 	if strings.Contains(filePath, " -> ") {
 		parts := strings.Split(filePath, " -> ")
@@ -65,9 +65,9 @@ func (handlerStruct *GitCommitsHandler) GetCommitedFileChanges(commitHash string
 	} else {
 		args = append(args, commitHash+"^", commitHash, "--", filePath)
 	}
-	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
-		if handlerStruct.gitHandler.ctx.Err() == context.DeadlineExceeded {
+		if handlerStruct.gitHandler.appContext.Err() == context.DeadlineExceeded {
 			return "", fmt.Errorf("o comando git expirou")
 		}
 		return "", err
@@ -76,9 +76,9 @@ func (handlerStruct *GitCommitsHandler) GetCommitedFileChanges(commitHash string
 	return string(out), nil
 }
 
-func (handlerStruct *GitCommitsHandler) GetGitStatus() ([]octohubStructs.FilesStatus, error) {
+func (handlerStruct *GitCommitsHandler) GetGitStatus(ctx context.Context) ([]octohubStructs.FilesStatus, error) {
 	args := []string{"status", "--porcelain=v1", "-z", "--untracked-files=all"}
-	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		return nil, err
 	}
@@ -124,34 +124,34 @@ func fileKind(code string) string {
 	}
 }
 
-func (handlerStruct *GitCommitsHandler) hasHead() bool {
-	_, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-parse", "--verify", "-q", "HEAD"})
+func (handlerStruct *GitCommitsHandler) hasHead(ctx context.Context) bool {
+	_, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--verify", "-q", "HEAD"})
 	return err == nil
 }
 
-func (handlerStruct *GitCommitsHandler) diffBase() (string, error) {
-	if handlerStruct.hasHead() {
+func (handlerStruct *GitCommitsHandler) diffBase(ctx context.Context) (string, error) {
+	if handlerStruct.hasHead(ctx) {
 		return "HEAD", nil
 	}
-	out, err := handlerStruct.gitHandler.RunGitCommand([]string{"hash-object", "-t", "tree", "--stdin"})
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"hash-object", "-t", "tree", "--stdin"})
 	if err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(string(out)), nil
 }
 
-func (handlerStruct *GitCommitsHandler) workingFileDiff(file octohubStructs.FilesStatus) (string, error) {
+func (handlerStruct *GitCommitsHandler) workingFileDiff(ctx context.Context, file octohubStructs.FilesStatus) (string, error) {
 	if file.Kind == octohubStructs.FileKindUntracked {
 		args := append([]string{"diff", "--no-index"}, diffFlags...)
 		args = append(args, "--", "/dev/null", file.FileName)
-		out, exitCode, err := handlerStruct.gitHandler.runGit(args, "")
+		out, exitCode, err := handlerStruct.gitHandler.runGit(ctx, args, "")
 		if err != nil && exitCode != 1 {
 			return "", err
 		}
 		return string(out), nil
 	}
 
-	base, err := handlerStruct.diffBase()
+	base, err := handlerStruct.diffBase(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -161,22 +161,22 @@ func (handlerStruct *GitCommitsHandler) workingFileDiff(file octohubStructs.File
 	} else {
 		args = append(args, "--", file.FileName)
 	}
-	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		return "", err
 	}
 	return string(out), nil
 }
 
-func (handlerStruct *GitCommitsHandler) GetUncommitedFileChanges(file octohubStructs.FilesStatus) (octohubStructs.WorkingFileDiff, error) {
-	diff, err := handlerStruct.workingFileDiff(file)
+func (handlerStruct *GitCommitsHandler) GetUncommitedFileChanges(ctx context.Context, file octohubStructs.FilesStatus) (octohubStructs.WorkingFileDiff, error) {
+	diff, err := handlerStruct.workingFileDiff(ctx, file)
 	if err != nil {
 		return octohubStructs.WorkingFileDiff{}, err
 	}
 	return octohubStructs.WorkingFileDiff{Diff: diff, Hash: hashDiff(diff)}, nil
 }
 
-func (handlerStruct *GitCommitsHandler) Commit(request octohubStructs.CommitRequest) (string, error) {
+func (handlerStruct *GitCommitsHandler) Commit(ctx context.Context, request octohubStructs.CommitRequest) (string, error) {
 	summary := strings.TrimSpace(request.Summary)
 	if summary == "" {
 		return "", fmt.Errorf("informe um resumo para o commit")
@@ -199,7 +199,7 @@ func (handlerStruct *GitCommitsHandler) Commit(request octohubStructs.CommitRequ
 			continue
 		}
 
-		diff, err := handlerStruct.workingFileDiff(octohubStructs.FilesStatus{
+		diff, err := handlerStruct.workingFileDiff(ctx, octohubStructs.FilesStatus{
 			FileName:    file.FileName,
 			OldFileName: file.OldFileName,
 			Kind:        file.Kind,
@@ -220,15 +220,15 @@ func (handlerStruct *GitCommitsHandler) Commit(request octohubStructs.CommitRequ
 	}
 
 	resetIndex := func() {
-		handlerStruct.gitHandler.RunGitCommand([]string{"reset", "-q", "--", "."})
+		handlerStruct.gitHandler.runGitCommand(ctx, []string{"reset", "-q", "--", "."})
 	}
-	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"reset", "-q", "--", "."}); err != nil {
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"reset", "-q", "--", "."}); err != nil {
 		return "", fmt.Errorf("erro ao preparar o commit: %w", err)
 	}
 
 	for _, patch := range patches {
 		args := []string{"apply", "--cached", "--unidiff-zero", "--whitespace=nowarn", "-"}
-		if _, err := handlerStruct.gitHandler.RunGitCommandWithInput(args, patch); err != nil {
+		if _, err := handlerStruct.gitHandler.runGitCommandWithInput(ctx, args, patch); err != nil {
 			resetIndex()
 			return "", fmt.Errorf("erro ao aplicar as linhas selecionadas: %w", err)
 		}
@@ -236,7 +236,7 @@ func (handlerStruct *GitCommitsHandler) Commit(request octohubStructs.CommitRequ
 
 	if len(fullPaths) > 0 {
 		args := []string{"--literal-pathspecs", "add", "-A", "--force", "--pathspec-from-file=-", "--pathspec-file-nul"}
-		if _, err := handlerStruct.gitHandler.RunGitCommandWithInput(args, strings.Join(fullPaths, "\x00")); err != nil {
+		if _, err := handlerStruct.gitHandler.runGitCommandWithInput(ctx, args, strings.Join(fullPaths, "\x00")); err != nil {
 			resetIndex()
 			return "", fmt.Errorf("erro ao adicionar arquivos ao commit: %w", err)
 		}
@@ -246,20 +246,20 @@ func (handlerStruct *GitCommitsHandler) Commit(request octohubStructs.CommitRequ
 	if description := strings.TrimSpace(request.Description); description != "" {
 		message += "\n\n" + description
 	}
-	if _, err := handlerStruct.gitHandler.RunGitCommandWithInput([]string{"commit", "-F", "-"}, message); err != nil {
+	if _, err := handlerStruct.gitHandler.runGitCommandWithInput(ctx, []string{"commit", "-F", "-"}, message); err != nil {
 		resetIndex()
 		return "", fmt.Errorf("erro ao criar o commit: %w", err)
 	}
 
-	out, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-parse", "--short", "HEAD"})
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--short", "HEAD"})
 	if err != nil {
 		return "", nil
 	}
 	return strings.TrimSpace(string(out)), nil
 }
 
-func (handlerStruct *GitCommitsHandler) ListCommits(page int) ([]octohubStructs.Commit, error) {
-	return handlerStruct.listCommits(page, "HEAD")
+func (handlerStruct *GitCommitsHandler) ListCommits(ctx context.Context, page int) ([]octohubStructs.Commit, error) {
+	return handlerStruct.listCommits(ctx, page, "HEAD")
 }
 
 func validateCompareBranch(branch string) error {
@@ -269,25 +269,25 @@ func validateCompareBranch(branch string) error {
 	return nil
 }
 
-func (handlerStruct *GitCommitsHandler) ListCompareCommits(branch string, direction string, page int) ([]octohubStructs.Commit, error) {
+func (handlerStruct *GitCommitsHandler) ListCompareCommits(ctx context.Context, branch string, direction string, page int) ([]octohubStructs.Commit, error) {
 	if err := validateCompareBranch(branch); err != nil {
 		return nil, err
 	}
 	if direction == "ahead" {
-		return handlerStruct.listCommits(page, branch+"..HEAD")
+		return handlerStruct.listCommits(ctx, page, branch+"..HEAD")
 	}
-	return handlerStruct.listCommits(page, "HEAD.."+branch)
+	return handlerStruct.listCommits(ctx, page, "HEAD.."+branch)
 }
 
-func (handlerStruct *GitCommitsHandler) CompareBranch(branch string) (octohubStructs.BranchComparison, error) {
+func (handlerStruct *GitCommitsHandler) CompareBranch(ctx context.Context, branch string) (octohubStructs.BranchComparison, error) {
 	var comparison octohubStructs.BranchComparison
 	if err := validateCompareBranch(branch); err != nil {
 		return comparison, err
 	}
-	if !handlerStruct.hasHead() {
+	if !handlerStruct.hasHead(ctx) {
 		return comparison, nil
 	}
-	out, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-list", "--left-right", "--count", "HEAD..." + branch, "--"})
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-list", "--left-right", "--count", "HEAD..." + branch, "--"})
 	if err != nil {
 		return comparison, err
 	}
@@ -300,8 +300,8 @@ func (handlerStruct *GitCommitsHandler) CompareBranch(branch string) (octohubStr
 	return comparison, nil
 }
 
-func (handlerStruct *GitCommitsHandler) listCommits(page int, revisionRange string) ([]octohubStructs.Commit, error) {
-	if !handlerStruct.hasHead() {
+func (handlerStruct *GitCommitsHandler) listCommits(ctx context.Context, page int, revisionRange string) ([]octohubStructs.Commit, error) {
+	if !handlerStruct.hasHead(ctx) {
 		return []octohubStructs.Commit{}, nil
 	}
 
@@ -316,7 +316,7 @@ func (handlerStruct *GitCommitsHandler) listCommits(page int, revisionRange stri
 		revisionRange,
 		"--",
 	}
-	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		return nil, err
 	}

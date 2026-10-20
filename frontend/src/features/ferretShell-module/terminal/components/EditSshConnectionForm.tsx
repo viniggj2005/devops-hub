@@ -4,6 +4,7 @@ import { FileUploader } from 'react-drag-drop-files';
 import { toBase64 } from '../functions/TreatmentFunctions';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { TerminalServices } from '../services/TerminalServices';
+import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import { EditSshConnectionFormProps, CreateSshConnectionInterface } from '../../../../interfaces/TerminalInterfaces';
 
 const labelBase = 'text-xs font-medium text-zinc-400';
@@ -79,7 +80,7 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
     } catch (error: any) {
       iziToast.error({
         title: 'Erro',
-        message: `Erro ao atualizar conexão: ${String(error)}`,
+        message: `Erro ao atualizar conexão: ${errorMessage(error)}`,
         position: 'bottomRight',
       });
     } finally {

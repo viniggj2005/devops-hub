@@ -6,20 +6,22 @@ import (
 	"net"
 	"sync"
 
+	"docker-manager-go/src/desktop"
 	dockerDtos "docker-manager-go/src/dockermanager/dtos"
 	dockerFunctions "docker-manager-go/src/dockermanager/functions"
 
 	"github.com/docker/docker/client"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type DockerSdkHandlerStruct struct {
 	mutex           sync.Mutex
-	appContext      context.Context
-	dockerHandler   *DockerHandlerStruct
 	clients         map[string]*client.Client
 	contexts        map[string]context.Context
-	clientCancels   map[string]context.CancelFunc
+	appContext      context.Context
 	statsCancel     map[string]map[string]context.CancelFunc
+	dockerHandler   *DockerHandlerStruct
+	clientCancels   map[string]context.CancelFunc
 	terminalConns   map[string]net.Conn
 	terminalExecIds map[string]string
 }
@@ -34,47 +36,32 @@ func (err *APIError) Error() string {
 }
 
 func NewDockerSdkHandler(dockerHandler *DockerHandlerStruct) *DockerSdkHandlerStruct {
-	return &DockerSdkHandlerStruct{
-		dockerHandler:   dockerHandler,
+	sdkHandler := &DockerSdkHandlerStruct{
 		clients:         make(map[string]*client.Client),
 		contexts:        make(map[string]context.Context),
-		clientCancels:   make(map[string]context.CancelFunc),
 		statsCancel:     make(map[string]map[string]context.CancelFunc),
+		dockerHandler:   dockerHandler,
+		clientCancels:   make(map[string]context.CancelFunc),
 		terminalConns:   make(map[string]net.Conn),
 		terminalExecIds: make(map[string]string),
 	}
+	dockerHandler.registerDockerSdkHandler(sdkHandler)
+	return sdkHandler
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) AddDockerClient(id int) error {
 	handlerStruct.mutex.Lock()
 	defer handlerStruct.mutex.Unlock()
 
-	docker, err := handlerStruct.dockerHandler.GetDockerConnectionByIdWithoutToken(id)
+	docker, err := handlerStruct.dockerHandler.getDockerConnectionByIdWithoutToken(id)
 	if err != nil {
 		return fmt.Errorf("erro ao buscar conexão Docker: %w", err)
 	}
 
 	dockerId := fmt.Sprintf("%d", docker.ID)
-
-	if cancel, exists := handlerStruct.clientCancels[dockerId]; exists {
-		cancel()
-		delete(handlerStruct.clientCancels, dockerId)
+	if _, exists := handlerStruct.clients[dockerId]; exists {
+		return nil
 	}
-	if cancelsMap, ok := handlerStruct.statsCancel[dockerId]; ok {
-		for _, c := range cancelsMap {
-			c()
-		}
-		delete(handlerStruct.statsCancel, dockerId)
-	}
-
-	if existingClient, exists := handlerStruct.clients[dockerId]; exists {
-		existingClient.Close()
-		delete(handlerStruct.clients, dockerId)
-	}
-
-	delete(handlerStruct.contexts, dockerId)
-	delete(handlerStruct.clientCancels, dockerId)
-	delete(handlerStruct.statsCancel, dockerId)
 
 	httpClient, err := dockerFunctions.BuildTLSHTTPClient(
 		docker.Ca.Plaintext,
@@ -85,7 +72,7 @@ func (handlerStruct *DockerSdkHandlerStruct) AddDockerClient(id int) error {
 		return fmt.Errorf("erro ao montar TLS: %w", err)
 	}
 
-	cli, err := client.NewClientWithOpts(
+	dockerClient, err := client.NewClientWithOpts(
 		client.WithHost(docker.Url.Plaintext),
 		client.WithHTTPClient(httpClient),
 		client.WithAPIVersionNegotiation(),
@@ -99,40 +86,40 @@ func (handlerStruct *DockerSdkHandlerStruct) AddDockerClient(id int) error {
 		baseContext = context.Background()
 	}
 
-	ctx, cancel := context.WithCancel(baseContext)
+	clientContext, cancel := context.WithCancel(baseContext)
 
-	handlerStruct.clients[dockerId] = cli
-	handlerStruct.contexts[dockerId] = ctx
+	handlerStruct.clients[dockerId] = dockerClient
+	handlerStruct.contexts[dockerId] = clientContext
 	handlerStruct.clientCancels[dockerId] = cancel
 	handlerStruct.statsCancel[dockerId] = make(map[string]context.CancelFunc)
 
 	return nil
 }
 
-func (handlerStruct *DockerSdkHandlerStruct) CatchClient(clientId int) (*client.Client, context.Context, error) {
+func (handlerStruct *DockerSdkHandlerStruct) catchClient(clientId int) (*client.Client, context.Context, error) {
 	id := fmt.Sprintf("%d", clientId)
 
 	handlerStruct.mutex.Lock()
 	defer handlerStruct.mutex.Unlock()
 
-	cli, exists := handlerStruct.clients[id]
-	ctx, ctxExists := handlerStruct.contexts[id]
+	dockerClient, exists := handlerStruct.clients[id]
+	clientContext, contextExists := handlerStruct.contexts[id]
 
-	if !exists || !ctxExists {
+	if !exists || !contextExists {
 		return nil, nil, &APIError{
 			Code:    404,
 			Message: fmt.Sprintf("cliente %d não encontrado", clientId),
 		}
 	}
 
-	return cli, ctx, nil
+	return dockerClient, clientContext, nil
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) ConnectDocker(id int) error {
 	return handlerStruct.AddDockerClient(id)
 }
 
-func (handlerStruct *DockerSdkHandlerStruct) Startup(ctx context.Context) {
+func (handlerStruct *DockerSdkHandlerStruct) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	handlerStruct.mutex.Lock()
 	defer handlerStruct.mutex.Unlock()
 
@@ -141,15 +128,44 @@ func (handlerStruct *DockerSdkHandlerStruct) Startup(ctx context.Context) {
 	for id := range handlerStruct.clients {
 		handlerStruct.contexts[id] = ctx
 	}
+
+	desktop.OnWindowClosed(handlerStruct.releaseWindowResources)
+	return nil
+}
+
+func (handlerStruct *DockerSdkHandlerStruct) releaseWindowResources(windowName string) {
+	var terminals []net.Conn
+
+	handlerStruct.mutex.Lock()
+	for _, streams := range handlerStruct.statsCancel {
+		for streamKey, cancel := range streams {
+			if desktop.IsScopedTo(streamKey, windowName) {
+				cancel()
+				delete(streams, streamKey)
+			}
+		}
+	}
+	for terminalKey, connection := range handlerStruct.terminalConns {
+		if desktop.IsScopedTo(terminalKey, windowName) {
+			terminals = append(terminals, connection)
+			delete(handlerStruct.terminalConns, terminalKey)
+			delete(handlerStruct.terminalExecIds, terminalKey)
+		}
+	}
+	handlerStruct.mutex.Unlock()
+
+	for _, connection := range terminals {
+		_ = connection.Close()
+	}
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) GetInfo(clientId int) (dockerDtos.SystemInfoDto, error) {
 
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return dockerDtos.SystemInfoDto{}, err
 	}
-	info, err := cli.Info(ctx)
+	info, err := dockerClient.Info(ctx)
 	if err != nil {
 		return dockerDtos.SystemInfoDto{}, err
 	}

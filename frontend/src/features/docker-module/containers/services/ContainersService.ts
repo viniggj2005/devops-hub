@@ -10,7 +10,8 @@ import {
   TerminalResize,
   ContainerRename,
   ContainerUnPause,
-} from '../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
+} from '../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
+import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import { ContainerItem } from '../../../../interfaces/ContainerInterfaces';
 
 export const getContainers = async (clientId: number): Promise<ContainerItem[]> => {
@@ -18,7 +19,7 @@ export const getContainers = async (clientId: number): Promise<ContainerItem[]> 
     const response = await ContainersList(clientId);
     return response || [];
   } catch (error: any) {
-    iziToast.error({ title: 'Erro', message: error, position: 'bottomRight' });
+    iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
     throw error;
   }
 };
@@ -31,7 +32,7 @@ export const renameContainer = async (
   try {
     await ContainerRename(clientId, id, name);
   } catch (error: any) {
-    iziToast.error({ title: 'Erro', message: error, position: 'bottomRight' });
+    iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
     throw error;
   }
 };
@@ -45,7 +46,7 @@ export const toggleContainerState = async (
     if (state === 'paused') await ContainerUnPause(clientId, id);
     else if (state === 'running') await ContainerPause(clientId, id);
   } catch (error: any) {
-    iziToast.error({ title: 'Erro', message: error, position: 'bottomRight' });
+    iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
     throw error;
   }
 };
@@ -62,7 +63,7 @@ export const startContainer = async (
       position: 'bottomRight',
     });
   } catch (error: any) {
-    iziToast.error({ title: 'Erro', message: error, position: 'bottomRight' });
+    iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
     throw error;
   }
 };
@@ -79,7 +80,7 @@ export const stopContainer = async (
       position: 'bottomRight',
     });
   } catch (error: any) {
-    iziToast.error({ title: 'Erro', message: error, position: 'bottomRight' });
+    iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
     throw error;
   }
 };

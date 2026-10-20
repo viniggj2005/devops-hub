@@ -1,4 +1,4 @@
-import { ListVolumes } from '../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
+import { ListVolumes } from '../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 import { VolumeListResponse } from '../../../../interfaces/VolumeInterfaces';
 
 const getSdkHandler = () => (window as any)?.go?.handlers?.DockerSdkHandlerStruct;

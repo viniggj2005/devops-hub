@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { EventsOn } from '../../../../wailsjs/runtime/runtime';
+import { Events } from '@wailsio/runtime';
 import { useConfirmToast } from '../components/toasts/ConfirmToast';
-import { ApplyAvailableUpdate, GetAvailableUpdate } from '../../../../wailsjs/go/main/App';
+import { ApplyAvailableUpdate, GetAvailableUpdate } from '../../../../bindings/docker-manager-go/app';
 
 const UPDATE_AVAILABLE_EVENT = 'app:update-available';
 
@@ -22,7 +22,7 @@ export function useUpdateNotifier() {
     };
 
     GetAvailableUpdate().then(askToUpdate).catch(() => undefined);
-    return EventsOn(UPDATE_AVAILABLE_EVENT, askToUpdate);
+    return Events.On(UPDATE_AVAILABLE_EVENT, ({ data: version }) => askToUpdate(version));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }

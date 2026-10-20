@@ -1,10 +1,11 @@
-import { octohubStructs } from '../../../../wailsjs/go/models';
+import { errorMessage } from '../../shared/functions/ErrorMessage';
+import * as octohubStructs from '../../../../bindings/docker-manager-go/src/octohub/structs/models';
 
 export const getConflictingFiles = (files: octohubStructs.FilesStatus[] | null) =>
     (files || []).filter((file) => file.Kind === 'conflicted').map((file) => file.FileName);
 
 export const isConflictError = (error: unknown) => {
-    const message = String(error).toLowerCase();
+    const message = errorMessage(error).toLowerCase();
     return message.includes('conflict') || message.includes('needs merge');
 };
 
@@ -19,9 +20,9 @@ export const fileKindStyles: Record<string, { label: string; title: string; clas
 
 const authMarker = /\s*\[auth:([^\]]+)\]/;
 
-export const authHostFromError = (error: unknown) => authMarker.exec(String(error))?.[1] ?? null;
+export const authHostFromError = (error: unknown) => authMarker.exec(errorMessage(error))?.[1] ?? null;
 
-export const gitErrorMessage = (error: unknown) => String(error).replace(authMarker, '');
+export const gitErrorMessage = (error: unknown) => errorMessage(error).replace(authMarker, '');
 
 export const remoteHost = (remoteUrl: string) => {
     const value = remoteUrl.trim();

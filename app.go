@@ -10,8 +10,9 @@ import (
 	"strings"
 	"sync"
 
+	"docker-manager-go/src/desktop"
+
 	"github.com/blang/semver"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const AppVersion = "1.0.0"
@@ -19,17 +20,12 @@ const RepoSlug = "viniggj2005/devops-hub"
 const UpdateAvailableEvent = "app:update-available"
 
 type App struct {
-	ctx           context.Context
 	updateMutex   sync.Mutex
 	pendingUpdate *availableUpdate
 }
 
 func NewApp() *App {
 	return &App{}
-}
-
-func (app *App) startup(ctx context.Context) {
-	app.ctx = ctx
 }
 
 func (app *App) LoadImage(name string) (string, error) {
@@ -53,10 +49,10 @@ func (app *App) SaveImage(base64Str, path string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-func (app *App) GetFilePath() string {
-	selection, err := runtime.OpenFileDialog(app.ctx, runtime.OpenDialogOptions{
+func (app *App) GetFilePath(ctx context.Context) string {
+	selection, err := desktop.ChooseFile(ctx, desktop.FileDialogOptions{
 		Title: "Selecione um arquivo",
-		Filters: []runtime.FileFilter{
+		Filters: []desktop.FileFilter{
 			{
 				DisplayName: "Dockerfiles (Dockerfile*)",
 				Pattern:     "Dockerfile*",
@@ -85,9 +81,7 @@ func (app *App) AutoCheckForUpdates() {
 	app.pendingUpdate = latest
 	app.updateMutex.Unlock()
 
-	if app.ctx != nil {
-		runtime.EventsEmit(app.ctx, UpdateAvailableEvent, latest.Version.String())
-	}
+	desktop.Broadcast(UpdateAvailableEvent, latest.Version.String())
 }
 
 func (app *App) GetAvailableUpdate() string {

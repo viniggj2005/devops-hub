@@ -1,11 +1,11 @@
 import iziToast from 'izitoast';
 import { useAuth } from '../../../contexts/AuthContext';
-import { octohubDtos } from '../../../../wailsjs/go/models';
+import * as octohubDtos from '../../../../bindings/docker-manager-go/src/octohub/dtos/models';
 import { useConfirmToast } from '../../shared/components/toasts/ConfirmToast';
 import { authHostFromError, escapeHtml, gitErrorMessage } from '../functions/gitStatus';
-import { GetCurrentBranch } from '../../../../wailsjs/go/octohubHandler/GitBranchHandler';
+import { GetCurrentBranch } from '../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { AddRepository, CloneRepository, CreateRepository, GetCurrentRepository, ListRepositories, PublishRepository, RemoveRepository, SelectRepository } from '../../../../wailsjs/go/octohubHandler/RepositoryHandler';
+import { AddRepository, CloneRepository, CreateRepository, GetCurrentRepository, ListRepositories, PublishRepository, RemoveRepository, SelectRepository } from '../../../../bindings/docker-manager-go/src/octohub/handlers/repositoryhandler';
 
 export interface PublishRepositoryInput {
     name: string;
@@ -150,7 +150,7 @@ export const OctohubRepositoryProvider: React.FC<OctohubRepositoryProviderProps>
             const cloned = await CloneRepository(token, remoteUrl, parentFolder);
             setRepository(cloned);
             setRepositories(await ListRepositories(token));
-            iziToast.success({ title: 'OctoHub', message: `Repositório ${escapeHtml(cloned.name)} clonado.`, position: 'bottomRight' });
+            iziToast.success({ title: 'OctoHub', message: `Repositório ${escapeHtml(cloned?.name ?? remoteUrl)} clonado.`, position: 'bottomRight' });
             return true;
         } catch (error) {
             handleGitError(error, 'Erro ao clonar', retry);
@@ -164,7 +164,7 @@ export const OctohubRepositoryProvider: React.FC<OctohubRepositoryProviderProps>
             const created = await CreateRepository(token, parentFolder, name, withReadme);
             setRepository(created);
             setRepositories(await ListRepositories(token));
-            iziToast.success({ title: 'OctoHub', message: `Repositório ${escapeHtml(created.name)} criado.`, position: 'bottomRight' });
+            iziToast.success({ title: 'OctoHub', message: `Repositório ${escapeHtml(created?.name ?? name)} criado.`, position: 'bottomRight' });
             return true;
         } catch (error) {
             showError(error);

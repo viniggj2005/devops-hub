@@ -6,7 +6,7 @@ export interface Port {
 }
 
 export interface NetworkSettings {
-  Networks?: Record<string, { IPAddress?: string }>;
+  Networks?: Partial<Record<string, { IPAddress?: string } | null>>;
 }
 
 export interface ContainerItem {
@@ -19,8 +19,8 @@ export interface ContainerItem {
   ImageID?: string;
   Command?: string;
   Created?: number;
-  Labels?: Record<string, string>;
-  NetworkSettings?: NetworkSettings;
+  Labels?: Partial<Record<string, string>>;
+  NetworkSettings?: NetworkSettings | null;
 }
 export interface ContainerStatsProps {
   id: string;

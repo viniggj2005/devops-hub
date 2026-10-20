@@ -1,5 +1,6 @@
 import iziToast from 'izitoast';
 import { useTheme } from '../../../../hooks/use-theme';
+import { errorMessage } from '../../functions/ErrorMessage';
 
 type ConfirmOpts = {
   id?: string;
@@ -50,7 +51,7 @@ export function useConfirmToast() {
                 position: 'bottomRight',
               });
             } catch (error) {
-              iziToast.error({ title: 'Erro', message: String(error), position: 'bottomRight' });
+              iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
             } finally {
               instance.hide({ transitionOut: 'fadeOut' }, toast, 'button');
             }

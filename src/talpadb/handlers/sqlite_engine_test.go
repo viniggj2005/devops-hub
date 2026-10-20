@@ -1,6 +1,7 @@
 package talpadbHandlers
 
 import (
+	"context"
 	"database/sql"
 	"path/filepath"
 	"strings"
@@ -8,6 +9,7 @@ import (
 
 	_ "github.com/glebarez/go-sqlite"
 
+	"docker-manager-go/src/desktop"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 )
 
@@ -41,7 +43,7 @@ func createSqliteFixture(test *testing.T) string {
 
 func TestSqliteEngineEndToEnd(test *testing.T) {
 	talpadbHandler, clientHandler, token := setupTalpadbTestHandlers(test)
-	defer clientHandler.closeResourcesAndWait(func(string, *querySession) bool { return true })
+	defer clientHandler.closeResourcesAndWait(func(poolIdentity) bool { return true })
 	path := createSqliteFixture(test)
 
 	unsupported := "mysql"
@@ -70,22 +72,22 @@ func TestSqliteEngineEndToEnd(test *testing.T) {
 	}
 	connectionID := created.ID
 
-	databases, err := clientHandler.ListDatabases(token, connectionID)
+	databases, err := clientHandler.ListDatabases(context.Background(), token, connectionID)
 	if err != nil || len(databases) != 1 || databases[0].Name != "main" || databases[0].SizeBytes == nil || *databases[0].SizeBytes == 0 {
 		test.Fatalf("unexpected databases: %+v, err=%v", databases, err)
 	}
 
-	schemas, err := clientHandler.ListSchemas(token, connectionID, "main")
+	schemas, err := clientHandler.ListSchemas(context.Background(), token, connectionID, "main")
 	if err != nil || len(schemas) != 1 || schemas[0].Name != "main" {
 		test.Fatalf("unexpected schemas: %+v, err=%v", schemas, err)
 	}
 
-	objects, err := clientHandler.ListSchemaObjects(token, connectionID, "main", "main")
+	objects, err := clientHandler.ListSchemaObjects(context.Background(), token, connectionID, "main", "main")
 	if err != nil || len(objects.Tables) != 2 || objects.Tables[0].Name != "authors" || len(objects.Views) != 1 || len(objects.Functions) != 0 {
 		test.Fatalf("unexpected schema objects: %+v, err=%v", objects, err)
 	}
 
-	columns, err := clientHandler.ListColumns(token, connectionID, "main", "main", "books")
+	columns, err := clientHandler.ListColumns(context.Background(), token, connectionID, "main", "main", "books")
 	if err != nil || len(columns) != 4 {
 		test.Fatalf("unexpected columns: %+v, err=%v", columns, err)
 	}
@@ -93,7 +95,7 @@ func TestSqliteEngineEndToEnd(test *testing.T) {
 		test.Fatalf("unexpected column flags: %+v", columns)
 	}
 
-	details, err := clientHandler.GetTableDetails(token, connectionID, "main", "main", "books")
+	details, err := clientHandler.GetTableDetails(context.Background(), token, connectionID, "main", "main", "books")
 	if err != nil {
 		test.Fatalf("unexpected error loading table details: %v", err)
 	}
@@ -115,29 +117,29 @@ func TestSqliteEngineEndToEnd(test *testing.T) {
 		test.Fatalf("expected idx_books_title in indexes: %+v", details.Indexes)
 	}
 
-	authorDetails, err := clientHandler.GetTableDetails(token, connectionID, "main", "main", "authors")
+	authorDetails, err := clientHandler.GetTableDetails(context.Background(), token, connectionID, "main", "main", "authors")
 	if err != nil || len(authorDetails.Constraints) != 2 || authorDetails.Constraints[1].Type != "u" {
 		test.Fatalf("unexpected author constraints: %+v, err=%v", authorDetails, err)
 	}
 
-	viewDdl, err := clientHandler.GetObjectDdl(token, connectionID, "main", talpadbDtos.ObjectReferenceDto{Kind: "view", Schema: "main", Name: "book_titles"})
+	viewDdl, err := clientHandler.GetObjectDdl(context.Background(), token, connectionID, "main", talpadbDtos.ObjectReferenceDto{Kind: "view", Schema: "main", Name: "book_titles"})
 	if err != nil || !strings.Contains(viewDdl, "CREATE VIEW book_titles") {
 		test.Fatalf("unexpected view ddl: %q, err=%v", viewDdl, err)
 	}
-	if _, err := clientHandler.GetObjectDdl(token, connectionID, "main", talpadbDtos.ObjectReferenceDto{Kind: "sequence", Schema: "main", Name: "x"}); err == nil {
+	if _, err := clientHandler.GetObjectDdl(context.Background(), token, connectionID, "main", talpadbDtos.ObjectReferenceDto{Kind: "sequence", Schema: "main", Name: "x"}); err == nil {
 		test.Fatalf("expected error for unsupported sqlite ddl kind")
 	}
 
-	if count, err := clientHandler.CountRows(token, connectionID, "main", "main", "authors"); err != nil || count != 2 {
+	if count, err := clientHandler.CountRows(context.Background(), token, connectionID, "main", "main", "authors"); err != nil || count != 2 {
 		test.Fatalf("unexpected count: %d, err=%v", count, err)
 	}
 
-	completion, err := clientHandler.GetCompletionSchema(token, connectionID, "main")
+	completion, err := clientHandler.GetCompletionSchema(context.Background(), token, connectionID, "main")
 	if err != nil || len(completion) != 3 || completion[1].Name != "book_titles" || len(completion[2].Columns) != 4 {
 		test.Fatalf("unexpected completion schema: %+v, err=%v", completion, err)
 	}
 
-	diagram, err := clientHandler.GetDatabaseDiagram(token, connectionID, "main", "")
+	diagram, err := clientHandler.GetDatabaseDiagram(context.Background(), token, connectionID, "main", "")
 	if err != nil || len(diagram.Tables) != 2 || len(diagram.Relations) != 1 {
 		test.Fatalf("unexpected diagram: %+v, err=%v", diagram, err)
 	}
@@ -150,18 +152,18 @@ func TestSqliteEngineEndToEnd(test *testing.T) {
 	}
 
 	dropView := talpadbDtos.DropObjectInputDto{Kind: "relation", Schema: "main", Name: "book_titles"}
-	if preview, err := clientHandler.PreviewDropObject(token, connectionID, "main", dropView); err != nil || preview != `DROP VIEW "main"."book_titles";` {
+	if preview, err := clientHandler.PreviewDropObject(context.Background(), token, connectionID, "main", dropView); err != nil || preview != `DROP VIEW "main"."book_titles";` {
 		test.Fatalf("unexpected drop preview: %q, err=%v", preview, err)
 	}
-	if _, err := clientHandler.PreviewDropObject(token, connectionID, "main", talpadbDtos.DropObjectInputDto{Kind: "database", Name: "main"}); err == nil {
+	if _, err := clientHandler.PreviewDropObject(context.Background(), token, connectionID, "main", talpadbDtos.DropObjectInputDto{Kind: "database", Name: "main"}); err == nil {
 		test.Fatalf("expected error dropping sqlite database")
 	}
 
-	if _, err := clientHandler.GetServerDashboard(token, connectionID, false); err == nil || !strings.Contains(err.Error(), "PostgreSQL") {
+	if _, err := clientHandler.GetServerDashboard(context.Background(), token, connectionID, false); err == nil || !strings.Contains(err.Error(), "PostgreSQL") {
 		test.Fatalf("expected postgres-only error for dashboard, got %v", err)
 	}
 
-	session, err := clientHandler.OpenQuerySession(token, connectionID, "main")
+	session, err := clientHandler.OpenQuerySession(context.Background(), token, connectionID, "main")
 	if err != nil || session.Engine != "sqlite" || session.ServerVersion == "" {
 		test.Fatalf("unexpected query session: %+v, err=%v", session, err)
 	}
@@ -230,15 +232,15 @@ func TestSqliteEngineEndToEnd(test *testing.T) {
 		test.Fatalf("unexpected close session error: %v", err)
 	}
 
-	if err := clientHandler.DropObject(token, connectionID, "main", dropView); err != nil {
+	if err := clientHandler.DropObject(context.Background(), token, connectionID, "main", dropView); err != nil {
 		test.Fatalf("unexpected error dropping view: %v", err)
 	}
-	objects, err = clientHandler.ListSchemaObjects(token, connectionID, "main", "main")
+	objects, err = clientHandler.ListSchemaObjects(context.Background(), token, connectionID, "main", "main")
 	if err != nil || len(objects.Views) != 0 {
 		test.Fatalf("expected view to be dropped: %+v, err=%v", objects, err)
 	}
 
-	clientHandler.closeResourcesAndWait(func(string, *querySession) bool { return true })
+	clientHandler.closeResourcesAndWait(func(poolIdentity) bool { return true })
 	if err := talpadbHandler.DeleteConnection(token, connectionID); err != nil {
 		test.Fatalf("unexpected error deleting sqlite connection: %v", err)
 	}
@@ -263,5 +265,68 @@ func TestOracleConnectionValidation(test *testing.T) {
 	}
 	if created.Engine != "oracle" || created.Port != 1521 || created.Database != "FREEPDB1" || created.SslMode != "disable" {
 		test.Fatalf("unexpected oracle defaults: %+v", created)
+	}
+}
+
+func TestSqliteResourcesAreIsolatedPerWindow(test *testing.T) {
+	talpadbHandler, clientHandler, token := setupTalpadbTestHandlers(test)
+	defer clientHandler.closeResourcesAndWait(func(poolIdentity) bool { return true })
+
+	engine := "sqlite"
+	created, err := talpadbHandler.CreateConnection(token, talpadbDtos.CreateConnectionInputDto{Engine: &engine, Host: createSqliteFixture(test)})
+	if err != nil {
+		test.Fatalf("unexpected error creating sqlite connection: %v", err)
+	}
+
+	mainWindow := desktop.WithWindowName(context.Background(), "main")
+	moduleWindow := desktop.WithWindowName(context.Background(), "module-1")
+
+	mainSession, err := clientHandler.OpenQuerySession(mainWindow, token, created.ID, "main")
+	if err != nil {
+		test.Fatalf("unexpected error opening main window session: %v", err)
+	}
+	moduleSession, err := clientHandler.OpenQuerySession(moduleWindow, token, created.ID, "main")
+	if err != nil {
+		test.Fatalf("unexpected error opening module window session: %v", err)
+	}
+	for _, windowContext := range []context.Context{mainWindow, moduleWindow} {
+		if _, err := clientHandler.ListDatabases(windowContext, token, created.ID); err != nil {
+			test.Fatalf("unexpected error listing databases: %v", err)
+		}
+	}
+	if len(clientHandler.genericPools) != 2 {
+		test.Fatalf("expected one pool per window, got %d", len(clientHandler.genericPools))
+	}
+
+	if _, err := clientHandler.ExecuteQuery(token, moduleSession.SessionId, "BEGIN; UPDATE authors SET name = 'Rascunho' WHERE id = 1", 10); err != nil {
+		test.Fatalf("unexpected error starting module window transaction: %v", err)
+	}
+
+	if err := clientHandler.DisconnectAll(mainWindow, token); err != nil {
+		test.Fatalf("unexpected error disconnecting main window: %v", err)
+	}
+
+	if _, err := clientHandler.ExecuteQuery(token, mainSession.SessionId, "SELECT 1", 10); err == nil {
+		test.Fatalf("expected the main window session to be closed")
+	}
+	execution, err := clientHandler.ExecuteQuery(token, moduleSession.SessionId, "SELECT name FROM authors WHERE id = 1; ROLLBACK", 10)
+	if err != nil || len(execution.ResultSets) == 0 || len(execution.ResultSets[0].Rows) != 1 {
+		test.Fatalf("expected the module window transaction to survive, got %+v, err=%v", execution, err)
+	}
+	if len(clientHandler.genericPools) != 1 {
+		test.Fatalf("expected only the module window pool to remain, got %d", len(clientHandler.genericPools))
+	}
+	for identity := range clientHandler.genericPools {
+		if identity.windowName != "module-1" {
+			test.Fatalf("expected remaining pool to belong to module-1, got %q", identity.windowName)
+		}
+	}
+
+	clientHandler.releaseWindowResources("module-1")
+	if _, err := clientHandler.ExecuteQuery(token, moduleSession.SessionId, "SELECT 1", 10); err == nil {
+		test.Fatalf("expected closing the module window to release its session")
+	}
+	if len(clientHandler.genericPools) != 0 {
+		test.Fatalf("expected closing the module window to release its pool, got %d", len(clientHandler.genericPools))
 	}
 }

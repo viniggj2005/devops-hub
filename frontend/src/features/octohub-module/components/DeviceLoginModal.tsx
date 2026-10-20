@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { octohubDtos } from '../../../../wailsjs/go/models';
+import * as octohubDtos from '../../../../bindings/docker-manager-go/src/octohub/dtos/models';
 import { Modal } from '../../shared/components/modals/Modal';
 import { Check, Copy, ExternalLink, RotateCw } from 'lucide-react';
-import { BrowserOpenURL, ClipboardSetText } from '../../../../wailsjs/runtime/runtime';
+import { Browser, Clipboard } from '@wailsio/runtime';
 
 export interface DeviceLoginState {
     open: boolean;
@@ -25,9 +25,9 @@ const DeviceLoginModal: React.FC<DeviceLoginModalProps> = ({ state, onRetry, onC
 
     const copyAndOpen = async () => {
         if (!deviceCode) return;
-        await ClipboardSetText(deviceCode.userCode);
+        await Clipboard.SetText(deviceCode.userCode);
         setCopied(true);
-        BrowserOpenURL(deviceCode.verificationUri);
+        Browser.OpenURL(deviceCode.verificationUri);
     };
 
     return (

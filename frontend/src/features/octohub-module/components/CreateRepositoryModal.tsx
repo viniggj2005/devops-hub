@@ -4,7 +4,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { FolderOpen, FolderPlus } from 'lucide-react';
 import { Modal } from '../../shared/components/modals/Modal';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
-import { ChooseCloneFolder, GetCloneFolder } from '../../../../wailsjs/go/octohubHandler/RepositoryHandler';
+import { ChooseCloneFolder, GetCloneFolder } from '../../../../bindings/docker-manager-go/src/octohub/handlers/repositoryhandler';
 
 const CreateRepositoryModal: React.FC = () => {
     const { token } = useAuth();

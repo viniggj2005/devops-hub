@@ -1,13 +1,14 @@
 import iziToast from 'izitoast';
 import { useAuth } from '../../../contexts/AuthContext';
 import React, { useEffect, useRef, useState } from 'react';
-import { octohubDtos } from '../../../../wailsjs/go/models';
+import { errorMessage } from '../../shared/functions/ErrorMessage';
+import * as octohubDtos from '../../../../bindings/docker-manager-go/src/octohub/dtos/models';
 import { Modal } from '../../shared/components/modals/Modal';
 import { escapeHtml, gitErrorMessage } from '../functions/gitStatus';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import { useConfirmToast } from '../../shared/components/toasts/ConfirmToast';
 import { KeyRound, LockKeyhole, Pencil, Plus, Server, Trash2, Upload } from 'lucide-react';
-import { ListGitCredentials, RemoveGitCredential, SaveGitCredential } from '../../../../wailsjs/go/octohubHandler/RepositoryHandler';
+import { ListGitCredentials, RemoveGitCredential, SaveGitCredential } from '../../../../bindings/docker-manager-go/src/octohub/handlers/repositoryhandler';
 
 type CredentialTab = 'password' | 'ssh';
 
@@ -53,7 +54,7 @@ const GitCredentialsModal: React.FC = () => {
                 const host = credentialsTarget?.host;
                 if (host) startForm(list.find((credential) => credential.host === host) ?? null, host);
             })
-            .catch((error) => iziToast.error({ title: 'Erro', message: escapeHtml(String(error)), position: 'bottomRight' }));
+            .catch((error) => iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(error)), position: 'bottomRight' }));
     }, [open, credentialsTarget?.host]);
 
     const update = (field: keyof typeof emptyForm) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -79,7 +80,7 @@ const GitCredentialsModal: React.FC = () => {
                 privateKey: usesPassword ? '' : form.privateKey,
                 passphrase: usesPassword ? '' : form.passphrase,
             });
-            iziToast.success({ title: 'OctoHub', message: `Login de ${escapeHtml(saved.host)} salvo.`, position: 'bottomRight' });
+            iziToast.success({ title: 'OctoHub', message: `Login de ${escapeHtml(saved?.host ?? form.host)} salvo.`, position: 'bottomRight' });
             notifyCredentialsChange();
             const retry = credentialsTarget?.retry;
             if (retry) {

@@ -2,6 +2,7 @@ package octohubHandler
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -21,50 +22,50 @@ func NewGitBranchHandler(gitHandler *GitHandler) *GitBranchHandler {
 	}
 }
 
-func (handlerStruct *GitBranchHandler) PublishBranch(branchName string) error {
+func (handlerStruct *GitBranchHandler) PublishBranch(ctx context.Context, branchName string) error {
 	args := []string{"push", "-u", "origin", branchName}
-	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-parse", "--abbrev-ref", branchName + "@{upstream}"}); err == nil {
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--abbrev-ref", branchName + "@{upstream}"}); err == nil {
 		args = []string{"push"}
 	}
-	_, err := handlerStruct.gitHandler.RunGitCommand(args)
+	_, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (handlerStruct *GitBranchHandler) GetOriginURL() string {
-	return originURL(handlerStruct.gitHandler.RepoPath())
+func (handlerStruct *GitBranchHandler) GetOriginURL(ctx context.Context) string {
+	return originURL(handlerStruct.gitHandler.repositoryPath(ctx))
 }
 
-func (handlerStruct *GitBranchHandler) validateBranchName(branchName string) error {
-	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"check-ref-format", "--branch", branchName}); err != nil {
+func (handlerStruct *GitBranchHandler) validateBranchName(ctx context.Context, branchName string) error {
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"check-ref-format", "--branch", branchName}); err != nil {
 		return fmt.Errorf("nome de branch inválido: %s", branchName)
 	}
-	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-parse", "--verify", "--quiet", "refs/heads/" + branchName}); err == nil {
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--verify", "--quiet", "refs/heads/" + branchName}); err == nil {
 		return fmt.Errorf("já existe uma branch chamada %s", branchName)
 	}
 	return nil
 }
 
-func (handlerStruct *GitBranchHandler) CreateAndCheckoutBranch(branchName string) error {
-	if err := handlerStruct.validateBranchName(branchName); err != nil {
+func (handlerStruct *GitBranchHandler) CreateAndCheckoutBranch(ctx context.Context, branchName string) error {
+	if err := handlerStruct.validateBranchName(ctx, branchName); err != nil {
 		return err
 	}
-	_, err := handlerStruct.gitHandler.RunGitCommand([]string{"checkout", "-b", branchName})
+	_, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"checkout", "-b", branchName})
 	return err
 }
 
-func (handlerStruct *GitBranchHandler) CreateBranchFrom(branchName string, startPoint string, checkout bool) error {
+func (handlerStruct *GitBranchHandler) CreateBranchFrom(ctx context.Context, branchName string, startPoint string, checkout bool) error {
 	branchName = strings.TrimSpace(branchName)
 	startPoint = strings.TrimSpace(startPoint)
-	if err := handlerStruct.validateBranchName(branchName); err != nil {
+	if err := handlerStruct.validateBranchName(ctx, branchName); err != nil {
 		return err
 	}
 	if startPoint == "" {
 		startPoint = "HEAD"
 	}
-	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-parse", "--verify", "--quiet", startPoint + "^{commit}"}); err != nil {
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--verify", "--quiet", startPoint + "^{commit}"}); err != nil {
 		return fmt.Errorf("branch de origem não encontrada: %s", startPoint)
 	}
 
@@ -72,14 +73,14 @@ func (handlerStruct *GitBranchHandler) CreateBranchFrom(branchName string, start
 	if checkout {
 		args = []string{"checkout", "--no-track", "-b", branchName, startPoint}
 	}
-	if _, err := handlerStruct.gitHandler.RunGitCommand(args); err != nil {
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, args); err != nil {
 		return fmt.Errorf("erro ao criar branch: %v", err)
 	}
 	return nil
 }
-func (handlerStruct *GitBranchHandler) CreateBranch(branchName string) error {
+func (handlerStruct *GitBranchHandler) CreateBranch(ctx context.Context, branchName string) error {
 	args := []string{"branch", branchName}
-	_, err := handlerStruct.gitHandler.RunGitCommand(args)
+	_, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		return err
 	}
@@ -87,25 +88,25 @@ func (handlerStruct *GitBranchHandler) CreateBranch(branchName string) error {
 	return nil
 }
 
-func (handlerStruct *GitBranchHandler) HasUncommittedChanges() (bool, error) {
+func (handlerStruct *GitBranchHandler) HasUncommittedChanges(ctx context.Context) (bool, error) {
 	args := []string{"status", "--porcelain"}
-	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		return false, err
 	}
 	return len(strings.TrimSpace(string(out))) > 0, nil
 }
 
-func (handlerStruct *GitBranchHandler) ChangeBranch(targetBranch string, isRemote bool, leaveChanges bool) error {
+func (handlerStruct *GitBranchHandler) ChangeBranch(ctx context.Context, targetBranch string, isRemote bool, leaveChanges bool) error {
 	var args []string
-	hasChanges, err := handlerStruct.HasUncommittedChanges()
+	hasChanges, err := handlerStruct.HasUncommittedChanges(ctx)
 	if err != nil {
 		return fmt.Errorf("erro ao verificar alterações: %v", err)
 	}
 
 	if hasChanges {
 		args = []string{"stash", "push", "-u", "-m", "OctoHub: Auto-stash antes de mudar para " + targetBranch}
-		_, err := handlerStruct.gitHandler.RunGitCommand(args)
+		_, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 		if err != nil {
 			return fmt.Errorf("erro ao guardar alterações temporárias: %v", err)
 		}
@@ -115,18 +116,18 @@ func (handlerStruct *GitBranchHandler) ChangeBranch(targetBranch string, isRemot
 	if isRemote {
 		args = []string{"checkout", "--track", targetBranch}
 	}
-	_, err = handlerStruct.gitHandler.RunGitCommand(args)
+	_, err = handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		if hasChanges {
 			args = []string{"stash", "pop"}
-			_, _ = handlerStruct.gitHandler.RunGitCommand(args)
+			_, _ = handlerStruct.gitHandler.runGitCommand(ctx, args)
 		}
 		return fmt.Errorf("erro ao trocar branch: %v", err)
 	}
 
 	if hasChanges && !leaveChanges {
 		args := []string{"stash", "pop"}
-		_, err := handlerStruct.gitHandler.RunGitCommand(args)
+		_, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 		if err != nil {
 			return fmt.Errorf("trocou de branch, mas houve conflito ao trazer as mudanças: %v", err)
 		}
@@ -134,9 +135,9 @@ func (handlerStruct *GitBranchHandler) ChangeBranch(targetBranch string, isRemot
 
 	return nil
 }
-func (handlerStruct *GitBranchHandler) DeleteBranch(branch string) error {
+func (handlerStruct *GitBranchHandler) DeleteBranch(ctx context.Context, branch string) error {
 	args := []string{"branch", "-d", branch}
-	_, err := handlerStruct.gitHandler.RunGitCommand(args)
+	_, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		return err
 	}
@@ -145,13 +146,13 @@ func (handlerStruct *GitBranchHandler) DeleteBranch(branch string) error {
 
 var trackRegex = regexp.MustCompile(`(ahead|behind) (\d+)`)
 
-func (handlerStruct *GitBranchHandler) ListBranches() ([]octohubStructs.BranchInfo, error) {
+func (handlerStruct *GitBranchHandler) ListBranches(ctx context.Context) ([]octohubStructs.BranchInfo, error) {
 	args := []string{
 		"for-each-ref", "--sort=-committerdate",
 		"--format=%(refname)%00%(refname:short)%00%(HEAD)%00%(upstream:short)%00%(upstream:track,nobracket)",
 		"refs/heads", "refs/remotes",
 	}
-	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		return nil, err
 	}
@@ -202,8 +203,8 @@ func (handlerStruct *GitBranchHandler) ListBranches() ([]octohubStructs.BranchIn
 	return branches, nil
 }
 
-func (handlerStruct *GitBranchHandler) GetCurrentBranch() (string, error) {
-	out, err := handlerStruct.gitHandler.RunGitCommand([]string{"symbolic-ref", "--short", "-q", "HEAD"})
+func (handlerStruct *GitBranchHandler) GetCurrentBranch(ctx context.Context) (string, error) {
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"symbolic-ref", "--short", "-q", "HEAD"})
 	if err != nil {
 		if errors.Is(err, errNoRepository) {
 			return "", err
@@ -213,14 +214,14 @@ func (handlerStruct *GitBranchHandler) GetCurrentBranch() (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-func (handlerStruct *GitBranchHandler) ListStashes() ([]octohubStructs.Stash, error) {
-	currentBranch, err := handlerStruct.GetCurrentBranch()
+func (handlerStruct *GitBranchHandler) ListStashes(ctx context.Context) ([]octohubStructs.Stash, error) {
+	currentBranch, err := handlerStruct.GetCurrentBranch(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	args := []string{"stash", "list"}
-	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		return nil, err
 	}
@@ -254,21 +255,21 @@ func (handlerStruct *GitBranchHandler) ListStashes() ([]octohubStructs.Stash, er
 	return stashes, nil
 }
 
-func (handlerStruct *GitBranchHandler) PopStash(stashID string) error {
+func (handlerStruct *GitBranchHandler) PopStash(ctx context.Context, stashID string) error {
 	args := []string{"stash", "pop", stashID}
-	_, err := handlerStruct.gitHandler.RunGitCommand(args)
+	_, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	return err
 }
 
-func (handlerStruct *GitBranchHandler) DropStash(stashID string) error {
+func (handlerStruct *GitBranchHandler) DropStash(ctx context.Context, stashID string) error {
 	args := []string{"stash", "drop", stashID}
-	_, err := handlerStruct.gitHandler.RunGitCommand(args)
+	_, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	return err
 }
 
-func (handlerStruct *GitBranchHandler) GetStashModifications(stashID string) ([]octohubStructs.FileModification, error) {
+func (handlerStruct *GitBranchHandler) GetStashModifications(ctx context.Context, stashID string) ([]octohubStructs.FileModification, error) {
 	args := []string{"stash", "show", "--name-status", stashID}
-	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +304,7 @@ func (handlerStruct *GitBranchHandler) GetStashModifications(stashID string) ([]
 	return filesModified, nil
 }
 
-func (handlerStruct *GitBranchHandler) GetStashedFileDiff(stashID string, filePath string) (string, error) {
+func (handlerStruct *GitBranchHandler) GetStashedFileDiff(ctx context.Context, stashID string, filePath string) (string, error) {
 	var args []string
 	if strings.Contains(filePath, " -> ") {
 		parts := strings.Split(filePath, " -> ")
@@ -317,7 +318,7 @@ func (handlerStruct *GitBranchHandler) GetStashedFileDiff(stashID string, filePa
 		args = append(args, stashID, "--", filePath)
 	}
 
-	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		return "", err
 	}
@@ -325,8 +326,8 @@ func (handlerStruct *GitBranchHandler) GetStashedFileDiff(stashID string, filePa
 	return string(out), nil
 }
 
-func (handlerStruct *GitBranchHandler) StageFile(filePath string) error {
+func (handlerStruct *GitBranchHandler) StageFile(ctx context.Context, filePath string) error {
 	args := []string{"add", "--force", "--", filePath}
-	_, err := handlerStruct.gitHandler.RunGitCommand(args)
+	_, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	return err
 }

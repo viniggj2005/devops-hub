@@ -1,13 +1,14 @@
 import iziToast from 'izitoast';
 import ContainerStatsModal from './ContainerStatsModal';
 import React, { useEffect, useRef, useState } from 'react';
+import { errorMessage } from '../../../../shared/functions/ErrorMessage';
 import { FmtName } from '../../../../../features/shared/functions/TreatmentFunction';
 import InspectModal from '../../../../../features/shared/components/modals/InspectModal';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
 import { ContainerProps } from '../../../../../interfaces/ContainerInterfaces';
 import { useConfirmToast } from '../../../../../features/shared/components/toasts/ConfirmToast';
 import { BookSearch, ChartSpline, ClipboardList, RotateCcw, SquareTerminal, Trash2 } from 'lucide-react';
-import { ContainerRemove, ContainerInspect, ContainerRestart } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
+import { ContainerRemove, ContainerInspect, ContainerRestart } from '../../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 
 const ContainersMenuModal: React.FC<ContainerProps> = ({
   id,
@@ -54,7 +55,7 @@ const ContainersMenuModal: React.FC<ContainerProps> = ({
       });
       setIsInspectOpen(true);
     } catch (error: any) {
-      iziToast.error({ title: 'Erro', message: String(error), position: 'bottomRight' });
+      iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
     }
   };
 
@@ -66,7 +67,7 @@ const ContainersMenuModal: React.FC<ContainerProps> = ({
       iziToast.success({ title: 'Reiniciado', message: `Container ${name} reiniciado!`, position: 'bottomRight' });
       setMenuModal?.(false);
     } catch (error: any) {
-      iziToast.error({ title: 'Erro', message: String(error), position: 'bottomRight' });
+      iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
     }
   };
 

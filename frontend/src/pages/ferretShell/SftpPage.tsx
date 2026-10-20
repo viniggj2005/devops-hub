@@ -1,15 +1,19 @@
 import iziToast from 'izitoast';
 import { useAuth } from '../../contexts/AuthContext';
+import { Duration } from '../../../bindings/time/models';
 import React, { useState, useEffect, useRef } from 'react';
+import { errorMessage } from '../../features/shared/functions/ErrorMessage';
 import { usePromptToast } from '../../features/shared/components/toasts/PromptToast';
-import * as Ssh from '../../../wailsjs/go/ferretshellHandlers/SshHandlerStruct';
-import * as Sftp from '../../../wailsjs/go/ferretshellHandlers/SftpHandlerStruct';
-import * as Local from '../../../wailsjs/go/ferretshellHandlers/LocalFileHandler';
-import { ferretshellHandlers, ferretshellDtos } from '../../../wailsjs/go/models';
+import * as Ssh from '../../../bindings/docker-manager-go/src/ferretshell/handlers/sshhandlerstruct';
+import * as Sftp from '../../../bindings/docker-manager-go/src/ferretshell/handlers/sftphandlerstruct';
+import * as Local from '../../../bindings/docker-manager-go/src/ferretshell/handlers/localfilehandler';
+import * as ferretshellHandlers from '../../../bindings/docker-manager-go/src/ferretshell/handlers/models';
+import * as ferretshellDtos from '../../../bindings/docker-manager-go/src/ferretshell/dtos/models';
 import SftpSidebar from '../../features/ferretShell-module/sftp/components/SftpSidebar';
 import RenameModal from '../../features/ferretShell-module/sftp/components/RenameModal';
 import SftpLocalPanel from '../../features/ferretShell-module/sftp/components/SftpLocalPanel';
 import SftpRemotePanel from '../../features/ferretShell-module/sftp/components/SftpRemotePanel';
+import { bytesToBase64, normalizeKey } from '../../features/ferretShell-module/terminal/functions/TreatmentFunctions';
 
 const SftpPage: React.FC = () => {
     const { token, user } = useAuth();
@@ -91,7 +95,7 @@ const SftpPage: React.FC = () => {
             config.User = sshDto.systemUser;
             config.InsecureIgnoreHostKey = true;
             if (sshDto.key) {
-                config.Key = Array.from(sshDto.key).map(char => char.charCodeAt(0));
+                config.Key = bytesToBase64(normalizeKey(sshDto.key));
             } else if (sshDto.password) {
                 config.Password = sshDto.password;
             } else {
@@ -105,7 +109,7 @@ const SftpPage: React.FC = () => {
                 if (!password) { setConnecting(false); return; }
                 config.Password = password;
             }
-            config.Timeout = 10000000000;
+            config.Timeout = 10 * Duration.Second;
             const newSessionId = await Sftp.ConnectSFTP(config);
             setSessionId(newSessionId);
             sessionIdRef.current = newSessionId;
@@ -138,7 +142,7 @@ const SftpPage: React.FC = () => {
             iziToast.success({ title: 'Sucesso', message: 'Download concluído', position: 'bottomRight' });
             loadLocalFiles(localPath);
         } catch (err: any) {
-            iziToast.error({ title: 'Erro', message: String(err), position: 'bottomRight' });
+            iziToast.error({ title: 'Erro', message: errorMessage(err), position: 'bottomRight' });
         }
     };
 
@@ -158,7 +162,7 @@ const SftpPage: React.FC = () => {
             iziToast.success({ title: 'Sucesso', message: 'Upload concluído', position: 'bottomRight' });
             loadRemoteFiles(sessionId, remotePath);
         } catch (err: any) {
-            iziToast.error({ title: 'Erro', message: String(err), position: 'bottomRight' });
+            iziToast.error({ title: 'Erro', message: errorMessage(err), position: 'bottomRight' });
         }
     };
 
@@ -178,7 +182,7 @@ const SftpPage: React.FC = () => {
                         iziToast.success({ title: 'Sucesso', message: 'Itens excluídos', position: 'bottomRight' });
                         setSelectedLocalIndices([]);
                         loadLocalFiles(localPath);
-                    } catch (err: any) { iziToast.error({ title: 'Erro', message: String(err), position: 'bottomRight' }); }
+                    } catch (err: any) { iziToast.error({ title: 'Erro', message: errorMessage(err), position: 'bottomRight' }); }
                 }, true],
                 ['<button>NÃO</button>', (instance: any, toast: any) => { instance.hide({ transitionOut: 'fadeOut' }, toast, 'button'); }, false],
             ],
@@ -200,7 +204,7 @@ const SftpPage: React.FC = () => {
             iziToast.success({ title: 'Sucesso', message: 'Arquivo renomeado', position: 'bottomRight' });
             loadLocalFiles(localPath);
         } catch (err: any) {
-            iziToast.error({ title: 'Erro', message: String(err), position: 'bottomRight' });
+            iziToast.error({ title: 'Erro', message: errorMessage(err), position: 'bottomRight' });
         } finally {
             setIsRenameModalOpen(false);
             setItemToRename(null);

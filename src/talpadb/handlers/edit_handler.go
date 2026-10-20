@@ -92,7 +92,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) resolveEditableTables(session *
 			continue
 		}
 		if entry == nil {
-			pool, err := handlerStruct.getPoolForUser(session.userID, session.connectionID, session.database)
+			pool, err := handlerStruct.getPoolForUser(session.windowName, session.userID, session.connectionID, session.database)
 			if err != nil {
 				return
 			}

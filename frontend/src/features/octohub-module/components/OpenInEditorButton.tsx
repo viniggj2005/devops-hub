@@ -1,8 +1,9 @@
 import iziToast from 'izitoast';
 import React, { useState } from 'react';
 import { VsCodeIcon } from '../../shared/Icons';
+import { errorMessage } from '../../shared/functions/ErrorMessage';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
-import { OpenRepositoryInEditor } from '../../../../wailsjs/go/octohubHandler/GitBranchHandler';
+import { OpenRepositoryInEditor } from '../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 
 const OpenInEditorButton: React.FC = () => {
     const { repository } = useOctohubRepository();
@@ -14,7 +15,7 @@ const OpenInEditorButton: React.FC = () => {
         try {
             await OpenRepositoryInEditor();
         } catch (error) {
-            iziToast.error({ title: 'Erro', message: String(error), position: 'bottomRight' });
+            iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
         } finally {
             setOpening(false);
         }

@@ -1,6 +1,9 @@
+import { Window } from "@wailsio/runtime";
 import { useEffect, useState } from "react";
+import { isDetachedWindow } from "./WindowContext";
 import { CircleX, Copy, Minus } from "lucide-react";
-import { Quit, WindowMinimise, WindowIsMaximised, WindowToggleMaximise } from "../../../wailsjs/runtime/runtime";
+
+const closeLabel = isDetachedWindow ? "Fechar janela" : "Fechar";
 
 const controlButtonClass = `
   inline-flex h-8 w-8 items-center justify-center
@@ -13,12 +16,12 @@ export function useWindowMaximise() {
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
-    WindowIsMaximised().then(setMaximized);
+    Window.IsMaximised().then(setMaximized);
   }, []);
 
   const toggleMaximise = async () => {
-    await WindowToggleMaximise();
-    setMaximized(await WindowIsMaximised());
+    await Window.ToggleMaximise();
+    setMaximized(await Window.IsMaximised());
   };
 
   return { maximized, toggleMaximise };
@@ -32,7 +35,7 @@ interface WindowControlsProps {
 export function WindowControls({ maximized, onToggleMaximise }: WindowControlsProps) {
   return (
     <div className="appframe-no-drag shrink-0 flex items-center gap-1.5 px-2" onDoubleClick={event => event.stopPropagation()}>
-      <button onClick={() => WindowMinimise()} className={controlButtonClass} aria-label="Minimizar" title="Minimizar">
+      <button onClick={() => Window.Minimise()} className={controlButtonClass} aria-label="Minimizar" title="Minimizar">
         <Minus className="w-5 h-5" />
       </button>
 
@@ -46,9 +49,9 @@ export function WindowControls({ maximized, onToggleMaximise }: WindowControlsPr
       </button>
 
       <button
-        onClick={() => Quit()}
-        title="Fechar"
-        aria-label="Fechar"
+        onClick={() => Window.Close()}
+        title={closeLabel}
+        aria-label={closeLabel}
         className="
           inline-flex h-8 w-8 items-center justify-center
           rounded-full cursor-pointer

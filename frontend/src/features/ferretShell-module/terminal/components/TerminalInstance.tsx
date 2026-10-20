@@ -3,7 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import React, { useEffect, useRef } from 'react';
 import { useTerminalStore } from '../TerminalStore';
-import { EventsOn } from '../../../../../wailsjs/runtime/runtime';
+import { Events } from '@wailsio/runtime';
 import { attachTerminalShortcuts } from '../functions/TerminalShortcuts';
 import { resolveTerminalTransport } from '../functions/TerminalTransports';
 import { useGeneralConfigsStore } from '../../../settings/store/GeneralConfigsStore';
@@ -111,8 +111,8 @@ const TerminalInstance: React.FC<Props> = ({ instance }) => {
     terminal.onData(handleData);
     const detachShortcuts = attachTerminalShortcuts(terminal, hostRef.current!);
 
-    const offData = EventsOn(transport.dataEvent, (chunk: string) => terminal.write(chunk));
-    const offExit = EventsOn(transport.exitEvent, (reason: string) => {
+    const offData = Events.On(transport.dataEvent, ({ data: chunk }) => terminal.write(chunk));
+    const offExit = Events.On(transport.exitEvent, ({ data: reason }) => {
       if (connectionStatus === 'disconnected') return;
       writeNotice(ANSI_RED, transport.exitLabel, reason || 'sessão finalizada');
       markDisconnected();

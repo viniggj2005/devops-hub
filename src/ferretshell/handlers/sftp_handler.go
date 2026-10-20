@@ -11,8 +11,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pkg/sftp"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"golang.org/x/crypto/ssh"
 
+	"docker-manager-go/src/desktop"
 	"docker-manager-go/src/processes"
 	ferretShellDtos "docker-manager-go/src/ferretshell/dtos"
 )
@@ -29,6 +31,7 @@ type SftpFileInfo struct {
 
 type sftpSession struct {
 	sshClient  *ssh.Client
+	windowName string
 	sftpClient *sftp.Client
 }
 
@@ -38,9 +41,23 @@ func NewSftpHandler(terminalHandler *TerminalHandlerStruct) *SftpHandlerStruct {
 	}
 }
 
-func (handlerStruct *SftpHandlerStruct) Startup(ctx context.Context) {}
+func (handlerStruct *SftpHandlerStruct) ServiceStartup(_ context.Context, _ application.ServiceOptions) error {
+	desktop.OnWindowClosed(handlerStruct.releaseWindowSftpSessions)
+	return nil
+}
 
-func (handlerStruct *SftpHandlerStruct) ConnectSFTP(configure ferretShellDtos.SSHConnectionDto) (string, error) {
+func (handlerStruct *SftpHandlerStruct) releaseWindowSftpSessions(windowName string) {
+	handlerStruct.SftpSessions.Range(func(key, value any) bool {
+		if session := value.(*sftpSession); session.windowName == windowName {
+			session.sftpClient.Close()
+			session.sshClient.Close()
+			handlerStruct.SftpSessions.Delete(key)
+		}
+		return true
+	})
+}
+
+func (handlerStruct *SftpHandlerStruct) ConnectSFTP(ctx context.Context, configure ferretShellDtos.SSHConnectionDto) (string, error) {
 	sshConfig := &ssh.ClientConfig{
 		User:            configure.User,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
@@ -57,8 +74,8 @@ func (handlerStruct *SftpHandlerStruct) ConnectSFTP(configure ferretShellDtos.SS
 		sshConfig.Auth = []ssh.AuthMethod{ssh.Password(configure.Password)}
 	}
 
-	addr := fmt.Sprintf("%s:%d", configure.Host, configure.Port)
-	sshClient, err := ssh.Dial("tcp", addr, sshConfig)
+	address := fmt.Sprintf("%s:%d", configure.Host, configure.Port)
+	sshClient, err := ssh.Dial("tcp", address, sshConfig)
 	if err != nil {
 		return "", err
 	}
@@ -72,6 +89,7 @@ func (handlerStruct *SftpHandlerStruct) ConnectSFTP(configure ferretShellDtos.SS
 	sessionId := uuid.New().String()
 	handlerStruct.SftpSessions.Store(sessionId, &sftpSession{
 		sshClient:  sshClient,
+		windowName: desktop.CallingWindowName(ctx),
 		sftpClient: sftpClient,
 	})
 

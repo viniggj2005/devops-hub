@@ -15,6 +15,7 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 )
 
@@ -44,10 +45,10 @@ func setupTalpadbTestHandlers(test *testing.T) (*TalpadbHandlerStruct, *TalpadbC
 
 	ctx := context.Background()
 	talpadbHandler := NewTalpadbHandler(dataBase, sessionManager)
-	talpadbHandler.Startup(ctx)
+	talpadbHandler.ServiceStartup(ctx, application.ServiceOptions{})
 
 	clientHandler := NewTalpadbClientHandler(talpadbHandler)
-	clientHandler.Startup(ctx)
+	clientHandler.ServiceStartup(ctx, application.ServiceOptions{})
 
 	return talpadbHandler, clientHandler, token
 }
@@ -151,10 +152,10 @@ func TestTalpadbConnectionsAndDiagramLayoutsCRUD(test *testing.T) {
 		test.Fatalf("unexpected loaded diagram layout: %q, err=%v", loadedLayout, err)
 	}
 
-	if err := clientHandler.DisconnectServer(token, created.ID); err != nil {
+	if err := clientHandler.DisconnectServer(context.Background(), token, created.ID); err != nil {
 		test.Fatalf("unexpected DisconnectServer error: %v", err)
 	}
-	if err := clientHandler.DisconnectAll(token); err != nil {
+	if err := clientHandler.DisconnectAll(context.Background(), token); err != nil {
 		test.Fatalf("unexpected DisconnectAll error: %v", err)
 	}
 	if err := clientHandler.CloseQuerySession(token, "non-existent"); err != nil {

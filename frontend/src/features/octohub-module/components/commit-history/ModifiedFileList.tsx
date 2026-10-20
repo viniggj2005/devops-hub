@@ -1,5 +1,5 @@
 import React from 'react';
-import { octohubStructs } from '../../../../../wailsjs/go/models';
+import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { ChevronRight, FileText, Plus, Minus, SquareDot, SquareArrowRight } from 'lucide-react';
 
 interface ModifiedFileListProps {

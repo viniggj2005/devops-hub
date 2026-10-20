@@ -3,7 +3,7 @@ import '@xterm/xterm/css/xterm.css';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import React, { useEffect, useRef } from 'react';
-import { EventsOn } from '../../../../../../wailsjs/runtime/runtime';
+import { Events } from '@wailsio/runtime';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
 import { TerminalInstance } from '../../../../../interfaces/TerminalInterfaces';
 import { containerExec, terminalWrite, terminalResize, terminalClose } from '../../services/ContainersService';
@@ -56,11 +56,11 @@ const ContainerTerminal: React.FC<Props> = ({ instance }) => {
 
     terminal.onData(handleData);
 
-    const offData = EventsOn(`terminal:data:${containerId}`, (data: string) => {
+    const offData = Events.On(`terminal:data:${containerId}`, ({ data }) => {
       terminal.write(data);
     });
 
-    const offClosed = EventsOn(`terminal:closed:${containerId}`, () => {
+    const offClosed = Events.On(`terminal:closed:${containerId}`, () => {
       terminal.writeln('\r\n[conexão encerrada pelo servidor]');
       connectedRef.current = false;
     });

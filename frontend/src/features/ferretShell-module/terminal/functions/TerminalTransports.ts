@@ -1,6 +1,6 @@
 import { TerminalInstance } from '../../../../interfaces/TerminalInterfaces';
-import * as SshTerminal from '../../../../../wailsjs/go/ferretshellHandlers/TerminalHandlerStruct';
-import * as LocalTerminal from '../../../../../wailsjs/go/ferretshellHandlers/LocalTerminalHandlerStruct';
+import * as SshTerminal from '../../../../../bindings/docker-manager-go/src/ferretshell/handlers/terminalhandlerstruct';
+import * as LocalTerminal from '../../../../../bindings/docker-manager-go/src/ferretshell/handlers/localterminalhandlerstruct';
 
 export interface TerminalTransport {
   exitLabel: string;

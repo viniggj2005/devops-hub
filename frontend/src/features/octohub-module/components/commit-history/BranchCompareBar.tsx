@@ -2,11 +2,12 @@ import iziToast from 'izitoast';
 import MergeBranchModal from '../MergeBranchModal';
 import { escapeHtml } from '../../functions/gitStatus';
 import { useDismiss } from '../../../shared/hooks/useDismiss';
-import { octohubStructs } from '../../../../../wailsjs/go/models';
+import { errorMessage } from '../../../shared/functions/ErrorMessage';
+import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Cloud, GitBranch, GitCompare, GitMerge, Search, X } from 'lucide-react';
-import { ListBranches } from '../../../../../wailsjs/go/octohubHandler/GitBranchHandler';
-import { CompareBranch } from '../../../../../wailsjs/go/octohubHandler/GitCommitsHandler';
+import { ListBranches } from '../../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
+import { CompareBranch } from '../../../../../bindings/docker-manager-go/src/octohub/handlers/gitcommitshandler';
 
 export type CompareDirection = 'behind' | 'ahead';
 
@@ -43,7 +44,7 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
         setFilter('');
         ListBranches()
             .then((list) => setBranches((list || []).filter((item) => !item.IsCurrent)))
-            .catch((error) => iziToast.error({ title: 'Erro', message: escapeHtml(String(error)), position: 'bottomRight' }));
+            .catch((error) => iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(error)), position: 'bottomRight' }));
     }, [pickerOpen]);
 
     useEffect(() => {
@@ -56,7 +57,7 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
             .then((result) => !cancelled && setComparison(result))
             .catch((error) => {
                 if (cancelled) return;
-                iziToast.error({ title: 'Erro', message: escapeHtml(`Não foi possível comparar com ${branch}: ${error}`), position: 'bottomRight' });
+                iziToast.error({ title: 'Erro', message: escapeHtml(`Não foi possível comparar com ${branch}: ${errorMessage(error)}`), position: 'bottomRight' });
                 onBranchChange(null);
             });
         return () => {

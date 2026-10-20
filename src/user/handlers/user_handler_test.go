@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -24,7 +25,7 @@ func setupUserTestHandler(test *testing.T) (*UserHandlerStruct, string, uint) {
 
 	sessionManager := authFunctions.NewManager(time.Hour)
 	handler := NewUserHandler(dataBase, sessionManager)
-	handler.Startup(context.Background())
+	handler.ServiceStartup(context.Background(), application.ServiceOptions{})
 
 	created, err := handler.Create(userDtos.CreateUserInputDto{
 		Name:     "Admin",

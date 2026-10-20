@@ -1,6 +1,6 @@
 import React from 'react';
 import { Network } from 'lucide-react';
-import { image } from '../../../../../../wailsjs/go/models';
+import * as image from '../../../../../../bindings/github.com/docker/docker/api/types/image/models';
 
 interface BasicInfoSectionProps {
     containerName: string;

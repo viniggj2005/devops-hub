@@ -1,12 +1,12 @@
 import { CPUChart } from '../charts/CpuChart';
 import { MemoryChart } from '../charts/MemoryChart';
 import { Modal } from '../../../../../features/shared/components/modals/Modal';
-import { EventsOn } from '../../../../../../wailsjs/runtime/runtime';
+import { Events } from '@wailsio/runtime';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BytesToMB } from '../../../../../features/shared/functions/TreatmentFunction';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
 import { ContainerStatsProps, StatsPayload } from '../../../../../interfaces/ContainerInterfaces';
-import { StartContainerStats, StopContainerStats } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
+import { StartContainerStats, StopContainerStats } from '../../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 
 const maxPoints = 10;
 
@@ -21,7 +21,8 @@ const ContainerStatsModal: React.FC<ContainerStatsProps> = ({ id, name, onClose 
   const { selectedCredentialId } = useDockerClient();
 
   useEffect(() => {
-    const offStats = EventsOn('container:stats', (stats: StatsPayload) => {
+    const offStats = Events.On('container:stats', (event) => {
+      const stats: StatsPayload = event.data;
       if (stats.containerId !== id) return;
       setStats(stats);
 
@@ -41,8 +42,8 @@ const ContainerStatsModal: React.FC<ContainerStatsProps> = ({ id, name, onClose 
       if (!memoryLimitMBRef.current) memoryLimitMBRef.current = BytesToMB(stats.memoryLimit);
     });
 
-    const offErr = EventsOn('container:stats:error', (event: any) => {
-      if (event?.containerId === id) console.error('stats error:', event.error);
+    const offErr = Events.On('container:stats:error', ({ data }) => {
+      if (data?.containerId === id) console.error('stats error:', data.error);
     });
 
     if (selectedCredentialId != null) {

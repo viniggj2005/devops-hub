@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "preview": "vite preview",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build --mode production",
+    "build:dev": "tsc && vite build --minify false --mode development",
     "format": "prettier --write ."
   },
   "dependencies": {
@@ -19,6 +20,7 @@
     "@codemirror/view": "^6.43.14",
     "@heroui/theme": "^2.4.17",
     "@lezer/highlight": "^1.2.5",
+    "@wailsio/runtime": "3.0.0-beta.34",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "ansi-to-html": "^0.7.2",

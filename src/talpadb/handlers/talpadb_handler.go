@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 
 	auth "docker-manager-go/src/auth/functions"
@@ -25,8 +26,9 @@ func NewTalpadbHandler(dataBase *gorm.DB, sessionManager *auth.ManagerStruct) *T
 	return &TalpadbHandlerStruct{DataBase: dataBase, Session: sessionManager}
 }
 
-func (handlerStruct *TalpadbHandlerStruct) Startup(context context.Context) {
+func (handlerStruct *TalpadbHandlerStruct) ServiceStartup(context context.Context, _ application.ServiceOptions) error {
 	handlerStruct.context = context
+	return nil
 }
 
 func (handlerStruct *TalpadbHandlerStruct) authenticate(token string) (uint, error) {

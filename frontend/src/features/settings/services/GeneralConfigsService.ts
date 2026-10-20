@@ -1,4 +1,4 @@
-import { generalConfigsDtos } from '../../../../wailsjs/go/models';
+import * as generalConfigsDtos from '../../../../bindings/docker-manager-go/src/generalConfigs/dtos/models';
 import { SaveGeneralConfigPayload } from '../../../interfaces/GeneralConfigsInterfaces';
 import {
   Save,
@@ -7,7 +7,7 @@ import {
   SaveThemeProfile,
   DeleteThemeProfile,
   FindAllThemeProfiles,
-} from '../../../../wailsjs/go/generalConfigsHandlers/GeneralConfigsHandlerStruct';
+} from '../../../../bindings/docker-manager-go/src/generalConfigs/handlers/generalconfigshandlerstruct';
 
 const toSaveInput = (payload: SaveGeneralConfigPayload) => generalConfigsDtos.SaveGeneralConfigInputDto.createFrom({
   configType: payload.configType,
@@ -20,7 +20,9 @@ export async function findAllGeneralConfigsApi(token: string): Promise<generalCo
 }
 
 export async function saveGeneralConfigApi(token: string, payload: SaveGeneralConfigPayload): Promise<generalConfigsDtos.GeneralConfigDto> {
-  return Save(token, toSaveInput(payload));
+  const savedConfig = await Save(token, toSaveInput(payload));
+  if (!savedConfig) throw new Error('a configuração não foi salva');
+  return savedConfig;
 }
 
 export async function saveManyGeneralConfigsApi(token: string, payloads: SaveGeneralConfigPayload[]): Promise<generalConfigsDtos.GeneralConfigDto[]> {
@@ -32,11 +34,13 @@ export async function findAllThemeProfilesApi(token: string): Promise<generalCon
 }
 
 export async function saveThemeProfileApi(token: string, profile: { id: number; name: string; config: object }): Promise<generalConfigsDtos.ThemeProfileDto> {
-  return SaveThemeProfile(token, generalConfigsDtos.SaveThemeProfileInputDto.createFrom({
+  const savedProfile = await SaveThemeProfile(token, generalConfigsDtos.SaveThemeProfileInputDto.createFrom({
     id: profile.id,
     name: profile.name,
     config: JSON.stringify(profile.config),
   }));
+  if (!savedProfile) throw new Error('o perfil de tema não foi salvo');
+  return savedProfile;
 }
 
 export async function deleteThemeProfileApi(token: string, profileId: number): Promise<void> {

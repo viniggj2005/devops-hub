@@ -1,8 +1,11 @@
 import iziToast from 'izitoast';
 import { create } from 'zustand';
+import { Events } from '@wailsio/runtime';
 import { getToken } from '../../../contexts/AuthContext';
 import { isHexColor } from '../functions/CustomThemePalette';
+import { errorMessage } from '../../shared/functions/ErrorMessage';
 import { readStoredGlobalTheme } from '../functions/StoredGlobalTheme';
+import { windowInstanceId } from '../../appFrame/WindowContext';
 import { defaultOctohubColors } from '../constants/OctohubColorDefaults';
 import { appModules, defaultCustomTheme } from '../../shared/constants/AppModules';
 import { defaultTerminalTheme, terminalFontSizeRange } from '../constants/TerminalThemePresets';
@@ -29,7 +32,7 @@ import {
   ModuleThemePreference,
   SaveGeneralConfigPayload,
 } from '../../../interfaces/GeneralConfigsInterfaces';
-import { generalConfigsDtos } from '../../../../wailsjs/go/models';
+import * as generalConfigsDtos from '../../../../bindings/docker-manager-go/src/generalConfigs/dtos/models';
 
 type ModulesConfig = Record<ConfigurableModule, ModuleConfig>;
 
@@ -58,6 +61,10 @@ interface GeneralConfigsState {
 }
 
 const themePreferences: ModuleThemePreference[] = ['light', 'dark', 'custom'];
+
+export const generalConfigsChangedEvent = 'general-configs:changed';
+
+const notifyConfigsChanged = () => Events.Emit(generalConfigsChangedEvent, windowInstanceId);
 
 const buildDefaultModules = (): ModulesConfig => {
   const defaultTheme = readStoredGlobalTheme();
@@ -176,7 +183,7 @@ const showError = (message: string, error: unknown) => {
   iziToast.error({
     title: 'Erro',
     position: 'bottomRight',
-    message: `${message}: ${error}`,
+    message: `${message}: ${errorMessage(error)}`,
   });
 };
 
@@ -192,6 +199,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
     set(state => ({ modules: { ...state.modules, [moduleName]: nextConfig } }));
     try {
       await saveGeneralConfigApi(getToken() ?? '', { moduleName, configType, config: buildConfig(nextConfig) });
+      notifyConfigsChanged();
     } catch (error) {
       set(state => ({ modules: { ...state.modules, [moduleName]: previousConfig } }));
       showError('Falha ao salvar a configuração', error);
@@ -207,6 +215,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
     set({ [stateKey]: nextValue } as Pick<GeneralConfigsState, Key>);
     try {
       await saveGeneralConfigApi(getToken() ?? '', { moduleName, configType: 'colors', config: { ...nextValue } });
+      notifyConfigsChanged();
     } catch (error) {
       set({ [stateKey]: previousValue } as Pick<GeneralConfigsState, Key>);
       showError('Falha ao salvar as cores', error);
@@ -218,6 +227,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
     set(state => ({
       themeProfiles: sortProfiles([...state.themeProfiles.filter(item => item.id !== savedProfile.id), savedProfile]),
     }));
+    notifyConfigsChanged();
   };
 
   const buildThemeSnapshot = (globalTheme: ThemeBase): ThemeProfileConfig => {
@@ -343,6 +353,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
       try {
         await deleteThemeProfileApi(getToken() ?? '', profile.id);
         set(state => ({ themeProfiles: state.themeProfiles.filter(item => item.id !== profile.id) }));
+        notifyConfigsChanged();
       } catch (error) {
         showError('Falha ao excluir o perfil de tema', error);
       }
@@ -404,6 +415,7 @@ async function applyThemeConfig(config: ThemeProfileConfig, errorMessage: string
   });
   try {
     await saveManyGeneralConfigsApi(getToken() ?? '', payloads);
+    notifyConfigsChanged();
     return true;
   } catch (error) {
     setState({

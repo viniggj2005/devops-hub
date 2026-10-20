@@ -2,14 +2,16 @@ import iziToast from 'izitoast';
 import { Box } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { PortsSection } from '../create-modal/PortsSection';
-import { dockerDtos, image } from '../../../../../../wailsjs/go/models';
+import { errorMessage } from '../../../../shared/functions/ErrorMessage';
+import * as dockerDtos from '../../../../../../bindings/docker-manager-go/src/dockermanager/dtos/models';
+import * as image from '../../../../../../bindings/github.com/docker/docker/api/types/image/models';
 import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { EnvVarsSection } from '../create-modal/EnvVarsSection';
 import { VolumesSection } from '../create-modal/VolumesSection';
 import { BasicInfoSection } from '../create-modal/BasicInfoSection';
 import { ResourceLimitsSection } from '../create-modal/ResourceLimitsSection';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
-import { CreateContainer, ImagesList, ListVolumes, ListNetworks } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
+import { CreateContainer, ImagesList, ListVolumes, ListNetworks } from '../../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 import { CreateContainerPortMapping, CreateContainerEnvVar, CreateContainerVolumeMapping } from '../../../../../interfaces/ContainerInterfaces';
 
 
@@ -142,7 +144,7 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
 
         } catch (error) {
             console.error(error);
-            iziToast.error({ title: 'Erro', message: `Falha ao criar container: ${error}` });
+            iziToast.error({ title: 'Erro', message: `Falha ao criar container: ${errorMessage(error)}` });
         } finally {
             setLoading(false);
         }

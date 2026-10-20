@@ -2,11 +2,12 @@ import iziToast from 'izitoast';
 import { createPortal } from 'react-dom';
 import { VsCodeIcon } from '../../shared/Icons';
 import { escapeHtml } from '../functions/gitStatus';
-import { octohubStructs } from '../../../../wailsjs/go/models';
+import { errorMessage } from '../../shared/functions/ErrorMessage';
+import * as octohubStructs from '../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import { X, GitMerge, TriangleAlert, CircleCheck, LoaderCircle, Play } from 'lucide-react';
-import { CheckConflicts, ContinueOperation, OpenFileInEditor, ResolveConflict } from '../../../../wailsjs/go/octohubHandler/GitBranchHandler';
+import { CheckConflicts, ContinueOperation, OpenFileInEditor, ResolveConflict } from '../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 
 const POLL_INTERVAL = 1500;
 
@@ -94,7 +95,7 @@ const ConflictResolutionModal: React.FC = () => {
             await ResolveConflict(file, resolution);
             await check();
         } catch (err) {
-            iziToast.error({ title: 'Erro', message: escapeHtml(String(err)), position: 'bottomRight' });
+            iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(err)), position: 'bottomRight' });
         } finally {
             setBusyFile(null);
         }
@@ -102,7 +103,7 @@ const ConflictResolutionModal: React.FC = () => {
 
     const openFile = (file: string) => {
         OpenFileInEditor(file).catch((err) => {
-            iziToast.error({ title: 'Erro', message: escapeHtml(`Erro ao abrir no editor: ${err}`), position: 'bottomRight' });
+            iziToast.error({ title: 'Erro', message: escapeHtml(`Erro ao abrir no editor: ${errorMessage(err)}`), position: 'bottomRight' });
         });
     };
 
@@ -120,7 +121,7 @@ const ConflictResolutionModal: React.FC = () => {
                 closeConflicts();
             }
         } catch (err) {
-            iziToast.error({ title: 'Erro', message: escapeHtml(String(err)), position: 'bottomRight' });
+            iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(err)), position: 'bottomRight' });
         } finally {
             setContinuing(false);
         }

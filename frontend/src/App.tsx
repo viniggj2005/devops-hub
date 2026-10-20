@@ -1,17 +1,18 @@
 import './index.css';
+import { Events, Window } from '@wailsio/runtime';
 import { useEffect, useState } from 'react';
 import MainHomePage from './pages/MainHomePage';
 import { AppFrame } from './features/appFrame/appFrame';
 import SettingsPage from './pages/settings/SettingsPage';
 import { useAppStore } from './features/appFrame/AppStore';
+import { windowInstanceId } from './features/appFrame/WindowContext';
 import { useUpdateNotifier } from './features/shared/hooks/useUpdateNotifier';
-import { useGeneralConfigsStore } from './features/settings/store/GeneralConfigsStore';
+import { generalConfigsChangedEvent, useGeneralConfigsStore } from './features/settings/store/GeneralConfigsStore';
 import DockerModuleWrapper from './features/docker-module/components/DockerModuleWrapper';
 import OctohubModuleWrapper from './features/octohub-module/components/OctohubModuleWrapper';
 import { applyOctohubColorVariables } from './features/settings/functions/OctohubColorVariables';
 import FerretShellModuleWrapper from './features/ferretShell-module/components/FerretShellModuleWrapper';
 import TalpadbModuleWrapper from './features/talpadb-module/components/TalpadbModuleWrapper';
-import { WindowIsFullscreen, WindowFullscreen, WindowUnfullscreen, WindowIsMaximised, WindowUnmaximise } from '../wailsjs/runtime/runtime';
 
 export default function App() {
   const { tabs, activeTabId } = useAppStore();
@@ -27,32 +28,43 @@ export default function App() {
     return resetGeneralConfigs;
   }, [loadGeneralConfigs, resetGeneralConfigs]);
 
+  useEffect(() => Events.On(generalConfigsChangedEvent, ({ data: originWindowId }) => {
+    if (originWindowId !== windowInstanceId) loadGeneralConfigs();
+  }), [loadGeneralConfigs]);
+
   useEffect(() => applyOctohubColorVariables(octohubColors), [octohubColors]);
+
+  const activeTab = tabs.find(tab => tab.id === activeTabId);
+  const windowTitle = activeTab && activeTab.type !== 'home' ? `Devops Hub · ${activeTab.title}` : 'Devops Hub';
+
+  useEffect(() => {
+    Window.SetTitle(windowTitle);
+  }, [windowTitle]);
 
   useEffect(() => {
     const handleResize = async () => {
-      const fullscreen = await WindowIsFullscreen();
+      const fullscreen = await Window.IsFullscreen();
       setIsFullscreen(fullscreen);
     };
 
     const handleKeyDown = async (event: KeyboardEvent) => {
       if (event.key === 'F11') {
-        const fullscreen = await WindowIsFullscreen();
+        const fullscreen = await Window.IsFullscreen();
         if (fullscreen) {
-          await WindowUnfullscreen();
+          await Window.UnFullscreen();
           setIsFullscreen(false);
         } else {
           setIsFullscreen(true);
-          const isMax = await WindowIsMaximised();
-          if (isMax) {
-            await WindowUnmaximise();
+          const isMaximised = await Window.IsMaximised();
+          if (isMaximised) {
+            await Window.UnMaximise();
           }
-          await WindowFullscreen();
+          await Window.Fullscreen();
         }
       } else if (event.key === 'Escape') {
-        const fullscreen = await WindowIsFullscreen();
+        const fullscreen = await Window.IsFullscreen();
         if (fullscreen) {
-          await WindowUnfullscreen();
+          await Window.UnFullscreen();
           setIsFullscreen(false);
         }
       }

@@ -1,4 +1,4 @@
-import type { ferretshellDtos } from '../../wailsjs/go/models';
+import type * as ferretshellDtos from '../../bindings/docker-manager-go/src/ferretshell/dtos/models';
 import type { SplitDropZone, SplitLayout } from './SplitInterfaces';
 export type SSHConnectionDto = ferretshellDtos.SSHConnectionDto;
 

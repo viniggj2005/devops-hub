@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useDismiss } from '../../shared/hooks/useDismiss';
-import { octohubDtos } from '../../../../wailsjs/go/models';
+import * as octohubDtos from '../../../../bindings/docker-manager-go/src/octohub/dtos/models';
 import { Check, ChevronDown, Plus, Trash2, User } from 'lucide-react';
 
 interface GithubAccountSwitcherProps {

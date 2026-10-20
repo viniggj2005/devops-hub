@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -63,7 +64,7 @@ func TestDeriveSessionKeyAndAuthHandler(test *testing.T) {
 	sessionManager := authFunctions.NewManager(time.Hour)
 	updateChecker := &mockUpdateChecker{called: make(chan struct{}, 1)}
 	handler := NewAuthHandler(dataBase, sessionManager, updateChecker)
-	handler.Startup(context.Background())
+	handler.ServiceStartup(context.Background(), application.ServiceOptions{})
 
 	_, err = handler.Login(authDtos.LoginInputDto{
 		Email:    "unknown@example.com",

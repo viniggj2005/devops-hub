@@ -1,7 +1,7 @@
 import TagBadge from './TagBadge';
 import React, { useEffect, useState } from 'react';
 import { Hash, User, Calendar } from 'lucide-react';
-import { octohubStructs } from '../../../../../wailsjs/go/models';
+import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { copyToClipboard } from '../../../shared/functions/clipboard';
 
 interface CommitDetailsHeaderProps {

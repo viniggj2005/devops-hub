@@ -1,5 +1,5 @@
 import React from 'react';
-import { dockerDtos } from '../../../../../../wailsjs/go/models';
+import * as dockerDtos from '../../../../../../bindings/docker-manager-go/src/dockermanager/dtos/models';
 import { Activity, Image, MemoryStick, Cpu } from 'lucide-react';
 
 interface StatsGridProps {

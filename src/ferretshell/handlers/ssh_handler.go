@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 
 	auth "docker-manager-go/src/auth/functions"
@@ -23,8 +24,9 @@ func NewSshHandler(dataBase *gorm.DB, sessionManager *auth.ManagerStruct) *SshHa
 	return &SshHandlerStruct{DataBase: dataBase, Session: sessionManager}
 }
 
-func (handlerStruct *SshHandlerStruct) Startup(context context.Context) {
+func (handlerStruct *SshHandlerStruct) ServiceStartup(context context.Context, _ application.ServiceOptions) error {
 	handlerStruct.context = context
+	return nil
 }
 
 func (handlerStruct *SshHandlerStruct) UpdateSshConnection(token string, id uint, body ferretShellDtos.CreateSshConnectionInputDto) error {

@@ -9,6 +9,7 @@ import (
 	octohubStructs "docker-manager-go/src/octohub/structs"
 	"docker-manager-go/src/types"
 	"encoding/hex"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,13 +47,13 @@ func setupOctohubIntegration(test *testing.T) (*OctohubHandler, *RepositoryHandl
 
 	ctx := context.Background()
 	gitHandler := NewGitHandler("")
-	gitHandler.Startup(ctx)
+	gitHandler.ServiceStartup(ctx, application.ServiceOptions{})
 
 	octohubHandler := NewOctohubHandler(dataBase, sessionManager)
-	octohubHandler.Startup(ctx)
+	octohubHandler.ServiceStartup(ctx, application.ServiceOptions{})
 
 	repositoryHandler := NewRepositoryHandler(dataBase, sessionManager, gitHandler)
-	repositoryHandler.Startup(ctx)
+	repositoryHandler.ServiceStartup(ctx, application.ServiceOptions{})
 
 	branchHandler := NewGitBranchHandler(gitHandler)
 	commitsHandler := NewGitCommitsHandler(gitHandler)
@@ -156,24 +157,24 @@ func TestRepositoryCommitsBranchesMergeAndStashWorkflow(test *testing.T) {
 	_, repositoryHandler, gitHandler, branchHandler, commitsHandler, token := setupOctohubIntegration(test)
 
 	parentDir := test.TempDir()
-	createdRepo, err := repositoryHandler.CreateRepository(token, parentDir, "sample-repo", false)
+	createdRepo, err := repositoryHandler.CreateRepository(context.Background(), token, parentDir, "sample-repo", false)
 	if err != nil {
 		test.Fatalf("unexpected error creating repository: %v", err)
 	}
 	repoPath := createdRepo.Path
 	configureGitUser(test, repoPath)
 
-	repositories, err := repositoryHandler.ListRepositories(token)
+	repositories, err := repositoryHandler.ListRepositories(context.Background(), token)
 	if err != nil || len(repositories) != 1 {
 		test.Fatalf("expected 1 repository, got %+v, err=%v", repositories, err)
 	}
 
-	currentRepo, err := repositoryHandler.GetCurrentRepository(token)
+	currentRepo, err := repositoryHandler.GetCurrentRepository(context.Background(), token)
 	if err != nil || currentRepo == nil || currentRepo.Path != repoPath {
 		test.Fatalf("unexpected current repository: %+v, err=%v", currentRepo, err)
 	}
 
-	selectedRepo, err := repositoryHandler.SelectRepository(token, createdRepo.ID)
+	selectedRepo, err := repositoryHandler.SelectRepository(context.Background(), token, createdRepo.ID)
 	if err != nil || selectedRepo.Path != repoPath {
 		test.Fatalf("unexpected selected repository: %+v, err=%v", selectedRepo, err)
 	}
@@ -183,17 +184,17 @@ func TestRepositoryCommitsBranchesMergeAndStashWorkflow(test *testing.T) {
 		test.Fatalf("unexpected error writing hello.txt: %v", err)
 	}
 
-	statusList, err := commitsHandler.GetGitStatus()
+	statusList, err := commitsHandler.GetGitStatus(context.Background())
 	if err != nil || len(statusList) != 1 || statusList[0].FileName != "hello.txt" {
 		test.Fatalf("unexpected status list: %+v, err=%v", statusList, err)
 	}
 
-	workingDiff, err := commitsHandler.GetUncommitedFileChanges(statusList[0])
+	workingDiff, err := commitsHandler.GetUncommitedFileChanges(context.Background(), statusList[0])
 	if err != nil || !strings.Contains(workingDiff.Diff, "+line 1") {
 		test.Fatalf("unexpected working diff: %+v, err=%v", workingDiff, err)
 	}
 
-	firstCommitHash, err := commitsHandler.Commit(octohubStructs.CommitRequest{
+	firstCommitHash, err := commitsHandler.Commit(context.Background(), octohubStructs.CommitRequest{
 		Summary:     "Initial commit",
 		Description: "Add hello.txt",
 		Files: []octohubStructs.CommitFileSelection{
@@ -208,7 +209,7 @@ func TestRepositoryCommitsBranchesMergeAndStashWorkflow(test *testing.T) {
 		test.Fatalf("unexpected error modifying hello.txt: %v", err)
 	}
 
-	secondCommitHash, err := commitsHandler.Commit(octohubStructs.CommitRequest{
+	secondCommitHash, err := commitsHandler.Commit(context.Background(), octohubStructs.CommitRequest{
 		Summary: "Second commit",
 		Files: []octohubStructs.CommitFileSelection{
 			{FileName: "hello.txt", Kind: octohubStructs.FileKindModified, All: true},
@@ -218,30 +219,30 @@ func TestRepositoryCommitsBranchesMergeAndStashWorkflow(test *testing.T) {
 		test.Fatalf("unexpected error creating second commit: %v", err)
 	}
 
-	commitsList, err := commitsHandler.ListCommits(0)
+	commitsList, err := commitsHandler.ListCommits(context.Background(), 0)
 	if err != nil || len(commitsList) != 2 {
 		test.Fatalf("expected 2 commits, got %+v, err=%v", commitsList, err)
 	}
 
-	modifications, err := commitsHandler.GetCommitModifications(commitsList[0].Hash)
+	modifications, err := commitsHandler.GetCommitModifications(context.Background(), commitsList[0].Hash)
 	if err != nil || len(modifications) != 1 || modifications[0].File != "hello.txt" {
 		test.Fatalf("unexpected commit modifications: %+v, err=%v", modifications, err)
 	}
 
-	committedDiff, err := commitsHandler.GetCommitedFileChanges(commitsList[0].Hash, "hello.txt")
+	committedDiff, err := commitsHandler.GetCommitedFileChanges(context.Background(), commitsList[0].Hash, "hello.txt")
 	if err != nil || !strings.Contains(committedDiff, "+line 2 modified") {
 		test.Fatalf("unexpected committed file changes: %s, err=%v", committedDiff, err)
 	}
 
-	if err := branchHandler.CreateTag("v1.0.0", commitsList[0].Hash, "Release 1.0.0"); err != nil {
+	if err := branchHandler.CreateTag(context.Background(), "v1.0.0", commitsList[0].Hash, "Release 1.0.0"); err != nil {
 		test.Fatalf("unexpected error creating tag: %v", err)
 	}
 
-	if err := branchHandler.CreateAndCheckoutBranch("feature-branch"); err != nil {
+	if err := branchHandler.CreateAndCheckoutBranch(context.Background(), "feature-branch"); err != nil {
 		test.Fatalf("unexpected error creating and checking out branch: %v", err)
 	}
 
-	currentBranch, err := branchHandler.GetCurrentBranch()
+	currentBranch, err := branchHandler.GetCurrentBranch(context.Background())
 	if err != nil || currentBranch != "feature-branch" {
 		test.Fatalf("expected feature-branch, got %s, err=%v", currentBranch, err)
 	}
@@ -250,7 +251,7 @@ func TestRepositoryCommitsBranchesMergeAndStashWorkflow(test *testing.T) {
 	if err := os.WriteFile(featureFile, []byte("feature content\n"), 0o644); err != nil {
 		test.Fatalf("unexpected error writing feature.txt: %v", err)
 	}
-	if _, err := commitsHandler.Commit(octohubStructs.CommitRequest{
+	if _, err := commitsHandler.Commit(context.Background(), octohubStructs.CommitRequest{
 		Summary: "Add feature",
 		Files: []octohubStructs.CommitFileSelection{
 			{FileName: "feature.txt", Kind: octohubStructs.FileKindUntracked, All: true},
@@ -259,110 +260,110 @@ func TestRepositoryCommitsBranchesMergeAndStashWorkflow(test *testing.T) {
 		test.Fatalf("unexpected error committing feature: %v", err)
 	}
 
-	comparison, err := commitsHandler.CompareBranch("main")
+	comparison, err := commitsHandler.CompareBranch(context.Background(), "main")
 	if err != nil || comparison.Ahead != 1 || comparison.Behind != 0 {
 		test.Fatalf("unexpected branch comparison: %+v, err=%v", comparison, err)
 	}
 
-	aheadCommits, err := commitsHandler.ListCompareCommits("main", "ahead", 0)
+	aheadCommits, err := commitsHandler.ListCompareCommits(context.Background(), "main", "ahead", 0)
 	if err != nil || len(aheadCommits) != 1 {
 		test.Fatalf("unexpected ahead commits: %+v, err=%v", aheadCommits, err)
 	}
 
-	if err := branchHandler.ChangeBranch("main", false, false); err != nil {
+	if err := branchHandler.ChangeBranch(context.Background(), "main", false, false); err != nil {
 		test.Fatalf("unexpected error switching to main: %v", err)
 	}
 
-	branches, err := branchHandler.ListBranches()
+	branches, err := branchHandler.ListBranches(context.Background())
 	if err != nil || len(branches) < 2 {
 		test.Fatalf("expected at least 2 branches, got %+v, err=%v", branches, err)
 	}
 
-	mergeable, err := branchHandler.ListMergeableBranches()
+	mergeable, err := branchHandler.ListMergeableBranches(context.Background())
 	if err != nil || len(mergeable) != 1 || mergeable[0].Name != "feature-branch" {
 		test.Fatalf("unexpected mergeable branches: %+v, err=%v", mergeable, err)
 	}
 
-	preview, err := branchHandler.GetMergePreview("feature-branch")
+	preview, err := branchHandler.GetMergePreview(context.Background(), "feature-branch")
 	if err != nil || !preview.CanFastForward || preview.Ahead != 1 {
 		test.Fatalf("unexpected merge preview: %+v, err=%v", preview, err)
 	}
 
-	mergeState, err := branchHandler.MergeBranch("feature-branch", octohubStructs.MergeStrategyMerge, "", false)
+	mergeState, err := branchHandler.MergeBranch(context.Background(), "feature-branch", octohubStructs.MergeStrategyMerge, "", false)
 	if err != nil || mergeState.Kind != "" {
 		test.Fatalf("unexpected merge state: %+v, err=%v", mergeState, err)
 	}
 
-	if err := branchHandler.DeleteBranch("feature-branch"); err != nil {
+	if err := branchHandler.DeleteBranch(context.Background(), "feature-branch"); err != nil {
 		test.Fatalf("unexpected error deleting merged branch: %v", err)
 	}
 
-	if err := branchHandler.CreateBranchFrom("hotfix", "main", false); err != nil {
+	if err := branchHandler.CreateBranchFrom(context.Background(), "hotfix", "main", false); err != nil {
 		test.Fatalf("unexpected error creating branch without checkout: %v", err)
 	}
-	if currentBranch, _ := branchHandler.GetCurrentBranch(); currentBranch != "main" {
+	if currentBranch, _ := branchHandler.GetCurrentBranch(context.Background()); currentBranch != "main" {
 		test.Fatalf("expected to stay on main, got %s", currentBranch)
 	}
-	if err := branchHandler.CreateBranchFrom("hotfix", "main", false); err == nil {
+	if err := branchHandler.CreateBranchFrom(context.Background(), "hotfix", "main", false); err == nil {
 		test.Fatalf("expected error creating duplicated branch")
 	}
-	if err := branchHandler.CreateBranchFrom("from-missing", "does-not-exist", true); err == nil {
+	if err := branchHandler.CreateBranchFrom(context.Background(), "from-missing", "does-not-exist", true); err == nil {
 		test.Fatalf("expected error creating branch from missing start point")
 	}
-	if err := branchHandler.CreateBranchFrom("from-first", firstCommitHash, true); err != nil {
+	if err := branchHandler.CreateBranchFrom(context.Background(), "from-first", firstCommitHash, true); err != nil {
 		test.Fatalf("unexpected error creating branch from first commit: %v", err)
 	}
-	if currentBranch, _ := branchHandler.GetCurrentBranch(); currentBranch != "from-first" {
+	if currentBranch, _ := branchHandler.GetCurrentBranch(context.Background()); currentBranch != "from-first" {
 		test.Fatalf("expected from-first to be checked out, got %s", currentBranch)
 	}
 	if content, _ := os.ReadFile(fileOne); strings.ReplaceAll(string(content), "\r\n", "\n") != "line 1\nline 2\n" {
 		test.Fatalf("expected first commit content on from-first, got %q", content)
 	}
-	if err := branchHandler.ChangeBranch("main", false, false); err != nil {
+	if err := branchHandler.ChangeBranch(context.Background(), "main", false, false); err != nil {
 		test.Fatalf("unexpected error switching back to main: %v", err)
 	}
 
-	if err := branchHandler.IgnoreFile("secret.env"); err != nil {
+	if err := branchHandler.IgnoreFile(context.Background(), "secret.env"); err != nil {
 		test.Fatalf("unexpected error ignoring file: %v", err)
 	}
-	if err := branchHandler.IgnoreExtension(".log"); err != nil {
+	if err := branchHandler.IgnoreExtension(context.Background(), ".log"); err != nil {
 		test.Fatalf("unexpected error ignoring extension: %v", err)
 	}
 
 	if err := os.WriteFile(fileOne, []byte("uncommitted stash change\n"), 0o644); err != nil {
 		test.Fatalf("unexpected error modifying file for stash: %v", err)
 	}
-	if _, err := gitHandler.RunGitCommand([]string{"stash", "push", "-m", "my-stash"}); err != nil {
+	if _, err := gitHandler.runGitCommand(context.Background(), []string{"stash", "push", "-m", "my-stash"}); err != nil {
 		test.Fatalf("unexpected error pushing stash: %v", err)
 	}
 
-	stashes, err := branchHandler.ListStashes()
+	stashes, err := branchHandler.ListStashes(context.Background())
 	if err != nil || len(stashes) != 1 {
 		test.Fatalf("expected 1 stash, got %+v, err=%v", stashes, err)
 	}
 
-	stashMods, err := branchHandler.GetStashModifications(stashes[0].ID)
+	stashMods, err := branchHandler.GetStashModifications(context.Background(), stashes[0].ID)
 	if err != nil || len(stashMods) != 1 {
 		test.Fatalf("unexpected stash modifications: %+v, err=%v", stashMods, err)
 	}
 
-	stashDiff, err := branchHandler.GetStashedFileDiff(stashes[0].ID, "hello.txt -> hello.txt")
+	stashDiff, err := branchHandler.GetStashedFileDiff(context.Background(), stashes[0].ID, "hello.txt -> hello.txt")
 	if err != nil || !strings.Contains(stashDiff, "+uncommitted stash change") {
 		test.Fatalf("unexpected stash diff: %s, err=%v", stashDiff, err)
 	}
 
-	if err := branchHandler.PopStash(stashes[0].ID); err != nil {
+	if err := branchHandler.PopStash(context.Background(), stashes[0].ID); err != nil {
 		test.Fatalf("unexpected error popping stash: %v", err)
 	}
 
-	if err := commitsHandler.DiscardChanges([]octohubStructs.CommitFileSelection{
+	if err := commitsHandler.DiscardChanges(context.Background(), []octohubStructs.CommitFileSelection{
 		{FileName: "hello.txt", Kind: octohubStructs.FileKindModified, All: true},
 		{FileName: ".gitignore", Kind: octohubStructs.FileKindUntracked, All: true},
 	}); err != nil {
 		test.Fatalf("unexpected error discarding changes: %v", err)
 	}
 
-	hasChanges, err := branchHandler.HasUncommittedChanges()
+	hasChanges, err := branchHandler.HasUncommittedChanges(context.Background())
 	if err != nil || hasChanges {
 		test.Fatalf("expected clean working tree after discard, got hasChanges=%v, err=%v", hasChanges, err)
 	}

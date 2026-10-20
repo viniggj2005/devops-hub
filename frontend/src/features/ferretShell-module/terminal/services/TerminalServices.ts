@@ -1,6 +1,6 @@
-import { normalizeKey } from '../functions/TreatmentFunctions';
+import { bytesToBase64, normalizeKey } from '../functions/TreatmentFunctions';
 import type { CreateSshConnectionInterface, SSHConnectionDto, SshDto } from '../../../../interfaces/TerminalInterfaces';
-import { GetById, DeleteConnection, CreateSshConnection, UpdateSshConnection, FindAllConnectionByUser } from '../../../../../wailsjs/go/ferretshellHandlers/SshHandlerStruct';
+import { GetById, DeleteConnection, CreateSshConnection, UpdateSshConnection, FindAllConnectionByUser } from '../../../../../bindings/docker-manager-go/src/ferretshell/handlers/sshhandlerstruct';
 
 export function toSshConn(dto: SshDto): SSHConnectionDto {
   return {
@@ -16,7 +16,7 @@ export function toSshConn(dto: SshDto): SSHConnectionDto {
     InsecureIgnoreHostKey: true,
     Passphrase: dto.passphrase ?? '',
     SshSessionId: '',
-    Key: Array.from(normalizeKey(dto.key)),
+    Key: bytesToBase64(normalizeKey(dto.key)),
   };
 }
 export const TerminalServices = {

@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { CloudUpload, Globe, Lock } from 'lucide-react';
 import { Modal } from '../../shared/components/modals/Modal';
+import { errorMessage } from '../../shared/functions/ErrorMessage';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
-import { ListGithubOwners } from '../../../../wailsjs/go/octohubHandler/RepositoryHandler';
+import { ListGithubOwners } from '../../../../bindings/docker-manager-go/src/octohub/handlers/repositoryhandler';
 
 const PublishRepositoryModal: React.FC = () => {
     const { token } = useAuth();
@@ -26,7 +27,7 @@ const PublishRepositoryModal: React.FC = () => {
         setOwners([githubAccount.login]);
         ListGithubOwners(token)
             .then((list) => setOwners(list?.length ? list : [githubAccount.login]))
-            .catch((error) => setOwnersError(String(error)));
+            .catch((error) => setOwnersError(errorMessage(error)));
     }, [publishModalOpen, token, githubAccount?.id, repository?.id]);
 
     const repositoryName = name.trim().replace(/\s+/g, '-');

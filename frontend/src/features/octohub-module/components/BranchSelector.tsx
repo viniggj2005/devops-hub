@@ -3,14 +3,15 @@ import MergeBranchModal from './MergeBranchModal';
 import CreateBranchModal from './CreateBranchModal';
 import StashChangesModal from './StashChangesModal';
 import { useDismiss } from '../../shared/hooks/useDismiss';
-import { octohubStructs } from '../../../../wailsjs/go/models';
+import { errorMessage } from '../../shared/functions/ErrorMessage';
+import * as octohubStructs from '../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { useListNavigation } from '../hooks/useListNavigation';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import { getConflictingFiles, isConflictError } from '../functions/gitStatus';
-import { GetGitStatus } from '../../../../wailsjs/go/octohubHandler/GitCommitsHandler';
+import { GetGitStatus } from '../../../../bindings/docker-manager-go/src/octohub/handlers/gitcommitshandler';
 import { Check, ChevronDown, Cloud, CloudUpload, GitBranch, GitBranchPlus, GitMerge, RefreshCw, Search } from 'lucide-react';
-import { ListBranches, ChangeBranch, PublishBranch, FetchRemotes, GetOriginURL, HasUncommittedChanges } from '../../../../wailsjs/go/octohubHandler/GitBranchHandler';
+import { ListBranches, ChangeBranch, PublishBranch, FetchRemotes, GetOriginURL, HasUncommittedChanges } from '../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 
 type BranchItem = { type: 'create' } | { type: 'branch'; branch: octohubStructs.BranchInfo };
 
@@ -80,7 +81,7 @@ const BranchSelector: React.FC = () => {
                 return;
             }
         }
-        iziToast.error({ title: 'Erro', message: `${prefix}: ${error}`, position: 'bottomRight' });
+        iziToast.error({ title: 'Erro', message: `${prefix}: ${errorMessage(error)}`, position: 'bottomRight' });
     };
 
     const switchBranch = async (branch: octohubStructs.BranchInfo, leaveChanges: boolean) => {
@@ -106,7 +107,7 @@ const BranchSelector: React.FC = () => {
                 return;
             }
         } catch (error) {
-            iziToast.error({ title: 'Erro', message: String(error), position: 'bottomRight' });
+            iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
             return;
         }
         await switchBranch(branch, false);

@@ -1,7 +1,8 @@
 import iziToast from 'izitoast';
 import { VsCodeIcon } from '../../features/shared/Icons';
-import { octohubStructs } from '../../../wailsjs/go/models';
-import { ClipboardSetText } from '../../../wailsjs/runtime/runtime';
+import { errorMessage } from '../../features/shared/functions/ErrorMessage';
+import * as octohubStructs from '../../../bindings/docker-manager-go/src/octohub/structs/models';
+import { Clipboard } from '@wailsio/runtime';
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useConfirmToast } from '../../features/shared/components/toasts/ConfirmToast';
 import { DiffHunk, parseDiff } from '../../features/octohub-module/functions/diffParser';
@@ -14,14 +15,14 @@ import OperationBanner from '../../features/octohub-module/components/commit-his
 import { useOctohubRepository } from '../../features/octohub-module/contexts/OctohubRepositoryContext';
 import ModifiedFileList from '../../features/octohub-module/components/commit-history/ModifiedFileList';
 import CommitDetailsHeader from '../../features/octohub-module/components/commit-history/CommitDetailsHeader';
-import ContextMenu, { ContextMenuEntry } from '../../features/octohub-module/components/commit-history/ContextMenu';
+import ContextMenu, { ContextMenuEntry } from '../../features/shared/components/menus/ContextMenu';
 import { escapeHtml, getConflictingFiles, isConflictError } from '../../features/octohub-module/functions/gitStatus';
 import CommitActionModal, { CommitAction } from '../../features/octohub-module/components/commit-history/CommitActionModals';
 import BranchCompareBar, { CompareDirection } from '../../features/octohub-module/components/commit-history/BranchCompareBar';
 import { ALL_SELECTED, FileSelection, NONE_SELECTED, selectedLineSet, setLines } from '../../features/octohub-module/functions/lineSelection';
-import { ListCommits, ListCompareCommits, GetCommitModifications, GetCommitedFileChanges, GetGitStatus, GetUncommitedFileChanges, Commit, DiscardChanges } from '../../../wailsjs/go/octohubHandler/GitCommitsHandler';
+import { ListCommits, ListCompareCommits, GetCommitModifications, GetCommitedFileChanges, GetGitStatus, GetUncommitedFileChanges, Commit, DiscardChanges } from '../../../bindings/docker-manager-go/src/octohub/handlers/gitcommitshandler';
 import { GitCommit, FileCode, Clock, FolderGit2, FolderPlus, GitCommitHorizontal, ArrowUpDown, Undo2, GitBranchPlus, Tag, Cherry, Copy, EyeOff, ClipboardCopy, FolderSearch, ExternalLink, SquareCheck, Square } from 'lucide-react';
-import { GetStashedFileDiff, ListStashes, PopStash, DropStash, GetOperationState, ContinueOperation, AbortOperation, SkipRebaseCommit, CheckoutCommit, RevertCommit, HasUncommittedChanges, GetCurrentBranch, IgnoreFile, IgnoreExtension, RevealInExplorer, OpenWithDefaultProgram, OpenFileInEditor } from '../../../wailsjs/go/octohubHandler/GitBranchHandler';
+import { GetStashedFileDiff, ListStashes, PopStash, DropStash, GetOperationState, ContinueOperation, AbortOperation, SkipRebaseCommit, CheckoutCommit, RevertCommit, HasUncommittedChanges, GetCurrentBranch, IgnoreFile, IgnoreExtension, RevealInExplorer, OpenWithDefaultProgram, OpenFileInEditor } from '../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 
 type DiffSource = 'working' | 'stash' | 'commit';
 
@@ -274,7 +275,7 @@ const CommitHistoryPage: React.FC = () => {
             setSelections({});
             notifyChange();
         } catch (err: any) {
-            iziToast.error({ title: 'Erro', message: escapeHtml(String(err)), position: 'bottomRight' });
+            iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(err)), position: 'bottomRight' });
         } finally {
             setOperationBusy(false);
         }
@@ -312,7 +313,7 @@ const CommitHistoryPage: React.FC = () => {
             iziToast.success({ title: 'OctoHub', message: `Agora em ${checkoutTarget.Hash.slice(0, 7)} (HEAD destacado).`, position: 'bottomRight' });
         } catch (err) {
             if (isConflictError(err)) openConflicts();
-            else iziToast.error({ title: 'Erro', message: escapeHtml(String(err)), position: 'bottomRight' });
+            else iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(err)), position: 'bottomRight' });
         } finally {
             setCheckoutBusy(false);
             setCheckoutTarget(null);
@@ -335,7 +336,7 @@ const CommitHistoryPage: React.FC = () => {
     };
 
     const copySha = (commit: octohubStructs.Commit) => {
-        ClipboardSetText(commit.Hash)
+        Clipboard.SetText(commit.Hash)
             .then(() => iziToast.success({ message: `SHA ${commit.Hash.slice(0, 7)} copiado.`, position: 'bottomRight' }))
             .catch(() => iziToast.error({ title: 'Erro', message: 'Não foi possível copiar o SHA.', position: 'bottomRight' }));
     };
@@ -346,10 +347,10 @@ const CommitHistoryPage: React.FC = () => {
                 if (success) iziToast.success({ title: 'OctoHub', message: escapeHtml(success), position: 'bottomRight' });
                 if (refresh) notifyChange();
             })
-            .catch((err) => iziToast.error({ title: 'Erro', message: escapeHtml(String(err)), position: 'bottomRight' }));
+            .catch((err) => iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(err)), position: 'bottomRight' }));
     };
 
-    const copyText = (text: string, success: string) => runFileAction(() => ClipboardSetText(text), success);
+    const copyText = (text: string, success: string) => runFileAction(() => Clipboard.SetText(text), success);
 
     const openInEditor = (file: string) => runFileAction(() => OpenFileInEditor(file.split(' -> ').pop() ?? file));
 
@@ -481,7 +482,7 @@ const CommitHistoryPage: React.FC = () => {
             if (requestId !== diffRequest.current) return;
             setFileDiff(null);
             setFileDiffHash(null);
-            iziToast.error({ title: 'Erro', message: `Erro ao carregar o diff de ${filePath}: ${err}`, position: 'bottomRight' });
+            iziToast.error({ title: 'Erro', message: `Erro ao carregar o diff de ${filePath}: ${errorMessage(err)}`, position: 'bottomRight' });
         } finally {
             if (requestId === diffRequest.current) setLoadingDiff(false);
         }
@@ -700,7 +701,7 @@ const CommitHistoryPage: React.FC = () => {
             setSelections({});
             notifyChange();
         } catch (err: any) {
-            iziToast.error({ title: 'Erro ao fazer commit', message: String(err), position: 'bottomRight' });
+            iziToast.error({ title: 'Erro ao fazer commit', message: errorMessage(err), position: 'bottomRight' });
         } finally {
             setCommitting(false);
         }

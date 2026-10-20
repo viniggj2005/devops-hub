@@ -2,6 +2,7 @@ package talpadbHandlers
 
 import (
 	"context"
+	"docker-manager-go/src/desktop"
 	"errors"
 	"fmt"
 	"strings"
@@ -26,8 +27,9 @@ const (
 type querySession struct {
 	id               string
 	userID           uint
-	connectionID     uint
 	database         string
+	windowName       string
+	connectionID     uint
 	connectionString string
 	executionMutex   sync.Mutex
 	stateMutex       sync.Mutex
@@ -36,6 +38,15 @@ type querySession struct {
 	notices          []talpadbDtos.QueryMessageDto
 	cancelRun        context.CancelFunc
 	closed           bool
+}
+
+func (session *querySession) identity() poolIdentity {
+	return poolIdentity{
+		userID:       session.userID,
+		database:     session.database,
+		windowName:   session.windowName,
+		connectionID: session.connectionID,
+	}
 }
 
 func (session *querySession) connect(ctx context.Context) error {
@@ -182,7 +193,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) findSession(token string, sessi
 	return session, nil
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) OpenQuerySession(token string, connectionId uint, database string) (*talpadbDtos.QuerySessionDto, error) {
+func (handlerStruct *TalpadbClientHandlerStruct) OpenQuerySession(callContext context.Context, token string, connectionId uint, database string) (*talpadbDtos.QuerySessionDto, error) {
 	userID, err := handlerStruct.talpadb.authenticate(token)
 	if err != nil {
 		return nil, err
@@ -199,8 +210,9 @@ func (handlerStruct *TalpadbClientHandlerStruct) OpenQuerySession(token string, 
 	session := &querySession{
 		id:           uuid.New().String(),
 		userID:       userID,
-		connectionID: connectionId,
 		database:     database,
+		windowName:   desktop.CallingWindowName(callContext),
+		connectionID: connectionId,
 	}
 
 	if engineName := connectionEngine(connection); engineName != talpadbFunctions.EnginePostgres {
@@ -426,7 +438,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) resolveUnknownTypes(session *qu
 	}
 
 	names := map[uint32]string{}
-	entry, err := handlerStruct.getPoolForUser(session.userID, session.connectionID, session.database)
+	entry, err := handlerStruct.getPoolForUser(session.windowName, session.userID, session.connectionID, session.database)
 	if err == nil {
 		names = entry.lookupTypeNames(handlerStruct.baseContext(), unknown)
 	}

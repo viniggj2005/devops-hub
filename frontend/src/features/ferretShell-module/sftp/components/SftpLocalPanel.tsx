@@ -1,7 +1,7 @@
 import React from 'react';
 import SftpFileRow from './SftpFileRow';
 import { Monitor, ArrowUp, Trash2, Edit3 } from 'lucide-react';
-import { ferretshellHandlers } from '../../../../../wailsjs/go/models';
+import * as ferretshellHandlers from '../../../../../bindings/docker-manager-go/src/ferretshell/handlers/models';
 
 interface SftpLocalPanelProps {
     onUp: () => void;

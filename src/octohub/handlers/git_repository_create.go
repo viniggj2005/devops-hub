@@ -1,6 +1,7 @@
 package octohubHandler
 
 import (
+	"context"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -47,7 +48,7 @@ func runGitIn(folder string, args ...string) error {
 	return nil
 }
 
-func (handlerStruct *RepositoryHandler) CreateRepository(token, parentFolder, name string, withReadme bool) (*octohubDtos.RepositoryDto, error) {
+func (handlerStruct *RepositoryHandler) CreateRepository(ctx context.Context, token, parentFolder, name string, withReadme bool) (*octohubDtos.RepositoryDto, error) {
 	userID, err := handlerStruct.userID(token)
 	if err != nil {
 		return nil, err
@@ -90,7 +91,7 @@ func (handlerStruct *RepositoryHandler) CreateRepository(token, parentFolder, na
 	if err != nil {
 		return nil, err
 	}
-	repository, err := handlerStruct.save(userID, account, topLevel)
+	repository, err := handlerStruct.save(ctx, userID, account, topLevel)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +125,7 @@ func (handlerStruct *RepositoryHandler) ListGithubOwners(token string) ([]string
 	return owners, nil
 }
 
-func (handlerStruct *RepositoryHandler) PublishRepository(token, owner, name, description string, private bool) (*octohubDtos.RepositoryDto, error) {
+func (handlerStruct *RepositoryHandler) PublishRepository(ctx context.Context, token, owner, name, description string, private bool) (*octohubDtos.RepositoryDto, error) {
 	userID, err := handlerStruct.userID(token)
 	if err != nil {
 		return nil, err
@@ -141,14 +142,14 @@ func (handlerStruct *RepositoryHandler) PublishRepository(token, owner, name, de
 	if !validRepositoryName(name) {
 		return nil, fmt.Errorf("nome inválido: use apenas letras, números, '-', '_' e '.'")
 	}
-	repoPath := handlerStruct.gitHandler.RepoPath()
+	repoPath := handlerStruct.gitHandler.repositoryPath(ctx)
 	if repoPath == "" {
 		return nil, errNoRepository
 	}
 	if originURL(repoPath) != "" {
 		return nil, fmt.Errorf("este repositório já tem um remoto origin")
 	}
-	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-parse", "--verify", "HEAD"}); err != nil {
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--verify", "HEAD"}); err != nil {
 		return nil, fmt.Errorf("faça o primeiro commit antes de publicar o repositório")
 	}
 
@@ -167,14 +168,14 @@ func (handlerStruct *RepositoryHandler) PublishRepository(token, owner, name, de
 		return nil, err
 	}
 
-	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"remote", "add", "origin", created.CloneURL}); err != nil {
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"remote", "add", "origin", created.CloneURL}); err != nil {
 		return nil, err
 	}
-	published, err := handlerStruct.open(&repository, account)
+	published, err := handlerStruct.open(ctx, &repository, account)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"push", "-u", "origin", "HEAD"}); err != nil {
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"push", "-u", "origin", "HEAD"}); err != nil {
 		return nil, fmt.Errorf("repositório %s criado no GitHub, mas o envio falhou: %w", created.FullName, err)
 	}
 	return published, nil

@@ -2,6 +2,7 @@ package talpadbHandlers
 
 import (
 	"context"
+	"docker-manager-go/src/desktop"
 	"errors"
 	"fmt"
 	"strings"
@@ -43,7 +44,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) maintenanceDatabase(userID uint
 	return "", errors.New("não há outro banco disponível para executar a exclusão")
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) buildDropSql(ctx context.Context, userID uint, connectionID uint, database string, input talpadbDtos.DropObjectInputDto) (string, *poolEntry, error) {
+func (handlerStruct *TalpadbClientHandlerStruct) buildDropSql(ctx context.Context, windowName string, userID uint, connectionID uint, database string, input talpadbDtos.DropObjectInputDto) (string, *poolEntry, error) {
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
 		return "", nil, errors.New("informe o objeto a excluir")
@@ -55,7 +56,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) buildDropSql(ctx context.Contex
 		if err != nil {
 			return "", nil, err
 		}
-		entry, err := handlerStruct.getPoolForUser(userID, connectionID, maintenance)
+		entry, err := handlerStruct.getPoolForUser(windowName, userID, connectionID, maintenance)
 		if err != nil {
 			return "", nil, err
 		}
@@ -69,14 +70,14 @@ func (handlerStruct *TalpadbClientHandlerStruct) buildDropSql(ctx context.Contex
 		return sql + ";", entry, nil
 
 	case dropKindSchema:
-		entry, err := handlerStruct.getPoolForUser(userID, connectionID, database)
+		entry, err := handlerStruct.getPoolForUser(windowName, userID, connectionID, database)
 		if err != nil {
 			return "", nil, err
 		}
 		return "DROP SCHEMA " + quoteIdentifier(name) + cascadeClause(input.Cascade) + ";", entry, nil
 
 	case dropKindRelation:
-		entry, err := handlerStruct.getPoolForUser(userID, connectionID, database)
+		entry, err := handlerStruct.getPoolForUser(windowName, userID, connectionID, database)
 		if err != nil {
 			return "", nil, err
 		}
@@ -94,8 +95,8 @@ func (handlerStruct *TalpadbClientHandlerStruct) buildDropSql(ctx context.Contex
 	return "", nil, fmt.Errorf("tipo de objeto desconhecido: %s", input.Kind)
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) PreviewDropObject(token string, connectionId uint, database string, input talpadbDtos.DropObjectInputDto) (string, error) {
-	if statement, handled, err := runGeneric(handlerStruct, token, connectionId, func(ctx context.Context, entry *genericEntry) (string, error) {
+func (handlerStruct *TalpadbClientHandlerStruct) PreviewDropObject(callContext context.Context, token string, connectionId uint, database string, input talpadbDtos.DropObjectInputDto) (string, error) {
+	if statement, handled, err := runGeneric(callContext, handlerStruct, token, connectionId, func(ctx context.Context, entry *genericEntry) (string, error) {
 		return entry.engine.DropStatement(ctx, entry.db, input)
 	}); handled {
 		return statement, err
@@ -108,12 +109,12 @@ func (handlerStruct *TalpadbClientHandlerStruct) PreviewDropObject(token string,
 	ctx, cancel := handlerStruct.queryContext()
 	defer cancel()
 
-	sql, _, err := handlerStruct.buildDropSql(ctx, userID, connectionId, database, input)
+	sql, _, err := handlerStruct.buildDropSql(ctx, desktop.CallingWindowName(callContext), userID, connectionId, database, input)
 	return sql, err
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) DropObject(token string, connectionId uint, database string, input talpadbDtos.DropObjectInputDto) error {
-	if _, handled, err := runGeneric(handlerStruct, token, connectionId, func(ctx context.Context, entry *genericEntry) (bool, error) {
+func (handlerStruct *TalpadbClientHandlerStruct) DropObject(callContext context.Context, token string, connectionId uint, database string, input talpadbDtos.DropObjectInputDto) error {
+	if _, handled, err := runGeneric(callContext, handlerStruct, token, connectionId, func(ctx context.Context, entry *genericEntry) (bool, error) {
 		statement, err := entry.engine.DropStatement(ctx, entry.db, input)
 		if err != nil {
 			return false, err
@@ -131,19 +132,15 @@ func (handlerStruct *TalpadbClientHandlerStruct) DropObject(token string, connec
 	ctx, cancel := handlerStruct.queryContext()
 	defer cancel()
 
-	sql, entry, err := handlerStruct.buildDropSql(ctx, userID, connectionId, database, input)
+	sql, entry, err := handlerStruct.buildDropSql(ctx, desktop.CallingWindowName(callContext), userID, connectionId, database, input)
 	if err != nil {
 		return err
 	}
 
 	name := strings.TrimSpace(input.Name)
 	if input.Kind == dropKindDatabase {
-		targetKey := poolKey(userID, connectionId, name)
-		handlerStruct.closeResourcesAndWait(func(key string, session *querySession) bool {
-			if session != nil {
-				return session.userID == userID && session.connectionID == connectionId && session.database == name
-			}
-			return key == targetKey
+		handlerStruct.closeResourcesAndWait(func(identity poolIdentity) bool {
+			return identity.userID == userID && identity.connectionID == connectionId && identity.database == name
 		})
 	}
 

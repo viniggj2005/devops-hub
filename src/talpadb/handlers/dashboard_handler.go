@@ -1,6 +1,7 @@
 package talpadbHandlers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -38,8 +39,8 @@ LEFT JOIN pg_catalog.pg_stat_database s ON s.datid = d.oid
 WHERE NOT d.datistemplate
 ORDER BY d.datname`
 
-func (handlerStruct *TalpadbClientHandlerStruct) GetServerDashboard(token string, connectionId uint, includeSizes bool) (*talpadbDtos.ServerDashboardDto, error) {
-	entry, err := handlerStruct.getPool(token, connectionId, "")
+func (handlerStruct *TalpadbClientHandlerStruct) GetServerDashboard(callContext context.Context, token string, connectionId uint, includeSizes bool) (*talpadbDtos.ServerDashboardDto, error) {
+	entry, err := handlerStruct.getPool(callContext, token, connectionId, "")
 	if err != nil {
 		return nil, err
 	}
@@ -96,16 +97,16 @@ ORDER BY a.pid`, waitEventExpression, backendTypeExpression))
 	return &dashboard, nil
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) CancelBackend(token string, connectionId uint, pid int32) (bool, error) {
-	return handlerStruct.signalBackend(token, connectionId, "pg_cancel_backend", pid)
+func (handlerStruct *TalpadbClientHandlerStruct) CancelBackend(callContext context.Context, token string, connectionId uint, pid int32) (bool, error) {
+	return handlerStruct.signalBackend(callContext, token, connectionId, "pg_cancel_backend", pid)
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) TerminateBackend(token string, connectionId uint, pid int32) (bool, error) {
-	return handlerStruct.signalBackend(token, connectionId, "pg_terminate_backend", pid)
+func (handlerStruct *TalpadbClientHandlerStruct) TerminateBackend(callContext context.Context, token string, connectionId uint, pid int32) (bool, error) {
+	return handlerStruct.signalBackend(callContext, token, connectionId, "pg_terminate_backend", pid)
 }
 
-func (handlerStruct *TalpadbClientHandlerStruct) signalBackend(token string, connectionId uint, function string, pid int32) (bool, error) {
-	entry, err := handlerStruct.getPool(token, connectionId, "")
+func (handlerStruct *TalpadbClientHandlerStruct) signalBackend(callContext context.Context, token string, connectionId uint, function string, pid int32) (bool, error) {
+	entry, err := handlerStruct.getPool(callContext, token, connectionId, "")
 	if err != nil {
 		return false, err
 	}

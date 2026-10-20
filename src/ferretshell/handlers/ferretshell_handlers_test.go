@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	authFunctions "docker-manager-go/src/auth/functions"
+	"docker-manager-go/src/desktop"
 	ferretShellDtos "docker-manager-go/src/ferretshell/dtos"
 	"docker-manager-go/src/models"
 	"docker-manager-go/src/types"
@@ -19,13 +20,13 @@ import (
 	"unicode/utf16"
 
 	"github.com/glebarez/sqlite"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"golang.org/x/crypto/ssh"
 	"gorm.io/gorm"
 )
 
 func TestLocalFileHandler(test *testing.T) {
 	handler := NewLocalFileHandler()
-	handler.Startup(context.Background())
 
 	homeDirectory, err := handler.GetHomeDir()
 	if err != nil || homeDirectory == "" {
@@ -102,7 +103,7 @@ func TestLocalShellsAndTerminalHandler(test *testing.T) {
 	}
 
 	localHandler := NewLocalTerminalHandler()
-	localHandler.Startup(context.Background())
+	localHandler.ServiceStartup(context.Background(), application.ServiceOptions{})
 
 	shells := localHandler.ListShells()
 	if len(shells) == 0 {
@@ -113,20 +114,20 @@ func TestLocalShellsAndTerminalHandler(test *testing.T) {
 		test.Fatalf("expected to find shell %s", shells[0].Id)
 	}
 
-	if err := localHandler.Start(ferretShellDtos.LocalTerminalStartDto{
+	if err := localHandler.Start(context.Background(), ferretShellDtos.LocalTerminalStartDto{
 		SessionId: "s-1",
 		ShellId:   "non-existent-shell-id",
 	}); err == nil {
 		test.Fatalf("expected error starting unknown shell")
 	}
 
-	if err := localHandler.Send("missing-session", "echo hi\n"); err == nil {
+	if err := localHandler.Send(context.Background(), "missing-session", "echo hi\n"); err == nil {
 		test.Fatalf("expected error sending to missing session")
 	}
-	if err := localHandler.Resize("missing-session", 80, 24); err == nil {
+	if err := localHandler.Resize(context.Background(), "missing-session", 80, 24); err == nil {
 		test.Fatalf("expected error resizing missing session")
 	}
-	localHandler.Disconnect("missing-session")
+	localHandler.Disconnect(context.Background(), "missing-session")
 }
 
 func TestSshHandlerCRUD(test *testing.T) {
@@ -150,7 +151,7 @@ func TestSshHandlerCRUD(test *testing.T) {
 	}
 
 	sshHandler := NewSshHandler(dataBase, sessionManager)
-	sshHandler.Startup(context.Background())
+	sshHandler.ServiceStartup(context.Background(), application.ServiceOptions{})
 
 	if err := sshHandler.CreateSshConnection("invalid", ferretShellDtos.CreateSshConnectionInputDto{}); err == nil {
 		test.Fatalf("expected error with invalid token")
@@ -239,7 +240,7 @@ func (writer *bufferWriteCloser) Close() error {
 func TestTerminalAndSftpHandlers(test *testing.T) {
 	sessionManager := authFunctions.NewManager(time.Hour)
 	terminalHandler := NewTerminalHandler(sessionManager)
-	terminalHandler.Startup(context.Background())
+	terminalHandler.ServiceStartup(context.Background(), application.ServiceOptions{})
 
 	if describeSessionExit(nil) != "sessão finalizada" {
 		test.Fatalf("unexpected nil exit description")
@@ -266,31 +267,31 @@ func TestTerminalAndSftpHandlers(test *testing.T) {
 	}
 
 	writer := &bufferWriteCloser{}
-	terminalHandler.AddSession("sess-1", &sshConnection{
+	terminalHandler.addSession(desktop.ScopedKey("", "sess-1"), &sshConnection{
 		stdin:   writer,
 		session: &ssh.Session{},
 	})
 
-	if _, ok := terminalHandler.GetSession("sess-1"); !ok {
+	if _, ok := terminalHandler.getSession(desktop.ScopedKey("", "sess-1")); !ok {
 		test.Fatalf("expected session sess-1 to exist")
 	}
 
-	if err := terminalHandler.Send("sess-1", "ls -la\n"); err != nil {
+	if err := terminalHandler.Send(context.Background(), "sess-1", "ls -la\n"); err != nil {
 		test.Fatalf("unexpected error sending to session: %v", err)
 	}
 	if writer.String() != "ls -la\n" {
 		test.Fatalf("expected buffer to contain ls -la, got %q", writer.String())
 	}
 
-	if err := terminalHandler.Broadcast([]string{"sess-1"}, "uptime\n"); err != nil {
+	if err := terminalHandler.Broadcast(context.Background(), []string{"sess-1"}, "uptime\n"); err != nil {
 		test.Fatalf("unexpected Broadcast error: %v", err)
 	}
-	if err := terminalHandler.Broadcast([]string{"missing"}, "uptime\n"); err == nil {
+	if err := terminalHandler.Broadcast(context.Background(), []string{"missing"}, "uptime\n"); err == nil {
 		test.Fatalf("expected Broadcast error for missing session")
 	}
 
 	sftpHandler := NewSftpHandler(terminalHandler)
-	sftpHandler.Startup(context.Background())
+	sftpHandler.ServiceStartup(context.Background(), application.ServiceOptions{})
 
 	if err := sftpHandler.DisconnectSFTP("missing"); err == nil {
 		test.Fatalf("expected error disconnecting missing SFTP session")

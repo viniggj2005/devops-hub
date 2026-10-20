@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { escapeHtml } from '../functions/gitStatus';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal } from '../../shared/components/modals/Modal';
-import { octohubStructs } from '../../../../wailsjs/go/models';
+import { errorMessage } from '../../shared/functions/ErrorMessage';
+import * as octohubStructs from '../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import { CircleAlert, CircleCheck, Cloud, GitBranch, GitMerge, RefreshCw, Search } from 'lucide-react';
-import { FetchRemotes, GetDefaultBranch, GetMergePreview, HasUncommittedChanges, ListMergeableBranches, MergeBranch } from '../../../../wailsjs/go/octohubHandler/GitBranchHandler';
+import { FetchRemotes, GetDefaultBranch, GetMergePreview, HasUncommittedChanges, ListMergeableBranches, MergeBranch } from '../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 
 type MergeStrategy = 'merge' | 'no-ff' | 'squash' | 'rebase';
 
@@ -64,7 +65,7 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
         HasUncommittedChanges().then(setDirty).catch(() => setDirty(false));
         GetDefaultBranch()
             .then((defaultBranch) => loadBranches(initialBranch || (defaultBranch && defaultBranch !== currentBranch ? defaultBranch : null)))
-            .catch((error) => iziToast.error({ title: 'Erro', message: escapeHtml(String(error)), position: 'bottomRight' }));
+            .catch((error) => iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(error)), position: 'bottomRight' }));
     }, [open]);
 
     useEffect(() => {
@@ -143,7 +144,7 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
                 iziToast.success({ title: 'OctoHub', message: successMessage(), position: 'bottomRight' });
             }
         } catch (error) {
-            iziToast.error({ title: 'Erro', message: escapeHtml(String(error)), position: 'bottomRight' });
+            iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(error)), position: 'bottomRight' });
         } finally {
             setMerging(false);
         }

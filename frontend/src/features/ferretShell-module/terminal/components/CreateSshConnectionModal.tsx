@@ -5,6 +5,7 @@ import { FileUploader } from 'react-drag-drop-files';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { Modal } from '../../../shared/components/modals/Modal';
 import { TerminalServices } from '../services/TerminalServices';
+import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import { ModalButton } from '../../../shared/components/modals/ModalButton';
 import { CreateSshConnectionInterface, ModalProps } from '../../../../interfaces/TerminalInterfaces';
 
@@ -86,7 +87,7 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
     } catch (error) {
       iziToast.error({
         title: 'Erro',
-        message: `Erro ao criar conexão: ${String(error)}`,
+        message: `Erro ao criar conexão: ${errorMessage(error)}`,
         position: 'bottomRight',
       });
     } finally {

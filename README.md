@@ -23,8 +23,9 @@ A ferramenta permite autenticação de usuários, conexão segura a daemons Dock
 
 ## Arquitetura
 
-- **Backend (Go 1.24)**
-  - `main.go` inicia o app Wails, configura o ciclo de vida e registra todos os handlers (Docker, SSH, terminal, autenticação e usuários). 
+- **Backend (Go 1.26)**
+  - `main.go` inicia o app Wails v3, registra todos os handlers como serviços e cria a janela principal.
+  - `src/desktop/` concentra a infraestrutura de janelas: eventos por janela, diálogos nativos e o serviço que destaca abas.
   - `app.go` mantém utilidades genéricas do app, como carregamento/gravação de imagens base64.
   - `src/handlers/` contém os controladores de domínio (Docker, Docker SDK, SSH, Terminal, Auth, User).
   - `src/models/` define os modelos persistidos em SQLite (por exemplo, `DockerCredentialsModel`).
@@ -40,37 +41,34 @@ A ferramenta permite autenticação de usuários, conexão segura a daemons Dock
 
 ## $\textcolor{orange}{\textsf{Pré-requisitos}}$
 
-- Go **1.24** ou superior (ver `go.mod`).
-- Node.js **>= 18** e npm para o frontend (Vite).
+- Go **1.26** ou superior (ver `go.mod`).
+- Node.js **>= 20** e npm para o frontend (Vite).
 - Docker instalado caso queira testar conexões locais.
-- [Wails CLI](https://wails.io/docs/gettingstarted/installation) (`go install github.com/wailsapp/wails/v2/cmd/wails@latest`).
+- [Wails v3 CLI](https://v3.wails.io/getting-started/installation/) (`go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34`).
 
 ## Como rodar em modo desenvolvimento
 
-1. **Instale dependências do frontend**
-   ```bash
-   cd frontend
-   npm install
-   ```
-2. **Inicie o modo de desenvolvimento** (Wails recompila o backend e usa o dev server do Vite)
-   ```bash
-   wails dev
-   ```
-   A janela desktop será aberta com hot reload.
+```bash
+wails3 dev
+```
+
+O Wails instala as dependências do frontend, gera os bindings em `frontend/bindings`, sobe o dev server do Vite e abre a janela com hot reload. Para o editor reconhecer os bindings sem rodar o app, gere-os com `wails3 generate bindings -ts`.
 
 ## Build de produção
 
-1. Gere os assets do frontend:
-   ```bash
-   cd frontend
-   npm run build
-   ```
-2. Volte para a raiz e faça o build do app desktop:
-   ```bash
-   cd ..
-   wails build
-   ```
-   O binário será gerado conforme `outputfilename` em `wails.json`.
+```bash
+wails3 build
+```
+
+O binário é gerado em `bin/devops-hub` (`bin/devops-hub.exe` no Windows). Para gerar o instalador NSIS use `wails3 package`. No Ubuntu 22.04 compile com `wails3 build EXTRA_TAGS=gtk3` (GTK3 + WebKitGTK 4.1); versões mais novas usam GTK4 + WebKitGTK 6.0.
+
+## Múltiplas janelas
+
+As abas funcionam como as do Chrome:
+
+- **Destacar:** botão ao lado do título da aba, menu do botão direito ou arrastar a aba para baixo da barra (ou para fora da janela). A nova janela reaproveita a sessão de quem a abriu.
+- **Mesclar:** arraste a aba até a barra de abas de outra janela (ela fica destacada em azul) e solte. Nas janelas destacadas também há "Mover para a janela principal" no botão da aba e no menu do botão direito. Uma janela destacada fecha sozinha quando fica sem abas.
+- **Isolamento:** conexões, terminais e repositório selecionado são de cada janela; fechar uma janela libera só os recursos dela. Fechar a janela principal encerra o aplicativo.
 
 ## Banco de dados
 

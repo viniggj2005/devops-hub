@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 
 	"docker-manager-go/src/models"
@@ -22,8 +23,9 @@ func NewGeneralConfigsHandler(dataBase *gorm.DB, session *auth.ManagerStruct) *G
 	return &GeneralConfigsHandlerStruct{DataBase: dataBase, Session: session}
 }
 
-func (handlerStruct *GeneralConfigsHandlerStruct) Startup(context context.Context) {
+func (handlerStruct *GeneralConfigsHandlerStruct) ServiceStartup(context context.Context, _ application.ServiceOptions) error {
 	handlerStruct.context = context
+	return nil
 }
 
 func (handlerStruct *GeneralConfigsHandlerStruct) FindAll(token string) ([]generalConfigsDtos.GeneralConfigDto, error) {
