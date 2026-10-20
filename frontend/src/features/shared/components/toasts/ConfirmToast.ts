@@ -9,31 +9,38 @@ type ConfirmOpts = {
   onConfirm: () => Promise<void> | void;
 };
 
+export function toastPalette(theme: string) {
+  const isDark = theme === 'dark';
+  return {
+    textColor: isDark ? '#ffffff' : '#18181b',
+    themeClass: isDark ? 'confirm-toast--dark' : 'confirm-toast--light',
+    backgroundColor: isDark ? '#27272a' : '#ffffff',
+  };
+}
+
+export const toastButton = (label: string, colorClass: string) =>
+  `<button type="button" class="px-3 py-1 ${colorClass} hover:scale-95"><span class="text-white font-bold">${label}</span></button>`;
+
 export function useConfirmToast() {
   const { theme } = useTheme();
 
-  const getVar = (n: string) =>
-    getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-
   return (options: ConfirmOpts) => {
-    const bg = theme === 'dark' ? '#27272a' : '#ffffff';
-    const fg = theme === 'dark' ? '#ffffff' : '#18181b';
-    const cls = theme === 'dark' ? 'confirm-toast--dark' : 'confirm-toast--light';
+    const palette = toastPalette(theme);
     iziToast.question({
       close: false,
       icon: 'none',
       overlay: true,
       id: options.id,
       timeout: 20000,
-      titleColor: fg,
-      messageColor: fg,
       position: 'center',
-      backgroundColor: bg,
       message: options.message,
-      class: `confirm-toast ${cls}`,
+      titleColor: palette.textColor,
+      messageColor: palette.textColor,
+      class: `confirm-toast ${palette.themeClass}`,
+      backgroundColor: palette.backgroundColor,
       buttons: [
         [
-          '<button type="button" class="px-3 py-1 !bg-emerald-500 !border-none hover:scale-95"><span class="text-white font-bold">Sim</span></button>',
+          toastButton('Sim', '!bg-emerald-500 !border-none'),
           async (instance, toast) => {
             try {
               await options.onConfirm();
@@ -51,7 +58,7 @@ export function useConfirmToast() {
           false,
         ],
         [
-          '<button type="button" class="px-3 py-1 !bg-red-600 hover:scale-95"><span class="text-white font-bold">Não</span></button>',
+          toastButton('Não', '!bg-red-600'),
           (instance, toast) => {
             instance.hide({ transitionOut: 'fadeOut' }, toast, 'button');
             options.onCancel?.();

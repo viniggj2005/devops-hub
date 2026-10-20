@@ -2,7 +2,7 @@ import { useAppStore } from "./AppStore";
 import appIcon from "../../assets/images/hub.svg";
 import { X, Box, Home, Terminal, Settings } from "lucide-react";
 import { WindowControls, useWindowMaximise } from "./WindowControls";
-import { PostgresModuleIcon } from "../postgres-module/moduleInfo";
+import { TalpadbModuleIcon } from "../talpadb-module/moduleInfo";
 
 export function AppFrame() {
   const { maximized, toggleMaximise } = useWindowMaximise();
@@ -14,7 +14,7 @@ export function AppFrame() {
     if (type === 'settings') return <Settings className="w-4 h-4 text-gray-500" />;
     if (type === 'ferretshell') return <Terminal className="w-4 h-4 text-purple-500" />;
     if (type === 'octohub') return <img src="/gitoctocat.svg" className="w-4 h-4 brightness-0 dark:invert" />;
-    if (type === 'postgres') return <PostgresModuleIcon className="w-4 h-4 text-cyan-500" />;
+    if (type === 'talpadb') return <TalpadbModuleIcon className="w-4 h-4 text-cyan-500" />;
     return null;
   };
 

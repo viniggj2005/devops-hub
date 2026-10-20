@@ -14,7 +14,7 @@ const sections: { id: SettingsSection; label: string; icon: LucideIcon }[] = [
   { id: 'home-modules', label: 'Módulos na Home', icon: LayoutGrid },
   { id: 'theme-profiles', label: 'Perfis de tema', icon: SwatchBook },
   { id: 'octohub-colors', label: 'Cores do OctoHub', icon: GitBranch },
-  { id: 'sql-editor-theme', label: 'Editor SQL (Postgres)', icon: Database },
+  { id: 'sql-editor-theme', label: 'Editor SQL (TalpaDB)', icon: Database },
   { id: 'terminal-theme', label: 'Terminal (FerretShell)', icon: SquareTerminal },
 ];
 

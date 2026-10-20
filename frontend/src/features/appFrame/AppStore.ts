@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { POSTGRES_MODULE } from '../postgres-module/moduleInfo';
+import { TALPADB_MODULE } from '../talpadb-module/moduleInfo';
 
-export type ModuleType = 'home' | 'docker' | 'ferretshell' | 'vulpes' | 'octohub' | 'settings' | 'postgres';
+export type ModuleType = 'home' | 'docker' | 'ferretshell' | 'vulpes' | 'octohub' | 'settings' | 'talpadb';
 
 export interface AppTab {
   id: string;
@@ -32,7 +32,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const id = type === 'home' ? 'home' : `${type}-${Date.now()}`;
     let defaultTitle = title || type;
-    if (type === 'postgres') defaultTitle = POSTGRES_MODULE.name;
+    if (type === 'talpadb') defaultTitle = TALPADB_MODULE.name;
     if (type === 'home') defaultTitle = 'Início';
     if (type === 'octohub') defaultTitle = 'OctoHub';
     if (type === 'docker') defaultTitle = 'Docker Manager';

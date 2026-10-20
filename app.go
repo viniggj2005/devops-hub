@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/blang/semver"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -13,9 +16,12 @@ import (
 
 const AppVersion = "1.0.0"
 const RepoSlug = "viniggj2005/devops-hub"
+const UpdateAvailableEvent = "app:update-available"
 
 type App struct {
-	ctx context.Context
+	ctx           context.Context
+	updateMutex   sync.Mutex
+	pendingUpdate *availableUpdate
 }
 
 func NewApp() *App {
@@ -71,39 +77,39 @@ func (app *App) GetFilePath() string {
 func (app *App) AutoCheckForUpdates() {
 	currentVersion := semver.MustParse(AppVersion)
 	latest, found, err := detectLatestRelease(RepoSlug)
-	if err != nil {
+	if err != nil || !found || latest.Version.LTE(currentVersion) {
 		return
 	}
 
-	if !found || latest.Version.LTE(currentVersion) {
-		return
+	app.updateMutex.Lock()
+	app.pendingUpdate = latest
+	app.updateMutex.Unlock()
+
+	if app.ctx != nil {
+		runtime.EventsEmit(app.ctx, UpdateAvailableEvent, latest.Version.String())
 	}
+}
 
-	res, err := runtime.MessageDialog(app.ctx, runtime.MessageDialogOptions{
-		Type:          runtime.QuestionDialog,
-		Title:         "Atualização disponível",
-		Message:       "Uma nova versão (" + latest.Version.String() + ") está disponível. Deseja atualizar agora?",
-		DefaultButton: "Yes",
-	})
-
-	if err != nil || res != "Yes" {
-		return
+func (app *App) GetAvailableUpdate() string {
+	app.updateMutex.Lock()
+	defer app.updateMutex.Unlock()
+	if app.pendingUpdate == nil {
+		return ""
 	}
+	return app.pendingUpdate.Version.String()
+}
 
-	if err := applyUpdate(latest.AssetURL); err != nil {
-		runtime.MessageDialog(app.ctx, runtime.MessageDialogOptions{
-			Type:    runtime.ErrorDialog,
-			Title:   "Erro na atualização",
-			Message: "Não foi possível atualizar: " + err.Error(),
-		})
-		return
+func (app *App) ApplyAvailableUpdate() error {
+	app.updateMutex.Lock()
+	defer app.updateMutex.Unlock()
+	if app.pendingUpdate == nil {
+		return errors.New("nenhuma atualização pendente")
 	}
-
-	runtime.MessageDialog(app.ctx, runtime.MessageDialogOptions{
-		Type:    runtime.InfoDialog,
-		Title:   "Atualização concluída",
-		Message: "O aplicativo foi atualizado com sucesso. Por favor, reinicie o aplicativo.",
-	})
+	if err := applyUpdate(app.pendingUpdate.AssetURL); err != nil {
+		return fmt.Errorf("não foi possível atualizar: %w", err)
+	}
+	app.pendingUpdate = nil
+	return nil
 }
 
 func (app *App) CheckForUpdates() (string, error) {

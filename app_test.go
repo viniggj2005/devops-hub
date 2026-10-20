@@ -135,5 +135,15 @@ func TestUpdaterFunctionsAndCheckForUpdates(test *testing.T) {
 	if err != nil || !strings.Contains(message, "9.9.9") {
 		test.Fatalf("unexpected CheckForUpdates message: %q, err=%v", message, err)
 	}
-}
 
+	if pending := appInstance.GetAvailableUpdate(); pending != "" {
+		test.Fatalf("expected no pending update before auto check, got %q", pending)
+	}
+	if err := appInstance.ApplyAvailableUpdate(); err == nil {
+		test.Fatalf("expected error applying update without pending release")
+	}
+	appInstance.AutoCheckForUpdates()
+	if pending := appInstance.GetAvailableUpdate(); pending != "9.9.9" {
+		test.Fatalf("expected pending update 9.9.9, got %q", pending)
+	}
+}

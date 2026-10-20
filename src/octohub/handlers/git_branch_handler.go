@@ -37,12 +37,45 @@ func (handlerStruct *GitBranchHandler) GetOriginURL() string {
 	return originURL(handlerStruct.gitHandler.RepoPath())
 }
 
-func (handlerStruct *GitBranchHandler) CreateAndCheckoutBranch(branchName string) error {
+func (handlerStruct *GitBranchHandler) validateBranchName(branchName string) error {
 	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"check-ref-format", "--branch", branchName}); err != nil {
 		return fmt.Errorf("nome de branch inválido: %s", branchName)
 	}
+	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-parse", "--verify", "--quiet", "refs/heads/" + branchName}); err == nil {
+		return fmt.Errorf("já existe uma branch chamada %s", branchName)
+	}
+	return nil
+}
+
+func (handlerStruct *GitBranchHandler) CreateAndCheckoutBranch(branchName string) error {
+	if err := handlerStruct.validateBranchName(branchName); err != nil {
+		return err
+	}
 	_, err := handlerStruct.gitHandler.RunGitCommand([]string{"checkout", "-b", branchName})
 	return err
+}
+
+func (handlerStruct *GitBranchHandler) CreateBranchFrom(branchName string, startPoint string, checkout bool) error {
+	branchName = strings.TrimSpace(branchName)
+	startPoint = strings.TrimSpace(startPoint)
+	if err := handlerStruct.validateBranchName(branchName); err != nil {
+		return err
+	}
+	if startPoint == "" {
+		startPoint = "HEAD"
+	}
+	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-parse", "--verify", "--quiet", startPoint + "^{commit}"}); err != nil {
+		return fmt.Errorf("branch de origem não encontrada: %s", startPoint)
+	}
+
+	args := []string{"branch", "--no-track", branchName, startPoint}
+	if checkout {
+		args = []string{"checkout", "--no-track", "-b", branchName, startPoint}
+	}
+	if _, err := handlerStruct.gitHandler.RunGitCommand(args); err != nil {
+		return fmt.Errorf("erro ao criar branch: %v", err)
+	}
+	return nil
 }
 func (handlerStruct *GitBranchHandler) CreateBranch(branchName string) error {
 	args := []string{"branch", branchName}

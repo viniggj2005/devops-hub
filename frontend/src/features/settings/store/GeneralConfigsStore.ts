@@ -282,7 +282,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
           if (savedConfig.configType === 'colors' && moduleName === 'ferretshell') {
             terminalTheme = parseTerminalTheme(values);
           }
-          if (savedConfig.configType === 'colors' && moduleName === 'postgres-manager') {
+          if (savedConfig.configType === 'colors' && moduleName === 'talpadb') {
             sqlEditorTheme = parseSqlEditorTheme(values);
           }
           if (savedConfig.configType === 'colors' && moduleName === 'octohub') {
@@ -309,7 +309,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
 
     setTerminalTheme: terminalTheme => saveModuleColors('terminalTheme', 'ferretshell', terminalTheme),
 
-    setSqlEditorTheme: sqlEditorTheme => saveModuleColors('sqlEditorTheme', 'postgres-manager', sqlEditorTheme),
+    setSqlEditorTheme: sqlEditorTheme => saveModuleColors('sqlEditorTheme', 'talpadb', sqlEditorTheme),
 
     createThemeProfile: async (name, globalTheme) => {
       try {
@@ -394,7 +394,7 @@ async function applyThemeConfig(config: ThemeProfileConfig, errorMessage: string
     })),
     { moduleName: 'octohub', configType: 'colors', config: { ...config.octohubColors } },
     { moduleName: 'ferretshell', configType: 'colors', config: { ...config.terminalTheme } },
-    { moduleName: 'postgres-manager', configType: 'colors', config: { ...config.sqlEditorTheme } },
+    { moduleName: 'talpadb', configType: 'colors', config: { ...config.sqlEditorTheme } },
   ];
   setState({
     modules,

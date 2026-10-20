@@ -37,7 +37,16 @@ func InitDb() {
 		log.Fatalf("erro ao abrir banco SQLite: %v", err)
 	}
 
-	if err := DataBase.AutoMigrate(
+	if err := migrateDatabase(DataBase); err != nil {
+		log.Fatalf("erro ao migrar banco: %v", err)
+	}
+}
+
+func migrateDatabase(dataBase *gorm.DB) error {
+	if err := migrateLegacyTalpadbNames(dataBase); err != nil {
+		return fmt.Errorf("erro ao renomear dados do TalpaDB: %w", err)
+	}
+	if err := dataBase.AutoMigrate(
 		&models.UserModel{},
 		&models.OctohubModel{},
 		&models.SshConnectionModel{},
@@ -46,13 +55,13 @@ func InitDb() {
 		&models.ThemeProfileModel{},
 		&models.GeneralConfigsModel{},
 		&models.DockerCredentialsModel{},
-		&models.PostgresConnectionModel{},
-		&models.PostgresDiagramLayoutModel{},
+		&models.TalpadbConnectionModel{},
+		&models.TalpadbDiagramLayoutModel{},
 	); err != nil {
-		log.Fatalf("erro ao migrar modelos: %v", err)
+		return fmt.Errorf("erro ao migrar modelos: %w", err)
 	}
-
-	if err := syncCheckConstraints(DataBase, &models.GeneralConfigsModel{}); err != nil {
-		log.Fatalf("erro ao atualizar constraints: %v", err)
+	if err := syncCheckConstraints(dataBase, &models.GeneralConfigsModel{}); err != nil {
+		return fmt.Errorf("erro ao atualizar constraints: %w", err)
 	}
+	return nil
 }

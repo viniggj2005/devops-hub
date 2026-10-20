@@ -456,16 +456,16 @@ const CommitHistoryPage: React.FC = () => {
         }
     };
 
-    const handleDropStash = async (stashID: string) => {
-        if (!confirm("Tem certeza que deseja descartar este stash permanentemente?")) return;
-        try {
-            await DropStash(stashID);
-            fetchGitStatus();
-            iziToast.success({ title: 'Sucesso', message: 'Stash descartado.', position: 'bottomRight' });
-        } catch (err: any) {
-            iziToast.error({ title: 'Erro', message: "Erro ao descartar stash: " + err, position: 'bottomRight' });
-        }
-    };
+    const handleDropStash = (stashID: string) =>
+        confirmToast({
+            id: `drop-stash-${stashID.replace(/\W/g, '')}`,
+            title: 'Stash descartado.',
+            message: 'Tem certeza que deseja descartar este stash permanentemente?',
+            onConfirm: async () => {
+                await DropStash(stashID);
+                fetchGitStatus();
+            },
+        });
 
     const loadDiff = async (source: DiffSource, filePath: string, request: () => Promise<{ diff: string; hash: string | null }>) => {
         const requestId = ++diffRequest.current;

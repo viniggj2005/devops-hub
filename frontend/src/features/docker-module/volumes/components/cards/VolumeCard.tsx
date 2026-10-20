@@ -52,13 +52,10 @@ const VolumeCard: React.FC<VolumeCardProps> = ({
       title: 'Remover Volume?',
       message: `Tem certeza que deseja remover o volume "${Name}"?\nEsta ação não pode ser desfeita.`,
       onConfirm: async () => {
+        setDeleteLoading(true);
         try {
-          setDeleteLoading(true);
           await VolumeService.deleteVolume(clientId, Name);
           onDeleted?.(Name);
-        } catch (error) {
-          console.error(error);
-          alert('Erro ao remover volume. Verifique os logs.');
         } finally {
           setDeleteLoading(false);
         }

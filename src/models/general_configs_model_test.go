@@ -19,7 +19,7 @@ func TestConfigTypeIsValid(test *testing.T) {
 }
 
 func TestModuleNameIsValid(test *testing.T) {
-	validModules := []ModuleName{Vulpes, OctoHub, FerretShell, DockerManager, PostgresManager}
+	validModules := []ModuleName{Vulpes, OctoHub, FerretShell, DockerManager, TalpaDB}
 	for _, moduleName := range validModules {
 		if !moduleName.IsValid() {
 			test.Fatalf("expected moduleName %q to be valid", moduleName)
@@ -33,4 +33,3 @@ func TestModuleNameIsValid(test *testing.T) {
 		}
 	}
 }
-

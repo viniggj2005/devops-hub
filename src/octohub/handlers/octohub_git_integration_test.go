@@ -297,6 +297,31 @@ func TestRepositoryCommitsBranchesMergeAndStashWorkflow(test *testing.T) {
 		test.Fatalf("unexpected error deleting merged branch: %v", err)
 	}
 
+	if err := branchHandler.CreateBranchFrom("hotfix", "main", false); err != nil {
+		test.Fatalf("unexpected error creating branch without checkout: %v", err)
+	}
+	if currentBranch, _ := branchHandler.GetCurrentBranch(); currentBranch != "main" {
+		test.Fatalf("expected to stay on main, got %s", currentBranch)
+	}
+	if err := branchHandler.CreateBranchFrom("hotfix", "main", false); err == nil {
+		test.Fatalf("expected error creating duplicated branch")
+	}
+	if err := branchHandler.CreateBranchFrom("from-missing", "does-not-exist", true); err == nil {
+		test.Fatalf("expected error creating branch from missing start point")
+	}
+	if err := branchHandler.CreateBranchFrom("from-first", firstCommitHash, true); err != nil {
+		test.Fatalf("unexpected error creating branch from first commit: %v", err)
+	}
+	if currentBranch, _ := branchHandler.GetCurrentBranch(); currentBranch != "from-first" {
+		test.Fatalf("expected from-first to be checked out, got %s", currentBranch)
+	}
+	if content, _ := os.ReadFile(fileOne); strings.ReplaceAll(string(content), "\r\n", "\n") != "line 1\nline 2\n" {
+		test.Fatalf("expected first commit content on from-first, got %q", content)
+	}
+	if err := branchHandler.ChangeBranch("main", false, false); err != nil {
+		test.Fatalf("unexpected error switching back to main: %v", err)
+	}
+
 	if err := branchHandler.IgnoreFile("secret.env"); err != nil {
 		test.Fatalf("unexpected error ignoring file: %v", err)
 	}

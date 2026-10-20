@@ -24,16 +24,16 @@ type UpdateChecker interface {
 
 type AuthHandlerStruct struct {
 	DataBase      *gorm.DB
+	updateChecker UpdateChecker
 	context       context.Context
 	Session       *authFunctions.ManagerStruct
-	updateChecker UpdateChecker
 }
 
 func NewAuthHandler(dataBase *gorm.DB, sessionManager *authFunctions.ManagerStruct, updateChecker UpdateChecker) *AuthHandlerStruct {
 	return &AuthHandlerStruct{
 		DataBase:      dataBase,
-		Session:       sessionManager,
 		updateChecker: updateChecker,
+		Session:       sessionManager,
 	}
 }
 

@@ -1,5 +1,6 @@
 import iziToast from 'izitoast';
 import MergeBranchModal from './MergeBranchModal';
+import CreateBranchModal from './CreateBranchModal';
 import StashChangesModal from './StashChangesModal';
 import { useDismiss } from '../../shared/hooks/useDismiss';
 import { octohubStructs } from '../../../../wailsjs/go/models';
@@ -9,7 +10,7 @@ import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import { getConflictingFiles, isConflictError } from '../functions/gitStatus';
 import { GetGitStatus } from '../../../../wailsjs/go/octohubHandler/GitCommitsHandler';
 import { Check, ChevronDown, Cloud, CloudUpload, GitBranch, GitBranchPlus, GitMerge, RefreshCw, Search } from 'lucide-react';
-import { ListBranches, ChangeBranch, CreateAndCheckoutBranch, PublishBranch, FetchRemotes, GetOriginURL, HasUncommittedChanges } from '../../../../wailsjs/go/octohubHandler/GitBranchHandler';
+import { ListBranches, ChangeBranch, PublishBranch, FetchRemotes, GetOriginURL, HasUncommittedChanges } from '../../../../wailsjs/go/octohubHandler/GitBranchHandler';
 
 type BranchItem = { type: 'create' } | { type: 'branch'; branch: octohubStructs.BranchInfo };
 
@@ -24,7 +25,9 @@ const BranchSelector: React.FC = () => {
     const panelRef = useRef<HTMLDivElement>(null);
     const [originUrl, setOriginUrl] = useState('');
     const [fetching, setFetching] = useState(false);
+    const [createName, setCreateName] = useState('');
     const [mergeOpen, setMergeOpen] = useState(false);
+    const [createOpen, setCreateOpen] = useState(false);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const [showStashModal, setShowStashModal] = useState(false);
     const [branches, setBranches] = useState<octohubStructs.BranchInfo[]>([]);
@@ -116,18 +119,10 @@ const BranchSelector: React.FC = () => {
         setPendingBranch(null);
     };
 
-    const handleCreate = async () => {
+    const openCreateModal = (initialName = '') => {
         close();
-        setLoading(true);
-        try {
-            await CreateAndCheckoutBranch(newBranchName);
-            iziToast.success({ title: 'Branch', message: `Branch ${newBranchName} criada.`, position: 'bottomRight' });
-            notifyChange();
-        } catch (error) {
-            iziToast.error({ title: 'Erro', message: `Erro ao criar branch: ${error}`, position: 'bottomRight' });
-        } finally {
-            setLoading(false);
-        }
+        setCreateName(initialName);
+        setCreateOpen(true);
     };
 
     const handlePublish = async () => {
@@ -164,7 +159,7 @@ const BranchSelector: React.FC = () => {
     const choose = (index: number) => {
         const item = items[index];
         if (!item) return;
-        if (item.type === 'create') handleCreate();
+        if (item.type === 'create') openCreateModal(newBranchName);
         else handleSwitch(item.branch);
     };
 
@@ -193,6 +188,16 @@ const BranchSelector: React.FC = () => {
                     ) : (
                         <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                     )}
+                </button>
+
+                <button
+                    onClick={() => openCreateModal()}
+                    disabled={!hasRepository || loading}
+                    title="Criar uma branch nova escolhendo a branch de origem"
+                    className="p-2 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/10 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <GitBranchPlus className="w-4 h-4 text-emerald-500" />
+                    <span className="text-xs font-bold hidden md:inline text-zinc-700 dark:text-zinc-300">Nova branch</span>
                 </button>
 
                 <button
@@ -281,7 +286,7 @@ const BranchSelector: React.FC = () => {
                                             <div className="min-w-0">
                                                 <div className="text-xs font-bold truncate">Criar branch “{newBranchName}”</div>
                                                 <div className="text-[10px] text-zinc-500">
-                                                    A partir de {isDetached ? 'HEAD' : currentBranch}, levando suas alterações
+                                                    Escolher a branch de origem...
                                                 </div>
                                             </div>
                                         </div>
@@ -339,6 +344,8 @@ const BranchSelector: React.FC = () => {
             )}
 
             <MergeBranchModal open={mergeOpen} onClose={() => setMergeOpen(false)} />
+
+            <CreateBranchModal open={createOpen} initialName={createName} onClose={() => setCreateOpen(false)} />
 
             <StashChangesModal
                 isOpen={showStashModal}

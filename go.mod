@@ -8,6 +8,7 @@ require (
 	github.com/aymanbagabas/go-pty v0.2.2
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/docker/docker v28.0.0+incompatible
+	github.com/glebarez/go-sqlite v1.21.2
 	github.com/glebarez/sqlite v1.11.0
 	github.com/google/uuid v1.6.0
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
@@ -15,6 +16,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/pkg/sftp v1.13.10
+	github.com/sijms/go-ora/v2 v2.9.0
 	github.com/wailsapp/wails/v2 v2.12.0
 	golang.org/x/crypto v0.43.0
 	gorm.io/gorm v1.31.0
@@ -32,7 +34,6 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/glebarez/go-sqlite v1.21.2 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect

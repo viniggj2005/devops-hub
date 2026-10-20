@@ -1,6 +1,7 @@
 import iziToast from 'izitoast';
 import { useAuth } from '../../contexts/AuthContext';
 import React, { useState, useEffect, useRef } from 'react';
+import { usePromptToast } from '../../features/shared/components/toasts/PromptToast';
 import * as Ssh from '../../../wailsjs/go/ferretshellHandlers/SshHandlerStruct';
 import * as Sftp from '../../../wailsjs/go/ferretshellHandlers/SftpHandlerStruct';
 import * as Local from '../../../wailsjs/go/ferretshellHandlers/LocalFileHandler';
@@ -12,6 +13,7 @@ import SftpRemotePanel from '../../features/ferretShell-module/sftp/components/S
 
 const SftpPage: React.FC = () => {
     const { token, user } = useAuth();
+    const promptToast = usePromptToast();
     const sessionIdRef = useRef<string | null>(null);
     const [connecting, setConnecting] = useState(false);
     const [localPath, setLocalPath] = useState<string>('');
@@ -93,7 +95,13 @@ const SftpPage: React.FC = () => {
             } else if (sshDto.password) {
                 config.Password = sshDto.password;
             } else {
-                const password = prompt(`Digite a senha para ${sshDto.systemUser}@${sshDto.host}:`);
+                const password = await promptToast({
+                    title: 'Senha SSH',
+                    inputType: 'password',
+                    confirmLabel: 'Conectar',
+                    placeholder: 'sua senha',
+                    message: `Digite a senha para ${sshDto.systemUser}@${sshDto.host}`,
+                });
                 if (!password) { setConnecting(false); return; }
                 config.Password = password;
             }

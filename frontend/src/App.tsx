@@ -4,12 +4,13 @@ import MainHomePage from './pages/MainHomePage';
 import { AppFrame } from './features/appFrame/appFrame';
 import SettingsPage from './pages/settings/SettingsPage';
 import { useAppStore } from './features/appFrame/AppStore';
+import { useUpdateNotifier } from './features/shared/hooks/useUpdateNotifier';
 import { useGeneralConfigsStore } from './features/settings/store/GeneralConfigsStore';
 import DockerModuleWrapper from './features/docker-module/components/DockerModuleWrapper';
 import OctohubModuleWrapper from './features/octohub-module/components/OctohubModuleWrapper';
 import { applyOctohubColorVariables } from './features/settings/functions/OctohubColorVariables';
 import FerretShellModuleWrapper from './features/ferretShell-module/components/FerretShellModuleWrapper';
-import PostgresModuleWrapper from './features/postgres-module/components/PostgresModuleWrapper';
+import TalpadbModuleWrapper from './features/talpadb-module/components/TalpadbModuleWrapper';
 import { WindowIsFullscreen, WindowFullscreen, WindowUnfullscreen, WindowIsMaximised, WindowUnmaximise } from '../wailsjs/runtime/runtime';
 
 export default function App() {
@@ -18,6 +19,8 @@ export default function App() {
   const loadGeneralConfigs = useGeneralConfigsStore(state => state.load);
   const resetGeneralConfigs = useGeneralConfigsStore(state => state.reset);
   const octohubColors = useGeneralConfigsStore(state => state.octohubColors);
+
+  useUpdateNotifier();
 
   useEffect(() => {
     loadGeneralConfigs();
@@ -78,8 +81,8 @@ export default function App() {
         return <OctohubModuleWrapper />;
       case 'settings':
         return <SettingsPage />;
-      case 'postgres':
-        return <PostgresModuleWrapper />;
+      case 'talpadb':
+        return <TalpadbModuleWrapper />;
       default:
         return null;
     }

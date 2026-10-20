@@ -6,7 +6,7 @@ export type ModuleThemePreference = 'light' | 'dark' | 'custom';
 
 export type AccentFamily = 'blue' | 'cyan' | 'purple' | 'amber' | 'emerald';
 
-export type ConfigurableModule = 'vulpes' | 'octohub' | 'ferretshell' | 'docker-manager' | 'postgres-manager';
+export type ConfigurableModule = 'vulpes' | 'octohub' | 'ferretshell' | 'docker-manager' | 'talpadb';
 
 export interface CustomThemeColors {
   text: string;

@@ -1,5 +1,5 @@
 import { ModuleType } from '../../appFrame/AppStore';
-import { POSTGRES_MODULE } from '../../postgres-module/moduleInfo';
+import { TALPADB_MODULE } from '../../talpadb-module/moduleInfo';
 import { AccentFamily, ConfigurableModule, CustomThemeColors } from '../../../interfaces/GeneralConfigsInterfaces';
 
 export interface AppModuleDefinition {
@@ -53,15 +53,15 @@ export const appModules: AppModuleDefinition[] = [
     description: 'Configurações de acesso, chaves SSH e certificados TLS.',
   },
   {
-    id: 'postgres',
+    id: 'talpadb',
     status: 'Ativo',
     accentFamily: 'cyan',
     accentColor: '#06b6d4',
-    title: POSTGRES_MODULE.name,
-    color: POSTGRES_MODULE.gradient,
-    configName: 'postgres-manager',
-    icon: '/postgres-manager.svg',
-    description: POSTGRES_MODULE.description,
+    title: TALPADB_MODULE.name,
+    color: TALPADB_MODULE.gradient,
+    configName: 'talpadb',
+    icon: '/talpadb.svg',
+    description: TALPADB_MODULE.description,
   },
   {
     id: 'vulpes',

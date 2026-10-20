@@ -31,7 +31,7 @@ const PresetSample: React.FC<{ colors: SqlEditorColors }> = ({ colors }) => (
 const SqlEditorThemeSettings: React.FC = () => {
   const savedTheme = useGeneralConfigsStore(state => state.sqlEditorTheme);
   const setSqlEditorTheme = useGeneralConfigsStore(state => state.setSqlEditorTheme);
-  const moduleConfig = useGeneralConfigsStore(state => state.modules['postgres-manager']);
+  const moduleConfig = useGeneralConfigsStore(state => state.modules['talpadb']);
   const saveTheme = useCallback(setSqlEditorTheme, [setSqlEditorTheme]);
   const [draftTheme, setDraftTheme] = useDebouncedDraft(savedTheme, saveTheme);
 
@@ -60,7 +60,7 @@ const SqlEditorThemeSettings: React.FC = () => {
     <section className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Editor SQL do Postgres Manager</h2>
+          <h2 className="text-2xl font-bold">Editor SQL do TalpaDB</h2>
           <p className="text-gray-500 dark:text-zinc-400 mt-1">
             Cores da sintaxe e fonte do editor de queries. As mudanças valem na hora, inclusive nas abas já abertas.
           </p>
@@ -123,7 +123,7 @@ const SqlEditorThemeSettings: React.FC = () => {
         </div>
         {isAuto && (
           <p className="mt-2 text-xs text-cyan-600 dark:text-cyan-400">
-            Segue o tema do Postgres Manager (claro, escuro ou personalizado). Editar uma cor cria um tema personalizado a partir das cores atuais.
+            Segue o tema do TalpaDB (claro, escuro ou personalizado). Editar uma cor cria um tema personalizado a partir das cores atuais.
           </p>
         )}
         {draftTheme.preset === sqlEditorCustomPresetId && (

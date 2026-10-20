@@ -5,7 +5,7 @@ import (
 	database "docker-manager-go/src/dataBase"
 	dockerHandlers "docker-manager-go/src/dockermanager/handlers"
 	ferretShellHandlers "docker-manager-go/src/ferretshell/handlers"
-	postgresHandlers "docker-manager-go/src/postgres/handlers"
+	talpadbHandlers "docker-manager-go/src/talpadb/handlers"
 	"os"
 
 	auth "docker-manager-go/src/auth/functions"
@@ -44,8 +44,8 @@ func main() {
 	sshHandler := ferretShellHandlers.NewSshHandler(database.DataBase, sessionManager)
 	authHandler := authHandlers.NewAuthHandler(database.DataBase, sessionManager, app)
 	generalConfigsHandler := generalConfigsHandlers.NewGeneralConfigsHandler(database.DataBase, sessionManager)
-	postgresHandler := postgresHandlers.NewPostgresHandler(database.DataBase, sessionManager)
-	postgresClient := postgresHandlers.NewPostgresClientHandler(postgresHandler)
+	talpadbHandler := talpadbHandlers.NewTalpadbHandler(database.DataBase, sessionManager)
+	talpadbClient := talpadbHandlers.NewTalpadbClientHandler(talpadbHandler)
 
 	gitHandler := octohub.NewGitHandler(repositoryPath)
 	branchHandler := octohub.NewGitBranchHandler(gitHandler)
@@ -74,8 +74,8 @@ func main() {
 			userHandler.Startup(ctx)
 			localTerminal.Startup(ctx)
 			octohubHandler.Startup(ctx)
-			postgresClient.Startup(ctx)
-			postgresHandler.Startup(ctx)
+			talpadbClient.Startup(ctx)
+			talpadbHandler.Startup(ctx)
 			localFileHandler.Startup(ctx)
 			repositoryHandler.Startup(ctx)
 			generalConfigsHandler.Startup(ctx)
@@ -99,9 +99,9 @@ func main() {
 			localTerminal,
 			branchHandler,
 			commitHandler,
-			postgresClient,
+			talpadbClient,
 			octohubHandler,
-			postgresHandler,
+			talpadbHandler,
 			localFileHandler,
 			repositoryHandler,
 			generalConfigsHandler,
