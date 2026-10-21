@@ -1,4 +1,4 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { Modal } from '../../../shared/components/modals/Modal';
@@ -120,7 +120,7 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
       const path = await TalpadbServices.chooseSqliteFile(token);
       if (path) setForm((previous) => ({ ...previous, host: path }));
     } catch (error) {
-      iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
+      toast.error(errorMessage(error));
     }
   };
 
@@ -161,20 +161,13 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
       const saved = isEditing
         ? await TalpadbServices.updateConnection(token, connection!.id, toPayload())
         : await TalpadbServices.createConnection(token, toPayload());
-      iziToast.success({
-        title: isEditing ? 'Sucesso!' : 'Criado com sucesso',
-        message: isEditing ? 'Conexão atualizada com sucesso.' : `A conexão ${info.label} foi criada.`,
-        position: 'bottomRight',
-        timeout: 3000,
-      });
+      toast.success(
+        isEditing ? 'Conexão atualizada com sucesso.' : `A conexão ${info.label} foi criada.`
+      );
       onSaved(saved);
       onClose();
     } catch (error) {
-      iziToast.error({
-        title: 'Erro',
-        message: `Erro ao salvar conexão: ${errorMessage(error)}`,
-        position: 'bottomRight',
-      });
+      toast.error(`Erro ao salvar conexão: ${errorMessage(error)}`);
     } finally {
       setSaving(false);
     }

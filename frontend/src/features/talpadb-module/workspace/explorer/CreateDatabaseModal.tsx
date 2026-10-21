@@ -1,4 +1,4 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
 import { Database, Loader2, Plus } from 'lucide-react';
 import { useAuth } from '../../../../contexts/AuthContext';
@@ -45,7 +45,7 @@ const CreateDatabaseModal: React.FC<CreateDatabaseModalProps> = ({ connectionId,
     setOptions(null);
     TalpadbServices.getDatabaseOptions(token, connectionId)
       .then(setOptions)
-      .catch((error) => iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' }));
+      .catch((error) => toast.error(errorMessage(error)));
   }, [isOpen, token, connectionId]);
 
   useEffect(() => {
@@ -67,11 +67,11 @@ const CreateDatabaseModal: React.FC<CreateDatabaseModalProps> = ({ connectionId,
     setCreating(true);
     try {
       await TalpadbServices.createDatabase(token, connectionId, input);
-      iziToast.success({ title: 'Banco criado', message: input.name.trim(), position: 'bottomRight' });
+      toast.success(`Banco criado: ${input.name.trim()}`);
       onCreated(connectionId, input.name.trim());
       onClose();
     } catch (error) {
-      iziToast.error({ title: 'Erro ao criar banco', message: errorMessage(error), position: 'bottomRight', timeout: 10000 });
+      toast.error(`Erro ao criar banco: ${errorMessage(error)}`);
     } finally {
       setCreating(false);
     }

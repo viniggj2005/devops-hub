@@ -1,4 +1,4 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import { useTalpadbStore } from '../../TalpadbStore';
 import SqlEditor from '../query/components/SqlEditor';
 import IndexesEditor from './components/IndexesEditor';
@@ -179,17 +179,14 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
           key: `table:${tab.connectionId}:${tab.database}:${tab.schema}:${newName}`,
         });
       }
-      iziToast.success({ title: 'Tabela alterada', message: `${details.schema}.${newName}`, position: 'bottomRight' });
+      toast.success(`Tabela alterada: ${details.schema}.${newName}`);
       setPreviewOpen(false);
       refreshExplorer();
       await load(newName);
     } catch (applyError) {
-      iziToast.error({
-        title: info.supportsAtomicAlter ? 'Nada foi alterado' : 'Erro ao alterar (comandos anteriores ao erro já foram aplicados)',
-        message: errorMessage(applyError),
-        position: 'bottomRight',
-        timeout: 10000,
-      });
+      toast.error(
+        `${info.supportsAtomicAlter ? 'Nada foi alterado' : 'Erro ao alterar (comandos anteriores ao erro já foram aplicados)'}: ${errorMessage(applyError)}`
+      );
     } finally {
       if (sessionId) TalpadbServices.closeQuerySession(token, sessionId).catch(() => undefined);
       setApplying(false);

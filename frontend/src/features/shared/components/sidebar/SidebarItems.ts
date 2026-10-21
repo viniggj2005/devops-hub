@@ -1,40 +1,40 @@
-import { Box, HardDrive, Key, Network, Image, LayoutDashboard } from 'lucide-react';
-export const navItems = [
+import { Box, HardDrive, Image, Key, LayoutDashboard, Network } from 'lucide-react';
 
+export const navItems = [
   {
+    to: '/docker/home',
     label: 'Dashboard',
-    description: 'Visão geral dos contêineres',
-    to: '/home',
     icon: LayoutDashboard,
+    description: 'Visão geral do daemon',
   },
   {
-    label: 'Networks',
-    description: 'Visão das redes do docker',
-    to: '/networks',
-    icon: Network,
+    icon: Box,
+    label: 'Containers',
+    to: '/docker/containers',
+    description: 'Gerencie contêineres',
+  },
+  {
+    icon: Image,
+    label: 'Imagens',
+    to: '/docker/images',
+    description: 'Organize suas imagens',
   },
   {
     label: 'Volumes',
-    description: 'Gerencie volumes Docker',
-    to: '/volumes',
     icon: HardDrive,
+    to: '/docker/volumes',
+    description: 'Gerencie volumes Docker',
   },
   {
-    label: 'Containers',
-    description: 'Gerencie contêineres locais',
-    to: '/containers',
-    icon: Box,
+    icon: Network,
+    label: 'Redes',
+    to: '/docker/networks',
+    description: 'Redes do ambiente',
   },
   {
-    label: 'Imagens Docker',
-    description: 'Organize suas imagens',
-    to: '/images',
-    icon: Image,
-  },
-  {
-    label: 'Credenciais Docker',
-    description: 'Gerencie conexões TLS do Docker',
-    to: '/docker-credentials',
     icon: Key,
+    label: 'Credenciais',
+    to: '/docker/credentials',
+    description: 'Conexões TLS',
   },
 ];

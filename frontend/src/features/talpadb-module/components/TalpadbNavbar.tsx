@@ -1,25 +1,25 @@
 import React from 'react';
 import { useTalpadbStore } from '../TalpadbStore';
 import { useAppStore } from '../../appFrame/AppStore';
-import { Home, LayoutPanelLeft, LogOut } from 'lucide-react';
+import { Server, LayoutPanelLeft, LogOut } from 'lucide-react';
 import { TALPADB_MODULE, TalpadbModuleIcon } from '../moduleInfo';
 import type { TalpadbView } from '../../../interfaces/TalpadbInterfaces';
 import ToggleThemeButton from '../../shared/components/buttons/ToggleThemeButton';
 
 const TalpadbNavbar: React.FC = () => {
   const { setActiveTab } = useAppStore();
-  const { view, setView, tabs } = useTalpadbStore();
+  const { view, setView, tabs, connections } = useTalpadbStore();
 
-  const links: { view: TalpadbView; label: string; icon: typeof Home; badge?: number }[] = [
-    { view: 'home', label: 'Início', icon: Home },
+  const links: { view: TalpadbView; label: string; icon: typeof Server; badge?: number }[] = [
     { view: 'workspace', label: 'Workspace', icon: LayoutPanelLeft, badge: tabs.length },
+    { view: 'home', label: 'Servidores', icon: Server, badge: connections.length },
   ];
 
   return (
     <nav className="h-16 flex-shrink-0 border-b border-gray-200 dark:border-white/5 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md z-40 px-6 flex items-center justify-between">
-      <div className="flex items-center gap-8 min-w-0">
+      <div className="flex items-center gap-6 min-w-0">
         <button
-          onClick={() => setView('home')}
+          onClick={() => setView('workspace')}
           className="flex items-center gap-3 cursor-pointer group flex-shrink-0"
         >
           <div
@@ -34,21 +34,21 @@ const TalpadbNavbar: React.FC = () => {
           </span>
         </button>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-gray-100/80 dark:bg-white/5 border border-gray-200/60 dark:border-white/5">
           {links.map(({ view: linkView, label, icon: Icon, badge }) => (
             <button
               key={linkView}
               onClick={() => setView(linkView)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 view === linkView
-                  ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
-                  : 'text-gray-500 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-white/5'
+                  ? 'bg-white dark:bg-zinc-800 text-cyan-600 dark:text-cyan-400 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-3.5 h-3.5" />
               {label}
               {!!badge && (
-                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 text-[11px] font-bold flex items-center justify-center">
+                <span className="min-w-[18px] h-4 px-1 rounded-full bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 text-[10px] font-bold flex items-center justify-center">
                   {badge}
                 </span>
               )}

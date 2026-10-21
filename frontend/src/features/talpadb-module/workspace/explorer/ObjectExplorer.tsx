@@ -1,4 +1,4 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import React, { useMemo, useState } from 'react';
 import ContextMenu from '../components/ContextMenu';
 import { useTalpadbStore } from '../../TalpadbStore';
@@ -7,6 +7,7 @@ import { useExplorerActions } from './useExplorerActions';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { serverNodeId, useExplorerStore } from './ExplorerStore';
 import type { ContextMenuItem } from '../components/ContextMenu';
+import { TalpadbServices } from '../../services/TalpadbServices';
 import DropObjectModal, { type DropTarget } from './DropObjectModal';
 import ConnectionFormModal from '../../home/components/ConnectionFormModal';
 import { connectionLabel, errorMessage } from '../../functions/TreatmentFunctions';
@@ -95,7 +96,6 @@ function computeFilter(
   const visible = new Set<string>();
   const forceExpanded = new Set<string>();
 
-  // Mostra o que casa com o filtro, seus ancestrais (abertos) e seus descendentes (conforme expansão normal).
   const visit = (id: string, ancestorMatched: boolean): boolean => {
     const node = nodes[id];
     if (!node) return false;
@@ -120,7 +120,7 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
   const loadConnections = useTalpadbStore((state) => state.loadConnections);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [createDatabaseFor, setCreateDatabaseFor] = useState<number | null>(null);
-  const actions = useExplorerActions({ onDropObject: setDropTarget, onCreateDatabase: setCreateDatabaseFor });
+  const [editingConnection, setEditingConnection] = useState<TalpadbConnection | null>(null);
   const { rootIds, nodes, children, expanded, loading, errors, connected, selectedId } =
     useExplorerStore();
   const [menu, setMenu] = useState<{
@@ -130,20 +130,37 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
     items: ContextMenuItem[];
   } | null>(null);
 
-  const filtered = useMemo(
-    () => computeFilter(filter, rootIds, nodes, children),
-    [filter, rootIds, nodes, children]
-  );
-
   const reloadConnections = async () => {
     if (!token) return;
     try {
       const list = await loadConnections(token);
       useExplorerStore.getState().syncServers(list);
     } catch (error) {
-      iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
+      toast.error(errorMessage(error));
     }
   };
+
+  const openNewConnection = () => {
+    setEditingConnection(null);
+    setFormOpen(true);
+  };
+
+  const openEditConnection = (connection: TalpadbConnection) => {
+    setEditingConnection(connection);
+    setFormOpen(true);
+  };
+
+  const actions = useExplorerActions({
+    onDropObject: setDropTarget,
+    onEditConnection: openEditConnection,
+    onCreateDatabase: setCreateDatabaseFor,
+    onReloadConnections: reloadConnections,
+  });
+
+  const filtered = useMemo(
+    () => computeFilter(filter, rootIds, nodes, children),
+    [filter, rootIds, nodes, children]
+  );
 
   const handleClick = (node: ExplorerNode) => {
     useExplorerStore.getState().select(node.id);
@@ -160,21 +177,21 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
     const node = nodes[id];
     if (!node || (filtered && !filtered.visible.has(id))) return null;
 
-    const isExpanded = Boolean(expanded[id] || filtered?.forceExpanded.has(id));
     const isLoading = Boolean(loading[id]);
     const nodeChildren = children[id];
     const indent = 8 + depth * 14;
+    const isExpanded = Boolean(expanded[id] || filtered?.forceExpanded.has(id));
 
     return (
       <React.Fragment key={id}>
         <div
           role="treeitem"
-          aria-expanded={node.expandable ? isExpanded : undefined}
-          title={node.detail ? `${node.label} — ${node.detail}` : node.label}
           style={{ paddingLeft: indent }}
           onClick={() => handleClick(node)}
           onDoubleClick={() => actions.defaultAction(node)}
+          aria-expanded={node.expandable ? isExpanded : undefined}
           onContextMenu={(event) => handleContextMenu(event, node)}
+          title={node.detail ? `${node.label} — ${node.detail}` : node.label}
           className={`group flex items-center gap-1.5 h-7 pr-2 rounded-lg cursor-pointer select-none text-[13px] transition-colors ${
             selectedId === id
               ? 'bg-cyan-500/10 text-cyan-800 dark:text-cyan-200'
@@ -260,7 +277,7 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
             Explorador
           </h3>
           <div className="flex items-center gap-0.5">
-            <button title="Nova conexão" onClick={() => setFormOpen(true)} className={headerButton}>
+            <button title="Nova conexão" onClick={openNewConnection} className={headerButton}>
               <Plus className="w-4 h-4" />
             </button>
             <button
@@ -307,7 +324,7 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
             <Database className="w-8 h-8 text-gray-300 dark:text-zinc-600" />
             <p className="text-xs text-gray-400">Nenhuma conexão cadastrada.</p>
             <button
-              onClick={() => setFormOpen(true)}
+              onClick={openNewConnection}
               className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 text-xs font-semibold hover:bg-cyan-500/20 transition-colors"
             >
               Nova conexão
@@ -329,20 +346,22 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
         <ContextMenu
           x={menu.x}
           y={menu.y}
-          title={menu.node.label}
           items={menu.items}
+          title={menu.node.label}
           onClose={() => setMenu(null)}
         />
       )}
 
       <ConnectionFormModal
         open={formOpen}
+        connection={editingConnection}
         onClose={() => setFormOpen(false)}
         onSaved={async (saved: TalpadbConnection) => {
+          useExplorerStore.getState().resetServer(saved.id);
+          TalpadbServices.invalidateCompletion(saved.id);
           await reloadConnections();
           useExplorerStore.getState().select(serverNodeId(saved.id));
         }}
-        connection={null}
       />
 
       <CreateDatabaseModal

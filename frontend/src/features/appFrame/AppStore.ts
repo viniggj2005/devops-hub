@@ -1,11 +1,11 @@
-import iziToast from 'izitoast';
 import { create } from 'zustand';
+import toast from 'react-hot-toast';
 import { Window } from '@wailsio/runtime';
 import { getToken } from '../../contexts/AuthContext';
 import { TALPADB_MODULE } from '../talpadb-module/moduleInfo';
 import { errorMessage } from '../shared/functions/ErrorMessage';
 import { detachedModule, isDetachableModule, isDetachedWindow } from './WindowContext';
-import { ScreenPoint, dropModuleApi, detachModuleApi, moveModuleToMainWindowApi } from './services/WindowService';
+import { ScreenPoint, detachModuleApi, dropModuleApi, moveModuleToMainWindowApi } from './services/WindowService';
 
 export type ModuleType = 'home' | 'docker' | 'ferretshell' | 'vulpes' | 'octohub' | 'settings' | 'talpadb';
 
@@ -59,7 +59,7 @@ export const useAppStore = create<AppState>((set, get) => {
     try {
       if (await transfer(token, tab.type)) get().closeTab(id);
     } catch (error) {
-      iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
+      toast.error(errorMessage(error));
     }
   };
 

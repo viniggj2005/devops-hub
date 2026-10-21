@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import AppShell from '../../shared/components/sidebar/AppShell';
 import ImagesPage from '../../../pages/dockerManager/ImagesPage';
 import VolumesPage from '../../../pages/dockerManager/VolumesPage';
@@ -12,13 +12,20 @@ const DockerModuleWrapper: React.FC = () => {
   return (
     <AppShell>
       <Routes>
-        <Route path="/images" element={<ImagesPage />} />
-        <Route path="/home" element={<DockerHomePage />} />
-        <Route path="/volumes" element={<VolumesPage />} />
-        <Route path="/networks" element={<NetworksPage />} />
-        <Route path="/containers" element={<ContainersPage />} />
-        <Route path="/" element={<Navigate to="/home" replace />} />
-        <Route path="/docker-credentials" element={<DockerCredentialsPage />} />
+        <Route path="/docker/home" element={<DockerHomePage />} />
+        <Route path="/docker/containers" element={<ContainersPage />} />
+        <Route path="/docker/images" element={<ImagesPage />} />
+        <Route path="/docker/volumes" element={<VolumesPage />} />
+        <Route path="/docker/networks" element={<NetworksPage />} />
+        <Route path="/docker/credentials" element={<DockerCredentialsPage />} />
+        <Route path="/docker/docker-credentials" element={<Navigate to="/docker/credentials" replace />} />
+        <Route path="/home" element={<Navigate to="/docker/home" replace />} />
+        <Route path="/containers" element={<Navigate to="/docker/containers" replace />} />
+        <Route path="/images" element={<Navigate to="/docker/images" replace />} />
+        <Route path="/volumes" element={<Navigate to="/docker/volumes" replace />} />
+        <Route path="/networks" element={<Navigate to="/docker/networks" replace />} />
+        <Route path="/docker-credentials" element={<Navigate to="/docker/credentials" replace />} />
+        <Route path="*" element={<Navigate to="/docker/home" replace />} />
       </Routes>
     </AppShell>
   );

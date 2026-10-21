@@ -1,8 +1,8 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
 import { DockerCredentialService } from '../features/docker-module/dockerCredentials/services/DockerCredentialService';
-import React, { useRef, useMemo, useState, useEffect, useContext, useCallback, createContext } from 'react';
-import { DockerCredentialSummary, DockerClientContextValue } from '../interfaces/DockerCredentialInterfaces';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { DockerClientContextValue, DockerCredentialSummary } from '../interfaces/DockerCredentialInterfaces';
 
 const DockerClientContext = createContext<DockerClientContextValue | undefined>(undefined);
 
@@ -37,10 +37,10 @@ export const DockerClientProvider: React.FC<React.PropsWithChildren> = ({ childr
         }
         return credentialList.length > 0 ? credentialList[0].id : null;
       });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+    } catch (refreshError) {
+      const message = refreshError instanceof Error ? refreshError.message : String(refreshError);
       setError(message);
-      iziToast.error({ title: 'Erro', message, position: 'bottomRight' });
+      toast.error(message);
       setCredentials([]);
       setSelectedCredentialId(null);
     } finally {
@@ -86,11 +86,11 @@ export const DockerClientProvider: React.FC<React.PropsWithChildren> = ({ childr
         lastConnectedIdRef.current = selectedCredentialId;
         setDockerClientId(selectedCredentialId);
       })
-      .catch((err) => {
+      .catch((connectError) => {
         if (cancelled) return;
-        const message = err instanceof Error ? err.message : String(err);
+        const message = connectError instanceof Error ? connectError.message : String(connectError);
         setError(message);
-        iziToast.error({ title: 'Erro', message, position: 'bottomRight' });
+        toast.error(message);
         setDockerClientId(null);
         lastConnectedIdRef.current = null;
       })

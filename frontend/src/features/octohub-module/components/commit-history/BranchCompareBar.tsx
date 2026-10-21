@@ -1,11 +1,10 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import MergeBranchModal from '../MergeBranchModal';
-import { escapeHtml } from '../../functions/gitStatus';
 import { useDismiss } from '../../../shared/hooks/useDismiss';
 import { errorMessage } from '../../../shared/functions/ErrorMessage';
-import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Cloud, GitBranch, GitCompare, GitMerge, Search, X } from 'lucide-react';
+import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { ListBranches } from '../../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 import { CompareBranch } from '../../../../../bindings/docker-manager-go/src/octohub/handlers/gitcommitshandler';
 
@@ -44,7 +43,7 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
         setFilter('');
         ListBranches()
             .then((list) => setBranches((list || []).filter((item) => !item.IsCurrent)))
-            .catch((error) => iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(error)), position: 'bottomRight' }));
+            .catch((error) => toast.error(errorMessage(error)));
     }, [pickerOpen]);
 
     useEffect(() => {
@@ -57,7 +56,7 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
             .then((result) => !cancelled && setComparison(result))
             .catch((error) => {
                 if (cancelled) return;
-                iziToast.error({ title: 'Erro', message: escapeHtml(`Não foi possível comparar com ${branch}: ${errorMessage(error)}`), position: 'bottomRight' });
+                toast.error(`Não foi possível comparar com ${branch}: ${errorMessage(error)}`);
                 onBranchChange(null);
             });
         return () => {
@@ -93,41 +92,39 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
                     <span className="truncate">Comparar com outra branch...</span>
                 </button>
                 {pickerOpen && (
-                    <>
-                        <div className="absolute left-0 right-0 mt-1 z-40 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-lg shadow-xl overflow-hidden">
-                            <div className="p-2 border-b border-zinc-200 dark:border-white/5 relative">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-                                <input
-                                    autoFocus
-                                    type="text"
-                                    value={filter}
-                                    placeholder="Filtrar branches..."
-                                    onChange={(event) => setFilter(event.target.value)}
-                                    onKeyDown={(event) => {
-                                        if (event.key === 'Escape') setPickerOpen(false);
-                                        if (event.key === 'Enter' && filteredBranches[0]) selectBranch(filteredBranches[0].Name);
-                                    }}
-                                    className="w-full pl-7 pr-2 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/50 text-zinc-900 dark:text-white"
-                                />
-                            </div>
-                            <div className="max-h-64 overflow-y-auto custom-scrollbar py-1">
-                                {filteredBranches.length > 0 ? filteredBranches.map((item) => (
-                                    <button
-                                        key={item.Name}
-                                        onClick={() => selectBranch(item.Name)}
-                                        className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5"
-                                    >
-                                        {item.IsRemote
-                                            ? <Cloud className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
-                                            : <GitBranch className="w-3.5 h-3.5 shrink-0 text-zinc-400" />}
-                                        <span className="truncate">{item.Name}</span>
-                                    </button>
-                                )) : (
-                                    <div className="px-3 py-4 text-center text-xs italic text-zinc-400">Nenhuma branch encontrada.</div>
-                                )}
-                            </div>
+                    <div className="absolute left-0 right-0 mt-1 z-40 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-lg shadow-xl overflow-hidden">
+                        <div className="p-2 border-b border-zinc-200 dark:border-white/5 relative">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+                            <input
+                                autoFocus
+                                type="text"
+                                value={filter}
+                                placeholder="Filtrar branches..."
+                                onChange={(event) => setFilter(event.target.value)}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Escape') setPickerOpen(false);
+                                    if (event.key === 'Enter' && filteredBranches[0]) selectBranch(filteredBranches[0].Name);
+                                }}
+                                className="w-full pl-7 pr-2 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/50 text-zinc-900 dark:text-white"
+                            />
                         </div>
-                    </>
+                        <div className="max-h-64 overflow-y-auto custom-scrollbar py-1">
+                            {filteredBranches.length > 0 ? filteredBranches.map((item) => (
+                                <button
+                                    key={item.Name}
+                                    onClick={() => selectBranch(item.Name)}
+                                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5"
+                                >
+                                    {item.IsRemote
+                                        ? <Cloud className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
+                                        : <GitBranch className="w-3.5 h-3.5 shrink-0 text-zinc-400" />}
+                                    <span className="truncate">{item.Name}</span>
+                                </button>
+                            )) : (
+                                <div className="px-3 py-4 text-center text-xs italic text-zinc-400">Nenhuma branch encontrada.</div>
+                            )}
+                        </div>
+                    </div>
                 )}
             </div>
         );

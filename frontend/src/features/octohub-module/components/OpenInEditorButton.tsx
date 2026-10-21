@@ -1,4 +1,4 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import React, { useState } from 'react';
 import { VsCodeIcon } from '../../shared/Icons';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
@@ -15,7 +15,7 @@ const OpenInEditorButton: React.FC = () => {
         try {
             await OpenRepositoryInEditor();
         } catch (error) {
-            iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
+            toast.error(errorMessage(error));
         } finally {
             setOpening(false);
         }
@@ -26,10 +26,12 @@ const OpenInEditorButton: React.FC = () => {
             onClick={handleOpen}
             disabled={!hasRepository || opening}
             title="Abrir o repositório no VS Code"
-            className="p-2 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/10 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-9 px-3 bg-zinc-100/80 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/10 rounded-xl transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
             <VsCodeIcon className="w-4 h-4 text-[#007acc]" />
-            <span className="text-xs font-bold hidden md:inline text-zinc-700 dark:text-zinc-300">VS Code</span>
+            <span className="text-xs font-bold hidden 2xl:inline text-zinc-700 dark:text-zinc-300">
+                VS Code
+            </span>
         </button>
     );
 };

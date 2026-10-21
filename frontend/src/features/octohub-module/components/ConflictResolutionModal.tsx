@@ -1,11 +1,10 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import { createPortal } from 'react-dom';
 import { VsCodeIcon } from '../../shared/Icons';
-import { escapeHtml } from '../functions/gitStatus';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
-import * as octohubStructs from '../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
+import * as octohubStructs from '../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { X, GitMerge, TriangleAlert, CircleCheck, LoaderCircle, Play } from 'lucide-react';
 import { CheckConflicts, ContinueOperation, OpenFileInEditor, ResolveConflict } from '../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 
@@ -48,7 +47,7 @@ const ConflictResolutionModal: React.FC = () => {
             setOperation(report.Operation);
             setLoaded(true);
         } catch {
-            // A verificação roda sozinha de tempos em tempos; uma falha passageira (ex.: index.lock) é ignorada.
+            return;
         }
     }, [notifyChange]);
 
@@ -95,7 +94,7 @@ const ConflictResolutionModal: React.FC = () => {
             await ResolveConflict(file, resolution);
             await check();
         } catch (err) {
-            iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(err)), position: 'bottomRight' });
+            toast.error(errorMessage(err));
         } finally {
             setBusyFile(null);
         }
@@ -103,7 +102,7 @@ const ConflictResolutionModal: React.FC = () => {
 
     const openFile = (file: string) => {
         OpenFileInEditor(file).catch((err) => {
-            iziToast.error({ title: 'Erro', message: escapeHtml(`Erro ao abrir no editor: ${errorMessage(err)}`), position: 'bottomRight' });
+            toast.error(`Erro ao abrir no editor: ${errorMessage(err)}`);
         });
     };
 
@@ -115,13 +114,13 @@ const ConflictResolutionModal: React.FC = () => {
             if (next.Kind && next.ConflictingFiles.length > 0) {
                 reset();
                 await check();
-                iziToast.warning({ title: 'Conflitos', message: 'O próximo commit também teve conflito.', position: 'bottomRight' });
+                toast('O próximo commit também teve conflito.');
             } else {
-                iziToast.success({ title: 'OctoHub', message: `${operationLabels[kind] ?? 'Operação'} concluído.`, position: 'bottomRight' });
+                toast.success(`${operationLabels[kind] ?? 'Operação'} concluído.`);
                 closeConflicts();
             }
         } catch (err) {
-            iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(err)), position: 'bottomRight' });
+            toast.error(errorMessage(err));
         } finally {
             setContinuing(false);
         }

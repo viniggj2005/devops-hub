@@ -1,11 +1,10 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { escapeHtml } from '../functions/gitStatus';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal } from '../../shared/components/modals/Modal';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
-import * as octohubStructs from '../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
+import * as octohubStructs from '../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { CircleAlert, CircleCheck, Cloud, GitBranch, GitMerge, RefreshCw, Search } from 'lucide-react';
 import { FetchRemotes, GetDefaultBranch, GetMergePreview, HasUncommittedChanges, ListMergeableBranches, MergeBranch } from '../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 
@@ -65,7 +64,7 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
         HasUncommittedChanges().then(setDirty).catch(() => setDirty(false));
         GetDefaultBranch()
             .then((defaultBranch) => loadBranches(initialBranch || (defaultBranch && defaultBranch !== currentBranch ? defaultBranch : null)))
-            .catch((error) => iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(error)), position: 'bottomRight' }));
+            .catch((error) => toast.error(errorMessage(error)));
     }, [open]);
 
     useEffect(() => {
@@ -108,7 +107,7 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
             await loadBranches(selected);
             setPreviewKey((key) => key + 1);
             notifyChange();
-            iziToast.success({ title: 'OctoHub', message: 'Branches remotas atualizadas.', position: 'bottomRight' });
+            toast.success('Branches remotas atualizadas.');
         } catch (error) {
             handleGitError(error, 'Erro ao buscar do remoto', handleFetch);
         } finally {
@@ -117,8 +116,8 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
     };
 
     const successMessage = () => {
-        const source = escapeHtml(selected || '');
-        const target = escapeHtml(current);
+        const source = selected || '';
+        const target = current;
         switch (strategy) {
             case 'merge': return preview?.CanFastForward ? `${target} avançou até ${source}.` : `${source} mesclada em ${target}.`;
             case 'no-ff': return `${source} mesclada em ${target} com commit de merge.`;
@@ -141,10 +140,10 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
             if (state.Kind) {
                 openConflicts();
             } else {
-                iziToast.success({ title: 'OctoHub', message: successMessage(), position: 'bottomRight' });
+                toast.success(successMessage());
             }
         } catch (error) {
-            iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(error)), position: 'bottomRight' });
+            toast.error(errorMessage(error));
         } finally {
             setMerging(false);
         }

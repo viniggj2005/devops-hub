@@ -1,5 +1,6 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import OctohubShell from './OctohubShell';
+import { Events } from '@wailsio/runtime';
 import GitCredentialsModal from './GitCredentialsModal';
 import { useAuth } from '../../../contexts/AuthContext';
 import CloneRepositoryModal from './CloneRepositoryModal';
@@ -8,8 +9,6 @@ import PublishRepositoryModal from './PublishRepositoryModal';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import GithubAccountSwitcher from './GithubAccountSwitcher';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
-import * as octohubDtos from '../../../../bindings/docker-manager-go/src/octohub/dtos/models';
-import { Events } from '@wailsio/runtime';
 import ConflictResolutionModal from './ConflictResolutionModal';
 import React, { useCallback, useEffect, useState } from 'react';
 import OctohubHomePage from '../../../pages/octohub/OctohubHomePage';
@@ -17,6 +16,7 @@ import DeviceLoginModal, { DeviceLoginState } from './DeviceLoginModal';
 import CommitHistoryPage from '../../../pages/octohub/CommitHistoryPage';
 import { useConfirmToast } from '../../shared/components/toasts/ConfirmToast';
 import { OctohubRepositoryProvider } from '../contexts/OctohubRepositoryContext';
+import * as octohubDtos from '../../../../bindings/docker-manager-go/src/octohub/dtos/models';
 import {
     GetUserInfo,
     ListAccounts,
@@ -55,7 +55,7 @@ const OctohubModuleWrapper: React.FC = () => {
             setGithubUser(await GetUserInfo(token));
         } catch (error) {
             setGithubUser(null);
-            iziToast.error({ title: 'GitHub', message: errorMessage(error), position: 'bottomRight' });
+            toast.error(errorMessage(error));
         }
     }, [token]);
 
@@ -81,7 +81,7 @@ const OctohubModuleWrapper: React.FC = () => {
             await SwitchAccount(token, accountId);
             await checkLogin();
         } catch (error) {
-            iziToast.error({ title: 'GitHub', message: errorMessage(error), position: 'bottomRight' });
+            toast.error(errorMessage(error));
         }
     };
 
@@ -89,7 +89,7 @@ const OctohubModuleWrapper: React.FC = () => {
         if (!token) return;
         confirmToast({
             id: `github-account-${account.id}`,
-            title: `Conta @${account.login} removida!`,
+            title: `Remover conta @${account.login}?`,
             message: `Deseja remover a conta @${account.login} do OctoHub?`,
             onConfirm: async () => {
                 await RemoveAccount(token, account.id);
@@ -106,7 +106,7 @@ const OctohubModuleWrapper: React.FC = () => {
         const offSuccess = Events.On('octohub:login-success', (event) => {
             const account: octohubDtos.GithubAccountDto = event.data;
             setLoginState(closedLogin);
-            iziToast.success({ title: 'GitHub', message: `Conta @${account.login} conectada.`, position: 'bottomRight' });
+            toast.success(`Conta @${account.login} conectada.`);
             checkLogin();
         });
         const offError = Events.On('octohub:login-error', ({ data: message }) => {

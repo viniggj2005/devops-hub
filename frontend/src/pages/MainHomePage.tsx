@@ -38,10 +38,10 @@ const MainHomePage: React.FC = () => {
             </header>
 
 
-            <main className="flex-1 flex flex-col items-center justify-center p-6 -mt-20">
+            <main className="flex-1 flex flex-col items-center justify-center p-6">
                 <div className="max-w-5xl w-full">
                     <div className="text-center mb-12">
-                        <h2 className="text-4xl md:text-5xl font-extrabold mb-5 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        <h2 className="text-4xl md:text-5xl font-extrabold py-1.5 leading-tight mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                             O que vamos gerenciar hoje?
                         </h2>
                         <p className="text-lg text-gray-500 dark:text-zinc-400">

@@ -36,6 +36,9 @@ func (handlerStruct *GitBranchHandler) repoFile(ctx context.Context, file string
 		return "", errNoRepository
 	}
 	root := filepath.Clean(repoPath)
+	if file == "" || file == "." {
+		return root, nil
+	}
 	fullPath := filepath.Join(root, filepath.FromSlash(file))
 	if !strings.HasPrefix(fullPath, root+string(filepath.Separator)) {
 		return "", fmt.Errorf("caminho fora do repositório: %s", file)
@@ -105,20 +108,30 @@ func (handlerStruct *GitBranchHandler) RevealInExplorer(ctx context.Context, fil
 	if err != nil {
 		return err
 	}
+	isRoot := file == "" || file == "."
 	_, statErr := os.Stat(fullPath)
 	exists := statErr == nil
 	switch runtime.GOOS {
 	case "windows":
+		if isRoot && exists {
+			return startDetached(exec.Command("explorer", fullPath))
+		}
 		if exists {
 			return startDetached(exec.Command("explorer", "/select,", fullPath))
 		}
 		return startDetached(exec.Command("explorer", filepath.Dir(fullPath)))
 	case "darwin":
+		if isRoot && exists {
+			return startDetached(exec.Command("open", fullPath))
+		}
 		if exists {
 			return startDetached(exec.Command("open", "-R", fullPath))
 		}
 		return startDetached(exec.Command("open", filepath.Dir(fullPath)))
 	default:
+		if isRoot && exists {
+			return startDetached(exec.Command("xdg-open", fullPath))
+		}
 		return startDetached(exec.Command("xdg-open", filepath.Dir(fullPath)))
 	}
 }

@@ -1,4 +1,4 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import { useTalpadbStore } from '../../TalpadbStore';
 import { useAuth } from '../../../../contexts/AuthContext';
 import DiagramTableNode from './components/DiagramTableNode';
@@ -172,7 +172,7 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
     savedLayoutRef.current = layout;
     TalpadbServices.saveDiagramLayout(token, tab.connectionId, tab.database, tab.schema ?? '', layout).catch(
       (saveError) =>
-        iziToast.error({ title: 'Layout não salvo', message: errorMessage(saveError), position: 'bottomRight' })
+        toast.error(`Layout não salvo: ${errorMessage(saveError)}`)
     );
   }, [token, tab.connectionId, tab.database, tab.schema]);
 
@@ -624,7 +624,7 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
       Object.keys(nodes).find((key) => nodes[key].table.name.toLowerCase() === query) ??
       Object.keys(nodes).find((key) => key.toLowerCase().includes(query));
     if (match) centerOn(match);
-    else iziToast.info({ title: 'Diagrama', message: `Nenhuma tabela com "${search.trim()}".`, position: 'bottomRight' });
+    else toast(`Nenhuma tabela com "${search.trim()}".`);
   };
 
   const exportSvg = async () => {
@@ -653,9 +653,9 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
     try {
       const fileName = `${tab.title.replace(/[\\/:*?"<>|]+/g, '_')}.svg`;
       const path = await TalpadbServices.saveTextFile(token, fileName, new XMLSerializer().serializeToString(clone));
-      if (path) iziToast.success({ title: 'Diagrama exportado', message: path, position: 'bottomRight' });
+      if (path) toast.success(`Diagrama exportado: ${path}`);
     } catch (exportError) {
-      iziToast.error({ title: 'Erro ao exportar', message: errorMessage(exportError), position: 'bottomRight' });
+      toast.error(`Erro ao exportar: ${errorMessage(exportError)}`);
     }
   };
 

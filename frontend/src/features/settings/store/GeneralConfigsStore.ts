@@ -1,11 +1,11 @@
-import iziToast from 'izitoast';
 import { create } from 'zustand';
+import toast from 'react-hot-toast';
 import { Events } from '@wailsio/runtime';
 import { getToken } from '../../../contexts/AuthContext';
 import { isHexColor } from '../functions/CustomThemePalette';
+import { windowInstanceId } from '../../appFrame/WindowContext';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
 import { readStoredGlobalTheme } from '../functions/StoredGlobalTheme';
-import { windowInstanceId } from '../../appFrame/WindowContext';
 import { defaultOctohubColors } from '../constants/OctohubColorDefaults';
 import { appModules, defaultCustomTheme } from '../../shared/constants/AppModules';
 import { defaultTerminalTheme, terminalFontSizeRange } from '../constants/TerminalThemePresets';
@@ -180,11 +180,7 @@ export const isSameThemeConfig = (first: ThemeProfileConfig, second: ThemeProfil
   stableStringify(first) === stableStringify(second);
 
 const showError = (message: string, error: unknown) => {
-  iziToast.error({
-    title: 'Erro',
-    position: 'bottomRight',
-    message: `${message}: ${errorMessage(error)}`,
-  });
+  toast.error(`${message}: ${errorMessage(error)}`);
 };
 
 export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => {
@@ -382,7 +378,7 @@ function buildDefaultThemeConfig(): ThemeProfileConfig {
   };
 }
 
-async function applyThemeConfig(config: ThemeProfileConfig, errorMessage: string): Promise<boolean> {
+async function applyThemeConfig(config: ThemeProfileConfig, errorMessageText: string): Promise<boolean> {
   const { getState, setState } = useGeneralConfigsStore;
   const {
     modules: previousModules,
@@ -424,7 +420,7 @@ async function applyThemeConfig(config: ThemeProfileConfig, errorMessage: string
       terminalTheme: previousTerminalTheme,
       sqlEditorTheme: previousSqlEditorTheme,
     });
-    showError(errorMessage, error);
+    showError(errorMessageText, error);
     return false;
   }
 }

@@ -10,15 +10,15 @@ import type {
 } from '../../interfaces/TalpadbInterfaces';
 
 const initialState = {
-  view: 'home' as const,
   connections: [],
-  connectionsLoaded: false,
-  tabs: [] as WorkspaceTab[],
-  groups: [] as WorkspaceGroup[],
+  queryCounter: 0,
   activeTabId: null,
   activeGroupId: null,
   draggingGroupId: null,
-  queryCounter: 0,
+  connectionsLoaded: false,
+  view: 'workspace' as const,
+  tabs: [] as WorkspaceTab[],
+  groups: [] as WorkspaceGroup[],
   tabTxStatus: {} as Record<string, TxStatus>,
 };
 

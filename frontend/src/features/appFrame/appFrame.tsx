@@ -8,7 +8,7 @@ import { TalpadbModuleIcon } from "../talpadb-module/moduleInfo";
 import { WindowControls, useWindowMaximise } from "./WindowControls";
 import { clearTabDropPreviewApi, previewTabDropApi } from "./services/WindowService";
 import ContextMenu, { ContextMenuEntry } from "../shared/components/menus/ContextMenu";
-import { X, Box, Home, Terminal, Settings, AppWindow, SquareArrowOutUpRight } from "lucide-react";
+import { X, Home, Terminal, Settings, AppWindow, SquareArrowOutUpRight } from "lucide-react";
 
 interface TabMenu {
   x: number;
@@ -54,7 +54,24 @@ export function AppFrame() {
 
   const getTabIcon = (type: string) => {
     if (type === 'home') return <Home className="w-4 h-4" />;
-    if (type === 'docker') return <Box className="w-4 h-4 text-blue-500" />;
+    if (type === 'docker') {
+      return (
+        <span
+          aria-hidden="true"
+          className="inline-block w-4 h-4 bg-blue-500 shrink-0"
+          style={{
+            maskSize: 'contain',
+            maskPosition: 'center',
+            maskRepeat: 'no-repeat',
+            WebkitMaskSize: 'contain',
+            WebkitMaskPosition: 'center',
+            WebkitMaskRepeat: 'no-repeat',
+            maskImage: 'url(/docker-manager.svg)',
+            WebkitMaskImage: 'url(/docker-manager.svg)',
+          }}
+        />
+      );
+    }
     if (type === 'settings') return <Settings className="w-4 h-4 text-gray-500" />;
     if (type === 'ferretshell') return <Terminal className="w-4 h-4 text-purple-500" />;
     if (type === 'octohub') return <img src="/gitoctocat.svg" className="w-4 h-4 brightness-0 dark:invert" />;

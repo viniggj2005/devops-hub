@@ -1,4 +1,4 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import { useExplorerStore } from './ExplorerStore';
 import React, { useEffect, useState } from 'react';
 import { useTalpadbStore } from '../../TalpadbStore';
@@ -120,10 +120,10 @@ const DropObjectModal: React.FC<DropObjectModalProps> = ({ target, onClose }) =>
       });
       closeMatchingTabs(affectedTab(target));
       if (target.parentNodeId) useExplorerStore.getState().refresh(token, target.parentNodeId);
-      iziToast.success({ title: `${typeLabel[0].toUpperCase()}${typeLabel.slice(1)} excluído`, message: displayName, position: 'bottomRight' });
+      toast.success(`${typeLabel[0].toUpperCase()}${typeLabel.slice(1)} excluído: ${displayName}`);
       onClose();
     } catch (error) {
-      iziToast.error({ title: 'Nada foi excluído', message: errorMessage(error), position: 'bottomRight', timeout: 12000 });
+      toast.error(`Nada foi excluído: ${errorMessage(error)}`);
     } finally {
       setDropping(false);
     }

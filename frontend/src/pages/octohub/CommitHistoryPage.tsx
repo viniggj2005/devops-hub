@@ -1,11 +1,11 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
+import { Clipboard } from '@wailsio/runtime';
 import { VsCodeIcon } from '../../features/shared/Icons';
 import { errorMessage } from '../../features/shared/functions/ErrorMessage';
-import * as octohubStructs from '../../../bindings/docker-manager-go/src/octohub/structs/models';
-import { Clipboard } from '@wailsio/runtime';
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useConfirmToast } from '../../features/shared/components/toasts/ConfirmToast';
 import { DiffHunk, parseDiff } from '../../features/octohub-module/functions/diffParser';
+import * as octohubStructs from '../../../bindings/docker-manager-go/src/octohub/structs/models';
 import CommitBox from '../../features/octohub-module/components/commit-history/CommitBox';
 import StashChangesModal from '../../features/octohub-module/components/StashChangesModal';
 import DiffViewer from '../../features/octohub-module/components/commit-history/DiffViewer';
@@ -14,9 +14,9 @@ import ChangesSidebar from '../../features/octohub-module/components/commit-hist
 import OperationBanner from '../../features/octohub-module/components/commit-history/OperationBanner';
 import { useOctohubRepository } from '../../features/octohub-module/contexts/OctohubRepositoryContext';
 import ModifiedFileList from '../../features/octohub-module/components/commit-history/ModifiedFileList';
+import { getConflictingFiles, isConflictError } from '../../features/octohub-module/functions/gitStatus';
 import CommitDetailsHeader from '../../features/octohub-module/components/commit-history/CommitDetailsHeader';
 import ContextMenu, { ContextMenuEntry } from '../../features/shared/components/menus/ContextMenu';
-import { escapeHtml, getConflictingFiles, isConflictError } from '../../features/octohub-module/functions/gitStatus';
 import CommitActionModal, { CommitAction } from '../../features/octohub-module/components/commit-history/CommitActionModals';
 import BranchCompareBar, { CompareDirection } from '../../features/octohub-module/components/commit-history/BranchCompareBar';
 import { ALL_SELECTED, FileSelection, NONE_SELECTED, selectedLineSet, setLines } from '../../features/octohub-module/functions/lineSelection';
@@ -33,8 +33,7 @@ const commitsKey = (commits: octohubStructs.Commit[]) =>
     commits.map(commit => `${commit.Hash}\0${(commit.Tags ?? []).join('\0')}`).join('\n');
 
 const CommitHistoryPage: React.FC = () => {
-
-    const [_, setPage] = useState(0);
+    const [, setPage] = useState(0);
     const confirmToast = useConfirmToast();
     const [summary, setSummary] = useState('');
     const [loading, setLoading] = useState(true);
@@ -175,7 +174,7 @@ const CommitHistoryPage: React.FC = () => {
                 setHasMore(false);
             }
         } catch (err: any) {
-            console.error("Erro ao buscar commits:", err);
+            console.error('Erro ao buscar commits:', err);
         } finally {
             if (requestId === commitsRequest.current) {
                 setLoading(false);
@@ -198,7 +197,7 @@ const CommitHistoryPage: React.FC = () => {
             setOperation(await GetOperationState().catch(() => null));
             return changed;
         } catch (err: any) {
-            console.error("Erro ao buscar status do git:", err);
+            console.error('Erro ao buscar status do git:', err);
             return false;
         }
     };
@@ -268,14 +267,14 @@ const CommitHistoryPage: React.FC = () => {
             if (next && next.Kind) {
                 if (next.ConflictingFiles.length > 0) openConflicts();
             } else {
-                iziToast.success({ title: 'OctoHub', message: doneMessage, position: 'bottomRight' });
+                toast.success(doneMessage);
                 setSummary('');
                 setDescription('');
             }
             setSelections({});
             notifyChange();
         } catch (err: any) {
-            iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(err)), position: 'bottomRight' });
+            toast.error(errorMessage(err));
         } finally {
             setOperationBusy(false);
         }
@@ -296,8 +295,8 @@ const CommitHistoryPage: React.FC = () => {
         }
         confirmToast({
             id: 'octohub-checkout-commit',
-            title: `Agora em ${short} (HEAD destacado).`,
-            message: `Ir para o commit <b>${short}</b>? Você vai ficar em "HEAD destacado": para fazer commits a partir dele, crie uma branch.`,
+            title: `Checkout para ${short}?`,
+            message: `Ir para o commit ${short}? Você vai ficar em "HEAD destacado": para fazer commits a partir dele, crie uma branch.`,
             onConfirm: async () => {
                 await CheckoutCommit(commit.Hash, false);
                 notifyChange();
@@ -310,10 +309,10 @@ const CommitHistoryPage: React.FC = () => {
         setCheckoutBusy(true);
         try {
             await CheckoutCommit(checkoutTarget.Hash, action === 'leave');
-            iziToast.success({ title: 'OctoHub', message: `Agora em ${checkoutTarget.Hash.slice(0, 7)} (HEAD destacado).`, position: 'bottomRight' });
+            toast.success(`Agora em ${checkoutTarget.Hash.slice(0, 7)} (HEAD destacado).`);
         } catch (err) {
             if (isConflictError(err)) openConflicts();
-            else iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(err)), position: 'bottomRight' });
+            else toast.error(errorMessage(err));
         } finally {
             setCheckoutBusy(false);
             setCheckoutTarget(null);
@@ -325,8 +324,8 @@ const CommitHistoryPage: React.FC = () => {
         const short = commit.Hash.slice(0, 7);
         confirmToast({
             id: 'octohub-revert-commit',
-            title: `Revert de ${short}.`,
-            message: `Criar um commit novo que desfaz <b>${escapeHtml(commit.Title)}</b> (${short})?`,
+            title: `Reverter ${short}?`,
+            message: `Criar um commit novo que desfaz "${commit.Title}" (${short})?`,
             onConfirm: async () => {
                 const state = await RevertCommit(commit.Hash);
                 notifyChange();
@@ -337,17 +336,17 @@ const CommitHistoryPage: React.FC = () => {
 
     const copySha = (commit: octohubStructs.Commit) => {
         Clipboard.SetText(commit.Hash)
-            .then(() => iziToast.success({ message: `SHA ${commit.Hash.slice(0, 7)} copiado.`, position: 'bottomRight' }))
-            .catch(() => iziToast.error({ title: 'Erro', message: 'Não foi possível copiar o SHA.', position: 'bottomRight' }));
+            .then(() => toast.success(`SHA ${commit.Hash.slice(0, 7)} copiado.`))
+            .catch(() => toast.error('Não foi possível copiar o SHA.'));
     };
 
     const runFileAction = (action: () => Promise<unknown>, success?: string, refresh = false) => {
         action()
             .then(() => {
-                if (success) iziToast.success({ title: 'OctoHub', message: escapeHtml(success), position: 'bottomRight' });
+                if (success) toast.success(success);
                 if (refresh) notifyChange();
             })
-            .catch((err) => iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(err)), position: 'bottomRight' }));
+            .catch((err) => toast.error(errorMessage(err)));
     };
 
     const copyText = (text: string, success: string) => runFileAction(() => Clipboard.SetText(text), success);
@@ -425,7 +424,7 @@ const CommitHistoryPage: React.FC = () => {
         if (!operation?.Kind) return;
         confirmToast({
             id: 'octohub-abort-operation',
-            title: `${operation.Kind} abortado.`,
+            title: `Abortar ${operation.Kind}?`,
             message: `Abortar o ${operation.Kind}? A branch volta a ficar como estava antes de começar.`,
             onConfirm: async () => {
                 await AbortOperation();
@@ -447,20 +446,20 @@ const CommitHistoryPage: React.FC = () => {
         try {
             await PopStash(stashID);
             notifyChange();
-            iziToast.success({ title: 'Sucesso', message: 'Stash restaurado.', position: 'bottomRight' });
+            toast.success('Stash restaurado.');
         } catch (err: any) {
             if (isConflictError(err) && (await showConflicts()).length > 0) {
                 notifyChange();
                 return;
             }
-            iziToast.error({ title: 'Erro', message: "Erro ao restaurar stash: " + err, position: 'bottomRight' });
+            toast.error('Erro ao restaurar stash: ' + err);
         }
     };
 
     const handleDropStash = (stashID: string) =>
         confirmToast({
             id: `drop-stash-${stashID.replace(/\W/g, '')}`,
-            title: 'Stash descartado.',
+            title: 'Descartar stash?',
             message: 'Tem certeza que deseja descartar este stash permanentemente?',
             onConfirm: async () => {
                 await DropStash(stashID);
@@ -482,7 +481,7 @@ const CommitHistoryPage: React.FC = () => {
             if (requestId !== diffRequest.current) return;
             setFileDiff(null);
             setFileDiffHash(null);
-            iziToast.error({ title: 'Erro', message: `Erro ao carregar o diff de ${filePath}: ${errorMessage(err)}`, position: 'bottomRight' });
+            toast.error(`Erro ao carregar o diff de ${filePath}: ${errorMessage(err)}`);
         } finally {
             if (requestId === diffRequest.current) setLoadingDiff(false);
         }
@@ -494,7 +493,7 @@ const CommitHistoryPage: React.FC = () => {
             const selection = selectionsRef.current[file.FileName];
             if (selection?.kind === 'partial' && selection.diffHash !== result.Hash) {
                 setSelections(previous => ({ ...previous, [file.FileName]: ALL_SELECTED }));
-                iziToast.info({ title: 'Seleção reiniciada', message: `${file.FileName} mudou, então o arquivo voltou a entrar inteiro no commit.`, position: 'bottomRight' });
+                toast(`${file.FileName} mudou, então o arquivo voltou a entrar inteiro no commit.`);
             }
             return { diff: result.Diff, hash: result.Hash };
         });
@@ -520,7 +519,7 @@ const CommitHistoryPage: React.FC = () => {
                     setFileDiff(null);
                 }
             }
-        } catch (err: any) {
+        } catch {
             setModifications([]);
         } finally {
             setLoadingFiles(false);
@@ -638,7 +637,7 @@ const CommitHistoryPage: React.FC = () => {
 
     const describeFiles = (files: octohubStructs.CommitFileSelection[]) => {
         if (files.length === 1) {
-            const name = `<b>${escapeHtml(files[0].FileName)}</b>`;
+            const name = files[0].FileName;
             return files[0].All ? `as alterações de ${name}` : `as linhas selecionadas de ${name}`;
         }
         const partial = files.filter(file => !file.All).length;
@@ -650,7 +649,7 @@ const CommitHistoryPage: React.FC = () => {
         const hasBackup = commits.length > 0;
         confirmToast({
             id: 'octohub-discard',
-            title: hasBackup ? 'Alterações descartadas. Uma cópia ficou em Stashes pendentes.' : 'Alterações descartadas.',
+            title: 'Descartar alterações?',
             message: `Descartar ${what}? ${hasBackup
                 ? 'Uma cópia fica guardada nos stashes desta branch, de onde dá para restaurar.'
                 : 'Este repositório ainda não tem commits, então isso não pode ser desfeito.'}`,
@@ -677,7 +676,7 @@ const CommitHistoryPage: React.FC = () => {
     };
 
     const discardAll = () => {
-        discard(changedFiles.map(file => toRequest(file, ALL_SELECTED)), `<b>todas</b> as ${changedFiles.length} alterações`);
+        discard(changedFiles.map(file => toRequest(file, ALL_SELECTED)), `todas as ${changedFiles.length} alterações`);
     };
 
     const discardHunk = (hunk: DiffHunk) => {
@@ -686,7 +685,7 @@ const CommitHistoryPage: React.FC = () => {
         const selection: FileSelection = hunk.changeIndexes.length === parsedDiff.changeIndexes.length
             ? ALL_SELECTED
             : { kind: 'partial', diffHash: fileDiffHash, lines: hunk.changeIndexes };
-        discard([toRequest(file, selection)], `este trecho de <b>${escapeHtml(file.FileName)}</b>`);
+        discard([toRequest(file, selection)], `este trecho de ${file.FileName}`);
     };
 
     const handleCommit = async () => {
@@ -695,13 +694,13 @@ const CommitHistoryPage: React.FC = () => {
         setCommitting(true);
         try {
             const hash = await Commit(octohubStructs.CommitRequest.createFrom({ Summary: summary, Description: description, Files: files }));
-            iziToast.success({ title: 'Commit criado', message: `${hash ? `${hash}: ` : ''}${escapeHtml(summary.trim())}`, position: 'bottomRight' });
+            toast.success(`${hash ? `${hash}: ` : ''}${summary.trim()}`);
             setSummary('');
             setDescription('');
             setSelections({});
             notifyChange();
         } catch (err: any) {
-            iziToast.error({ title: 'Erro ao fazer commit', message: errorMessage(err), position: 'bottomRight' });
+            toast.error(`Erro ao fazer commit: ${errorMessage(err)}`);
         } finally {
             setCommitting(false);
         }
@@ -771,10 +770,10 @@ const CommitHistoryPage: React.FC = () => {
         <div className="flex flex-col h-full bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-white/5 overflow-hidden">
             {bannerOperation && (
                 <OperationBanner
-                busy={operationBusy}
-                onAbort={abortOperation}
-                onSkip={skipRebaseCommit}
-                operation={bannerOperation}
+                    busy={operationBusy}
+                    onAbort={abortOperation}
+                    onSkip={skipRebaseCommit}
+                    operation={bannerOperation}
                     onContinue={continueOperation}
                     onShowConflicts={openConflicts}
                 />
@@ -890,7 +889,7 @@ const CommitHistoryPage: React.FC = () => {
                                     <div className="flex items-center gap-2 min-w-0">
                                         <FileCode className="w-4 h-4 text-emerald-500 shrink-0" />
                                         <h2 className="text-xs font-mono font-bold text-zinc-900 dark:text-white truncate">
-                                            {selectedFile || "Selecione um arquivo"}
+                                            {selectedFile || 'Selecione um arquivo'}
                                         </h2>
                                         {diffSource === 'stash' && selectedFile && (
                                             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-500 shrink-0">stash</span>

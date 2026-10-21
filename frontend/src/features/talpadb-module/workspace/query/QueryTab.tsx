@@ -1,4 +1,4 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import QueryToolbar from './components/QueryToolbar';
 import { useTalpadbStore } from '../../TalpadbStore';
 import type { SQLNamespace } from '@codemirror/lang-sql';
@@ -161,11 +161,7 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
     const useSelection = rerunText === undefined && selection.text.trim().length > 0;
     const text = rerunText ?? (useSelection ? selection.text : editor.getValue());
     if (!text.trim()) {
-      iziToast.warning({
-        title: 'Atenção',
-        message: 'Digite uma consulta para executar.',
-        position: 'bottomRight',
-      });
+      toast('Digite uma consulta para executar.');
       return;
     }
     const { sql: statement, prefixLength } = buildExplainSql(engine, mode, text);
@@ -187,7 +183,6 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       try {
         result = await execute();
       } catch (error) {
-        // A sessão some quando a conexão é editada/desconectada: abre outra e tenta de novo.
         if (!errorMessage(error).includes(SESSION_NOT_FOUND_MESSAGE)) throw error;
         sessionRef.current = null;
         result = await execute();
@@ -230,7 +225,6 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       autoRunRef.current = true;
       run('run');
     }
-    // Executa uma única vez ao abrir a aba ("Ver dados").
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -240,7 +234,7 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
     try {
       await TalpadbServices.cancelQuery(token, sessionId);
     } catch (error) {
-      iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
+      toast.error(errorMessage(error));
     }
   };
 
@@ -252,11 +246,7 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       editorRef.current?.setValue(file.content);
       renameTab(tab.id, file.name);
     } catch (error) {
-      iziToast.error({
-        title: 'Erro ao abrir arquivo',
-        message: errorMessage(error),
-        position: 'bottomRight',
-      });
+      toast.error(`Erro ao abrir arquivo: ${errorMessage(error)}`);
     }
   };
 
@@ -268,14 +258,9 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
         `${safeFileName(tab.title)}.sql`,
         editorRef.current?.getValue() ?? ''
       );
-      if (path)
-        iziToast.success({ title: 'Arquivo salvo', message: path, position: 'bottomRight' });
+      if (path) toast.success(`Arquivo salvo: ${path}`);
     } catch (error) {
-      iziToast.error({
-        title: 'Erro ao salvar',
-        message: errorMessage(error),
-        position: 'bottomRight',
-      });
+      toast.error(`Erro ao salvar: ${errorMessage(error)}`);
     }
   };
 
@@ -291,20 +276,14 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       );
       if (!path) return;
       if (resultSet.truncated) {
-        iziToast.warning({
-          title: 'Exportação parcial',
-          message: `Foram exportadas ${formatNumber(resultSet.rows.length)} de ${formatNumber(resultSet.rowCount)} linhas (aumente o limite para exportar mais).`,
-          position: 'bottomRight',
-        });
+        toast(
+          `Exportação parcial: foram exportadas ${formatNumber(resultSet.rows.length)} de ${formatNumber(resultSet.rowCount)} linhas (aumente o limite para exportar mais).`
+        );
       } else {
-        iziToast.success({ title: 'Exportado', message: path, position: 'bottomRight' });
+        toast.success(`Exportado: ${path}`);
       }
     } catch (error) {
-      iziToast.error({
-        title: 'Erro ao exportar',
-        message: errorMessage(error),
-        position: 'bottomRight',
-      });
+      toast.error(`Erro ao exportar: ${errorMessage(error)}`);
     }
   };
 
@@ -314,18 +293,16 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
     try {
       const result = await TalpadbServices.saveTableChanges(token, sessionId, changes);
       setTxStatus(result.txStatus);
-      iziToast.success({
-        title: result.committed ? 'Alterações salvas' : 'Alterações na transação',
-        message: result.committed
-          ? summarizeSave(result)
-          : `${summarizeSave(result)}. Execute COMMIT para confirmar ou ROLLBACK para desfazer.`,
-        position: 'bottomRight',
-      });
+      toast.success(
+        result.committed
+          ? `Alterações salvas: ${summarizeSave(result)}`
+          : `Alterações na transação: ${summarizeSave(result)}. Execute COMMIT para confirmar ou ROLLBACK para desfazer.`
+      );
       const lastRun = lastRunRef.current;
       if (lastRun) run(lastRun.mode, lastRun.text);
       return true;
     } catch (error) {
-      iziToast.error({ title: 'Erro ao salvar', message: errorMessage(error), position: 'bottomRight' });
+      toast.error(`Erro ao salvar: ${errorMessage(error)}`);
       return false;
     }
   };

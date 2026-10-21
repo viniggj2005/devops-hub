@@ -1,9 +1,8 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
-import { escapeHtml } from '../../functions/gitStatus';
 import { Modal } from '../../../shared/components/modals/Modal';
-import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { useOctohubRepository } from '../../contexts/OctohubRepositoryContext';
+import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { ArrowUpDown, ChevronDown, ChevronUp, Cherry, GitBranch, GitBranchPlus, LockKeyhole, Search, Tag } from 'lucide-react';
 import { CherryPickCommit, CreateBranchFromCommit, CreateTag, HasUncommittedChanges, ListBranches, ListReorderableCommits, PushTag, ReorderCommits } from '../../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 
@@ -74,7 +73,7 @@ const CreateBranchModal: React.FC<ActionProps> = ({ commit, onClose }) => {
         setBusy(true);
         try {
             await CreateBranchFromCommit(branchName, commit.Hash, checkout);
-            iziToast.success({ title: 'Branch', message: `Branch ${escapeHtml(branchName)} criada em ${shortHash(commit.Hash)}.`, position: 'bottomRight' });
+            toast.success(`Branch ${branchName} criada em ${shortHash(commit.Hash)}.`);
             notifyChange();
             onClose();
         } catch (error) {
@@ -123,7 +122,7 @@ const CreateTagModal: React.FC<ActionProps> = ({ commit, onClose }) => {
     const pushTag = async (tag: string) => {
         try {
             await PushTag(tag);
-            iziToast.success({ title: 'Tag', message: `Tag ${escapeHtml(tag)} enviada para o origin.`, position: 'bottomRight' });
+            toast.success(`Tag ${tag} enviada para o origin.`);
         } catch (error) {
             handleGitError(error, 'A tag foi criada, mas não foi enviada', () => pushTag(tag));
         }
@@ -134,7 +133,7 @@ const CreateTagModal: React.FC<ActionProps> = ({ commit, onClose }) => {
         setBusy(true);
         try {
             await CreateTag(tagName, commit.Hash, message);
-            iziToast.success({ title: 'Tag', message: `Tag ${escapeHtml(tagName)} criada em ${shortHash(commit.Hash)}.`, position: 'bottomRight' });
+            toast.success(`Tag ${tagName} criada em ${shortHash(commit.Hash)}.`);
             notifyChange();
             onClose();
             if (push) await pushTag(tagName);
@@ -200,7 +199,7 @@ const CherryPickModal: React.FC<ActionProps> = ({ commit, onClose }) => {
             notifyChange();
             onClose();
             if (state.Kind) openConflicts();
-            else iziToast.success({ title: 'Cherry-pick', message: `Commit aplicado em ${escapeHtml(target)}. Agora você está nessa branch.`, position: 'bottomRight' });
+            else toast.success(`Commit aplicado em ${target}. Agora você está nessa branch.`);
         } catch (error) {
             handleGitError(error, 'Erro no cherry-pick');
         } finally {
@@ -292,7 +291,7 @@ const ReorderModal: React.FC<ActionProps> = ({ commit, onClose }) => {
             notifyChange();
             onClose();
             if (state.Kind) openConflicts();
-            else iziToast.success({ title: 'OctoHub', message: 'Commits reordenados.', position: 'bottomRight' });
+            else toast.success('Commits reordenados.');
         } catch (error) {
             handleGitError(error, 'Erro ao reordenar os commits');
         } finally {

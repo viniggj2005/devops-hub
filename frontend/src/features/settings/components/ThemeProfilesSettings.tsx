@@ -1,8 +1,7 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import React, { useMemo, useState } from 'react';
 import { Themes, useTheme } from '../../../hooks/use-theme';
 import { appModules } from '../../shared/constants/AppModules';
-import { escapeHtml } from '../../octohub-module/functions/gitStatus';
 import { useConfirmToast } from '../../shared/components/toasts/ConfirmToast';
 import { isSameThemeConfig, useGeneralConfigsStore } from '../store/GeneralConfigsStore';
 import { Check, Moon, Pencil, Plus, RefreshCw, RotateCcw, Sun, SwatchBook, Trash2, X } from 'lucide-react';
@@ -88,7 +87,7 @@ const ThemeProfilesSettings: React.FC = () => {
     setSaving(true);
     if (await createThemeProfile(name, globalTheme)) {
       setNewName('');
-      iziToast.success({ title: 'Perfil salvo', message: escapeHtml(name), position: 'bottomRight' });
+      toast.success(`Perfil "${name}" salvo`);
     }
     setSaving(false);
   };
@@ -97,7 +96,7 @@ const ThemeProfilesSettings: React.FC = () => {
     setApplyingId(profile.id);
     if (await applyThemeProfile(profile)) {
       setGlobalTheme(profile.config.globalTheme as Themes);
-      iziToast.success({ title: 'Perfil aplicado', message: escapeHtml(profile.name), position: 'bottomRight' });
+      toast.success(`Perfil "${profile.name}" aplicado`);
     }
     setApplyingId(null);
   };
@@ -119,8 +118,8 @@ const ThemeProfilesSettings: React.FC = () => {
   const handleOverwrite = (profile: ThemeProfile) => {
     confirmToast({
       id: 'theme-profile-overwrite',
-      title: `Perfil ${escapeHtml(profile.name)} atualizado.`,
-      message: `Substituir o perfil <b>${escapeHtml(profile.name)}</b> pelas cores e temas que estão em uso agora?`,
+      title: `Perfil "${profile.name}" atualizado.`,
+      message: `Substituir o perfil "${profile.name}" pelas cores e temas que estão em uso agora?`,
       onConfirm: () => overwriteThemeProfile(profile, globalTheme),
     });
   };
@@ -129,7 +128,7 @@ const ThemeProfilesSettings: React.FC = () => {
     confirmToast({
       id: 'theme-profile-restore-defaults',
       title: 'Temas restaurados para o padrão.',
-      message: 'Restaurar <b>todos</b> os temas e cores (tela inicial, módulos, OctoHub e terminal) para o padrão? Os perfis salvos não são alterados.',
+      message: 'Restaurar todos os temas e cores (tela inicial, módulos, OctoHub e terminal) para o padrão? Os perfis salvos não são alterados.',
       onConfirm: async () => {
         setRestoring(true);
         const defaultGlobalTheme = await restoreDefaultThemes();
@@ -142,8 +141,8 @@ const ThemeProfilesSettings: React.FC = () => {
   const handleDelete = (profile: ThemeProfile) => {
     confirmToast({
       id: 'theme-profile-delete',
-      title: `Perfil ${escapeHtml(profile.name)} excluído.`,
-      message: `Excluir o perfil <b>${escapeHtml(profile.name)}</b>? Os temas em uso não mudam.`,
+      title: `Perfil "${profile.name}" excluído.`,
+      message: `Excluir o perfil "${profile.name}"? Os temas em uso não mudam.`,
       onConfirm: () => deleteThemeProfile(profile),
     });
   };

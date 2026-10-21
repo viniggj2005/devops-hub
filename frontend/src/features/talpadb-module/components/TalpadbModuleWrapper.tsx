@@ -1,4 +1,4 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import React, { useEffect } from 'react';
 import TalpadbNavbar from './TalpadbNavbar';
 import { useTalpadbStore } from '../TalpadbStore';
@@ -19,16 +19,9 @@ const TalpadbModuleWrapper: React.FC = () => {
       .getState()
       .loadConnections(token)
       .then((connections) => useExplorerStore.getState().syncServers(connections))
-      .catch((error) =>
-        iziToast.error({
-          title: 'Erro',
-          message: `Erro ao carregar conexões: ${errorMessage(error)}`,
-          position: 'bottomRight',
-        })
-      );
+      .catch((error) => toast.error(`Erro ao carregar conexões: ${errorMessage(error)}`));
   }, [token]);
 
-  // Fechar a aba do módulo encerra todas as conexões abertas por ele.
   useEffect(
     () => () => {
       const currentToken = getToken();
@@ -48,7 +41,7 @@ const TalpadbModuleWrapper: React.FC = () => {
             view === 'home' ? 'opacity-100' : 'opacity-0 invisible'
           }`}
         >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <TalpadbHomePage />
           </div>
         </div>

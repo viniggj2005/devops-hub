@@ -1,4 +1,4 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import React, { useState } from 'react';
 import { TerminalSquare } from 'lucide-react';
 import { FileUploader } from 'react-drag-drop-files';
@@ -51,11 +51,7 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!formData.key && !formData.password) {
-      iziToast.error({
-        title: 'Erro',
-        message: 'Você deve fornecer uma senha ou um arquivo de chave.',
-        position: 'bottomRight',
-      });
+      toast.error('Você deve fornecer uma senha ou um arquivo de chave.');
       return;
     }
     setSubmitting(true);
@@ -65,12 +61,7 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
         payload.password = btoa(payload.password);
       }
       await TerminalServices.createSshConnection(token ? token : '', payload);
-      iziToast.success({
-        title: 'Criado com sucesso',
-        message: 'A conexão SSH foi criada.',
-        position: 'bottomRight',
-        timeout: 3000,
-      });
+      toast.success('A conexão SSH foi criada.');
       onClose();
       onCreated?.();
       setFormData({
@@ -85,11 +76,7 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
       });
       setFileName('');
     } catch (error) {
-      iziToast.error({
-        title: 'Erro',
-        message: `Erro ao criar conexão: ${errorMessage(error)}`,
-        position: 'bottomRight',
-      });
+      toast.error(`Erro ao criar conexão: ${errorMessage(error)}`);
     } finally {
       setSubmitting(false);
     }
@@ -100,7 +87,6 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
     dark:bg-white/10 dark:border-white/20 dark:text-white dark:placeholder:text-white/40 dark:focus:border-blue-500/50 dark:focus:ring-blue-500/20`;
 
   const labelClass = `block text-sm mb-2 text-gray-700 dark:text-gray-200`;
-
 
   return (
     <Modal

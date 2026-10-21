@@ -1,38 +1,43 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import { useExplorerStore } from './ExplorerStore';
 import { useTalpadbStore } from '../../TalpadbStore';
-import type { ContextMenuItem } from '../components/ContextMenu';
 import { useAuth } from '../../../../contexts/AuthContext';
+import type { ContextMenuItem } from '../components/ContextMenu';
 import { TalpadbServices } from '../../services/TalpadbServices';
 import { copyToClipboard } from '../../../shared/functions/clipboard';
+import { engineInfo, engineOf } from '../../functions/DatabaseEngines';
+import type { DropObjectType, DropTarget } from './DropObjectModal';
+import { useConfirmToast } from '../../../shared/components/toasts/ConfirmToast';
 import type {
   ColumnInfo,
-  DdlObjectKind,
   ExplorerNode,
+  DdlObjectKind,
+  TalpadbConnection,
 } from '../../../../interfaces/TalpadbInterfaces';
 import {
   Eye,
+  Zap,
   Copy,
   Hash,
   Rows3,
   Unplug,
+  Pencil,
+  Trash2,
   Network,
   Activity,
   FileCode2,
   RefreshCw,
-  Trash2,
   FilePlus2,
   ScrollText,
   DatabaseZap,
   TableProperties,
 } from 'lucide-react';
-import type { DropObjectType, DropTarget } from './DropObjectModal';
-import { engineInfo, engineOf } from '../../functions/DatabaseEngines';
 import {
   quoteIdent,
   errorMessage,
   formatNumber,
   qualifiedName,
+  formatDuration,
   connectionLabel,
   buildViewDataSql,
   buildSelectScript,
@@ -40,76 +45,121 @@ import {
 } from '../../functions/TreatmentFunctions';
 
 const ddlKinds: Partial<Record<ExplorerNode['kind'], DdlObjectKind>> = {
-  table: 'table',
   view: 'view',
+  table: 'table',
+  schema: 'schema',
   matview: 'matview',
   sequence: 'sequence',
   function: 'function',
-  schema: 'schema',
 };
 
 interface ExplorerActionsOptions {
+  onReloadConnections: () => Promise<void>;
   onDropObject: (target: DropTarget) => void;
   onCreateDatabase: (connectionId: number) => void;
+  onEditConnection: (connection: TalpadbConnection) => void;
 }
 
-export function useExplorerActions({ onDropObject, onCreateDatabase }: ExplorerActionsOptions) {
+export function useExplorerActions({
+  onDropObject,
+  onEditConnection,
+  onCreateDatabase,
+  onReloadConnections,
+}: ExplorerActionsOptions) {
   const { token } = useAuth();
-  const { connections, openQueryTab, openTab } = useTalpadbStore();
+  const confirmToast = useConfirmToast();
+  const { openTab, connections, openQueryTab, closeConnectionTabs } = useTalpadbStore();
 
-  const showError = (error: unknown) =>
-    iziToast.error({ title: 'Erro', message: errorMessage(error), position: 'bottomRight' });
+  const showError = (error: unknown) => toast.error(errorMessage(error));
 
-  const nameOf = (connectionId: number) =>
-    connectionLabel(connections.find((item) => item.id === connectionId));
+  const findConnection = (connectionId: number) =>
+    connections.find((item) => item.id === connectionId);
 
-  const engineFor = (node: ExplorerNode) =>
-    engineOf(connections.find((item) => item.id === node.connectionId));
+  const nameOf = (connectionId: number) => connectionLabel(findConnection(connectionId));
+
+  const engineFor = (node: ExplorerNode) => engineOf(findConnection(node.connectionId));
 
   const newQuery = (node: ExplorerNode) =>
     openQueryTab({ connectionId: node.connectionId, database: node.database });
 
   const viewData = (node: ExplorerNode) =>
     openQueryTab({
-      connectionId: node.connectionId,
-      database: node.database,
-      sql: buildViewDataSql(node.schema as string, node.name as string, engineFor(node)),
       autoRun: true,
       title: node.name,
+      database: node.database,
+      connectionId: node.connectionId,
+      sql: buildViewDataSql(node.schema as string, node.name as string, engineFor(node)),
     });
 
   const openProperties = (node: ExplorerNode) =>
     openTab({
-      key: `table:${node.connectionId}:${node.database}:${node.schema}:${node.name}`,
       type: 'table',
-      title: node.name as string,
-      connectionId: node.connectionId,
-      connectionName: nameOf(node.connectionId),
-      database: node.database as string,
       schema: node.schema,
       objectName: node.name,
+      title: node.name as string,
+      connectionId: node.connectionId,
+      database: node.database as string,
+      connectionName: nameOf(node.connectionId),
+      key: `table:${node.connectionId}:${node.database}:${node.schema}:${node.name}`,
     });
 
   const openDiagram = (node: ExplorerNode) =>
     openTab({
-      key: `diagram:${node.connectionId}:${node.database}:${node.schema ?? '*'}`,
       type: 'diagram',
-      title: node.schema ? `Diagrama ${node.schema}` : `Diagrama ${node.database}`,
-      connectionId: node.connectionId,
-      connectionName: nameOf(node.connectionId),
-      database: node.database as string,
       schema: node.schema,
+      connectionId: node.connectionId,
+      database: node.database as string,
+      connectionName: nameOf(node.connectionId),
+      key: `diagram:${node.connectionId}:${node.database}:${node.schema ?? '*'}`,
+      title: node.schema ? `Diagrama ${node.schema}` : `Diagrama ${node.database}`,
     });
 
   const openDashboard = (node: ExplorerNode) => {
-    const connection = connections.find((item) => item.id === node.connectionId);
+    const connection = findConnection(node.connectionId);
     openTab({
-      key: `dashboard:${node.connectionId}`,
       type: 'dashboard',
       title: 'Dashboard',
       connectionId: node.connectionId,
+      key: `dashboard:${node.connectionId}`,
       connectionName: nameOf(node.connectionId),
       database: connection?.database ?? 'postgres',
+    });
+  };
+
+  const testServerConnection = async (node: ExplorerNode) => {
+    const connection = findConnection(node.connectionId);
+    if (!token || !connection) return;
+    try {
+      const result = await TalpadbServices.testConnection(token, connection.id, {
+        host: connection.host,
+        port: connection.port,
+        alias: connection.alias,
+        engine: connection.engine,
+        sslMode: connection.sslMode,
+        database: connection.database,
+        username: connection.username,
+      });
+      toast.success(
+        `Conexão OK: ${engineInfo(engineOf(connection)).label} ${result.serverVersion} · ${formatDuration(result.latencyMs)}`
+      );
+    } catch (error) {
+      toast.error(`Falha na conexão: ${errorMessage(error)}`);
+    }
+  };
+
+  const removeServerConnection = (node: ExplorerNode) => {
+    const connection = findConnection(node.connectionId);
+    if (!connection) return;
+    const label = connectionLabel(connection);
+    confirmToast({
+      id: `talpadb-connection-${connection.id}`,
+      title: `Conexão ${label} deletada!`,
+      message: `Deseja deletar a conexão: ${label}?`,
+      onConfirm: async () => {
+        await TalpadbServices.deleteConnection(token ?? '', connection.id);
+        closeConnectionTabs(connection.id);
+        await onReloadConnections();
+      },
     });
   };
 
@@ -119,14 +169,14 @@ export function useExplorerActions({ onDropObject, onCreateDatabase }: ExplorerA
     try {
       const ddl = await TalpadbServices.getObjectDdl(token, node.connectionId, node.database, {
         kind,
+        oid: node.oid ?? 0,
         schema: node.schema ?? '',
         name: (node.kind === 'schema' ? node.schema : node.name) ?? '',
-        oid: node.oid ?? 0,
       });
       openQueryTab({
-        connectionId: node.connectionId,
-        database: node.database,
         sql: ddl,
+        database: node.database,
+        connectionId: node.connectionId,
         title: `${node.kind === 'schema' ? node.schema : node.name} (DDL)`,
       });
     } catch (error) {
@@ -137,7 +187,7 @@ export function useExplorerActions({ onDropObject, onCreateDatabase }: ExplorerA
   const loadColumns = async (node: ExplorerNode): Promise<ColumnInfo[]> => {
     const { children, nodes } = useExplorerStore.getState();
     const loaded = (children[node.id] ?? [])
-      .map((id) => nodes[id]?.column)
+      .map((childId) => nodes[childId]?.column)
       .filter(Boolean) as ColumnInfo[];
     if (loaded.length) return loaded;
     return TalpadbServices.listColumns(
@@ -153,10 +203,10 @@ export function useExplorerActions({ onDropObject, onCreateDatabase }: ExplorerA
     try {
       const columns = await loadColumns(node);
       openQueryTab({
-        connectionId: node.connectionId,
         database: node.database,
-        sql: builder(node.schema as string, node.name as string, columns, engineFor(node)),
+        connectionId: node.connectionId,
         title: `${node.name} (${suffix})`,
+        sql: builder(node.schema as string, node.name as string, columns, engineFor(node)),
       });
     } catch (error) {
       showError(error);
@@ -174,11 +224,7 @@ export function useExplorerActions({ onDropObject, onCreateDatabase }: ExplorerA
         node.schema as string,
         node.name as string
       );
-      iziToast.success({
-        title: name,
-        message: `${formatNumber(count)} ${count === 1 ? 'linha' : 'linhas'}`,
-        position: 'bottomRight',
-      });
+      toast.success(`${name}: ${formatNumber(count)} ${count === 1 ? 'linha' : 'linhas'}`);
     } catch (error) {
       showError(error);
     }
@@ -200,7 +246,7 @@ export function useExplorerActions({ onDropObject, onCreateDatabase }: ExplorerA
     try {
       await TalpadbServices.disconnectServer(token, node.connectionId);
       useExplorerStore.getState().resetServer(node.connectionId);
-      iziToast.info({ title: 'Desconectado', message: node.label, position: 'bottomRight' });
+      toast(`Desconectado: ${node.label}`);
     } catch (error) {
       showError(error);
     }
@@ -221,26 +267,26 @@ END;`;
   const menuItems = (node: ExplorerNode): ContextMenuItem[] => {
     const info = engineInfo(engineFor(node));
     const copy: ContextMenuItem = {
-      label: 'Copiar nome',
       icon: Copy,
+      label: 'Copiar nome',
       onClick: () => copyName(node),
     };
     const refreshItem: ContextMenuItem = {
-      label: 'Atualizar',
       icon: RefreshCw,
+      label: 'Atualizar',
       onClick: () => refresh(node),
     };
     const separator: ContextMenuItem = { separator: true };
     const createDatabase: ContextMenuItem = {
-      label: 'Criar banco de dados…',
       icon: DatabaseZap,
+      label: 'Criar banco de dados…',
       onClick: () => onCreateDatabase(node.connectionId),
     };
     const diagram: ContextMenuItem = { label: 'Diagrama ER', icon: Network, onClick: () => openDiagram(node) };
     const dropItem = (type: DropObjectType, name: string): ContextMenuItem => ({
-      label: 'Excluir…',
       icon: Trash2,
       danger: true,
+      label: 'Excluir…',
       onClick: () =>
         onDropObject({
           type,
@@ -260,21 +306,39 @@ END;`;
     const dropSchemaItems = info.supportsDropSchema ? [separator, dropItem('schema', node.schema ?? node.label)] : [];
 
     switch (node.kind) {
-      case 'server':
+      case 'server': {
+        const connection = findConnection(node.connectionId);
         return [
           { label: 'Nova query', icon: FileCode2, onClick: () => newQuery(node) },
           ...dashboardItems,
           ...createDatabaseItems,
           separator,
+          { label: 'Testar conexão', icon: Zap, onClick: () => testServerConnection(node) },
+          ...(connection
+            ? [
+                {
+                  icon: Pencil,
+                  label: 'Editar conexão…',
+                  onClick: () => onEditConnection(connection),
+                },
+              ]
+            : []),
           refreshItem,
+          separator,
           {
-            label: 'Desconectar',
             icon: Unplug,
-            danger: true,
+            label: 'Desconectar',
             disabled: !useExplorerStore.getState().connected[node.connectionId],
             onClick: () => disconnect(node),
           },
+          {
+            icon: Trash2,
+            danger: true,
+            label: 'Excluir conexão…',
+            onClick: () => removeServerConnection(node),
+          },
         ];
+      }
       case 'database':
         return [
           { label: 'Nova query', icon: FileCode2, onClick: () => newQuery(node) },
@@ -309,15 +373,15 @@ END;`;
           separator,
           { label: 'Script CREATE', icon: ScrollText, onClick: () => scriptCreate(node) },
           {
-            label: 'Script SELECT',
             icon: Eye,
+            label: 'Script SELECT',
             onClick: () => script(node, buildSelectScript, 'SELECT'),
           },
           ...(node.kind === 'table'
             ? [
                 {
-                  label: 'Script INSERT',
                   icon: FilePlus2,
+                  label: 'Script INSERT',
                   onClick: () => script(node, buildInsertScript, 'INSERT'),
                 },
               ]
@@ -325,14 +389,14 @@ END;`;
           ...(node.kind === 'matview'
             ? [
                 {
-                  label: 'Script REFRESH',
                   icon: RefreshCw,
+                  label: 'Script REFRESH',
                   onClick: () =>
                     openQueryTab({
-                      connectionId: node.connectionId,
                       database: node.database,
-                      sql: refreshMaterializedViewSql(node),
+                      connectionId: node.connectionId,
                       title: `${node.name} (REFRESH)`,
+                      sql: refreshMaterializedViewSql(node),
                     }),
                 },
               ]

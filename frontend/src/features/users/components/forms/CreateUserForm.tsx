@@ -1,11 +1,17 @@
-import iziToast from 'izitoast';
-import { motion } from 'framer-motion';
-import 'izitoast/dist/css/iziToast.min.css';
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createUserApi } from '../../services/UserService';
-import { Mail, User, Lock, EyeClosed, Eye, Check } from 'lucide-react';
 import { CreateUserPayload } from '../../../../interfaces/UsersInterface';
+import { AlertCircle, ArrowRight, Check, Eye, EyeClosed, Loader2, Lock, Mail, User } from 'lucide-react';
+
+interface PasswordStrengthState {
+  strength: number;
+  hasLength: boolean;
+  hasNumber: boolean;
+  hasSpecial: boolean;
+  hasUpperCase: boolean;
+}
 
 const CreateUserForm: React.FC = () => {
   const navigate = useNavigate();
@@ -16,227 +22,241 @@ const CreateUserForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState<{ hasLength: boolean; hasNumber: boolean; hasSpecial: boolean; hasUpperCase: boolean; strength: number } | null>(null);
+  const [passwordStrength, setPasswordStrength] = useState<PasswordStrengthState | null>(null);
 
-  useEffect(() => {
-    setPasswordStrength(getPasswordStrength());
-  }, [password]);
-
-  const getPasswordStrength = () => {
+  const getPasswordStrength = (): PasswordStrengthState | null => {
     if (!password) return null;
-    const hasLength = password.length >= 8;
     const hasNumber = /\d/.test(password);
-    const hasSpecial = /[!@#$%^&*]/.test(password);
+    const hasLength = password.length >= 8;
     const hasUpperCase = /[A-Z]/.test(password);
+    const hasSpecial = /[^A-Za-z0-9\s]/.test(password);
 
     const strength = [hasLength, hasNumber, hasSpecial, hasUpperCase].filter(Boolean).length;
     return { hasLength, hasNumber, hasSpecial, hasUpperCase, strength };
   };
 
+  useEffect(() => {
+    setPasswordStrength(getPasswordStrength());
+  }, [password]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (loading) return;
 
     if (!fullName.trim() || !email.trim() || !password) {
-      iziToast.warning({
-        title: 'Atenção',
-        message: 'Preencha todos os campos obrigatórios.',
-        position: 'bottomRight'
-      });
+      toast.error('Preencha todos os campos obrigatórios.');
       return;
     }
 
     if (password !== confirmPassword) {
-      iziToast.warning({
-        title: 'Atenção',
-        message: 'As senhas informadas não conferem.',
-        position: 'bottomRight'
-      });
+      toast.error('As senhas informadas não conferem.');
       return;
     }
+
     const strength = getPasswordStrength();
     setPasswordStrength(strength);
 
     if (!strength || strength.strength < 4) {
-      iziToast.warning({
-        title: 'Senha Fraca',
-        message: 'A senha deve ter pelo menos 8 caracteres, incluindo letras maiúsculas, números e caracteres especiais.',
-        position: 'bottomRight'
-      });
+      toast.error('A senha deve ter pelo menos 8 caracteres, incluindo letras maiúsculas, números e caracteres especiais.');
       return;
     }
 
     const payload: CreateUserPayload = {
-      name: fullName.trim(),
-      email: email.trim(),
       password,
+      email: email.trim(),
+      name: fullName.trim(),
     };
 
     try {
       setLoading(true);
       await createUserApi(payload);
-      iziToast.success({
-        title: 'Sucesso',
-        message: 'Conta criada com sucesso! Redirecionando...',
-        position: 'bottomRight',
-        onClosing: () => navigate('/login'),
-      });
+      toast.success('Conta criada com sucesso!');
+      navigate('/login');
     } catch (createError: any) {
-      iziToast.error({
-        title: 'Erro',
-        message: createError.message || 'Não foi possível criar a conta.',
-        position: 'bottomRight',
-      });
+      toast.error(createError.message || 'Não foi possível criar a conta.');
     } finally {
       setLoading(false);
     }
   }
 
+  const passwordsMismatch = Boolean(confirmPassword && password !== confirmPassword);
+  const passwordsMatch = Boolean(confirmPassword && password && password === confirmPassword);
+
+  const requirements = passwordStrength
+    ? [
+        { label: '8+ caracteres', met: passwordStrength.hasLength },
+        { label: 'Letra maiúscula', met: passwordStrength.hasUpperCase },
+        { label: 'Número', met: passwordStrength.hasNumber },
+        { label: 'Caractere especial', met: passwordStrength.hasSpecial },
+      ]
+    : [];
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <label className="block text-sm text-purple-100">
+    <form onSubmit={handleSubmit} className="space-y-3.5">
+      <div className="space-y-1.5">
+        <label htmlFor="register-name" className="block text-xs font-medium text-zinc-300">
           Nome completo
         </label>
-        <div className="relative">
-          <User className="absolute z-10 left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300/50" />
+        <div className="relative group">
+          <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-blue-400 transition-colors pointer-events-none" />
           <input
+            id="register-name"
             type="text"
+            autoComplete="name"
             placeholder="Seu nome"
             value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="w-full pl-12 pr-4 py-3.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-transparent transition-all"
+            onChange={(event) => setFullName(event.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-zinc-950/70 border border-white/10 rounded-xl text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20 transition-all"
             required
           />
         </div>
       </div>
-      <div className="space-y-2">
-        <label className="block text-sm text-purple-100">
-          Email
+
+      <div className="space-y-1.5">
+        <label htmlFor="register-email" className="block text-xs font-medium text-zinc-300">
+          E-mail
         </label>
-        <div className="relative">
-          <Mail className="absolute z-10 left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300/50" />
+        <div className="relative group">
+          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-blue-400 transition-colors pointer-events-none" />
           <input
+            id="register-email"
             type="email"
-            placeholder="seu@email.com"
+            autoComplete="email"
+            placeholder="voce@empresa.com"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full pl-12 pr-4 py-3.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-transparent transition-all"
+            onChange={(event) => setEmail(event.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-zinc-950/70 border border-white/10 rounded-xl text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20 transition-all"
             required
           />
         </div>
       </div>
-      <div className="space-y-2">
-        <label className="block text-sm text-purple-100">
-          Senha
-        </label>
-        <div className="relative">
-          <Lock className="absolute z-10 left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300/50" />
-          <input
-            type={showPassword ? 'text' : 'password'}
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full pl-12 pr-12 py-3.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-transparent transition-all"
-            required
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-300/70 hover:text-purple-200 transition-colors"
-          >
-            {showPassword ? (
-              <EyeClosed className="w-5 h-5" />
-            ) : (
-              <Eye className="w-5 h-5" />
-            )}
-          </button>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label htmlFor="register-password" className="block text-xs font-medium text-zinc-300">
+            Senha
+          </label>
+          <div className="relative group">
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-blue-400 transition-colors pointer-events-none" />
+            <input
+              id="register-password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="w-full pl-10 pr-9 py-2.5 bg-zinc-950/70 border border-white/10 rounded-xl text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20 transition-all"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition-colors cursor-pointer"
+            >
+              {showPassword ? <EyeClosed className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
 
-        {passwordStrength && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="space-y-2 pt-2"
-          >
-            <div className="flex gap-1">
-              {[1, 2, 3, 4].map((level) => (
-                <div
-                  key={level}
-                  className={`h-1 flex-1 rounded-full transition-all ${level <= passwordStrength.strength
+        <div className="space-y-1.5">
+          <label htmlFor="register-confirm-password" className="block text-xs font-medium text-zinc-300">
+            Confirmar senha
+          </label>
+          <div className="relative group">
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-blue-400 transition-colors pointer-events-none" />
+            <input
+              id="register-confirm-password"
+              type={showConfirmPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              className={`w-full pl-10 pr-9 py-2.5 bg-zinc-950/70 border rounded-xl text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 transition-all ${
+                passwordsMismatch
+                  ? 'border-red-500/60 focus:border-red-500 focus:ring-red-500/20'
+                  : passwordsMatch
+                    ? 'border-emerald-500/50 focus:border-emerald-500 focus:ring-emerald-500/20'
+                    : 'border-white/10 focus:border-blue-500/80 focus:ring-blue-500/20'
+              }`}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              aria-label={showConfirmPassword ? 'Ocultar confirmação de senha' : 'Mostrar confirmação de senha'}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition-colors cursor-pointer"
+            >
+              {showConfirmPassword ? <EyeClosed className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {passwordsMismatch && (
+        <div className="flex items-center gap-1.5 text-xs text-red-400">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          <span>As senhas informadas não coincidem.</span>
+        </div>
+      )}
+
+      {passwordStrength && (
+        <div className="rounded-xl bg-zinc-950/60 border border-white/[0.06] p-3 space-y-2.5">
+          <div className="flex gap-1.5">
+            {[1, 2, 3, 4].map((level) => (
+              <div
+                key={level}
+                className={`h-1 flex-1 rounded-full transition-colors ${
+                  level <= passwordStrength.strength
                     ? passwordStrength.strength <= 2
-                      ? 'bg-red-400'
+                      ? 'bg-red-500'
                       : passwordStrength.strength === 3
-                        ? 'bg-yellow-400'
-                        : 'bg-green-400'
-                    : 'bg-white/20'
-                    }`}
-                />
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className={`flex items-center gap-1 ${passwordStrength.hasLength ? 'text-green-300' : 'text-white/50'}`}>
-                <Check className="w-3 h-3" />
-                <span>8+ caracteres</span>
+                        ? 'bg-amber-400'
+                        : 'bg-emerald-500'
+                    : 'bg-zinc-800'
+                }`}
+              />
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+            {requirements.map((requirement) => (
+              <div
+                key={requirement.label}
+                className={`flex items-center gap-1.5 transition-colors ${
+                  requirement.met ? 'text-emerald-400' : 'text-zinc-500'
+                }`}
+              >
+                <div
+                  className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 ${
+                    requirement.met ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-600'
+                  }`}
+                >
+                  <Check className="w-2.5 h-2.5" />
+                </div>
+                <span>{requirement.label}</span>
               </div>
-              <div className={`flex items-center gap-1 ${passwordStrength.hasNumber ? 'text-green-300' : 'text-white/50'}`}>
-                <Check className="w-3 h-3" />
-                <span>Número</span>
-              </div>
-              <div className={`flex items-center gap-1 ${passwordStrength.hasUpperCase ? 'text-green-300' : 'text-white/50'}`}>
-                <Check className="w-3 h-3" />
-                <span>Maiúscula</span>
-              </div>
-              <div className={`flex items-center gap-1 ${passwordStrength.hasSpecial ? 'text-green-300' : 'text-white/50'}`}>
-                <Check className="w-3 h-3" />
-                <span>Especial</span>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <label className="block text-sm text-purple-100">
-          Confirmar senha
-        </label>
-        <div className="relative">
-          <Lock className="absolute z-10 left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300/50" />
-          <input
-            type={showConfirmPassword ? 'text' : 'password'}
-            placeholder="••••••••"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full pl-12 pr-12 py-3.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-transparent transition-all"
-            required
-          />
-          <button
-            type="button"
-            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-300/70 hover:text-purple-200 transition-colors"
-          >
-            {showConfirmPassword ? (
-              <EyeClosed className="w-5 h-5" />
-            ) : (
-              <Eye className="w-5 h-5" />
-            )}
-          </button>
+            ))}
+          </div>
         </div>
-        {confirmPassword && password !== confirmPassword && (
-          <p className="text-red-300 text-xs flex items-center gap-1">
-            <span>⚠</span> As senhas não coincidem
-          </p>
-        )}
-      </div>
-      <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
+      )}
+
+      <button
         type="submit"
-        className="w-full py-3.5 bg-gradient-to-r from-purple-500 to-blue-600 text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all relative overflow-hidden group mt-6"
+        disabled={loading}
+        className="w-full mt-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer group"
       >
-        <span className="relative z-10">Criar conta</span>
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-      </motion.button>
+        {loading ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Criando conta...</span>
+          </>
+        ) : (
+          <>
+            <span>Criar conta</span>
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+          </>
+        )}
+      </button>
     </form>
   );
 };

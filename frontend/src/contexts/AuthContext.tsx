@@ -1,4 +1,4 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import { Events } from '@wailsio/runtime';
 import { isDetachedWindow } from '../features/appFrame/WindowContext';
 import { AuthContextType, LoginResponse, UserDTO } from '../interfaces/AuthInterfaces';
@@ -38,16 +38,12 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       const loginResponse = await loginApi(email, password);
       if (!loginResponse) throw new Error('Falha no login');
       applySession(loginResponse);
-    } catch (error: any) {
-      const msg = error?.message || error || 'Falha no login';
-      setError(msg);
-      iziToast.error({
-        title: 'Erro',
-        message: msg,
-        position: 'bottomRight',
-      });
+    } catch (loginError: any) {
+      const message = loginError?.message || loginError || 'Falha no login';
+      setError(message);
+      toast.error(message);
       clearSession();
-      throw error;
+      throw loginError;
     } finally {
       setLoading(false);
     }

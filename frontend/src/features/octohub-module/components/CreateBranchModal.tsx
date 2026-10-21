@@ -1,10 +1,9 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import React, { useEffect, useMemo, useState } from 'react';
-import { escapeHtml } from '../functions/gitStatus';
 import { Modal } from '../../shared/components/modals/Modal';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
-import * as octohubStructs from '../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
+import * as octohubStructs from '../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { CircleAlert, Cloud, GitBranch, GitBranchPlus, RefreshCw, Search } from 'lucide-react';
 import { CreateBranchFrom, FetchRemotes, HasUncommittedChanges, ListMergeableBranches } from '../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 
@@ -50,7 +49,7 @@ const CreateBranchModal: React.FC<CreateBranchModalProps> = ({ open, onClose, in
         setName(initialName);
         HasUncommittedChanges().then(setDirty).catch(() => setDirty(false));
         loadBranches(isDetached ? null : currentBranch || null).catch((error) =>
-            iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(error)), position: 'bottomRight' })
+            toast.error(errorMessage(error))
         );
     }, [open]);
 
@@ -69,7 +68,7 @@ const CreateBranchModal: React.FC<CreateBranchModalProps> = ({ open, onClose, in
             await FetchRemotes();
             await loadBranches(selected);
             notifyChange();
-            iziToast.success({ title: 'OctoHub', message: 'Branches remotas atualizadas.', position: 'bottomRight' });
+            toast.success('Branches remotas atualizadas.');
         } catch (error) {
             handleGitError(error, 'Erro ao buscar do remoto', handleFetch);
         } finally {
@@ -84,15 +83,13 @@ const CreateBranchModal: React.FC<CreateBranchModalProps> = ({ open, onClose, in
             await CreateBranchFrom(branchName, selected, checkout);
             notifyChange();
             onClose();
-            iziToast.success({
-                title: 'Branch',
-                message: checkout
-                    ? `Branch ${escapeHtml(branchName)} criada a partir de ${escapeHtml(selected)}. Agora você está nela.`
-                    : `Branch ${escapeHtml(branchName)} criada a partir de ${escapeHtml(selected)}.`,
-                position: 'bottomRight',
-            });
+            toast.success(
+                checkout
+                    ? `Branch ${branchName} criada a partir de ${selected}. Agora você está nela.`
+                    : `Branch ${branchName} criada a partir de ${selected}.`
+            );
         } catch (error) {
-            iziToast.error({ title: 'Erro', message: escapeHtml(errorMessage(error)), position: 'bottomRight' });
+            toast.error(errorMessage(error));
         } finally {
             setCreating(false);
         }
