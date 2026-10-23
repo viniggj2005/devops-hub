@@ -114,6 +114,7 @@ export interface TerminalStateProps {
   setActiveTab: (tabId: string | null) => void;
   setDraggingTabId: (tabId: string | null) => void;
   setViewMode: (mode: 'page' | 'terminal') => void;
+  adoptTabs: (tabs: TerminalTab[], activeTabId: string | null) => void;
   detachInstance: (tabId: string, instanceId: string) => void;
   removeInstance: (tabId: string, instanceId: string) => void;
   createTab: (instance: Omit<TerminalInstance, 'id'>) => void;

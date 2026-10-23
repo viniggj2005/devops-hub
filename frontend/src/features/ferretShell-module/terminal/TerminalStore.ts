@@ -15,8 +15,6 @@ const buildInstance = (instanceData: Omit<TerminalInstance, 'id'>): TerminalInst
   };
 };
 
-const withoutId = ({ id: _instanceId, ...instanceData }: TerminalInstance): Omit<TerminalInstance, 'id'> => instanceData;
-
 const pickActiveTabId = (tabs: TerminalTab[], currentActiveId: string | null) => {
   if (tabs.some(tab => tab.id === currentActiveId)) return currentActiveId;
   return tabs.length > 0 ? tabs[tabs.length - 1].id : null;
@@ -49,6 +47,16 @@ export const useTerminalStore = create<TerminalStateProps>((set) => ({
     }));
   },
 
+  adoptTabs: (adoptedTabs, adoptedActiveTabId) => {
+    if (adoptedTabs.length === 0) return;
+    set((state) => ({
+      open: true,
+      viewMode: 'terminal',
+      tabs: [...state.tabs, ...adoptedTabs],
+      activeTabId: adoptedActiveTabId ?? adoptedTabs[0].id,
+    }));
+  },
+
   closeTab: (tabId) => {
     set((state) => {
       const remainingTabs = state.tabs.filter((tab) => tab.id !== tabId);
@@ -68,10 +76,9 @@ export const useTerminalStore = create<TerminalStateProps>((set) => ({
       if (sourceTab.instances.length + targetTab.instances.length > maxInstancesPerTab) return {};
 
       const { layout, insertAtStart } = splitDropZoneLayouts[dropZone];
-      const movedInstances = sourceTab.instances.map((instance) => buildInstance(withoutId(instance)));
       const mergedInstances = insertAtStart
-        ? [...movedInstances, ...targetTab.instances]
-        : [...targetTab.instances, ...movedInstances];
+        ? [...sourceTab.instances, ...targetTab.instances]
+        : [...targetTab.instances, ...sourceTab.instances];
 
       const tabs = state.tabs
         .filter((tab) => tab.id !== sourceTabId)
@@ -90,7 +97,7 @@ export const useTerminalStore = create<TerminalStateProps>((set) => ({
       const newTab: TerminalTab = {
         id: generateId(),
         title: detachedInstance.title,
-        instances: [buildInstance(withoutId(detachedInstance))],
+        instances: [detachedInstance],
       };
       const tabs = state.tabs.flatMap((tab) => {
         if (tab.id !== tabId) return [tab];

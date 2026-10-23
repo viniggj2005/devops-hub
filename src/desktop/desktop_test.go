@@ -53,6 +53,20 @@ func TestWindowClosedListeners(test *testing.T) {
 	}
 }
 
+func TestModuleMovedListeners(test *testing.T) {
+	var moves []string
+	OnModuleMoved(func(module string, fromWindow string, toWindow string) {
+		moves = append(moves, module+":"+fromWindow+"->"+toWindow)
+	})
+
+	NotifyModuleMoved("ferretshell", "main", "module-4")
+	NotifyModuleMoved("ferretshell", "main", "main")
+
+	if len(moves) != 1 || moves[0] != "ferretshell:main->module-4" {
+		test.Fatalf("expected a single move notification to module-4, got %v", moves)
+	}
+}
+
 func TestIgnoreCancellation(test *testing.T) {
 	if path, err := ignoreCancellation("", errors.New(dialogCancelledMessage)); path != "" || err != nil {
 		test.Fatalf("expected cancellation to become an empty selection, got %q, %v", path, err)

@@ -21,6 +21,7 @@ import (
 
 type sshConnection struct {
 	stdin          io.WriteCloser
+	output         *sessionOutput
 	client         *ssh.Client
 	session        *ssh.Session
 	closedByClient atomic.Bool
@@ -28,13 +29,23 @@ type sshConnection struct {
 
 type TerminalHandlerStruct struct {
 	Session      *auth.ManagerStruct
+	moveMutex    sync.Mutex
 	sshSessions  sync.Map
 	SftpSessions sync.Map
 }
 
 func (handlerStruct *TerminalHandlerStruct) ServiceStartup(_ context.Context, _ application.ServiceOptions) error {
 	desktop.OnWindowClosed(handlerStruct.releaseWindowResources)
+	desktop.OnModuleMoved(handlerStruct.moveModuleSessions)
 	return nil
+}
+
+func (handlerStruct *TerminalHandlerStruct) moveModuleSessions(module string, fromWindow string, toWindow string) {
+	if module != ferretShellModule {
+		return
+	}
+	outputOf := func(value any) *sessionOutput { return value.(*sshConnection).output }
+	moveWindowSessions(&handlerStruct.sshSessions, &handlerStruct.moveMutex, outputOf, fromWindow, toWindow)
 }
 
 func NewTerminalHandler(session *auth.ManagerStruct) *TerminalHandlerStruct {
@@ -165,7 +176,9 @@ func (handlerStruct *TerminalHandlerStruct) ConnectWith(ctx context.Context, con
 		sshClient.Close()
 		return err
 	}
+	output := newSessionOutput(windowName, configure.SshSessionId, fmt.Sprintf("ssh:data:%s", configure.SshSessionId))
 	connection := &sshConnection{
+		output:  output,
 		client:  sshClient,
 		session: session,
 		stdin:   standardInput,
@@ -173,12 +186,11 @@ func (handlerStruct *TerminalHandlerStruct) ConnectWith(ctx context.Context, con
 	handlerStruct.addSession(sessionKey, connection)
 
 	sessionDone := make(chan struct{})
-	dataEvent := fmt.Sprintf("ssh:data:%s", configure.SshSessionId)
 
 	var readersGroup sync.WaitGroup
 	readersGroup.Add(2)
-	go pipeOutput(stdout, windowName, dataEvent, 8192, &readersGroup)
-	go pipeOutput(stderr, windowName, dataEvent, 4096, &readersGroup)
+	go pipeOutput(stdout, output, 8192, &readersGroup)
+	go pipeOutput(stderr, output, 4096, &readersGroup)
 	go keepConnectionAlive(sshClient, sessionDone)
 
 	go func() {
@@ -187,24 +199,24 @@ func (handlerStruct *TerminalHandlerStruct) ConnectWith(ctx context.Context, con
 		readersGroup.Wait()
 
 		_ = sshClient.Close()
-		handlerStruct.sshSessions.CompareAndDelete(sessionKey, connection)
+		forgetSession(&handlerStruct.sshSessions, &handlerStruct.moveMutex, output, connection)
 
 		if connection.closedByClient.Load() {
 			return
 		}
-		desktop.EmitToWindow(windowName, fmt.Sprintf("ssh:exit:%s", configure.SshSessionId), describeSessionExit(waitError))
+		output.notify(fmt.Sprintf("ssh:exit:%s", configure.SshSessionId), describeSessionExit(waitError))
 	}()
 
 	return nil
 }
 
-func pipeOutput(reader io.Reader, windowName string, eventName string, bufferSize int, readersGroup *sync.WaitGroup) {
+func pipeOutput(reader io.Reader, output *sessionOutput, bufferSize int, readersGroup *sync.WaitGroup) {
 	defer readersGroup.Done()
 	buffer := make([]byte, bufferSize)
 	for {
 		bytesRead, readError := reader.Read(buffer)
 		if bytesRead > 0 {
-			desktop.EmitToWindow(windowName, eventName, string(buffer[:bytesRead]))
+			output.write(buffer[:bytesRead])
 		}
 		if readError != nil {
 			return
@@ -289,6 +301,15 @@ func (handlerStruct *TerminalHandlerStruct) Resize(ctx context.Context, sessionI
 		return errors.New("sessão não encontrada")
 	}
 	return connection.session.WindowChange(rows, cols)
+}
+
+func (handlerStruct *TerminalHandlerStruct) Attach(ctx context.Context, sessionId string) error {
+	connection, ok := handlerStruct.getSession(desktop.ScopedKey(desktop.CallingWindowName(ctx), sessionId))
+	if !ok {
+		return errors.New("sessão não encontrada")
+	}
+	connection.output.resume()
+	return nil
 }
 
 func (handlerStruct *TerminalHandlerStruct) Disconnect(ctx context.Context, sessionId string) {

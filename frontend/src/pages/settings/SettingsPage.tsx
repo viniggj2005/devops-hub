@@ -1,13 +1,21 @@
 import React, { useState } from 'react';
+import CloudSyncSettings from '../../features/settings/components/CloudSyncSettings';
 import ModuleThemeSettings from '../../features/settings/components/ModuleThemeSettings';
 import HomeModulesSettings from '../../features/settings/components/HomeModulesSettings';
 import ThemeProfilesSettings from '../../features/settings/components/ThemeProfilesSettings';
 import TerminalThemeSettings from '../../features/settings/components/TerminalThemeSettings';
 import OctohubColorsSettings from '../../features/settings/components/OctohubColorsSettings';
 import SqlEditorThemeSettings from '../../features/settings/components/SqlEditorThemeSettings';
-import { Database, GitBranch, LayoutGrid, LucideIcon, Palette, SquareTerminal, SwatchBook } from 'lucide-react';
+import { Cloud, Database, GitBranch, LayoutGrid, LucideIcon, Palette, SquareTerminal, SwatchBook } from 'lucide-react';
 
-type SettingsSection = 'home-modules' | 'module-theme' | 'theme-profiles' | 'terminal-theme' | 'octohub-colors' | 'sql-editor-theme';
+type SettingsSection =
+  | 'cloud-sync'
+  | 'home-modules'
+  | 'module-theme'
+  | 'theme-profiles'
+  | 'terminal-theme'
+  | 'octohub-colors'
+  | 'sql-editor-theme';
 
 const sections: { id: SettingsSection; label: string; icon: LucideIcon }[] = [
   { id: 'module-theme', label: 'Tema por módulo', icon: Palette },
@@ -16,9 +24,11 @@ const sections: { id: SettingsSection; label: string; icon: LucideIcon }[] = [
   { id: 'octohub-colors', label: 'Cores do OctoHub', icon: GitBranch },
   { id: 'sql-editor-theme', label: 'Editor SQL (TalpaDB)', icon: Database },
   { id: 'terminal-theme', label: 'Terminal (FerretShell)', icon: SquareTerminal },
+  { id: 'cloud-sync', label: 'Backup na nuvem', icon: Cloud },
 ];
 
 const sectionContent: Record<SettingsSection, React.ReactNode> = {
+  'cloud-sync': <CloudSyncSettings />,
   'module-theme': <ModuleThemeSettings />,
   'home-modules': <HomeModulesSettings />,
   'theme-profiles': <ThemeProfilesSettings />,
@@ -35,7 +45,7 @@ const SettingsPage: React.FC = () => {
       <div className="max-w-5xl mx-auto p-6 md:p-10">
         <header className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
-          <p className="text-gray-500 dark:text-zinc-400 mt-1">Personalize a tela inicial e a aparência de cada módulo.</p>
+          <p className="text-gray-500 dark:text-zinc-400 mt-1">Personalize a tela inicial, a aparência de cada módulo e o backup na nuvem.</p>
         </header>
 
         <div className="flex flex-col md:flex-row gap-8">

@@ -39,6 +39,8 @@ func OpenWindows() []TabWindow {
 var (
 	closedListenersMutex sync.RWMutex
 	closedListeners      []func(windowName string)
+	movedListenersMutex  sync.RWMutex
+	movedListeners       []func(module string, fromWindow string, toWindow string)
 )
 
 func CallingWindow(ctx context.Context) application.Window {
@@ -94,5 +96,24 @@ func notifyWindowClosed(windowName string) {
 
 	for _, listener := range listeners {
 		listener(windowName)
+	}
+}
+
+func OnModuleMoved(listener func(module string, fromWindow string, toWindow string)) {
+	movedListenersMutex.Lock()
+	defer movedListenersMutex.Unlock()
+	movedListeners = append(movedListeners, listener)
+}
+
+func NotifyModuleMoved(module string, fromWindow string, toWindow string) {
+	if fromWindow == toWindow {
+		return
+	}
+	movedListenersMutex.RLock()
+	listeners := append([]func(string, string, string){}, movedListeners...)
+	movedListenersMutex.RUnlock()
+
+	for _, listener := range listeners {
+		listener(module, fromWindow, toWindow)
 	}
 }

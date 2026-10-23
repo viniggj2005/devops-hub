@@ -8,6 +8,8 @@ import (
 
 	auth "docker-manager-go/src/auth/functions"
 	authHandlers "docker-manager-go/src/auth/handlers"
+	cloudSyncFunctions "docker-manager-go/src/cloudSync/functions"
+	cloudSyncHandlers "docker-manager-go/src/cloudSync/handlers"
 	database "docker-manager-go/src/dataBase"
 	"docker-manager-go/src/desktop"
 	desktopHandlers "docker-manager-go/src/desktop/handlers"
@@ -30,6 +32,12 @@ var assets embed.FS
 func main() {
 	godotenv.Load()
 	app := NewApp()
+	dataBasePath := database.DataBasePath()
+	if restored, err := cloudSyncFunctions.RestoreBeforeOpen(dataBasePath); err != nil {
+		log.Println("não foi possível buscar o backup do Google Drive:", err)
+	} else if restored {
+		log.Println("banco restaurado a partir do Google Drive")
+	}
 	database.InitDb()
 	repositoryPath := os.Getenv("REPOSITORY")
 	sessionManager := auth.NewManager(8 * time.Hour)
@@ -49,6 +57,7 @@ func main() {
 	talpadbClient := talpadbHandlers.NewTalpadbClientHandler(talpadbHandler)
 	vulpesHandler := vulpesHandlers.NewVulpesHandler(database.DataBase, sessionManager)
 	vulpesClient := vulpesHandlers.NewVulpesClientHandler(vulpesHandler)
+	cloudSyncHandler := cloudSyncHandlers.NewCloudSyncHandler(database.DataBase, sessionManager, dataBasePath)
 
 	gitHandler := octohub.NewGitHandler(repositoryPath)
 	branchHandler := octohub.NewGitBranchHandler(gitHandler)
@@ -77,6 +86,7 @@ func main() {
 			application.NewService(talpadbClient),
 			application.NewService(vulpesClient),
 			application.NewService(windowHandler),
+			application.NewService(cloudSyncHandler),
 			application.NewService(octohubHandler),
 			application.NewService(talpadbHandler),
 			application.NewService(vulpesHandler),

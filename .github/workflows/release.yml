@@ -22,13 +22,17 @@ jobs:
         include:
           - os: ubuntu-22.04
             extra_tags: gtk3
+            wails_command: build
             asset: devops-hub_linux_amd64_gtk3
           - os: ubuntu-24.04
             extra_tags: ""
+            wails_command: build
             asset: devops-hub_linux_amd64
           - os: windows-latest
             extra_tags: ""
+            wails_command: package
             asset: devops-hub_windows_amd64.exe
+            installer_asset: devops-hub_windows_amd64_setup.exe
 
     steps:
       - name: Checkout
@@ -64,20 +68,28 @@ jobs:
             libgtk-4-dev \
             libwebkitgtk-6.0-dev
 
+      - name: Install NSIS
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $nsisDirectory = "${env:ProgramFiles(x86)}\NSIS"
+          if (-not (Test-Path "$nsisDirectory\makensis.exe")) { choco install nsis -y --no-progress }
+          Add-Content -Path $env:GITHUB_PATH -Value $nsisDirectory
+
       - name: Install Wails
         run: go install ${{ matrix.extra_tags && format('-tags={0}', matrix.extra_tags) || '' }} github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
 
       - name: Build App
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
           app_version="${GITHUB_REF_NAME#v}"
-          if [ -n "${{ matrix.extra_tags }}" ]; then
-            wails3 build EXTRA_TAGS=${{ matrix.extra_tags }} APP_VERSION="$app_version"
-          else
-            wails3 build APP_VERSION="$app_version"
-          fi
+          wails3 ${{ matrix.wails_command }} ${{ matrix.extra_tags && format('EXTRA_TAGS={0}', matrix.extra_tags) || '' }} APP_VERSION="$app_version" GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET"
           mkdir -p release
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
             cp bin/devops-hub.exe "release/${{ matrix.asset }}"
+            cp bin/*-installer.exe "release/${{ matrix.installer_asset }}"
           else
             cp bin/devops-hub "release/${{ matrix.asset }}"
           fi
