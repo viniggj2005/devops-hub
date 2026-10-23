@@ -67,7 +67,7 @@ func TestUpdaterFunctionsAndCheckForUpdates(test *testing.T) {
 		test.Fatalf("expected at least one asset suffix")
 	}
 
-	platformSuffix := runtime.GOOS + "_" + runtime.GOARCH
+	platformSuffix := runtime.GOOS + "_" + runtime.GOARCH + assetVariantSuffix
 	assets := []releaseAsset{
 		{Name: "devops-hub_other_arch", DownloadURL: "https://example.com/other"},
 		{Name: "devops-hub_" + platformSuffix, DownloadURL: "https://example.com/match"},
