@@ -69,10 +69,11 @@ jobs:
 
       - name: Build App
         run: |
+          app_version="${GITHUB_REF_NAME#v}"
           if [ -n "${{ matrix.extra_tags }}" ]; then
-            wails3 build EXTRA_TAGS=${{ matrix.extra_tags }}
+            wails3 build EXTRA_TAGS=${{ matrix.extra_tags }} APP_VERSION="$app_version"
           else
-            wails3 build
+            wails3 build APP_VERSION="$app_version"
           fi
           mkdir -p release
           if [ "${{ matrix.os }}" == "windows-latest" ]; then

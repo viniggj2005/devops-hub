@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -100,5 +102,15 @@ func applyUpdate(assetURL string) error {
 	if response.StatusCode != http.StatusOK {
 		return errors.New("falha ao baixar a nova versão: " + response.Status)
 	}
-	return update.Apply(response.Body, update.Options{})
+
+	updateErr := update.Apply(response.Body, update.Options{})
+	if !errors.Is(updateErr, fs.ErrPermission) {
+		return updateErr
+	}
+	executable, _ := os.Executable()
+	return fmt.Errorf(
+		"sem permissão para substituir o executável em %s; mova o devops-hub para uma pasta do seu usuário ou execute-o como administrador (%w)",
+		filepath.Dir(executable),
+		updateErr,
+	)
 }
