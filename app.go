@@ -15,13 +15,15 @@ import (
 	"github.com/blang/semver"
 )
 
-const AppVersion = "1.0.0"
+var AppVersion = "1.0.0"
+
 const RepoSlug = "viniggj2005/devops-hub"
 const UpdateAvailableEvent = "app:update-available"
 
 type App struct {
-	updateMutex   sync.Mutex
-	pendingUpdate *availableUpdate
+	updateMutex     sync.Mutex
+	pendingUpdate   *availableUpdate
+	updateInstalled bool
 }
 
 func NewApp() *App {
@@ -71,13 +73,20 @@ func (app *App) GetFilePath(ctx context.Context) string {
 }
 
 func (app *App) AutoCheckForUpdates() {
-	currentVersion := semver.MustParse(AppVersion)
+	currentVersion, err := semver.ParseTolerant(AppVersion)
+	if err != nil {
+		return
+	}
 	latest, found, err := detectLatestRelease(RepoSlug)
 	if err != nil || !found || latest.Version.LTE(currentVersion) {
 		return
 	}
 
 	app.updateMutex.Lock()
+	if app.updateInstalled {
+		app.updateMutex.Unlock()
+		return
+	}
 	app.pendingUpdate = latest
 	app.updateMutex.Unlock()
 
@@ -103,11 +112,22 @@ func (app *App) ApplyAvailableUpdate() error {
 		return fmt.Errorf("não foi possível atualizar: %w", err)
 	}
 	app.pendingUpdate = nil
+	app.updateInstalled = true
 	return nil
 }
 
 func (app *App) CheckForUpdates() (string, error) {
-	currentVersion := semver.MustParse(AppVersion)
+	app.updateMutex.Lock()
+	installed := app.updateInstalled
+	app.updateMutex.Unlock()
+	if installed {
+		return "Atualização já instalada. Reinicie o aplicativo para usar a nova versão.", nil
+	}
+
+	currentVersion, err := semver.ParseTolerant(AppVersion)
+	if err != nil {
+		return "", fmt.Errorf("versão do aplicativo inválida %q: %w", AppVersion, err)
+	}
 
 	latest, found, err := detectLatestRelease(RepoSlug)
 	if err != nil {
