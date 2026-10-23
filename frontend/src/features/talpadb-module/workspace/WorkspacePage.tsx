@@ -6,14 +6,14 @@ import { useAppStore } from '../../appFrame/AppStore';
 import ObjectExplorer from './explorer/ObjectExplorer';
 import EmptyWorkspace from './components/EmptyWorkspace';
 import WorkspaceTabBar from './components/WorkspaceTabBar';
-import { startDrag } from '../functions/DragFunctions';
 import TablePropertiesTab from './table/TablePropertiesTab';
 import ServerDashboardTab from './dashboard/ServerDashboardTab';
-import { useCloseWorkspaceTabs } from './hooks/useCloseWorkspaceTabs';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { PanelLeftOpen, SquareArrowOutUpRight, X } from 'lucide-react';
+import { startDrag } from '../../shared/functions/DragFunctions';
 import SnapOverlay from '../../shared/components/split/SnapOverlay';
+import { useCloseWorkspaceTabs } from './hooks/useCloseWorkspaceTabs';
 import { maxSplitPanes } from '../../shared/constants/SplitDropZones';
+import { PanelLeftOpen, SquareArrowOutUpRight, X } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { WorkspaceTab } from '../../../interfaces/TalpadbInterfaces';
 import { computeSplitLayout, defaultSplitRatios, SplitHandle, SplitRatios } from '../functions/SplitRects';
 

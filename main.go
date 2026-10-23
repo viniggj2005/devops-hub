@@ -17,6 +17,7 @@ import (
 	octohub "docker-manager-go/src/octohub/handlers"
 	talpadbHandlers "docker-manager-go/src/talpadb/handlers"
 	userHandlers "docker-manager-go/src/user/handlers"
+	vulpesHandlers "docker-manager-go/src/vulpes/handlers"
 
 	"github.com/joho/godotenv"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -46,6 +47,8 @@ func main() {
 	generalConfigsHandler := generalConfigsHandlers.NewGeneralConfigsHandler(database.DataBase, sessionManager)
 	talpadbHandler := talpadbHandlers.NewTalpadbHandler(database.DataBase, sessionManager)
 	talpadbClient := talpadbHandlers.NewTalpadbClientHandler(talpadbHandler)
+	vulpesHandler := vulpesHandlers.NewVulpesHandler(database.DataBase, sessionManager)
+	vulpesClient := vulpesHandlers.NewVulpesClientHandler(vulpesHandler)
 
 	gitHandler := octohub.NewGitHandler(repositoryPath)
 	branchHandler := octohub.NewGitBranchHandler(gitHandler)
@@ -72,9 +75,11 @@ func main() {
 			application.NewService(branchHandler),
 			application.NewService(commitHandler),
 			application.NewService(talpadbClient),
+			application.NewService(vulpesClient),
 			application.NewService(windowHandler),
 			application.NewService(octohubHandler),
 			application.NewService(talpadbHandler),
+			application.NewService(vulpesHandler),
 			application.NewService(localFileHandler),
 			application.NewService(repositoryHandler),
 			application.NewService(generalConfigsHandler),

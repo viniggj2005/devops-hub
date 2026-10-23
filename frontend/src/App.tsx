@@ -1,18 +1,19 @@
 import './index.css';
-import { Events, Window } from '@wailsio/runtime';
 import { useEffect, useState } from 'react';
 import MainHomePage from './pages/MainHomePage';
+import { Events, Window } from '@wailsio/runtime';
 import { AppFrame } from './features/appFrame/appFrame';
 import SettingsPage from './pages/settings/SettingsPage';
 import { useAppStore } from './features/appFrame/AppStore';
 import { windowInstanceId } from './features/appFrame/WindowContext';
 import { useUpdateNotifier } from './features/shared/hooks/useUpdateNotifier';
-import { generalConfigsChangedEvent, useGeneralConfigsStore } from './features/settings/store/GeneralConfigsStore';
+import VulpesModuleWrapper from './features/vulpes-module/components/VulpesModuleWrapper';
 import DockerModuleWrapper from './features/docker-module/components/DockerModuleWrapper';
 import OctohubModuleWrapper from './features/octohub-module/components/OctohubModuleWrapper';
+import TalpadbModuleWrapper from './features/talpadb-module/components/TalpadbModuleWrapper';
 import { applyOctohubColorVariables } from './features/settings/functions/OctohubColorVariables';
 import FerretShellModuleWrapper from './features/ferretShell-module/components/FerretShellModuleWrapper';
-import TalpadbModuleWrapper from './features/talpadb-module/components/TalpadbModuleWrapper';
+import { generalConfigsChangedEvent, useGeneralConfigsStore } from './features/settings/store/GeneralConfigsStore';
 
 export default function App() {
   const { tabs, activeTabId } = useAppStore();
@@ -95,6 +96,8 @@ export default function App() {
         return <SettingsPage />;
       case 'talpadb':
         return <TalpadbModuleWrapper />;
+      case 'vulpes':
+        return <VulpesModuleWrapper />;
       default:
         return null;
     }

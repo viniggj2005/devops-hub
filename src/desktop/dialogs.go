@@ -28,6 +28,27 @@ func ChooseDirectory(ctx context.Context, options FileDialogOptions) (string, er
 	return promptOpenDialog(ctx, options, true)
 }
 
+func ChooseFiles(ctx context.Context, options FileDialogOptions) ([]string, error) {
+	app := application.Get()
+	if app == nil {
+		return nil, errDialogUnavailable
+	}
+
+	dialog := app.Dialog.OpenFileWithOptions(&application.OpenFileDialogOptions{
+		Title:                   options.Title,
+		Window:                  CallingWindow(ctx),
+		Filters:                 options.Filters,
+		Directory:               options.Directory,
+		CanChooseFiles:          true,
+		AllowsMultipleSelection: true,
+	})
+	paths, err := dialog.PromptForMultipleSelection()
+	if err != nil && err.Error() == dialogCancelledMessage {
+		return nil, nil
+	}
+	return paths, err
+}
+
 func ChooseSaveLocation(ctx context.Context, options FileDialogOptions) (string, error) {
 	app := application.Get()
 	if app == nil {

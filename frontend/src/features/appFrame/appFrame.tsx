@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
 import { AppTab, useAppStore } from "./AppStore";
-import { isDetachedWindow } from "./WindowContext";
 import appIcon from "../../assets/images/hub.svg";
+import { isDetachedWindow } from "./WindowContext";
 import { useTabDetachDrag } from "./hooks/useTabDetachDrag";
-import { useTabTransferTarget } from "./hooks/useTabTransferTarget";
+import { VulpesModuleIcon } from "../vulpes-module/moduleInfo";
 import { TalpadbModuleIcon } from "../talpadb-module/moduleInfo";
+import { useTabTransferTarget } from "./hooks/useTabTransferTarget";
 import { WindowControls, useWindowMaximise } from "./WindowControls";
 import { clearTabDropPreviewApi, previewTabDropApi } from "./services/WindowService";
 import ContextMenu, { ContextMenuEntry } from "../shared/components/menus/ContextMenu";
@@ -17,8 +18,8 @@ interface TabMenu {
 }
 
 const dragHintLabels = {
-  merge: 'Solte para mover para a outra janela',
   newWindow: 'Solte para abrir em nova janela',
+  merge: 'Solte para mover para a outra janela',
 };
 
 const tabActionButtonClass = `
@@ -27,10 +28,10 @@ const tabActionButtonClass = `
 `;
 
 export function AppFrame() {
-  const tabStripRef = useRef<HTMLDivElement>(null);
   const dropHighlighted = useTabTransferTarget();
-  const [tabMenu, setTabMenu] = useState<TabMenu | null>(null);
+  const tabStripRef = useRef<HTMLDivElement>(null);
   const { maximized, toggleMaximise } = useWindowMaximise();
+  const [tabMenu, setTabMenu] = useState<TabMenu | null>(null);
   const {
     tabs,
     dropTab,
@@ -74,8 +75,9 @@ export function AppFrame() {
     }
     if (type === 'settings') return <Settings className="w-4 h-4 text-gray-500" />;
     if (type === 'ferretshell') return <Terminal className="w-4 h-4 text-purple-500" />;
-    if (type === 'octohub') return <img src="/gitoctocat.svg" className="w-4 h-4 brightness-0 dark:invert" />;
+    if (type === 'vulpes') return <VulpesModuleIcon className="w-4 h-4 text-amber-500" />;
     if (type === 'talpadb') return <TalpadbModuleIcon className="w-4 h-4 text-cyan-500" />;
+    if (type === 'octohub') return <img src="/gitoctocat.svg" className="w-4 h-4 brightness-0 dark:invert" />;
     return null;
   };
 

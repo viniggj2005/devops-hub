@@ -1,5 +1,5 @@
 import type { GridEditing } from '../hooks/useGridEdits';
-import { startDrag } from '../../../functions/DragFunctions';
+import { startDrag } from '../../../../shared/functions/DragFunctions';
 import { ArrowDown, ArrowUp, KeyRound, ListChecks } from 'lucide-react';
 import { copyToClipboard } from '../../../../shared/functions/clipboard';
 import { displayCell, isNumericType, rowsToTsv } from '../../../functions/TreatmentFunctions';

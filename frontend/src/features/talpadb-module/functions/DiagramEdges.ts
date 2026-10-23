@@ -1,5 +1,7 @@
 import { columnAnchorY, DiagramNode, Point } from './DiagramLayout';
 import type {
+  DiagramTable,
+  DiagramColumn,
   DiagramRelation,
   DiagramLineStyle,
   DiagramAnchorSide,
@@ -40,6 +42,31 @@ const outwardBySide: Record<DiagramAnchorSide, Point> = {
   top: { x: 0, y: -1 },
   bottom: { x: 0, y: 1 },
 };
+
+export type RelationEndKind = 'one' | 'zeroOrOne' | 'zeroOrMany';
+
+export interface RelationCardinality {
+  label: string;
+  source: RelationEndKind;
+  target: RelationEndKind;
+}
+
+export function relationCardinality(relation: DiagramRelation, sourceTable: DiagramTable): RelationCardinality {
+  const columns = relation.sourceColumns
+    .map((columnName) => sourceTable.columns.find((column) => column.name === columnName))
+    .filter((column): column is DiagramColumn => Boolean(column));
+  const primaryKeyCount = sourceTable.columns.filter((column) => column.isPrimaryKey).length;
+  const singleUnique = columns.length === 1 && columns[0].isUnique;
+  const wholePrimaryKey = columns.length > 0 && columns.every((column) => column.isPrimaryKey) && primaryKeyCount === columns.length;
+  const uniqueSource = singleUnique || wholePrimaryKey;
+  const optionalTarget = columns.some((column) => !column.notNull);
+  const kindLabel = uniqueSource ? 'Um para um (1:1)' : 'Muitos para um (N:1)';
+  return {
+    source: uniqueSource ? 'zeroOrOne' : 'zeroOrMany',
+    target: optionalTarget ? 'zeroOrOne' : 'one',
+    label: optionalTarget ? `${kindLabel} · chave estrangeira opcional` : kindLabel,
+  };
+}
 
 export const relationKey = (relation: DiagramRelation) =>
   `${relation.sourceSchema}.${relation.sourceTable}:${relation.name}`;
@@ -166,7 +193,7 @@ export function edgeGeometry({
   }
 
   if (style === 'straight') {
-    return { controlPoints, path: polylinePath([start.point, ...bends, end.point]) };
+    return { controlPoints, path: polylinePath([start.point, startStub, ...bends, endStub, end.point]) };
   }
 
   if (style === 'orthogonal') {

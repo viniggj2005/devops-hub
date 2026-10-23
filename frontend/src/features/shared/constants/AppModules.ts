@@ -1,4 +1,5 @@
 import { ModuleType } from '../../appFrame/AppStore';
+import { VULPES_MODULE } from '../../vulpes-module/moduleInfo';
 import { TALPADB_MODULE } from '../../talpadb-module/moduleInfo';
 import { AccentFamily, ConfigurableModule, CustomThemeColors } from '../../../interfaces/GeneralConfigsInterfaces';
 
@@ -66,13 +67,13 @@ export const appModules: AppModuleDefinition[] = [
   {
     id: 'vulpes',
     icon: '/fox.svg',
-    title: 'Vulpes',
-    status: 'Inativo',
+    status: 'Ativo',
     configName: 'vulpes',
     accentFamily: 'amber',
     accentColor: '#f59e0b',
-    color: 'from-amber-500 to-amber-700',
-    description: 'Visualize o uso de recursos e logs do sistema em tempo real.',
+    title: VULPES_MODULE.name,
+    color: VULPES_MODULE.gradient,
+    description: VULPES_MODULE.description,
   },
 ];
 

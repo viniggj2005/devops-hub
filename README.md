@@ -15,6 +15,7 @@ A ferramenta permite autenticação de usuários, conexão segura a daemons Dock
 - **Imagens Docker**: listar,filtrar, remover imagens rapidamente e buildar imagens remotamente.
 - **Redes Docker**: visualização e gerenciamento básico das redes disponíveis. 
 - **Terminais SSH**: criação de conexões SSH para servidores remotos e abertura de terminais interativos pela interface.
+- **Vulpes (cliente de APIs)**: coleções, pastas e ambientes no estilo Postman, com requisições HTTP, gRPC (reflection ou arquivos `.proto`, unário e streaming), WebSocket e Socket.IO (v2, v3 e v4). Importa e exporta coleções Postman v2.0/v2.1, ambientes e globals; variáveis `{{nome}}` e autenticação herdada da pasta/coleção. Coleções e ambientes ficam criptografados no banco local.
 
 ## $\textcolor{green}{\textsf{Features Futuras}}$
 -  **Docker Compose**: suporte para visualização, gerenciamento de arquivos compose e gereciamentos de contêineres usando compose.

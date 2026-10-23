@@ -1,19 +1,16 @@
 import { basicSetup } from 'codemirror';
-import { tags } from '@lezer/highlight';
 import { indentWithTab } from '@codemirror/commands';
 import { useTheme } from '../../../../../hooks/use-theme';
-import { diagnosticCount, setDiagnostics } from '@codemirror/lint';
-import { Compartment, EditorState, Prec } from '@codemirror/state';
 import { sql, type SQLNamespace } from '@codemirror/lang-sql';
 import { engineInfo } from '../../../functions/DatabaseEngines';
+import { Compartment, EditorState, Prec } from '@codemirror/state';
+import { diagnosticCount, setDiagnostics } from '@codemirror/lint';
 import type { DatabaseEngine } from '../../../../../interfaces/TalpadbInterfaces';
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { hexToRgb } from '../../../../settings/functions/CustomThemePalette';
+import { buildCodeEditorTheme } from '../../../../shared/functions/CodeEditorTheme';
 import { useGeneralConfigsStore } from '../../../../settings/store/GeneralConfigsStore';
-import type { SqlEditorColors } from '../../../../../interfaces/GeneralConfigsInterfaces';
 import { EditorView, keymap, placeholder as placeholderExtension } from '@codemirror/view';
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
-import { isDarkBackground, resolveSqlEditorColors } from '../../../../settings/constants/SqlEditorThemePresets';
+import { resolveSqlEditorColors } from '../../../../settings/constants/SqlEditorThemePresets';
 
 export interface SqlEditorHandle {
   focus: () => void;
@@ -25,90 +22,28 @@ export interface SqlEditorHandle {
 
 interface SqlEditorProps {
   readOnly?: boolean;
-  engine?: DatabaseEngine;
   onRun?: () => void;
   onSave?: () => void;
   placeholder?: string;
   initialValue?: string;
   schema?: SQLNamespace;
   defaultSchema?: string;
+  engine?: DatabaseEngine;
   onExplain?: (analyze: boolean) => void;
-}
-
-const withAlpha = (hex: string, alpha: number) => `rgba(${hexToRgb(hex).join(', ')}, ${alpha})`;
-
-function buildTheme(colors: SqlEditorColors, fontSize: number) {
-  const dark = isDarkBackground(colors.background);
-  const highlightStyle = HighlightStyle.define([
-    { tag: tags.keyword, color: colors.keyword },
-    { tag: tags.typeName, color: colors.type },
-    { tag: tags.string, color: colors.string },
-    { tag: tags.operator, color: colors.operator },
-    { tag: tags.standard(tags.name), color: colors.function },
-    { tag: [tags.number, tags.bool, tags.null], color: colors.number },
-    { tag: [tags.name, tags.special(tags.string), tags.special(tags.name)], color: colors.identifier },
-    { tag: [tags.comment, tags.lineComment, tags.blockComment], color: colors.comment, fontStyle: 'italic' },
-  ]);
-
-  return [
-    EditorView.theme(
-      {
-        '&': {
-          height: '100%',
-          fontSize: `${fontSize}px`,
-          color: colors.foreground,
-          backgroundColor: colors.background,
-        },
-        '.cm-scroller': {
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
-          lineHeight: '1.6',
-        },
-        '.cm-gutters': {
-          border: 'none',
-          color: colors.lineNumbers,
-          backgroundColor: colors.background,
-          borderRight: `1px solid ${withAlpha(colors.foreground, 0.08)}`,
-        },
-        '.cm-activeLine': { backgroundColor: colors.activeLine },
-        '.cm-activeLineGutter': { backgroundColor: 'transparent', color: colors.foreground },
-        '&.cm-focused': { outline: 'none' },
-        '.cm-cursor, .cm-dropCursor': { borderLeftColor: colors.cursor },
-        '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection':
-          { backgroundColor: colors.selection },
-        '.cm-matchingBracket': { backgroundColor: withAlpha(colors.cursor, 0.2) },
-        '.cm-tooltip': {
-          overflow: 'hidden',
-          borderRadius: '10px',
-          color: colors.foreground,
-          backgroundColor: colors.background,
-          boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-          border: `1px solid ${withAlpha(colors.foreground, 0.12)}`,
-        },
-        '.cm-tooltip-autocomplete > ul > li': { padding: '2px 10px' },
-        '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
-          color: colors.foreground,
-          backgroundColor: colors.selection,
-        },
-        '.cm-placeholder': { color: colors.lineNumbers },
-      },
-      { dark }
-    ),
-    syntaxHighlighting(highlightStyle),
-  ];
 }
 
 const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
   (
     {
-      initialValue = '',
-      readOnly = false,
-      engine = 'postgres',
-      placeholder,
-      schema,
-      defaultSchema = 'public',
       onRun,
-      onExplain,
+      schema,
       onSave,
+      onExplain,
+      placeholder,
+      readOnly = false,
+      initialValue = '',
+      engine = 'postgres',
+      defaultSchema = 'public',
     },
     ref
   ) => {
@@ -174,7 +109,7 @@ const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
             compartments.language.of(
               sql({ dialect: engineInfo(engine).dialect, upperCaseKeywords: true, schema, defaultSchema })
             ),
-            compartments.theme.of(buildTheme(editorColors, editorTheme.fontSize)),
+            compartments.theme.of(buildCodeEditorTheme(editorColors, editorTheme.fontSize)),
             compartments.readOnly.of([
               EditorState.readOnly.of(readOnly),
               EditorView.editable.of(!readOnly),
@@ -200,7 +135,7 @@ const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
 
     useEffect(() => {
       viewRef.current?.dispatch({
-        effects: compartments.theme.reconfigure(buildTheme(editorColors, editorTheme.fontSize)),
+        effects: compartments.theme.reconfigure(buildCodeEditorTheme(editorColors, editorTheme.fontSize)),
       });
     }, [editorColors, editorTheme.fontSize, compartments]);
 

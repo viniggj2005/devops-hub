@@ -23,6 +23,7 @@ const (
 
 var detachableModules = map[string]bool{
 	"docker":      true,
+	"vulpes":      true,
 	"octohub":     true,
 	"talpadb":     true,
 	"settings":    true,

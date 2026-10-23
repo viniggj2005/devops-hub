@@ -3,34 +3,15 @@ import QueryToolbar from './components/QueryToolbar';
 import { useTalpadbStore } from '../../TalpadbStore';
 import type { SQLNamespace } from '@codemirror/lang-sql';
 import React, { useEffect, useRef, useState } from 'react';
-import { startDrag } from '../../functions/DragFunctions';
 import { CheckCircle2, CircleX, Loader2 } from 'lucide-react';
-import SqlEditor, { type SqlEditorHandle } from './components/SqlEditor';
+import { startDrag } from '../../../shared/functions/DragFunctions';
 import { getToken, useAuth } from '../../../../contexts/AuthContext';
+import SqlEditor, { type SqlEditorHandle } from './components/SqlEditor';
 import ResultsPanel, { type ResultsPanelTab } from './components/ResultsPanel';
 import { TalpadbServices, SESSION_NOT_FOUND_MESSAGE } from '../../services/TalpadbServices';
 import { buildExplainSql, defaultSchemaFor, engineInfo, engineOf } from '../../functions/DatabaseEngines';
-import {
-  generateId,
-  resultToCsv,
-  resultToJson,
-  errorMessage,
-  formatNumber,
-  formatDuration,
-  summarizeExecution,
-  buildCompletionNamespace,
-  errorLocation as locateError,
-} from '../../functions/TreatmentFunctions';
-import type {
-  RunMode,
-  TxStatus,
-  TableChanges,
-  WorkspaceTab,
-  TableSaveResult,
-  QuerySession,
-  QueryExecution,
-  QueryHistoryEntry,
-} from '../../../../interfaces/TalpadbInterfaces';
+import type { RunMode, TxStatus, TableChanges, WorkspaceTab, TableSaveResult, QuerySession, QueryExecution, QueryHistoryEntry } from '../../../../interfaces/TalpadbInterfaces';
+import { generateId, resultToCsv, resultToJson, errorMessage, formatNumber, formatDuration, summarizeExecution, buildCompletionNamespace, errorLocation as locateError } from '../../functions/TreatmentFunctions';
 
 const safeFileName = (title: string) =>
   title

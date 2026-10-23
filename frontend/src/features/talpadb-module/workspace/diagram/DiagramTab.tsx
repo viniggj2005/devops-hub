@@ -9,55 +9,11 @@ import { TalpadbServices } from '../../services/TalpadbServices';
 import ContextMenu, { type ContextMenuItem } from '../components/ContextMenu';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGeneralConfigsStore } from '../../../settings/store/GeneralConfigsStore';
-import {
-  relationKey,
-  edgeGeometry,
-  EdgeGeometry,
-  followWeights,
-  snapToNeighbors,
-  anchorFromPointer,
-  nearestSegmentIndex,
-} from '../../functions/DiagramEdges';
-import type {
-  WorkspaceTab,
-  DatabaseDiagram,
-  DiagramLineStyle,
-  SavedDiagramLayout,
-  DiagramEdgeAnchors,
-} from '../../../../interfaces/TalpadbInterfaces';
-import {
-  Plus,
-  Minus,
-  Slash,
-  Wand2,
-  Undo2,
-  Eraser,
-  Search,
-  Spline,
-  Loader2,
-  KeyRound,
-  Download,
-  Maximize,
-  RefreshCw,
-  CirclePlus,
-  CircleMinus,
-  TriangleAlert,
-  CornerDownRight,
-} from 'lucide-react';
-import {
-  Point,
-  tableKey,
-  roundEdges,
-  DiagramNode,
-  roundAnchors,
-  DiagramBadge,
-  layoutDiagram,
-  roundPositions,
-  parseSavedLayout,
-  buildDiagramNodes,
-  diagramBadgeLabels,
-  mergeSavedPositions,
-} from '../../functions/DiagramLayout';
+import CardinalityGlyph, { cardinalityLabels, GLYPH_HEIGHT, GLYPH_WIDTH } from './constants/CardinalityGlyph';
+import type { WorkspaceTab, DatabaseDiagram, DiagramLineStyle, SavedDiagramLayout, DiagramEdgeAnchors } from '../../../../interfaces/TalpadbInterfaces';
+import { Plus, Minus, Slash, Wand2, Undo2, Eraser, Search, Spline, Loader2, KeyRound, Download, Maximize, RefreshCw, CirclePlus, CircleMinus, TriangleAlert, CornerDownRight } from 'lucide-react';
+import { relationKey, edgeGeometry, EdgeGeometry, followWeights, snapToNeighbors, anchorFromPointer, nearestSegmentIndex, RelationEndKind, relationCardinality } from '../../functions/DiagramEdges';
+import { Point, tableKey, roundEdges, DiagramNode, roundAnchors, DiagramBadge, layoutDiagram, roundPositions, parseSavedLayout, buildDiagramNodes, diagramBadgeLabels, mergeSavedPositions } from '../../functions/DiagramLayout';
 
 interface EdgeFollower {
   edgeKey: string;
@@ -104,6 +60,8 @@ const MIN_SCALE = 0.1;
 const MAX_SCALE = 2.5;
 const FIT_PADDING = 60;
 const EXPORT_PADDING = 40;
+
+const RELATION_END_KINDS: RelationEndKind[] = ['one', 'zeroOrOne', 'zeroOrMany'];
 
 const clampScale = (scale: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
 
@@ -155,8 +113,8 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
   const moduleConfig = useGeneralConfigsStore((state) => state.modules['talpadb']);
   const customTheme = moduleConfig.theme === 'custom' ? moduleConfig.customTheme : null;
   const palette = useMemo(() => buildDiagramPalette(theme === Themes.DARK, customTheme), [theme, customTheme]);
-  const markerId = `diagram-arrow-${tab.id}`;
-  const highlightMarkerId = `${markerId}-highlight`;
+  const markerId = `diagram-cardinality-${tab.id}`;
+  const markerOf = (kind: RelationEndKind, active: boolean) => `${markerId}-${kind}${active ? '-highlight' : ''}`;
   const patternId = `diagram-dots-${tab.id}`;
 
   const persistLayout = useCallback(() => {
@@ -246,7 +204,11 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
           target: nodes[tableKey(relation.targetSchema, relation.targetTable)],
         }))
         .filter((item): item is typeof item & { source: DiagramNode; target: DiagramNode } => Boolean(item.source && item.target))
-        .map((item) => ({ ...item, key: relationKey(item.relation) })),
+        .map((item) => ({
+          ...item,
+          key: relationKey(item.relation),
+          cardinality: relationCardinality(item.relation, item.source.table),
+        })),
     [diagram, nodes]
   );
   relationKeysRef.current = new Set(relations.map((item) => item.key));
@@ -648,7 +610,8 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
     clone.querySelectorAll('[data-edge-path]').forEach((element) => {
       element.setAttribute('stroke', palette.edge);
       element.setAttribute('stroke-width', '1.4');
-      element.setAttribute('marker-end', `url(#${markerId})`);
+      element.setAttribute('marker-start', `url(#${element.getAttribute('data-marker-start')})`);
+      element.setAttribute('marker-end', `url(#${element.getAttribute('data-marker-end')})`);
     });
     try {
       const fileName = `${tab.title.replace(/[\\/:*?"<>|]+/g, '_')}.svg`;
@@ -825,28 +788,29 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
               >
                 <circle cx={1} cy={1} r={1} fill={palette.dot} />
               </pattern>
-              {[
-                { id: markerId, color: palette.edge },
-                { id: highlightMarkerId, color: palette.accent },
-              ].map((marker) => (
-                <marker
-                  key={marker.id}
-                  id={marker.id}
-                  viewBox="0 0 10 10"
-                  refX={9}
-                  refY={5}
-                  markerWidth={7}
-                  markerHeight={7}
-                  orient="auto-start-reverse"
-                >
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill={marker.color} />
-                </marker>
-              ))}
+              {RELATION_END_KINDS.flatMap((kind) =>
+                [false, true].map((active) => (
+                  <marker
+                    key={markerOf(kind, active)}
+                    id={markerOf(kind, active)}
+                    viewBox={`0 0 ${GLYPH_WIDTH} ${GLYPH_HEIGHT}`}
+                    refX={GLYPH_WIDTH}
+                    refY={GLYPH_HEIGHT / 2}
+                    markerWidth={GLYPH_WIDTH}
+                    markerHeight={GLYPH_HEIGHT}
+                    markerUnits="userSpaceOnUse"
+                    orient="auto-start-reverse"
+                    overflow="visible"
+                  >
+                    <CardinalityGlyph kind={kind} color={active ? palette.accent : palette.edge} background={palette.canvas} />
+                  </marker>
+                ))
+              )}
             </defs>
             <rect data-background width="100%" height="100%" fill={`url(#${patternId})`} />
 
             <g data-viewport transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`}>
-              {relations.map(({ key, relation, source, target }) => {
+              {relations.map(({ key, relation, source, target, cardinality }) => {
                 const geometry = geometries[key];
                 if (!geometry) return null;
                 const selected = selectedEdge === key;
@@ -863,7 +827,10 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                       stroke={active ? palette.accent : palette.edge}
                       strokeWidth={selected ? 2.5 : related ? 2.25 : 1.4}
                       opacity={highlighted && !active ? 0.15 : active ? 1 : 0.7}
-                      markerEnd={`url(#${active ? highlightMarkerId : markerId})`}
+                      data-marker-start={markerOf(cardinality.source, false)}
+                      data-marker-end={markerOf(cardinality.target, false)}
+                      markerStart={`url(#${markerOf(cardinality.source, active)})`}
+                      markerEnd={`url(#${markerOf(cardinality.target, active)})`}
                     />
                     <path
                       data-export-ignore
@@ -876,7 +843,7 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                       onContextMenu={(event) => openEdgeMenu(event, key)}
                     >
                       <title>
-                        {`${relation.name}\n${source.title} (${relation.sourceColumns.join(', ')}) → ${target.title} (${relation.targetColumns.join(', ')})\nBotão direito para adicionar ponto ou endireitar`}
+                        {`${relation.name} · ${cardinality.label}\n${source.title} (${relation.sourceColumns.join(', ')}): ${cardinalityLabels[cardinality.source]}\n${target.title} (${relation.targetColumns.join(', ')}): ${cardinalityLabels[cardinality.target]}\nBotão direito para adicionar ponto ou endireitar`}
                       </title>
                     </path>
                   </g>
@@ -974,6 +941,16 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                   {badge}
                 </span>
                 {diagramBadgeLabels[badge]}
+              </span>
+            ))}
+            <span className="h-3.5 w-px bg-gray-200 dark:bg-white/10" />
+            {RELATION_END_KINDS.map((kind) => (
+              <span key={kind} className="flex items-center gap-1">
+                <svg width={GLYPH_WIDTH + 6} height={GLYPH_HEIGHT} viewBox={`-6 0 ${GLYPH_WIDTH + 6} ${GLYPH_HEIGHT}`}>
+                  <line x1={-6} y1={GLYPH_HEIGHT / 2} x2={GLYPH_WIDTH} y2={GLYPH_HEIGHT / 2} stroke={palette.edge} strokeWidth={1.4} />
+                  <CardinalityGlyph kind={kind} color={palette.edge} background={palette.node} />
+                </svg>
+                {cardinalityLabels[kind]}
               </span>
             ))}
           </div>

@@ -56,6 +56,8 @@ func migrateDatabase(dataBase *gorm.DB) error {
 		&models.GeneralConfigsModel{},
 		&models.DockerCredentialsModel{},
 		&models.TalpadbConnectionModel{},
+		&models.VulpesCollectionModel{},
+		&models.VulpesEnvironmentModel{},
 		&models.TalpadbDiagramLayoutModel{},
 	); err != nil {
 		return fmt.Errorf("erro ao migrar modelos: %w", err)

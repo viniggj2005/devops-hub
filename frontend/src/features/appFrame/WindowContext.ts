@@ -1,6 +1,6 @@
 import type { ModuleType } from './AppStore';
 
-const detachableModules: ModuleType[] = ['docker', 'octohub', 'talpadb', 'settings', 'ferretshell'];
+const detachableModules: ModuleType[] = ['docker', 'vulpes', 'octohub', 'talpadb', 'settings', 'ferretshell'];
 
 const readDetachedModule = (): ModuleType | null => {
   const requestedModule = new URLSearchParams(window.location.search).get('module');

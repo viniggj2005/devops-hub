@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import toast from 'react-hot-toast';
 import { Window } from '@wailsio/runtime';
 import { getToken } from '../../contexts/AuthContext';
+import { VULPES_MODULE } from '../vulpes-module/moduleInfo';
 import { TALPADB_MODULE } from '../talpadb-module/moduleInfo';
 import { errorMessage } from '../shared/functions/ErrorMessage';
 import { detachedModule, isDetachableModule, isDetachedWindow } from './WindowContext';
@@ -37,6 +38,7 @@ const moduleTitles: Partial<Record<ModuleType, string>> = {
   docker: 'Docker Manager',
   settings: 'Configurações',
   ferretshell: 'FerretShell',
+  vulpes: VULPES_MODULE.name,
   talpadb: TALPADB_MODULE.name,
 };
 
