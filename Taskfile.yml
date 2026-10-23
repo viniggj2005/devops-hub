@@ -1,5 +1,7 @@
 version: '3'
 
+dotenv: ['.env']
+
 vars:
   APP_NAME: "devops-hub"
   BIN_DIR: "bin"

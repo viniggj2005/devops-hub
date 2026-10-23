@@ -21,10 +21,14 @@ func TestDetachModule(test *testing.T) {
 		test.Fatalf("unexpected error creating session: %v", err)
 	}
 
+	var moves []string
 	var openedWindows []application.WebviewWindowOptions
 	handler := NewWindowHandler(sessionManager)
 	handler.openWindow = func(options application.WebviewWindowOptions) {
 		openedWindows = append(openedWindows, options)
+	}
+	handler.moveModule = func(module string, fromWindow string, toWindow string) {
+		moves = append(moves, module+":"+fromWindow+"->"+toWindow)
 	}
 
 	if err := handler.DetachModule(context.Background(), token, desktopDtos.DetachModuleInputDto{Module: "home"}); err == nil {
@@ -63,6 +67,32 @@ func TestDetachModule(test *testing.T) {
 	if windowToken == token || windowSession.UserID != 5 {
 		test.Fatalf("expected a dedicated session for user 5, got token reuse=%v user=%d", windowToken == token, windowSession.UserID)
 	}
+
+	fromMainWindow := desktop.WithWindowName(context.Background(), "main")
+	if err := handler.DetachModule(fromMainWindow, token, desktopDtos.DetachModuleInputDto{Module: "ferretshell", Handoff: `{"tabs":[]}`}); err != nil {
+		test.Fatalf("unexpected error detaching ferretshell: %v", err)
+	}
+	ferretWindow := openedWindows[len(openedWindows)-1].Name
+	if lastMove := moves[len(moves)-1]; lastMove != "ferretshell:main->"+ferretWindow {
+		test.Fatalf("expected ferretshell to move from main to %s, got %q", ferretWindow, lastMove)
+	}
+
+	newWindowContext := desktop.WithWindowName(context.Background(), ferretWindow)
+	if handoff := handler.ClaimModuleHandoff(newWindowContext); handoff != `{"tabs":[]}` {
+		test.Fatalf("expected the new window to claim its handoff, got %q", handoff)
+	}
+	if handoff := handler.ClaimModuleHandoff(newWindowContext); handoff != "" {
+		test.Fatalf("expected the handoff to be claimable only once, got %q", handoff)
+	}
+
+	if err := handler.DetachModule(fromMainWindow, token, desktopDtos.DetachModuleInputDto{Module: "ferretshell", Handoff: "abandoned"}); err != nil {
+		test.Fatalf("unexpected error detaching ferretshell: %v", err)
+	}
+	abandonedWindow := openedWindows[len(openedWindows)-1].Name
+	handler.discardHandoff(abandonedWindow)
+	if handoff := handler.ClaimModuleHandoff(desktop.WithWindowName(context.Background(), abandonedWindow)); handoff != "" {
+		test.Fatalf("expected a closed window to drop its handoff, got %q", handoff)
+	}
 }
 
 type fakeTabWindow struct {
@@ -84,7 +114,13 @@ type sentWindowEvent struct {
 	data   any
 }
 
-func setupMergeHandler(test *testing.T) (*WindowHandlerStruct, string, []*fakeTabWindow, *[]sentWindowEvent, *[]application.WebviewWindowOptions) {
+type mergeFixture struct {
+	moves         []string
+	events        []sentWindowEvent
+	openedWindows []application.WebviewWindowOptions
+}
+
+func setupMergeHandler(test *testing.T) (*WindowHandlerStruct, string, []*fakeTabWindow, *mergeFixture) {
 	sessionManager := auth.NewManager(time.Hour)
 	token, _, err := sessionManager.Create(9)
 	if err != nil {
@@ -96,8 +132,7 @@ func setupMergeHandler(test *testing.T) (*WindowHandlerStruct, string, []*fakeTa
 		{name: "module-1", bounds: application.Rect{X: 1300, Y: 100, Width: 900, Height: 700}},
 		{name: "module-2", bounds: application.Rect{X: 1300, Y: 100, Width: 900, Height: 700}, minimised: true},
 	}
-	events := &[]sentWindowEvent{}
-	openedWindows := &[]application.WebviewWindowOptions{}
+	fixture := &mergeFixture{}
 
 	handler := NewWindowHandler(sessionManager)
 	handler.listWindows = func() []desktop.TabWindow {
@@ -108,16 +143,19 @@ func setupMergeHandler(test *testing.T) (*WindowHandlerStruct, string, []*fakeTa
 		return tabWindows
 	}
 	handler.notifyWindow = func(windowName string, name string, data any) {
-		*events = append(*events, sentWindowEvent{window: windowName, name: name, data: data})
+		fixture.events = append(fixture.events, sentWindowEvent{window: windowName, name: name, data: data})
 	}
 	handler.openWindow = func(options application.WebviewWindowOptions) {
-		*openedWindows = append(*openedWindows, options)
+		fixture.openedWindows = append(fixture.openedWindows, options)
 	}
-	return handler, token, windows, events, openedWindows
+	handler.moveModule = func(module string, fromWindow string, toWindow string) {
+		fixture.moves = append(fixture.moves, module+":"+fromWindow+"->"+toWindow)
+	}
+	return handler, token, windows, fixture
 }
 
 func TestDropModuleMergesIntoAnotherWindowTabStrip(test *testing.T) {
-	handler, token, windows, events, openedWindows := setupMergeHandler(test)
+	handler, token, windows, fixture := setupMergeHandler(test)
 	fromModuleWindow := desktop.WithWindowName(context.Background(), "module-1")
 
 	if !handler.PreviewTabDrop(fromModuleWindow, desktopDtos.ScreenPointDto{ScreenX: 400, ScreenY: 20}) {
@@ -130,17 +168,20 @@ func TestDropModuleMergesIntoAnotherWindowTabStrip(test *testing.T) {
 		test.Fatalf("expected the source window not to be its own drop target")
 	}
 
-	result, err := handler.DropModule(fromModuleWindow, token, desktopDtos.DropModuleInputDto{Module: "talpadb", ScreenX: 400, ScreenY: 20, AllowNewWindow: true})
+	result, err := handler.DropModule(fromModuleWindow, token, desktopDtos.DropModuleInputDto{Module: "talpadb", ScreenX: 400, ScreenY: 20, Handoff: "state", AllowNewWindow: true})
 	if err != nil || result.Outcome != desktopDtos.TabDropAttached {
 		test.Fatalf("expected the tab to merge into the main window, got %+v, err=%v", result, err)
 	}
-	if !windows[0].focused || len(*openedWindows) != 0 {
+	if !windows[0].focused || len(fixture.openedWindows) != 0 {
 		test.Fatalf("expected the main window to receive focus without opening a new window")
+	}
+	if len(fixture.moves) != 1 || fixture.moves[0] != "talpadb:module-1->main" {
+		test.Fatalf("expected the module to move from module-1 to main, got %v", fixture.moves)
 	}
 
 	var hoverStates []any
-	var attachedModule string
-	for _, event := range *events {
+	var attachedTab desktopDtos.AttachedTabDto
+	for _, event := range fixture.events {
 		if event.window != "main" {
 			test.Fatalf("expected events only for the main window, got %+v", event)
 		}
@@ -148,11 +189,11 @@ func TestDropModuleMergesIntoAnotherWindowTabStrip(test *testing.T) {
 		case tabDropHoverEvent:
 			hoverStates = append(hoverStates, event.data)
 		case tabAttachEvent:
-			attachedModule = event.data.(desktopDtos.AttachedTabDto).Module
+			attachedTab = event.data.(desktopDtos.AttachedTabDto)
 		}
 	}
-	if attachedModule != "talpadb" {
-		test.Fatalf("expected the main window to receive the talpadb tab, got %q", attachedModule)
+	if attachedTab.Module != "talpadb" || attachedTab.Handoff != "state" {
+		test.Fatalf("expected the main window to receive the talpadb tab with its handoff, got %+v", attachedTab)
 	}
 	if len(hoverStates) != 2 || hoverStates[0] != true || hoverStates[1] != false {
 		test.Fatalf("expected the drop highlight to turn on and off once, got %v", hoverStates)
@@ -160,17 +201,21 @@ func TestDropModuleMergesIntoAnotherWindowTabStrip(test *testing.T) {
 }
 
 func TestDropModuleOutsideWindows(test *testing.T) {
-	handler, token, windows, _, openedWindows := setupMergeHandler(test)
+	handler, token, windows, fixture := setupMergeHandler(test)
 	fromMainWindow := desktop.WithWindowName(context.Background(), "main")
 
 	ignored, err := handler.DropModule(fromMainWindow, token, desktopDtos.DropModuleInputDto{Module: "docker", ScreenX: 1500, ScreenY: 900})
-	if err != nil || ignored.Outcome != desktopDtos.TabDropIgnored || len(*openedWindows) != 0 {
+	if err != nil || ignored.Outcome != desktopDtos.TabDropIgnored || len(fixture.openedWindows) != 0 || len(fixture.moves) != 0 {
 		test.Fatalf("expected a drop on the desktop without new windows to be ignored, got %+v, err=%v", ignored, err)
 	}
 
-	detached, err := handler.DropModule(fromMainWindow, token, desktopDtos.DropModuleInputDto{Module: "docker", ScreenX: 1500, ScreenY: 900, AllowNewWindow: true})
-	if err != nil || detached.Outcome != desktopDtos.TabDropDetached || len(*openedWindows) != 1 {
+	detached, err := handler.DropModule(fromMainWindow, token, desktopDtos.DropModuleInputDto{Module: "docker", ScreenX: 1500, ScreenY: 900, Handoff: "state", AllowNewWindow: true})
+	if err != nil || detached.Outcome != desktopDtos.TabDropDetached || len(fixture.openedWindows) != 1 {
 		test.Fatalf("expected a drop on the desktop to open a new window, got %+v, err=%v", detached, err)
+	}
+	newWindow := fixture.openedWindows[0].Name
+	if handoff := handler.ClaimModuleHandoff(desktop.WithWindowName(context.Background(), newWindow)); handoff != "state" {
+		test.Fatalf("expected the detached window to receive the handoff, got %q", handoff)
 	}
 
 	windows[1].minimised = true
@@ -180,15 +225,22 @@ func TestDropModuleOutsideWindows(test *testing.T) {
 }
 
 func TestMoveModuleToMainWindow(test *testing.T) {
-	handler, token, windows, events, _ := setupMergeHandler(test)
+	handler, token, windows, fixture := setupMergeHandler(test)
+	fromModuleWindow := desktop.WithWindowName(context.Background(), "module-1")
 
-	if err := handler.MoveModuleToMainWindow("invalid-token", "docker"); err == nil {
+	if err := handler.MoveModuleToMainWindow(fromModuleWindow, "invalid-token", desktopDtos.MoveModuleInputDto{Module: "docker"}); err == nil {
 		test.Fatalf("expected an invalid token to be rejected")
 	}
-	if err := handler.MoveModuleToMainWindow(token, "docker"); err != nil {
+	if err := handler.MoveModuleToMainWindow(fromModuleWindow, token, desktopDtos.MoveModuleInputDto{Module: "ferretshell", Handoff: "state"}); err != nil {
 		test.Fatalf("unexpected error moving tab to the main window: %v", err)
 	}
-	if !windows[0].focused || len(*events) != 1 || (*events)[0].name != tabAttachEvent {
-		test.Fatalf("expected the main window to receive and focus the tab, events=%+v", *events)
+	if !windows[0].focused || len(fixture.events) != 1 || fixture.events[0].name != tabAttachEvent {
+		test.Fatalf("expected the main window to receive and focus the tab, events=%+v", fixture.events)
+	}
+	if attachedTab := fixture.events[0].data.(desktopDtos.AttachedTabDto); attachedTab.Handoff != "state" {
+		test.Fatalf("expected the handoff to travel with the tab, got %+v", attachedTab)
+	}
+	if len(fixture.moves) != 1 || fixture.moves[0] != "ferretshell:module-1->main" {
+		test.Fatalf("expected ferretshell to move from module-1 to main, got %v", fixture.moves)
 	}
 }

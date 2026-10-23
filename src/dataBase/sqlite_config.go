@@ -16,7 +16,7 @@ var (
 	err      error
 )
 
-func InitDb() {
+func DataBasePath() string {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		log.Fatalf("erro ao obter diretório de configuração do usuário: %v", err)
@@ -28,9 +28,11 @@ func InitDb() {
 		log.Fatalf("erro ao criar diretório do app: %v", err)
 	}
 
-	dataBasePath := filepath.Join(appDir, "secure.db")
+	return filepath.Join(appDir, "secure.db")
+}
 
-	dsn := fmt.Sprintf("file:%s?_journal_mode=WAL&_foreign_keys=on", dataBasePath)
+func InitDb() {
+	dsn := fmt.Sprintf("file:%s?_journal_mode=WAL&_foreign_keys=on", DataBasePath())
 
 	DataBase, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {

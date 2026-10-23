@@ -12,13 +12,20 @@ type DetachModuleInputDto struct {
 	Module  string `json:"module"`
 	ScreenX int    `json:"screenX"`
 	ScreenY int    `json:"screenY"`
+	Handoff string `json:"handoff"`
 }
 
 type DropModuleInputDto struct {
 	Module         string `json:"module"`
 	ScreenX        int    `json:"screenX"`
 	ScreenY        int    `json:"screenY"`
+	Handoff        string `json:"handoff"`
 	AllowNewWindow bool   `json:"allowNewWindow"`
+}
+
+type MoveModuleInputDto struct {
+	Module  string `json:"module"`
+	Handoff string `json:"handoff"`
 }
 
 type ScreenPointDto struct {
@@ -31,5 +38,6 @@ type TabDropResultDto struct {
 }
 
 type AttachedTabDto struct {
-	Module string `json:"module"`
+	Module  string `json:"module"`
+	Handoff string `json:"handoff,omitempty"`
 }

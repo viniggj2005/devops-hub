@@ -15,6 +15,7 @@ import (
 )
 
 type localTerminal struct {
+	output         *sessionOutput
 	console        pty.Pty
 	command        *pty.Cmd
 	closeOnce      sync.Once
@@ -30,6 +31,7 @@ func (terminal *localTerminal) closeConsole() {
 type LocalTerminalHandlerStruct struct {
 	shells      map[string]localShell
 	sessions    sync.Map
+	moveMutex   sync.Mutex
 	shellsMutex sync.RWMutex
 }
 
@@ -39,7 +41,16 @@ func NewLocalTerminalHandler() *LocalTerminalHandlerStruct {
 
 func (handlerStruct *LocalTerminalHandlerStruct) ServiceStartup(_ context.Context, _ application.ServiceOptions) error {
 	desktop.OnWindowClosed(handlerStruct.releaseWindowResources)
+	desktop.OnModuleMoved(handlerStruct.moveModuleSessions)
 	return nil
+}
+
+func (handlerStruct *LocalTerminalHandlerStruct) moveModuleSessions(module string, fromWindow string, toWindow string) {
+	if module != ferretShellModule {
+		return
+	}
+	outputOf := func(value any) *sessionOutput { return value.(*localTerminal).output }
+	moveWindowSessions(&handlerStruct.sessions, &handlerStruct.moveMutex, outputOf, fromWindow, toWindow)
 }
 
 func (handlerStruct *LocalTerminalHandlerStruct) releaseWindowResources(windowName string) {
@@ -114,34 +125,35 @@ func (handlerStruct *LocalTerminalHandlerStruct) Start(ctx context.Context, star
 		return startError
 	}
 
-	terminal := &localTerminal{command: command, console: console}
+	output := newSessionOutput(windowName, startDto.SessionId, fmt.Sprintf("local:data:%s", startDto.SessionId))
+	terminal := &localTerminal{output: output, command: command, console: console}
 	handlerStruct.sessions.Store(sessionKey, terminal)
 
 	readerDone := make(chan struct{})
-	go pipeConsoleOutput(console, windowName, fmt.Sprintf("local:data:%s", startDto.SessionId), readerDone)
+	go pipeConsoleOutput(console, output, readerDone)
 
 	go func() {
 		waitError := command.Wait()
 		terminal.closeConsole()
 		<-readerDone
 
-		handlerStruct.sessions.CompareAndDelete(sessionKey, terminal)
+		forgetSession(&handlerStruct.sessions, &handlerStruct.moveMutex, output, terminal)
 		if terminal.closedByClient.Load() {
 			return
 		}
-		desktop.EmitToWindow(windowName, fmt.Sprintf("local:exit:%s", startDto.SessionId), describeLocalExit(command, waitError))
+		output.notify(fmt.Sprintf("local:exit:%s", startDto.SessionId), describeLocalExit(command, waitError))
 	}()
 
 	return nil
 }
 
-func pipeConsoleOutput(console pty.Pty, windowName string, eventName string, readerDone chan<- struct{}) {
+func pipeConsoleOutput(console pty.Pty, output *sessionOutput, readerDone chan<- struct{}) {
 	defer close(readerDone)
 	buffer := make([]byte, 8192)
 	for {
 		bytesRead, readError := console.Read(buffer)
 		if bytesRead > 0 {
-			desktop.EmitToWindow(windowName, eventName, string(buffer[:bytesRead]))
+			output.write(buffer[:bytesRead])
 		}
 		if readError != nil {
 			return
@@ -182,6 +194,15 @@ func (handlerStruct *LocalTerminalHandlerStruct) Resize(ctx context.Context, ses
 		return errors.New("sessão não encontrada")
 	}
 	return terminal.console.Resize(cols, rows)
+}
+
+func (handlerStruct *LocalTerminalHandlerStruct) Attach(ctx context.Context, sessionId string) error {
+	terminal, found := handlerStruct.getSession(desktop.ScopedKey(desktop.CallingWindowName(ctx), sessionId))
+	if !found {
+		return errors.New("sessão não encontrada")
+	}
+	terminal.output.resume()
+	return nil
 }
 
 func (handlerStruct *LocalTerminalHandlerStruct) Disconnect(ctx context.Context, sessionId string) {

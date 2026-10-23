@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Política de Privacidade · Devops Hub</title>
+  <meta name="description" content="Política de privacidade do Devops Hub e uso de dados do Google Drive.">
+  <style>
+    :root {
+      --text: #18181b;
+      --muted: #52525b;
+      --border: #e4e4e7;
+      --accent: #2563eb;
+      --surface: #f4f4f5;
+      --background: #ffffff;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text: #fafafa;
+        --muted: #a1a1aa;
+        --border: #27272a;
+        --accent: #60a5fa;
+        --surface: #18181b;
+        --background: #09090b;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--background);
+      font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 16px 64px; }
+    h1 { font-size: 2rem; margin: 0 0 4px; letter-spacing: -0.02em; }
+    h2 { font-size: 1.2rem; margin: 36px 0 10px; }
+    h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+    p, li { color: var(--muted); }
+    strong { color: var(--text); }
+    a { color: var(--accent); overflow-wrap: anywhere; }
+    ul { padding-left: 20px; }
+    li { margin: 6px 0; }
+    .updated { font-size: 0.875rem; }
+    .highlight { border: 1px solid var(--border); background: var(--surface); border-radius: 12px; padding: 16px 20px; }
+    .highlight p:first-child { margin-top: 0; }
+    .highlight p:last-child { margin-bottom: 0; }
+    .language-switch { margin-top: 16px; font-size: 0.9rem; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 56px 0 8px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Política de Privacidade</h1>
+    <p class="updated">Devops Hub · última atualização: 23 de outubro de 2026</p>
+    <p class="language-switch"><a href="index.html">Página inicial</a> · <a href="#english">English version</a></p>
+
+    <h2>1. Sobre o app</h2>
+    <p>
+      O Devops Hub é um aplicativo desktop de código aberto (<a href="https://github.com/viniggj2005/devops-hub">github.com/viniggj2005/devops-hub</a>)
+      que roda no computador do usuário. O desenvolvedor <strong>não mantém servidores</strong> que recebam dados do app:
+      nenhuma informação sua é enviada ao desenvolvedor.
+    </p>
+
+    <h2>2. Dados guardados no seu computador</h2>
+    <p>
+      Contas locais, conexões (Docker, SSH e bancos de dados), coleções de APIs e configurações ficam num banco de dados no seu próprio computador.
+      Senhas e credenciais são criptografadas com uma chave derivada da senha da sua conta local do app.
+    </p>
+
+    <h2>3. Uso da sua Conta do Google</h2>
+    <p>
+      Entrar com Google é <strong>opcional</strong> e só acontece se você clicar em <strong>Configurações → Backup na nuvem → Entrar com Google</strong>.
+    </p>
+    <div class="highlight">
+      <p><strong>Permissão solicitada:</strong> <code>https://www.googleapis.com/auth/drive.appdata</code></p>
+      <p>
+        Ela permite ao app criar, ler, atualizar e excluir <strong>somente os arquivos que o próprio app criou</strong>, numa pasta privada e oculta
+        do seu Google Drive. O app não vê, não lê e não altera nenhum outro arquivo do seu Drive.
+      </p>
+    </div>
+    <h3>Para que esses dados são usados</h3>
+    <ul>
+      <li><strong>Backup:</strong> ao fechar o app, se houve alterações, uma cópia do banco de dados local é enviada para essa pasta privada.</li>
+      <li><strong>Restauração:</strong> ao abrir o app, se a cópia no Drive for mais recente (por exemplo, enviada de outro computador), ela é baixada e substitui a local. Uma cópia do banco local é guardada antes, no seu computador.</li>
+      <li><strong>Identificação da conta:</strong> o endereço de e-mail da conta conectada é lido apenas para mostrar, na tela do app, qual conta está em uso.</li>
+    </ul>
+    <p>
+      A comunicação acontece diretamente entre o seu computador e o Google. A autorização de acesso fica salva num arquivo local, no seu computador,
+      e não é compartilhada.
+    </p>
+
+    <h2>4. Compartilhamento</h2>
+    <p>
+      Os dados obtidos das APIs do Google <strong>não são vendidos, compartilhados nem transferidos</strong> para terceiros, não são usados para publicidade
+      e não são usados para desenvolver, melhorar ou treinar modelos de inteligência artificial.
+    </p>
+    <div class="highlight">
+      <p>
+        O uso e a transferência, pelo Devops Hub, de informações recebidas das APIs do Google para qualquer outro app obedecerão à
+        <a href="https://developers.google.com/terms/api-services-user-data-policy">Política de dados do usuário dos serviços de API do Google</a>,
+        incluindo os requisitos de Uso limitado.
+      </p>
+    </div>
+
+    <h2>5. Como revogar o acesso e excluir os dados</h2>
+    <ul>
+      <li><strong>No app:</strong> em Configurações → Backup na nuvem, clique em <strong>Desconectar</strong>. O acesso é revogado e a autorização local é apagada.</li>
+      <li><strong>Na sua Conta do Google:</strong> remova o Devops Hub em <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
+      <li><strong>Backup no Drive:</strong> no Google Drive, abra Configurações → Gerenciar apps → Devops Hub → <strong>Excluir dados ocultos do app</strong>.</li>
+      <li><strong>Dados locais:</strong> desinstale o app e apague a pasta de dados dele no seu computador (no Windows, <code>%APPDATA%\DockerManager</code>).</li>
+    </ul>
+
+    <h2>6. Alterações nesta política</h2>
+    <p>Mudanças serão publicadas nesta página, com a data de atualização no topo.</p>
+
+    <h2>7. Contato</h2>
+    <p>Dúvidas sobre privacidade: <a href="https://github.com/viniggj2005/devops-hub/issues">abra uma issue no GitHub</a>.</p>
+
+    <hr>
+
+    <section id="english" lang="en">
+      <h1>Privacy Policy</h1>
+      <p class="updated">Devops Hub · last updated: October 23, 2026</p>
+
+      <h2>1. About the app</h2>
+      <p>
+        Devops Hub is an open-source desktop application (<a href="https://github.com/viniggj2005/devops-hub">github.com/viniggj2005/devops-hub</a>)
+        that runs on the user's computer. The developer <strong>does not operate any server</strong> that receives data from the app,
+        and no information about you is sent to the developer.
+      </p>
+
+      <h2>2. Data stored on your computer</h2>
+      <p>
+        Local accounts, connections (Docker, SSH and databases), API collections and settings are stored in a database on your own computer.
+        Passwords and credentials are encrypted with a key derived from your local app account password.
+      </p>
+
+      <h2>3. Use of your Google Account</h2>
+      <p>
+        Signing in with Google is <strong>optional</strong> and only happens when you click
+        <strong>Settings → Cloud backup → Sign in with Google</strong>.
+      </p>
+      <div class="highlight">
+        <p><strong>Requested scope:</strong> <code>https://www.googleapis.com/auth/drive.appdata</code></p>
+        <p>
+          It allows the app to create, read, update and delete <strong>only the files the app itself created</strong>, inside a private, hidden
+          folder in your Google Drive. The app cannot see, read or modify any other file in your Drive.
+        </p>
+      </div>
+      <h3>How this data is used</h3>
+      <ul>
+        <li><strong>Backup:</strong> when the app closes and data has changed, a copy of the local database is uploaded to that private folder.</li>
+        <li><strong>Restore:</strong> when the app opens and the copy in Drive is newer (for example, uploaded from another computer), it is downloaded and replaces the local one. A copy of the local database is kept on your computer first.</li>
+        <li><strong>Account identification:</strong> the email address of the connected account is read only to show, inside the app, which account is in use.</li>
+      </ul>
+      <p>
+        Communication happens directly between your computer and Google. The access authorization is stored in a local file on your computer
+        and is never shared.
+      </p>
+
+      <h2>4. Sharing</h2>
+      <p>
+        Data obtained from Google APIs is <strong>not sold, shared or transferred</strong> to third parties, is not used for advertising,
+        and is not used to develop, improve or train artificial intelligence models.
+      </p>
+      <div class="highlight">
+        <p>
+          Devops Hub's use and transfer to any other app of information received from Google APIs will adhere to the
+          <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>,
+          including the Limited Use requirements.
+        </p>
+      </div>
+
+      <h2>5. Revoking access and deleting data</h2>
+      <ul>
+        <li><strong>In the app:</strong> go to Settings → Cloud backup and click <strong>Disconnect</strong>. Access is revoked and the local authorization is deleted.</li>
+        <li><strong>In your Google Account:</strong> remove Devops Hub at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
+        <li><strong>Drive backup:</strong> in Google Drive, open Settings → Manage apps → Devops Hub → <strong>Delete hidden app data</strong>.</li>
+        <li><strong>Local data:</strong> uninstall the app and delete its data folder (on Windows, <code>%APPDATA%\DockerManager</code>).</li>
+      </ul>
+
+      <h2>6. Changes to this policy</h2>
+      <p>Changes will be published on this page, with the update date at the top.</p>
+
+      <h2>7. Contact</h2>
+      <p>Privacy questions: <a href="https://github.com/viniggj2005/devops-hub/issues">open an issue on GitHub</a>.</p>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Devops Hub</title>
+  <meta name="description" content="Devops Hub: aplicativo desktop de código aberto para Docker, SSH, Git, bancos de dados e APIs.">
+  <style>
+    :root {
+      --text: #18181b;
+      --muted: #52525b;
+      --border: #e4e4e7;
+      --accent: #2563eb;
+      --surface: #f4f4f5;
+      --background: #ffffff;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text: #fafafa;
+        --muted: #a1a1aa;
+        --border: #27272a;
+        --accent: #60a5fa;
+        --surface: #18181b;
+        --background: #09090b;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--background);
+      font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 16px 64px; }
+    h1 { font-size: 2.25rem; margin: 0 0 8px; letter-spacing: -0.02em; }
+    h2 { font-size: 1.25rem; margin: 40px 0 12px; }
+    p, li { color: var(--muted); }
+    strong { color: var(--text); }
+    a { color: var(--accent); }
+    ul { padding-left: 20px; }
+    li { margin: 6px 0; }
+    .lead { font-size: 1.125rem; }
+    .card { border: 1px solid var(--border); background: var(--surface); border-radius: 12px; padding: 20px; }
+    .card p:first-child { margin-top: 0; }
+    .card p:last-child { margin-bottom: 0; }
+    .links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+    .links a {
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-weight: 600;
+    }
+    footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 0.875rem; }
+    footer p { margin: 4px 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Devops Hub</h1>
+    <p class="lead">
+      Aplicativo desktop de código aberto que reúne, numa só janela, as ferramentas do dia a dia de quem trabalha com infraestrutura e desenvolvimento.
+      Roda no seu computador (Windows e Linux) e guarda seus dados localmente.
+    </p>
+
+    <div class="links">
+      <a href="https://github.com/viniggj2005/devops-hub/releases/latest">Baixar</a>
+      <a href="https://github.com/viniggj2005/devops-hub">Código-fonte</a>
+      <a href="privacy.html">Política de privacidade</a>
+    </div>
+
+    <h2>O que o app faz</h2>
+    <ul>
+      <li><strong>Docker Manager</strong>: gerencia contêineres, imagens, redes e volumes Docker, locais ou remotos via TLS.</li>
+      <li><strong>FerretShell</strong>: terminais SSH e locais em abas, com divisão de tela e transferência de arquivos por SFTP.</li>
+      <li><strong>OctoHub</strong>: cliente Git com repositórios, branches e histórico de commits.</li>
+      <li><strong>TalpaDB</strong>: cliente de bancos PostgreSQL, SQLite e Oracle.</li>
+      <li><strong>Vulpes</strong>: cliente de APIs HTTP, gRPC, WebSocket e Socket.IO, compatível com coleções do Postman.</li>
+    </ul>
+
+    <h2>Backup no Google Drive (opcional)</h2>
+    <div class="card">
+      <p>
+        Em <strong>Configurações → Backup na nuvem</strong>, você pode entrar com sua Conta do Google para guardar uma cópia do banco de dados do app
+        no <strong>seu próprio Google Drive</strong> e continuar de onde parou em outro computador.
+      </p>
+      <p>
+        Para isso, o app pede apenas a permissão <code>drive.appdata</code>, que dá acesso somente a uma pasta privada do próprio app dentro do seu Drive.
+        O app <strong>não vê, não lê e não altera nenhum outro arquivo</strong> seu. A cópia é enviada ao fechar o app, quando houve mudanças,
+        e a versão mais recente é buscada ao abrir. Nada passa por servidores do desenvolvedor.
+      </p>
+      <p>Detalhes na <a href="privacy.html">política de privacidade</a>.</p>
+    </div>
+
+    <h2>In English</h2>
+    <p>
+      Devops Hub is an open-source desktop app for Docker, SSH terminals, Git, databases and API testing. All data stays on your computer.
+      Optionally, you can sign in with Google to back up the app database to a private app folder in <strong>your own Google Drive</strong>
+      (<code>drive.appdata</code> scope only). The app cannot see any other file in your Drive, and no data is sent to the developer.
+      See the <a href="privacy.html#english">privacy policy</a>.
+    </p>
+
+    <footer>
+      <p>Devops Hub · código aberto no <a href="https://github.com/viniggj2005/devops-hub">GitHub</a></p>
+      <p>Dúvidas e suporte: <a href="https://github.com/viniggj2005/devops-hub/issues">abra uma issue</a></p>
+    </footer>
+  </main>
+</body>
+</html>

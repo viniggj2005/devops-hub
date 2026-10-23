@@ -307,3 +307,63 @@ func TestTerminalAndSftpHandlers(test *testing.T) {
 	}
 }
 
+func TestModuleMoveRescopesTerminalSessions(test *testing.T) {
+	terminalHandler := NewTerminalHandler(authFunctions.NewManager(time.Hour))
+	localHandler := NewLocalTerminalHandler()
+
+	writer := &bufferWriteCloser{}
+	sshOutput := newSessionOutput("main", "ssh-1", "ssh:data:ssh-1")
+	connection := &sshConnection{stdin: writer, output: sshOutput, session: &ssh.Session{}}
+	terminalHandler.addSession(desktop.ScopedKey("main", "ssh-1"), connection)
+	otherWindowOutput := newSessionOutput("module-9", "ssh-2", "ssh:data:ssh-2")
+	terminalHandler.addSession(desktop.ScopedKey("module-9", "ssh-2"), &sshConnection{output: otherWindowOutput, session: &ssh.Session{}})
+	localOutput := newSessionOutput("main", "local-1", "local:data:local-1")
+	localHandler.sessions.Store(desktop.ScopedKey("main", "local-1"), &localTerminal{output: localOutput})
+
+	terminalHandler.moveModuleSessions("docker", "main", "module-1")
+	if _, ok := terminalHandler.getSession(desktop.ScopedKey("main", "ssh-1")); !ok {
+		test.Fatalf("expected moving another module to leave terminal sessions in place")
+	}
+
+	terminalHandler.moveModuleSessions(ferretShellModule, "main", "module-1")
+	localHandler.moveModuleSessions(ferretShellModule, "main", "module-1")
+
+	fromMain := desktop.WithWindowName(context.Background(), "main")
+	fromModule := desktop.WithWindowName(context.Background(), "module-1")
+	if err := terminalHandler.Send(fromMain, "ssh-1", "ls\n"); err == nil {
+		test.Fatalf("expected the original window to lose the moved session")
+	}
+	if err := terminalHandler.Send(fromModule, "ssh-1", "ls\n"); err != nil || writer.String() != "ls\n" {
+		test.Fatalf("expected the new window to own the session, err=%v, written=%q", err, writer.String())
+	}
+	if _, ok := terminalHandler.getSession(desktop.ScopedKey("module-9", "ssh-2")); !ok {
+		test.Fatalf("expected sessions from other windows to stay put")
+	}
+
+	sshOutput.write([]byte("buffered "))
+	sshOutput.write([]byte("output"))
+	if string(sshOutput.pending) != "buffered output" {
+		test.Fatalf("expected output to be buffered while in transit, got %q", sshOutput.pending)
+	}
+	if err := terminalHandler.Attach(fromMain, "ssh-1"); err == nil {
+		test.Fatalf("expected attaching from the original window to fail")
+	}
+	if err := terminalHandler.Attach(fromModule, "ssh-1"); err != nil || sshOutput.paused || sshOutput.pending != nil {
+		test.Fatalf("expected attach to flush and resume the output, err=%v", err)
+	}
+	if err := localHandler.Attach(fromModule, "local-1"); err != nil || localOutput.owner() != "module-1" {
+		test.Fatalf("expected the local session to follow the module, err=%v owner=%q", err, localOutput.owner())
+	}
+
+	forgetSession(&terminalHandler.sshSessions, &terminalHandler.moveMutex, sshOutput, connection)
+	if _, ok := terminalHandler.getSession(desktop.ScopedKey("module-1", "ssh-1")); ok {
+		test.Fatalf("expected a finished session to be removed under its new window")
+	}
+
+	otherWindowOutput.moveTo("module-2")
+	otherWindowOutput.write(make([]byte, maxPendingOutputBytes+10))
+	if len(otherWindowOutput.pending) != maxPendingOutputBytes {
+		test.Fatalf("expected buffered output to be capped at %d bytes, got %d", maxPendingOutputBytes, len(otherWindowOutput.pending))
+	}
+}
+

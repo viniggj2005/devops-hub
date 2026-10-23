@@ -31,21 +31,31 @@ var detachableModules = map[string]bool{
 }
 
 type WindowHandlerStruct struct {
-	Session       *auth.ManagerStruct
-	hoverMutex    sync.Mutex
-	openWindow    func(options application.WebviewWindowOptions)
-	listWindows   func() []desktop.TabWindow
-	notifyWindow  func(windowName string, name string, data any)
-	hoveredWindow string
+	Session         *auth.ManagerStruct
+	hoverMutex      sync.Mutex
+	handoffMutex    sync.Mutex
+	moveModule      func(module string, fromWindow string, toWindow string)
+	openWindow      func(options application.WebviewWindowOptions)
+	listWindows     func() []desktop.TabWindow
+	notifyWindow    func(windowName string, name string, data any)
+	hoveredWindow   string
+	pendingHandoffs map[string]string
 }
 
 func NewWindowHandler(session *auth.ManagerStruct) *WindowHandlerStruct {
 	return &WindowHandlerStruct{
-		Session:      session,
-		openWindow:   desktop.OpenWindow,
-		listWindows:  desktop.OpenWindows,
-		notifyWindow: desktop.EmitToWindow,
+		Session:         session,
+		moveModule:      desktop.NotifyModuleMoved,
+		openWindow:      desktop.OpenWindow,
+		listWindows:     desktop.OpenWindows,
+		notifyWindow:    desktop.EmitToWindow,
+		pendingHandoffs: map[string]string{},
 	}
+}
+
+func (handlerStruct *WindowHandlerStruct) ServiceStartup(_ context.Context, _ application.ServiceOptions) error {
+	desktop.OnWindowClosed(handlerStruct.discardHandoff)
+	return nil
 }
 
 func (handlerStruct *WindowHandlerStruct) DetachModule(ctx context.Context, token string, input desktopDtos.DetachModuleInputDto) error {
@@ -61,6 +71,8 @@ func (handlerStruct *WindowHandlerStruct) DetachModule(ctx context.Context, toke
 		return err
 	}
 
+	handlerStruct.offerHandoff(windowName, input.Handoff)
+	handlerStruct.moveModule(input.Module, desktop.CallingWindowName(ctx), windowName)
 	handlerStruct.openWindow(desktop.ModuleWindowOptions(windowName, input.Module, desktop.WindowPlacement{
 		ScreenX: input.ScreenX,
 		ScreenY: input.ScreenY,
@@ -89,11 +101,12 @@ func (handlerStruct *WindowHandlerStruct) DropModule(ctx context.Context, token 
 		return desktopDtos.TabDropResultDto{}, err
 	}
 
-	if target := handlerStruct.dropTarget(desktop.CallingWindowName(ctx), input.ScreenX, input.ScreenY); target != nil {
+	sourceWindow := desktop.CallingWindowName(ctx)
+	if target := handlerStruct.dropTarget(sourceWindow, input.ScreenX, input.ScreenY); target != nil {
 		if _, err := handlerStruct.Session.Validate(token); err != nil {
 			return desktopDtos.TabDropResultDto{}, err
 		}
-		handlerStruct.attach(target, input.Module)
+		handlerStruct.attach(sourceWindow, target, input.Module, input.Handoff)
 		return desktopDtos.TabDropResultDto{Outcome: desktopDtos.TabDropAttached}, nil
 	}
 
@@ -104,14 +117,15 @@ func (handlerStruct *WindowHandlerStruct) DropModule(ctx context.Context, token 
 		Module:  input.Module,
 		ScreenX: input.ScreenX,
 		ScreenY: input.ScreenY,
+		Handoff: input.Handoff,
 	}); err != nil {
 		return desktopDtos.TabDropResultDto{}, err
 	}
 	return desktopDtos.TabDropResultDto{Outcome: desktopDtos.TabDropDetached}, nil
 }
 
-func (handlerStruct *WindowHandlerStruct) MoveModuleToMainWindow(token string, module string) error {
-	if err := validateModule(module); err != nil {
+func (handlerStruct *WindowHandlerStruct) MoveModuleToMainWindow(ctx context.Context, token string, input desktopDtos.MoveModuleInputDto) error {
+	if err := validateModule(input.Module); err != nil {
 		return err
 	}
 	if _, err := handlerStruct.Session.Validate(token); err != nil {
@@ -119,15 +133,40 @@ func (handlerStruct *WindowHandlerStruct) MoveModuleToMainWindow(token string, m
 	}
 	for _, window := range handlerStruct.listWindows() {
 		if window.Name() == desktop.MainWindowName {
-			handlerStruct.attach(window, module)
+			handlerStruct.attach(desktop.CallingWindowName(ctx), window, input.Module, input.Handoff)
 			return nil
 		}
 	}
 	return errors.New("a janela principal não está aberta")
 }
 
-func (handlerStruct *WindowHandlerStruct) attach(target desktop.TabWindow, module string) {
-	handlerStruct.notifyWindow(target.Name(), tabAttachEvent, desktopDtos.AttachedTabDto{Module: module})
+func (handlerStruct *WindowHandlerStruct) ClaimModuleHandoff(ctx context.Context) string {
+	windowName := desktop.CallingWindowName(ctx)
+	handlerStruct.handoffMutex.Lock()
+	defer handlerStruct.handoffMutex.Unlock()
+	handoff := handlerStruct.pendingHandoffs[windowName]
+	delete(handlerStruct.pendingHandoffs, windowName)
+	return handoff
+}
+
+func (handlerStruct *WindowHandlerStruct) offerHandoff(windowName string, handoff string) {
+	if handoff == "" {
+		return
+	}
+	handlerStruct.handoffMutex.Lock()
+	defer handlerStruct.handoffMutex.Unlock()
+	handlerStruct.pendingHandoffs[windowName] = handoff
+}
+
+func (handlerStruct *WindowHandlerStruct) discardHandoff(windowName string) {
+	handlerStruct.handoffMutex.Lock()
+	defer handlerStruct.handoffMutex.Unlock()
+	delete(handlerStruct.pendingHandoffs, windowName)
+}
+
+func (handlerStruct *WindowHandlerStruct) attach(sourceWindow string, target desktop.TabWindow, module string, handoff string) {
+	handlerStruct.moveModule(module, sourceWindow, target.Name())
+	handlerStruct.notifyWindow(target.Name(), tabAttachEvent, desktopDtos.AttachedTabDto{Module: module, Handoff: handoff})
 	target.Focus()
 }
 

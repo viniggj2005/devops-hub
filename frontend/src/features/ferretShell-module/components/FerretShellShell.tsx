@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import FerretShellNavbar from './FerretShellNavbar';
 import { useTerminalStore } from '../terminal/TerminalStore';
 import TerminalTabArea from '../terminal/components/TerminalTabArea';
+import { retainTerminalSessions } from '../terminal/functions/TerminalSessions';
 interface FerretShellShellProps {
     children: React.ReactNode;
 }
@@ -9,6 +10,8 @@ interface FerretShellShellProps {
 const FerretShellShell: React.FC<FerretShellShellProps> = ({ children }) => {
     const { tabs, viewMode } = useTerminalStore();
     const hasTabs = tabs.length > 0;
+
+    useEffect(retainTerminalSessions, []);
 
     return (
         <div className="flex flex-col h-full min-h-0 bg-gray-50 dark:bg-[#0a0a0c] transition-colors duration-200">

@@ -5,6 +5,7 @@ import { getToken } from '../../contexts/AuthContext';
 import { VULPES_MODULE } from '../vulpes-module/moduleInfo';
 import { TALPADB_MODULE } from '../talpadb-module/moduleInfo';
 import { errorMessage } from '../shared/functions/ErrorMessage';
+import { captureModuleHandoff, releaseModuleHandoff } from './ModuleHandoff';
 import { detachedModule, isDetachableModule, isDetachedWindow } from './WindowContext';
 import { ScreenPoint, detachModuleApi, dropModuleApi, moveModuleToMainWindowApi } from './services/WindowService';
 
@@ -16,7 +17,7 @@ export interface AppTab {
   type: ModuleType;
 }
 
-type TabTransfer = (token: string, module: ModuleType) => Promise<boolean>;
+type TabTransfer = (token: string, module: ModuleType, handoff: string) => Promise<boolean>;
 
 interface AppState {
   tabs: AppTab[];
@@ -59,7 +60,10 @@ export const useAppStore = create<AppState>((set, get) => {
     if (!tab || !token || !allowed) return;
 
     try {
-      if (await transfer(token, tab.type)) get().closeTab(id);
+      const handoff = captureModuleHandoff(tab.type);
+      if (!(await transfer(token, tab.type, handoff))) return;
+      releaseModuleHandoff(tab.type);
+      get().closeTab(id);
     } catch (error) {
       toast.error(errorMessage(error));
     }
@@ -127,17 +131,17 @@ export const useAppStore = create<AppState>((set, get) => {
 
     canMoveToMainWindow: (id) => isDetachedWindow && get().canDragTab(id),
 
-    detachTab: (id, dropPoint) => transferTab(id, get().canOpenInNewWindow(id), async (token, module) => {
-      await detachModuleApi(token, module, dropPoint);
+    detachTab: (id, dropPoint) => transferTab(id, get().canOpenInNewWindow(id), async (token, module, handoff) => {
+      await detachModuleApi(token, module, handoff, dropPoint);
       return true;
     }),
 
-    dropTab: (id, dropPoint) => transferTab(id, get().canDragTab(id), (token, module) =>
-      dropModuleApi(token, module, dropPoint, get().canOpenInNewWindow(id)),
+    dropTab: (id, dropPoint) => transferTab(id, get().canDragTab(id), (token, module, handoff) =>
+      dropModuleApi(token, module, handoff, dropPoint, get().canOpenInNewWindow(id)),
     ),
 
-    moveTabToMainWindow: (id) => transferTab(id, get().canMoveToMainWindow(id), async (token, module) => {
-      await moveModuleToMainWindowApi(token, module);
+    moveTabToMainWindow: (id) => transferTab(id, get().canMoveToMainWindow(id), async (token, module, handoff) => {
+      await moveModuleToMainWindowApi(token, module, handoff);
       return true;
     }),
   };
