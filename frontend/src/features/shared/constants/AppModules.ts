@@ -1,4 +1,6 @@
 import { ModuleType } from '../../appFrame/AppStore';
+import { VULPES_MODULE } from '../../vulpes-module/moduleInfo';
+import { TALPADB_MODULE } from '../../talpadb-module/moduleInfo';
 import { AccentFamily, ConfigurableModule, CustomThemeColors } from '../../../interfaces/GeneralConfigsInterfaces';
 
 export interface AppModuleDefinition {
@@ -52,15 +54,26 @@ export const appModules: AppModuleDefinition[] = [
     description: 'Configurações de acesso, chaves SSH e certificados TLS.',
   },
   {
+    id: 'talpadb',
+    status: 'Ativo',
+    accentFamily: 'cyan',
+    accentColor: '#06b6d4',
+    title: TALPADB_MODULE.name,
+    color: TALPADB_MODULE.gradient,
+    configName: 'talpadb',
+    icon: '/talpadb.svg',
+    description: TALPADB_MODULE.description,
+  },
+  {
     id: 'vulpes',
     icon: '/fox.svg',
-    title: 'Vulpes',
-    status: 'Inativo',
+    status: 'Ativo',
     configName: 'vulpes',
     accentFamily: 'amber',
     accentColor: '#f59e0b',
-    color: 'from-amber-500 to-amber-700',
-    description: 'Visualize o uso de recursos e logs do sistema em tempo real.',
+    title: VULPES_MODULE.name,
+    color: VULPES_MODULE.gradient,
+    description: VULPES_MODULE.description,
   },
 ];
 

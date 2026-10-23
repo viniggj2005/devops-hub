@@ -1,52 +1,71 @@
 import './index.css';
+import React from 'react';
 import { router } from './Router';
-import 'izitoast/dist/css/iziToast.min.css';
+import { Window } from '@wailsio/runtime';
+import { Toaster } from 'react-hot-toast';
 import { createRoot } from 'react-dom/client';
-import { ThemeProvider } from './hooks/use-theme';
 import { RouterProvider } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider, useTheme } from './hooks/use-theme';
 import { DockerClientProvider } from './contexts/DockerClientContext';
-import { WindowReload, WindowReloadApp } from "../wailsjs/runtime/runtime";
-import React from 'react';
 
 const container = document.getElementById('root');
 document.addEventListener('keydown', (event: KeyboardEvent) => {
-  if (event.key === "F5") {
-    WindowReload()
-  } else if (event.shiftKey && event.key === "F5") {
-    WindowReloadApp()
+  if (event.key !== 'F5') return;
+  if (event.shiftKey) {
+    Window.ForceReload();
+  } else {
+    Window.Reload();
   }
 });
 
-const root = createRoot(container!);
+const AppToaster: React.FC = () => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
-const renderApp = () => {
-  root.render(
-    <React.StrictMode>
-      <AuthProvider>
-        <DockerClientProvider>
-          <ThemeProvider>
-            <RouterProvider router={router} />
-          </ThemeProvider>
-        </DockerClientProvider>
-      </AuthProvider>
-    </React.StrictMode>
+  return (
+    <Toaster
+      position="bottom-right"
+      toastOptions={{
+        duration: 3500,
+        style: {
+          fontSize: '13px',
+          fontWeight: 500,
+          borderRadius: '12px',
+          padding: '10px 14px',
+          color: isDark ? '#f4f4f5' : '#18181b',
+          background: isDark ? '#18181b' : '#ffffff',
+          border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e4e4e7',
+          boxShadow: isDark
+            ? '0 10px 25px -5px rgba(0, 0, 0, 0.6)'
+            : '0 10px 25px -5px rgba(0, 0, 0, 0.08)',
+        },
+        success: {
+          iconTheme: {
+            primary: '#10b981',
+            secondary: isDark ? '#18181b' : '#ffffff',
+          },
+        },
+        error: {
+          iconTheme: {
+            primary: '#ef4444',
+            secondary: isDark ? '#18181b' : '#ffffff',
+          },
+        },
+      }}
+    />
   );
 };
 
-if ((window as any).runtime && (window as any).go) {
-  renderApp();
-} else {
-  let attempts = 0;
-  const maxAttempts = 100;
-  const interval = setInterval(() => {
-    attempts++;
-    if (((window as any).runtime && (window as any).go) || attempts >= maxAttempts) {
-      clearInterval(interval);
-      if (attempts >= maxAttempts) {
-        console.warn('Wails runtime not detected after 5 seconds. Rendering anyway...');
-      }
-      renderApp();
-    }
-  }, 50);
-}
+createRoot(container!).render(
+  <React.StrictMode>
+    <AuthProvider>
+      <DockerClientProvider>
+        <ThemeProvider>
+          <RouterProvider router={router} />
+          <AppToaster />
+        </ThemeProvider>
+      </DockerClientProvider>
+    </AuthProvider>
+  </React.StrictMode>
+);

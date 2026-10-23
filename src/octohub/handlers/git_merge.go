@@ -2,6 +2,7 @@ package octohubHandler
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,18 +25,18 @@ var operationNames = map[string]string{
 	"cherry-pick": "cherry-pick",
 }
 
-func (handlerStruct *GitBranchHandler) runNonInteractive(args []string, input string) error {
-	_, _, err := handlerStruct.gitHandler.runGit(args, input, nonInteractiveEnv...)
+func (handlerStruct *GitBranchHandler) runNonInteractive(ctx context.Context, args []string, input string) error {
+	_, _, err := handlerStruct.gitHandler.runGit(ctx, args, input, nonInteractiveEnv...)
 	return err
 }
 
-func (handlerStruct *GitBranchHandler) ListMergeableBranches() ([]octohubStructs.BranchInfo, error) {
+func (handlerStruct *GitBranchHandler) ListMergeableBranches(ctx context.Context) ([]octohubStructs.BranchInfo, error) {
 	args := []string{
 		"for-each-ref", "--sort=-committerdate",
 		"--format=%(refname)%00%(refname:short)%00%(HEAD)",
 		"refs/heads", "refs/remotes",
 	}
-	out, err := handlerStruct.gitHandler.RunGitCommand(args)
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		return nil, err
 	}
@@ -55,27 +56,27 @@ func (handlerStruct *GitBranchHandler) ListMergeableBranches() ([]octohubStructs
 	return append(append([]octohubStructs.BranchInfo{}, local...), remote...), nil
 }
 
-func (handlerStruct *GitBranchHandler) GetDefaultBranch() string {
-	if out, err := handlerStruct.gitHandler.RunGitCommand([]string{"symbolic-ref", "--short", "-q", "refs/remotes/origin/HEAD"}); err == nil {
+func (handlerStruct *GitBranchHandler) GetDefaultBranch(ctx context.Context) string {
+	if out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"symbolic-ref", "--short", "-q", "refs/remotes/origin/HEAD"}); err == nil {
 		if _, name, found := strings.Cut(strings.TrimSpace(string(out)), "/"); found {
 			return name
 		}
 	}
 	for _, name := range []string{"main", "master"} {
-		if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-parse", "--verify", "-q", "refs/heads/" + name}); err == nil {
+		if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--verify", "-q", "refs/heads/" + name}); err == nil {
 			return name
 		}
 	}
 	return ""
 }
 
-func (handlerStruct *GitBranchHandler) FetchRemotes() error {
-	_, err := handlerStruct.gitHandler.RunGitCommand([]string{"fetch", "--all", "--prune"})
+func (handlerStruct *GitBranchHandler) FetchRemotes(ctx context.Context) error {
+	_, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"fetch", "--all", "--prune"})
 	return err
 }
 
-func (handlerStruct *GitBranchHandler) revCount(revisionRange string) (int, error) {
-	out, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-list", "--count", revisionRange})
+func (handlerStruct *GitBranchHandler) revCount(ctx context.Context, revisionRange string) (int, error) {
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-list", "--count", revisionRange})
 	if err != nil {
 		return 0, err
 	}
@@ -89,17 +90,17 @@ func validBranchArgument(branch string) error {
 	return nil
 }
 
-func (handlerStruct *GitBranchHandler) GetMergePreview(branch string) (octohubStructs.MergePreview, error) {
+func (handlerStruct *GitBranchHandler) GetMergePreview(ctx context.Context, branch string) (octohubStructs.MergePreview, error) {
 	preview := octohubStructs.MergePreview{Commits: []octohubStructs.Commit{}, ConflictingFiles: []string{}}
 	if err := validBranchArgument(branch); err != nil {
 		return preview, err
 	}
 
-	ahead, err := handlerStruct.revCount("HEAD.." + branch)
+	ahead, err := handlerStruct.revCount(ctx, "HEAD.."+branch)
 	if err != nil {
 		return preview, err
 	}
-	behind, err := handlerStruct.revCount(branch + "..HEAD")
+	behind, err := handlerStruct.revCount(ctx, branch+"..HEAD")
 	if err != nil {
 		return preview, err
 	}
@@ -108,7 +109,7 @@ func (handlerStruct *GitBranchHandler) GetMergePreview(branch string) (octohubSt
 	preview.UpToDate = ahead == 0
 	preview.CanFastForward = ahead > 0 && behind == 0
 
-	out, err := handlerStruct.gitHandler.RunGitCommand([]string{"log", "-n", "30", "--format=%h%x1f%an%x1f%s", "HEAD.." + branch})
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"log", "-n", "30", "--format=%h%x1f%an%x1f%s", "HEAD.." + branch})
 	if err != nil {
 		return preview, err
 	}
@@ -120,7 +121,7 @@ func (handlerStruct *GitBranchHandler) GetMergePreview(branch string) (octohubSt
 
 	if ahead > 0 && behind > 0 {
 		args := []string{"-c", "core.quotePath=false", "merge-tree", "--write-tree", "--name-only", "--no-messages", "HEAD", branch}
-		out, exitCode, err := handlerStruct.gitHandler.runGit(args, "")
+		out, exitCode, err := handlerStruct.gitHandler.runGit(ctx, args, "")
 		if exitCode == 1 {
 			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 			for _, file := range lines[1:] {
@@ -135,29 +136,29 @@ func (handlerStruct *GitBranchHandler) GetMergePreview(branch string) (octohubSt
 	return preview, nil
 }
 
-func (handlerStruct *GitBranchHandler) MergeBranch(branch, strategy, message string, stashChanges bool) (octohubStructs.OperationState, error) {
+func (handlerStruct *GitBranchHandler) MergeBranch(ctx context.Context, branch, strategy, message string, stashChanges bool) (octohubStructs.OperationState, error) {
 	if err := validBranchArgument(branch); err != nil {
 		return octohubStructs.OperationState{}, err
 	}
-	state, err := handlerStruct.GetOperationState()
+	state, err := handlerStruct.GetOperationState(ctx)
 	if err != nil {
 		return state, err
 	}
 	if state.Kind != "" {
 		return state, fmt.Errorf("conclua ou aborte o %s em andamento antes", operationNames[state.Kind])
 	}
-	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-parse", "--verify", "-q", "HEAD"}); err != nil {
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--verify", "-q", "HEAD"}); err != nil {
 		return state, fmt.Errorf("faça o primeiro commit antes de mesclar outra branch")
 	}
 
 	if stashChanges {
-		dirty, err := handlerStruct.HasUncommittedChanges()
+		dirty, err := handlerStruct.HasUncommittedChanges(ctx)
 		if err != nil {
 			return state, err
 		}
 		if dirty {
 			stashMessage := "OctoHub: alterações guardadas antes de mesclar " + branch
-			if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"stash", "push", "-u", "-m", stashMessage}); err != nil {
+			if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"stash", "push", "-u", "-m", stashMessage}); err != nil {
 				return state, fmt.Errorf("erro ao guardar as alterações em stash: %w", err)
 			}
 		}
@@ -174,7 +175,7 @@ func (handlerStruct *GitBranchHandler) MergeBranch(branch, strategy, message str
 		}
 		args = append(args, branch)
 	case octohubStructs.MergeStrategySquash:
-		if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"reset", "-q", "--", "."}); err != nil {
+		if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"reset", "-q", "--", "."}); err != nil {
 			return state, err
 		}
 		args = []string{"merge", "--squash", branch}
@@ -184,12 +185,12 @@ func (handlerStruct *GitBranchHandler) MergeBranch(branch, strategy, message str
 		return state, fmt.Errorf("estratégia de merge desconhecida: %s", strategy)
 	}
 
-	runErr := handlerStruct.runNonInteractive(args, "")
-	state, err = handlerStruct.GetOperationState()
+	runErr := handlerStruct.runNonInteractive(ctx, args, "")
+	state, err = handlerStruct.GetOperationState(ctx)
 	if runErr != nil {
 		if err == nil && len(state.ConflictingFiles) > 0 {
 			if summary := strings.TrimSpace(message); summary != "" && state.Kind == "squash" {
-				if writeErr := os.WriteFile(handlerStruct.gitPath("SQUASH_MSG"), []byte(summary+"\n"), 0o644); writeErr == nil {
+				if writeErr := os.WriteFile(handlerStruct.gitPath(ctx, "SQUASH_MSG"), []byte(summary+"\n"), 0o644); writeErr == nil {
 					state.Message = summary
 				}
 			}
@@ -199,34 +200,34 @@ func (handlerStruct *GitBranchHandler) MergeBranch(branch, strategy, message str
 	}
 
 	if strategy == octohubStructs.MergeStrategySquash {
-		if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"diff", "--cached", "--quiet"}); err == nil {
-			return handlerStruct.GetOperationState()
+		if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"diff", "--cached", "--quiet"}); err == nil {
+			return handlerStruct.GetOperationState(ctx)
 		}
 		summary := strings.TrimSpace(message)
 		if summary == "" {
 			summary = "Squash de " + branch
 		}
-		if err := handlerStruct.runNonInteractive([]string{"commit", "-F", "-"}, summary); err != nil {
+		if err := handlerStruct.runNonInteractive(ctx, []string{"commit", "-F", "-"}, summary); err != nil {
 			return state, fmt.Errorf("erro ao criar o commit do squash: %w", err)
 		}
 	}
-	return handlerStruct.GetOperationState()
+	return handlerStruct.GetOperationState(ctx)
 }
 
-func (handlerStruct *GitBranchHandler) gitPath(name string) string {
-	out, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-parse", "--git-path", name})
+func (handlerStruct *GitBranchHandler) gitPath(ctx context.Context, name string) string {
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--git-path", name})
 	if err != nil {
 		return ""
 	}
 	path := strings.TrimSpace(string(out))
 	if !filepath.IsAbs(path) {
-		path = filepath.Join(handlerStruct.gitHandler.RepoPath(), path)
+		path = filepath.Join(handlerStruct.gitHandler.repositoryPath(ctx), path)
 	}
 	return path
 }
 
-func (handlerStruct *GitBranchHandler) gitPathExists(name string) bool {
-	path := handlerStruct.gitPath(name)
+func (handlerStruct *GitBranchHandler) gitPathExists(ctx context.Context, name string) bool {
+	path := handlerStruct.gitPath(ctx, name)
 	if path == "" {
 		return false
 	}
@@ -234,47 +235,47 @@ func (handlerStruct *GitBranchHandler) gitPathExists(name string) bool {
 	return err == nil
 }
 
-func (handlerStruct *GitBranchHandler) readGitFile(name string) string {
-	data, err := os.ReadFile(handlerStruct.gitPath(name))
+func (handlerStruct *GitBranchHandler) readGitFile(ctx context.Context, name string) string {
+	data, err := os.ReadFile(handlerStruct.gitPath(ctx, name))
 	if err != nil {
 		return ""
 	}
 	return strings.TrimSpace(string(data))
 }
 
-func (handlerStruct *GitBranchHandler) GetOperationState() (octohubStructs.OperationState, error) {
+func (handlerStruct *GitBranchHandler) GetOperationState(ctx context.Context) (octohubStructs.OperationState, error) {
 	state := octohubStructs.OperationState{ConflictingFiles: []string{}}
 
 	switch {
-	case handlerStruct.gitPathExists("rebase-merge"), handlerStruct.gitPathExists("rebase-apply"):
+	case handlerStruct.gitPathExists(ctx, "rebase-merge"), handlerStruct.gitPathExists(ctx, "rebase-apply"):
 		folder, stepFile, totalFile := "rebase-merge", "msgnum", "end"
-		if !handlerStruct.gitPathExists(folder) {
+		if !handlerStruct.gitPathExists(ctx, folder) {
 			folder, stepFile, totalFile = "rebase-apply", "next", "last"
 		}
 		state.Kind = "rebase"
-		state.Branch = strings.TrimPrefix(handlerStruct.readGitFile(folder+"/head-name"), "refs/heads/")
-		state.Step, _ = strconv.Atoi(handlerStruct.readGitFile(folder + "/" + stepFile))
-		state.Total, _ = strconv.Atoi(handlerStruct.readGitFile(folder + "/" + totalFile))
-	case handlerStruct.gitPathExists("MERGE_HEAD"):
+		state.Branch = strings.TrimPrefix(handlerStruct.readGitFile(ctx, folder+"/head-name"), "refs/heads/")
+		state.Step, _ = strconv.Atoi(handlerStruct.readGitFile(ctx, folder+"/"+stepFile))
+		state.Total, _ = strconv.Atoi(handlerStruct.readGitFile(ctx, folder+"/"+totalFile))
+	case handlerStruct.gitPathExists(ctx, "MERGE_HEAD"):
 		state.Kind = "merge"
-		state.Message = handlerStruct.readGitFile("MERGE_MSG")
+		state.Message = handlerStruct.readGitFile(ctx, "MERGE_MSG")
 		if match := mergeMessageBranchRegex.FindStringSubmatch(state.Message); match != nil {
 			state.Branch = match[1]
 		}
-	case handlerStruct.gitPathExists("CHERRY_PICK_HEAD"):
+	case handlerStruct.gitPathExists(ctx, "CHERRY_PICK_HEAD"):
 		state.Kind = "cherry-pick"
-	case handlerStruct.gitPathExists("REVERT_HEAD"):
+	case handlerStruct.gitPathExists(ctx, "REVERT_HEAD"):
 		state.Kind = "revert"
-	case handlerStruct.gitPathExists("SQUASH_MSG"):
-		if dirty, err := handlerStruct.HasUncommittedChanges(); err != nil || !dirty {
+	case handlerStruct.gitPathExists(ctx, "SQUASH_MSG"):
+		if dirty, err := handlerStruct.HasUncommittedChanges(ctx); err != nil || !dirty {
 			return state, err
 		}
 		state.Kind = "squash"
-		state.Message = handlerStruct.readGitFile("SQUASH_MSG")
+		state.Message = handlerStruct.readGitFile(ctx, "SQUASH_MSG")
 	}
 
 	if state.Kind != "" {
-		files, err := handlerStruct.unmergedFiles()
+		files, err := handlerStruct.unmergedFiles(ctx)
 		if err != nil {
 			return state, err
 		}
@@ -283,8 +284,8 @@ func (handlerStruct *GitBranchHandler) GetOperationState() (octohubStructs.Opera
 	return state, nil
 }
 
-func (handlerStruct *GitBranchHandler) unmergedFiles() ([]string, error) {
-	out, err := handlerStruct.gitHandler.RunGitCommand([]string{"diff", "--name-only", "--diff-filter=U", "-z"})
+func (handlerStruct *GitBranchHandler) unmergedFiles(ctx context.Context) ([]string, error) {
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"diff", "--name-only", "--diff-filter=U", "-z"})
 	if err != nil {
 		return nil, err
 	}
@@ -306,10 +307,10 @@ func hasConflictMarkers(content []byte) bool {
 	return false
 }
 
-func (handlerStruct *GitBranchHandler) stageResolvedFiles(files []string) ([]string, error) {
+func (handlerStruct *GitBranchHandler) stageResolvedFiles(ctx context.Context, files []string) ([]string, error) {
 	var resolved, pending []string
 	for _, file := range files {
-		content, err := os.ReadFile(filepath.Join(handlerStruct.gitHandler.RepoPath(), filepath.FromSlash(file)))
+		content, err := os.ReadFile(filepath.Join(handlerStruct.gitHandler.repositoryPath(ctx), filepath.FromSlash(file)))
 		if err != nil || hasConflictMarkers(content) {
 			pending = append(pending, file)
 			continue
@@ -317,8 +318,8 @@ func (handlerStruct *GitBranchHandler) stageResolvedFiles(files []string) ([]str
 		resolved = append(resolved, file)
 	}
 	if len(resolved) > 0 {
-		args := []string{"--literal-pathspecs", "add", "--pathspec-from-file=-", "--pathspec-file-nul"}
-		if _, err := handlerStruct.gitHandler.RunGitCommandWithInput(args, strings.Join(resolved, "\x00")); err != nil {
+		args := []string{"--literal-pathspecs", "add", "--force", "--pathspec-from-file=-", "--pathspec-file-nul"}
+		if _, err := handlerStruct.gitHandler.runGitCommandWithInput(ctx, args, strings.Join(resolved, "\x00")); err != nil {
 			return pending, err
 		}
 	}
@@ -335,13 +336,13 @@ func cleanCommitMessage(message string) string {
 	return strings.TrimSpace(strings.Join(lines, "\n"))
 }
 
-func (handlerStruct *GitBranchHandler) ContinueOperation(message string) (octohubStructs.OperationState, error) {
-	state, err := handlerStruct.GetOperationState()
+func (handlerStruct *GitBranchHandler) ContinueOperation(ctx context.Context, message string) (octohubStructs.OperationState, error) {
+	state, err := handlerStruct.GetOperationState(ctx)
 	if err != nil || state.Kind == "" {
 		return state, err
 	}
 
-	pending, err := handlerStruct.stageResolvedFiles(state.ConflictingFiles)
+	pending, err := handlerStruct.stageResolvedFiles(ctx, state.ConflictingFiles)
 	if err != nil {
 		return state, err
 	}
@@ -365,8 +366,8 @@ func (handlerStruct *GitBranchHandler) ContinueOperation(message string) (octohu
 		args = []string{state.Kind, "--continue"}
 	}
 
-	runErr := handlerStruct.runNonInteractive(args, input)
-	next, err := handlerStruct.GetOperationState()
+	runErr := handlerStruct.runNonInteractive(ctx, args, input)
+	next, err := handlerStruct.GetOperationState(ctx)
 	if runErr != nil {
 		if err == nil && next.Kind != "" && len(next.ConflictingFiles) > 0 {
 			return next, nil
@@ -376,8 +377,8 @@ func (handlerStruct *GitBranchHandler) ContinueOperation(message string) (octohu
 	return next, err
 }
 
-func (handlerStruct *GitBranchHandler) AbortOperation() error {
-	state, err := handlerStruct.GetOperationState()
+func (handlerStruct *GitBranchHandler) AbortOperation(ctx context.Context) error {
+	state, err := handlerStruct.GetOperationState(ctx)
 	if err != nil || state.Kind == "" {
 		return err
 	}
@@ -385,12 +386,12 @@ func (handlerStruct *GitBranchHandler) AbortOperation() error {
 	if state.Kind == "squash" {
 		args = []string{"reset", "--merge"}
 	}
-	return handlerStruct.runNonInteractive(args, "")
+	return handlerStruct.runNonInteractive(ctx, args, "")
 }
 
-func (handlerStruct *GitBranchHandler) SkipRebaseCommit() (octohubStructs.OperationState, error) {
-	runErr := handlerStruct.runNonInteractive([]string{"rebase", "--skip"}, "")
-	state, err := handlerStruct.GetOperationState()
+func (handlerStruct *GitBranchHandler) SkipRebaseCommit(ctx context.Context) (octohubStructs.OperationState, error) {
+	runErr := handlerStruct.runNonInteractive(ctx, []string{"rebase", "--skip"}, "")
+	state, err := handlerStruct.GetOperationState(ctx)
 	if runErr != nil {
 		if err == nil && len(state.ConflictingFiles) > 0 {
 			return state, nil

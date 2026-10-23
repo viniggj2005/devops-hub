@@ -1,11 +1,11 @@
-import iziToast from 'izitoast';
 import Convert from 'ansi-to-html';
+import toast from 'react-hot-toast';
+import { Events } from '@wailsio/runtime';
 import { FolderOpen, AlertTriangle } from 'lucide-react';
 import React, { useEffect, useState, useRef } from 'react';
-import { GetFilePath } from '../../../../../../wailsjs/go/main/App';
+import { GetFilePath } from '../../../../../../bindings/docker-manager-go/app';
 import TextField from '../../../../../features/login/components/fields/TextField';
-import { EventsOn, EventsOff } from '../../../../../../wailsjs/runtime';
-import { ImageCreate } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
+import { ImageCreate } from '../../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 
 const converter = new Convert({
     newline: true,
@@ -39,22 +39,18 @@ const ImageBuildForm: React.FC<ImageBuildFormProps> = ({ clientId, onClose, onSu
         } catch (error) {
             console.error(error);
         }
-    }
+    };
 
     const handleBuild = async (event: React.FormEvent) => {
         event.preventDefault();
         if (!name.trim() || !tag.trim() || !path.trim()) {
-            iziToast.error({ title: 'Erro', message: 'Preencha todos os campos.', position: 'bottomRight' });
+            toast.error('Preencha todos os campos.');
             return;
         }
 
         const nameRegex = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
         if (!nameRegex.test(name)) {
-            iziToast.error({
-                title: 'Nome Inválido',
-                message: 'O nome da imagem deve conter apenas letras minúsculas, números, hífens, pontos ou sublinhados, e não pode conter espaços.',
-                position: 'bottomRight'
-            });
+            toast.error('O nome da imagem deve conter apenas letras minúsculas, números, hífens, pontos ou sublinhados, e não pode conter espaços.');
             return;
         }
 
@@ -70,7 +66,7 @@ const ImageBuildForm: React.FC<ImageBuildFormProps> = ({ clientId, onClose, onSu
         setBuilding(true);
         setLogs([]);
 
-        EventsOn('image:build', (data: any) => {
+        const offBuildLogs = Events.On('image:build', ({ data }) => {
             if (data && data.log) {
                 setLogs((previousLogs) => [...previousLogs, data.log]);
             }
@@ -83,15 +79,15 @@ const ImageBuildForm: React.FC<ImageBuildFormProps> = ({ clientId, onClose, onSu
                 tag,
                 dockerfile: dockerfileName
             });
-            iziToast.success({ title: 'Sucesso', message: 'Imagem construída com sucesso!', position: 'bottomRight' });
+            toast.success('Imagem construída com sucesso!');
             onSuccess?.();
             setBuilded(true);
         } catch (error: any) {
             setLogs((previousLogs) => [...previousLogs, `\nError: ${error.message || error}`]);
-            iziToast.error({ title: 'Erro', message: error.message || 'Falha ao construir imagem.', position: 'bottomRight' });
+            toast.error(error.message || 'Falha ao construir imagem.');
             onClose?.();
         } finally {
-            EventsOff('image:build');
+            offBuildLogs();
             setBuilding(false);
         }
     };
@@ -113,7 +109,7 @@ const ImageBuildForm: React.FC<ImageBuildFormProps> = ({ clientId, onClose, onSu
                     label="Nome da Imagem"
                     name="name"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(event) => setName(event.target.value)}
                     placeholder="ex: minha_app"
                     required
                     disabled={building || builded}
@@ -122,7 +118,7 @@ const ImageBuildForm: React.FC<ImageBuildFormProps> = ({ clientId, onClose, onSu
                     label="Tag"
                     name="tag"
                     value={tag}
-                    onChange={(e) => setTag(e.target.value)}
+                    onChange={(event) => setTag(event.target.value)}
                     placeholder="ex: latest"
                     required
                     disabled={building || builded}
@@ -139,7 +135,7 @@ const ImageBuildForm: React.FC<ImageBuildFormProps> = ({ clientId, onClose, onSu
                             label=""
                             name="path"
                             value={path}
-                            onChange={(e) => setPath(e.target.value)}
+                            onChange={(event) => setPath(event.target.value)}
                             placeholder="Selecione o arquivo Dockerfile"
                             required
                             disabled={building || builded}

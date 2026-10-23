@@ -1,11 +1,10 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import { Search } from 'lucide-react';
-import 'izitoast/dist/css/iziToast.min.css';
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { LogsProps } from '../../../../../interfaces/ContainerInterfaces';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
-import { ContainerLogs } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
+import { ContainerLogs } from '../../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 
 const LogsModal: React.FC<LogsProps> = ({ id, setLogsModal }) => {
   const firstScrollDone = useRef(false);
@@ -17,36 +16,25 @@ const LogsModal: React.FC<LogsProps> = ({ id, setLogsModal }) => {
   useEffect(() => {
     (async () => {
       if (selectedCredentialId == null) {
-        iziToast.error({
-          title: 'Credencial não selecionada',
-          message: 'Escolha uma credencial Docker para visualizar os logs.',
-          position: 'bottomRight',
-        });
+        toast.error('Escolha uma credencial Docker para visualizar os logs.');
         setLogsModal(false);
         return;
       }
       try {
-        const containerLogs = await ContainerLogs(selectedCredentialId, id);
-        iziToast.success({
-          message: 'Logs buscados com sucesso!',
-          position: 'bottomRight',
-        });
-        setContainerLogs(containerLogs ?? '');
+        const logsOutput = await ContainerLogs(selectedCredentialId, id);
+        toast.success('Logs buscados com sucesso!');
+        setContainerLogs(logsOutput ?? '');
       } catch (error: any) {
-        iziToast.error({
-          title: 'Erro',
-          message: error?.message ?? String(error),
-          position: 'bottomRight',
-        });
+        toast.error(error?.message ?? String(error));
       }
     })();
-  }, [id, selectedCredentialId]);
+  }, [id, selectedCredentialId, setLogsModal]);
 
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || firstScrollDone.current) return;
+    const scrollElement = scrollRef.current;
+    if (!scrollElement || firstScrollDone.current) return;
     if (containerLogs) {
-      el.scrollTop = el.scrollHeight;
+      scrollElement.scrollTop = scrollElement.scrollHeight;
       firstScrollDone.current = true;
     }
   }, [containerLogs]);
@@ -65,10 +53,6 @@ const LogsModal: React.FC<LogsProps> = ({ id, setLogsModal }) => {
       .filter((line) => line.toLowerCase().includes(filter.toLowerCase()))
       .join('<br>')
     : containerLogs;
-
-  const closeOnBackdrop = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (event.target === event.currentTarget) setLogsModal(false);
-  };
 
   return (
     <Modal

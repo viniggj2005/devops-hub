@@ -7,11 +7,11 @@ import (
 )
 
 func (handlerStruct *DockerSdkHandlerStruct) ListVolumes(clientId int) (string, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return "", err
 	}
-	volumesList, err := cli.VolumeList(ctx, volume.ListOptions{})
+	volumesList, err := dockerClient.VolumeList(ctx, volume.ListOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -25,12 +25,12 @@ func (handlerStruct *DockerSdkHandlerStruct) ListVolumes(clientId int) (string, 
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) DeleteVolume(clientId int, volumeId string) error {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return err
 	}
 
-	err = cli.VolumeRemove(ctx, volumeId, true)
+	err = dockerClient.VolumeRemove(ctx, volumeId, true)
 	if err != nil {
 		return err
 	}
@@ -38,11 +38,11 @@ func (handlerStruct *DockerSdkHandlerStruct) DeleteVolume(clientId int, volumeId
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) CreateVolume(clientId int, options volume.CreateOptions) (string, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return "", err
 	}
-	volume, err := cli.VolumeCreate(ctx, options)
+	volume, err := dockerClient.VolumeCreate(ctx, options)
 
 	if err != nil {
 		return "", err
@@ -56,11 +56,11 @@ func (handlerStruct *DockerSdkHandlerStruct) CreateVolume(clientId int, options 
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) InspectVolume(clientId int, volumeId string) (string, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return "", err
 	}
-	volumeInspect, err := cli.VolumeInspect(ctx, volumeId)
+	volumeInspect, err := dockerClient.VolumeInspect(ctx, volumeId)
 	if err != nil {
 		return "", err
 	}

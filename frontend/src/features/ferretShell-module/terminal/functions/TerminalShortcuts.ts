@@ -1,5 +1,5 @@
 import { Terminal } from '@xterm/xterm';
-import { ClipboardGetText, ClipboardSetText } from '../../../../../wailsjs/runtime/runtime';
+import { Clipboard } from '@wailsio/runtime';
 
 const SUSPEND_SIGNAL = '\x1a';
 
@@ -7,12 +7,12 @@ export function attachTerminalShortcuts(terminal: Terminal, host: HTMLElement): 
   const copySelection = () => {
     const text = terminal.getSelection();
     if (!text) return;
-    ClipboardSetText(text);
+    Clipboard.SetText(text);
     terminal.clearSelection();
   };
 
   const pasteClipboard = async () => {
-    const text = await ClipboardGetText();
+    const text = await Clipboard.Text();
     if (text) terminal.paste(text);
   };
 

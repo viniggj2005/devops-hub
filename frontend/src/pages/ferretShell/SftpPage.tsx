@@ -1,17 +1,25 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
+import { Duration } from '../../../bindings/time/models';
 import React, { useState, useEffect, useRef } from 'react';
-import * as Ssh from '../../../wailsjs/go/ferretshellHandlers/SshHandlerStruct';
-import * as Sftp from '../../../wailsjs/go/ferretshellHandlers/SftpHandlerStruct';
-import * as Local from '../../../wailsjs/go/ferretshellHandlers/LocalFileHandler';
-import { ferretshellHandlers, ferretshellDtos } from '../../../wailsjs/go/models';
+import { errorMessage } from '../../features/shared/functions/ErrorMessage';
+import { usePromptToast } from '../../features/shared/components/toasts/PromptToast';
+import { useConfirmToast } from '../../features/shared/components/toasts/ConfirmToast';
+import * as ferretshellDtos from '../../../bindings/docker-manager-go/src/ferretshell/dtos/models';
 import SftpSidebar from '../../features/ferretShell-module/sftp/components/SftpSidebar';
 import RenameModal from '../../features/ferretShell-module/sftp/components/RenameModal';
+import * as Ssh from '../../../bindings/docker-manager-go/src/ferretshell/handlers/sshhandlerstruct';
+import * as Sftp from '../../../bindings/docker-manager-go/src/ferretshell/handlers/sftphandlerstruct';
 import SftpLocalPanel from '../../features/ferretShell-module/sftp/components/SftpLocalPanel';
+import * as Local from '../../../bindings/docker-manager-go/src/ferretshell/handlers/localfilehandler';
+import * as ferretshellHandlers from '../../../bindings/docker-manager-go/src/ferretshell/handlers/models';
 import SftpRemotePanel from '../../features/ferretShell-module/sftp/components/SftpRemotePanel';
+import { bytesToBase64, normalizeKey } from '../../features/ferretShell-module/terminal/functions/TreatmentFunctions';
 
 const SftpPage: React.FC = () => {
     const { token, user } = useAuth();
+    const promptToast = usePromptToast();
+    const confirmToast = useConfirmToast();
     const sessionIdRef = useRef<string | null>(null);
     const [connecting, setConnecting] = useState(false);
     const [localPath, setLocalPath] = useState<string>('');
@@ -49,22 +57,22 @@ const SftpPage: React.FC = () => {
             const home = await Local.GetHomeDir();
             setLocalPath(home);
             loadLocalFiles(home);
-        } catch (err) { console.error(err); }
+        } catch (homeError) { console.error(homeError); }
     };
 
     const loadSavedConnections = async () => {
         try {
             const connections = await Ssh.FindAllConnectionByUser(token!, user!.id);
             setSavedConnections(connections);
-        } catch (err) { console.error(err); }
+        } catch (connectionsError) { console.error(connectionsError); }
     };
 
-    const loadRemoteFiles = async (sessionId: string, path: string) => {
+    const loadRemoteFiles = async (currentSessionId: string, path: string) => {
         try {
-            const list = await Sftp.ListFiles(sessionId, path);
+            const list = await Sftp.ListFiles(currentSessionId, path);
             setRemoteFiles(list.sort((first, second) => (first.isDir === second.isDir ? first.name.localeCompare(second.name) : first.isDir ? -1 : 1)));
-        } catch (err: any) {
-            setError(err.message);
+        } catch (remoteError: any) {
+            setError(remoteError.message);
         }
     };
 
@@ -72,7 +80,7 @@ const SftpPage: React.FC = () => {
         try {
             const list = await Local.ListLocalFiles(path);
             setLocalFiles(list.sort((first, second) => (first.isDir === second.isDir ? first.name.localeCompare(second.name) : first.isDir ? -1 : 1)));
-        } catch (err: any) { console.error(err); }
+        } catch (localError: any) { console.error(localError); }
     };
 
     const handleConnect = async (sshDto: ferretshellDtos.SshDto) => {
@@ -89,25 +97,31 @@ const SftpPage: React.FC = () => {
             config.User = sshDto.systemUser;
             config.InsecureIgnoreHostKey = true;
             if (sshDto.key) {
-                config.Key = Array.from(sshDto.key).map(char => char.charCodeAt(0));
+                config.Key = bytesToBase64(normalizeKey(sshDto.key));
             } else if (sshDto.password) {
                 config.Password = sshDto.password;
             } else {
-                const password = prompt(`Digite a senha para ${sshDto.systemUser}@${sshDto.host}:`);
+                const password = await promptToast({
+                    title: 'Senha SSH',
+                    inputType: 'password',
+                    confirmLabel: 'Conectar',
+                    placeholder: 'sua senha',
+                    message: `Digite a senha para ${sshDto.systemUser}@${sshDto.host}`,
+                });
                 if (!password) { setConnecting(false); return; }
                 config.Password = password;
             }
-            config.Timeout = 10000000000;
+            config.Timeout = 10 * Duration.Second;
             const newSessionId = await Sftp.ConnectSFTP(config);
             setSessionId(newSessionId);
             sessionIdRef.current = newSessionId;
             setActiveConnectionId(sshDto.id);
             setRemotePath('/');
             await loadRemoteFiles(newSessionId, '/');
-            iziToast.success({ title: 'Sucesso', message: 'Conectado ao servidor SFTP', position: 'bottomRight' });
-        } catch (err: any) {
-            setError(err.message || 'Erro ao conectar');
-            iziToast.error({ title: 'Erro', message: err.message || 'Falha na conexão', position: 'bottomRight' });
+            toast.success('Conectado ao servidor SFTP');
+        } catch (connectError: any) {
+            setError(connectError.message || 'Erro ao conectar');
+            toast.error(connectError.message || 'Falha na conexão');
         } finally {
             setConnecting(false);
         }
@@ -127,10 +141,10 @@ const SftpPage: React.FC = () => {
                     await Sftp.DownloadFile(sessionId, remote, local);
                 }
             }
-            iziToast.success({ title: 'Sucesso', message: 'Download concluído', position: 'bottomRight' });
+            toast.success('Download concluído');
             loadLocalFiles(localPath);
-        } catch (err: any) {
-            iziToast.error({ title: 'Erro', message: String(err), position: 'bottomRight' });
+        } catch (downloadError: any) {
+            toast.error(errorMessage(downloadError));
         }
     };
 
@@ -143,38 +157,31 @@ const SftpPage: React.FC = () => {
                     await Sftp.UploadDirectory(sessionId, targetRemotePath, item.path);
                 } else {
                     const remote = targetRemotePath.endsWith('/') ? targetRemotePath + item.name : targetRemotePath + '/' + item.name;
-                    // @ts-ignore
                     await Sftp.UploadFile(sessionId, remote, item.path);
                 }
             }
-            iziToast.success({ title: 'Sucesso', message: 'Upload concluído', position: 'bottomRight' });
+            toast.success('Upload concluído');
             loadRemoteFiles(sessionId, remotePath);
-        } catch (err: any) {
-            iziToast.error({ title: 'Erro', message: String(err), position: 'bottomRight' });
+        } catch (uploadError: any) {
+            toast.error(errorMessage(uploadError));
         }
     };
 
     const handleLocalDelete = async () => {
         if (selectedLocalIndices.length === 0) return;
-        const pathsToDelete = selectedLocalIndices.map(i => localFiles[i].path);
+        const pathsToDelete = selectedLocalIndices.map(index => localFiles[index].path);
         const itemName = selectedLocalIndices.length === 1 ? `"${localFiles[selectedLocalIndices[0]].name}"` : `${pathsToDelete.length} itens`;
 
-        iziToast.question({
-            timeout: 20000, close: false, overlay: true, displayMode: 'once', id: 'question', zIndex: 9999,
-            title: 'Confirmar Exclusão', message: `Tem certeza que deseja excluir ${itemName}?`, position: 'center',
-            buttons: [
-                ['<button><b>SIM</b></button>', async (instance: any, toast: any) => {
-                    instance.hide({ transitionOut: 'fadeOut' }, toast, 'button');
-                    try {
-                        await Local.DeleteLocalFiles(pathsToDelete);
-                        iziToast.success({ title: 'Sucesso', message: 'Itens excluídos', position: 'bottomRight' });
-                        setSelectedLocalIndices([]);
-                        loadLocalFiles(localPath);
-                    } catch (err: any) { iziToast.error({ title: 'Erro', message: String(err), position: 'bottomRight' }); }
-                }, true],
-                ['<button>NÃO</button>', (instance: any, toast: any) => { instance.hide({ transitionOut: 'fadeOut' }, toast, 'button'); }, false],
-            ],
-        } as any);
+        confirmToast({
+            id: 'sftp-local-delete',
+            title: 'Confirmar Exclusão',
+            message: `Tem certeza que deseja excluir ${itemName}?`,
+            onConfirm: async () => {
+                await Local.DeleteLocalFiles(pathsToDelete);
+                setSelectedLocalIndices([]);
+                loadLocalFiles(localPath);
+            },
+        });
     };
 
     const handleLocalRenameRequest = (index: number) => {
@@ -189,10 +196,10 @@ const SftpPage: React.FC = () => {
             const parentPath = itemToRename.path.substring(0, itemToRename.path.lastIndexOf(itemToRename.name));
             const newPath = parentPath + newName;
             await Local.RenameLocalFile(itemToRename.path, newPath);
-            iziToast.success({ title: 'Sucesso', message: 'Arquivo renomeado', position: 'bottomRight' });
+            toast.success('Arquivo renomeado');
             loadLocalFiles(localPath);
-        } catch (err: any) {
-            iziToast.error({ title: 'Erro', message: String(err), position: 'bottomRight' });
+        } catch (renameError: any) {
+            toast.error(errorMessage(renameError));
         } finally {
             setIsRenameModalOpen(false);
             setItemToRename(null);
@@ -203,10 +210,10 @@ const SftpPage: React.FC = () => {
         if (event.shiftKey && lastSelectedIndex !== null) {
             const start = Math.min(lastSelectedIndex, index);
             const end = Math.max(lastSelectedIndex, index);
-            const newSelection = Array.from({ length: end - start + 1 }, (_, i) => start + i);
-            setSelectedIndices(prev => Array.from(new Set([...prev, ...newSelection])));
+            const newSelection = Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
+            setSelectedIndices(previous => Array.from(new Set([...previous, ...newSelection])));
         } else if (event.ctrlKey || event.metaKey) {
-            setSelectedIndices(prev => prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]);
+            setSelectedIndices(previous => previous.includes(index) ? previous.filter(itemIndex => itemIndex !== index) : [...previous, index]);
         } else { setSelectedIndices([index]); }
         setLastSelectedIndex(index);
     };
@@ -215,10 +222,10 @@ const SftpPage: React.FC = () => {
         if (event.shiftKey && lastSelectedLocalIndex !== null) {
             const start = Math.min(lastSelectedLocalIndex, index);
             const end = Math.max(lastSelectedLocalIndex, index);
-            const newSelection = Array.from({ length: end - start + 1 }, (_, i) => start + i);
-            setSelectedLocalIndices(prev => Array.from(new Set([...prev, ...newSelection])));
+            const newSelection = Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
+            setSelectedLocalIndices(previous => Array.from(new Set([...previous, ...newSelection])));
         } else if (event.ctrlKey || event.metaKey) {
-            setSelectedLocalIndices(prev => prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]);
+            setSelectedLocalIndices(previous => previous.includes(index) ? previous.filter(itemIndex => itemIndex !== index) : [...previous, index]);
         } else { setSelectedLocalIndices([index]); }
         setLastSelectedLocalIndex(index);
     };
@@ -228,7 +235,7 @@ const SftpPage: React.FC = () => {
         if (!file) return;
         let items = [{ name: file.name, isDir: file.isDir }];
         if (selectedIndices.includes(index)) {
-            items = selectedIndices.map(i => ({ name: remoteFiles[i].name, isDir: remoteFiles[i].isDir }));
+            items = selectedIndices.map(itemIndex => ({ name: remoteFiles[itemIndex].name, isDir: remoteFiles[itemIndex].isDir }));
         }
         event.dataTransfer.setData('application/json', JSON.stringify({ type: 'download', items }));
         event.dataTransfer.effectAllowed = 'copy';
@@ -239,7 +246,7 @@ const SftpPage: React.FC = () => {
         if (!file) return;
         let items = [{ path: file.path, name: file.name, isDir: file.isDir }];
         if (selectedLocalIndices.includes(index)) {
-            items = selectedLocalIndices.map(i => ({ path: localFiles[i].path, name: localFiles[i].name, isDir: localFiles[i].isDir }));
+            items = selectedLocalIndices.map(itemIndex => ({ path: localFiles[itemIndex].path, name: localFiles[itemIndex].name, isDir: localFiles[itemIndex].isDir }));
         }
         event.dataTransfer.setData('application/json', JSON.stringify({ type: 'upload', items }));
         event.dataTransfer.effectAllowed = 'copy';
@@ -253,7 +260,7 @@ const SftpPage: React.FC = () => {
                 const payload = JSON.parse(data);
                 if (payload.type === 'download') { handleDownload(payload.items, overridePath); }
             }
-        } catch (err) { console.error('Erro ao processar drop no local:', err); }
+        } catch (dropError) { console.error('Erro ao processar drop no local:', dropError); }
     };
 
     const onDropOnRemote = (event: React.DragEvent, overridePath?: string) => {
@@ -266,9 +273,9 @@ const SftpPage: React.FC = () => {
                 if (payload.type === 'upload') { handleUpload(payload.items, targetPath); return; }
             }
             if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
-                iziToast.info({ title: 'Upload', message: 'Para arquivos externos, arraste primeiro para o painel Local.', position: 'bottomRight' });
+                toast('Para arquivos externos, arraste primeiro para o painel Local.');
             }
-        } catch (err) { console.error('Erro ao processar drop no remoto:', err); }
+        } catch (dropError) { console.error('Erro ao processar drop no remoto:', dropError); }
     };
 
     return (

@@ -1,17 +1,18 @@
-import iziToast from 'izitoast';
 import { Box } from 'lucide-react';
+import toast from 'react-hot-toast';
 import React, { useState, useEffect } from 'react';
 import { PortsSection } from '../create-modal/PortsSection';
-import { dockerDtos, image } from '../../../../../../wailsjs/go/models';
-import { Modal } from '../../../../../features/shared/components/modals/Modal';
+import { errorMessage } from '../../../../shared/functions/ErrorMessage';
 import { EnvVarsSection } from '../create-modal/EnvVarsSection';
 import { VolumesSection } from '../create-modal/VolumesSection';
 import { BasicInfoSection } from '../create-modal/BasicInfoSection';
+import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { ResourceLimitsSection } from '../create-modal/ResourceLimitsSection';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
-import { CreateContainer, ImagesList, ListVolumes, ListNetworks } from '../../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
+import * as dockerDtos from '../../../../../../bindings/docker-manager-go/src/dockermanager/dtos/models';
+import * as image from '../../../../../../bindings/github.com/docker/docker/api/types/image/models';
+import { CreateContainer, ImagesList, ListVolumes, ListNetworks } from '../../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 import { CreateContainerPortMapping, CreateContainerEnvVar, CreateContainerVolumeMapping } from '../../../../../interfaces/ContainerInterfaces';
-
 
 interface CreateContainerModalProps {
     isOpen: boolean;
@@ -38,45 +39,42 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
     const [cpu, setCpu] = useState('');
     const [pidsLimit, setPidsLimit] = useState('');
 
-
     useEffect(() => {
         if (isOpen && dockerClientId) {
-            ImagesList(dockerClientId).then((imgs: any) => {
-                setAvailableImages(imgs || []);
-            }).catch((error: any) => {
-                iziToast.error({ title: 'Erro', message: 'Falha ao carregar imagens.' });
+            ImagesList(dockerClientId).then((imagesResponse: any) => {
+                setAvailableImages(imagesResponse || []);
+            }).catch(() => {
+                toast.error('Falha ao carregar imagens.');
             });
 
-            ListVolumes(dockerClientId).then((volsJson: any) => {
+            ListVolumes(dockerClientId).then((volumesJson: any) => {
                 try {
-                    const data = JSON.parse(volsJson);
+                    const data = JSON.parse(volumesJson);
                     setAvailableVolumes(data.Volumes || []);
-                } catch (error: any) {
-                    iziToast.error({ title: 'Erro', message: 'Falha ao processar lista de volumes.' });
+                } catch {
+                    toast.error('Falha ao processar lista de volumes.');
                 }
-            }).catch((error: any) => {
-                iziToast.error({ title: 'Erro', message: 'Falha ao carregar volumes.' });
+            }).catch(() => {
+                toast.error('Falha ao carregar volumes.');
             });
 
-            ListNetworks(dockerClientId).then((netsJson: any) => {
+            ListNetworks(dockerClientId).then((networksJson: any) => {
                 try {
-                    const data = JSON.parse(netsJson);
+                    const data = JSON.parse(networksJson);
                     setAvailableNetworks(Array.isArray(data) ? data : []);
-                } catch (error: any) {
-                    iziToast.error({ title: 'Erro', message: 'Falha ao processar lista de redes.' });
+                } catch {
+                    toast.error('Falha ao processar lista de redes.');
                 }
-            }).catch((error: any) => {
-
-                iziToast.error({ title: 'Erro', message: 'Falha ao carregar redes.' });
+            }).catch(() => {
+                toast.error('Falha ao carregar redes.');
             });
         }
     }, [isOpen, dockerClientId]);
 
-
     const handleSubmit = async () => {
         if (!dockerClientId) return;
         if (!imageName) {
-            iziToast.warning({ title: 'Atenção', message: 'O nome da imagem é obrigatório' });
+            toast.error('O nome da imagem é obrigatório');
             return;
         }
 
@@ -85,23 +83,23 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
             const exposedPorts: Record<string, any> = {};
             const portBindings: Record<string, any[]> = {};
 
-            ports.forEach(p => {
-                if (p.containerPort) {
-                    const portKey = `${p.containerPort}/tcp`;
+            ports.forEach(portMapping => {
+                if (portMapping.containerPort) {
+                    const portKey = `${portMapping.containerPort}/tcp`;
                     exposedPorts[portKey] = {};
-                    if (p.hostPort) {
-                        portBindings[portKey] = [{ HostPort: p.hostPort }];
+                    if (portMapping.hostPort) {
+                        portBindings[portKey] = [{ HostPort: portMapping.hostPort }];
                     }
                 }
             });
 
             const envList = envVars
-                .filter(event => event.key)
-                .map(event => `${event.key}=${event.value}`);
+                .filter(envItem => envItem.key)
+                .map(envItem => `${envItem.key}=${envItem.value}`);
 
             const binds = volumes
-                .filter(value => value.hostPath && value.containerPath)
-                .map(value => `${value.hostPath}:${value.containerPath}`);
+                .filter(volumeItem => volumeItem.hostPath && volumeItem.containerPath)
+                .map(volumeItem => `${volumeItem.hostPath}:${volumeItem.containerPath}`);
 
             const options = new dockerDtos.ContainerCreateOptions({
                 containerName: containerName,
@@ -127,7 +125,7 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
 
             await CreateContainer(dockerClientId, options);
 
-            iziToast.success({ title: 'Sucesso', message: 'Container criado com sucesso' });
+            toast.success('Container criado com sucesso');
             onSuccess();
             onClose();
 
@@ -139,10 +137,9 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
             setMemory('');
             setCpu('');
             setPidsLimit('');
-
         } catch (error) {
             console.error(error);
-            iziToast.error({ title: 'Erro', message: `Falha ao criar container: ${error}` });
+            toast.error(`Falha ao criar container: ${errorMessage(error)}`);
         } finally {
             setLoading(false);
         }

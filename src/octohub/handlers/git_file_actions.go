@@ -1,6 +1,7 @@
 package octohubHandler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -29,12 +30,15 @@ func startDetached(cmd *exec.Cmd) error {
 	return nil
 }
 
-func (handlerStruct *GitBranchHandler) repoFile(file string) (string, error) {
-	repoPath := handlerStruct.gitHandler.RepoPath()
+func (handlerStruct *GitBranchHandler) repoFile(ctx context.Context, file string) (string, error) {
+	repoPath := handlerStruct.gitHandler.repositoryPath(ctx)
 	if repoPath == "" {
 		return "", errNoRepository
 	}
 	root := filepath.Clean(repoPath)
+	if file == "" || file == "." {
+		return root, nil
+	}
 	fullPath := filepath.Join(root, filepath.FromSlash(file))
 	if !strings.HasPrefix(fullPath, root+string(filepath.Separator)) {
 		return "", fmt.Errorf("caminho fora do repositório: %s", file)
@@ -66,12 +70,12 @@ func vscodeExecutable() (string, error) {
 	return "", errors.New("VS Code não encontrado")
 }
 
-func openInVSCode(path string) error {
+func openInVSCode(paths ...string) error {
 	editor, err := vscodeExecutable()
 	if err != nil {
 		return errors.New(`VS Code não encontrado. Instale-o ou adicione o comando "code" ao PATH`)
 	}
-	cmd := exec.Command(editor, path)
+	cmd := exec.Command(editor, paths...)
 	for _, entry := range os.Environ() {
 		if !strings.HasPrefix(strings.ToUpper(entry), "ELECTRON_RUN_AS_NODE=") {
 			cmd.Env = append(cmd.Env, entry)
@@ -80,47 +84,60 @@ func openInVSCode(path string) error {
 	return startDetached(cmd)
 }
 
-func (handlerStruct *GitBranchHandler) OpenFileInEditor(file string) error {
-	fullPath, err := handlerStruct.repoFile(file)
+func (handlerStruct *GitBranchHandler) OpenFileInEditor(ctx context.Context, file string) error {
+	fullPath, err := handlerStruct.repoFile(ctx, file)
 	if err != nil {
 		return err
 	}
-	return openInVSCode(fullPath)
+	if _, err := os.Stat(fullPath); err != nil {
+		return fmt.Errorf("o arquivo %s não existe mais no disco", file)
+	}
+	return openInVSCode(filepath.Clean(handlerStruct.gitHandler.repositoryPath(ctx)), fullPath)
 }
 
-func (handlerStruct *GitBranchHandler) OpenRepositoryInEditor() error {
-	repoPath := handlerStruct.gitHandler.RepoPath()
+func (handlerStruct *GitBranchHandler) OpenRepositoryInEditor(ctx context.Context) error {
+	repoPath := handlerStruct.gitHandler.repositoryPath(ctx)
 	if repoPath == "" {
 		return errNoRepository
 	}
 	return openInVSCode(repoPath)
 }
 
-func (handlerStruct *GitBranchHandler) RevealInExplorer(file string) error {
-	fullPath, err := handlerStruct.repoFile(file)
+func (handlerStruct *GitBranchHandler) RevealInExplorer(ctx context.Context, file string) error {
+	fullPath, err := handlerStruct.repoFile(ctx, file)
 	if err != nil {
 		return err
 	}
+	isRoot := file == "" || file == "."
 	_, statErr := os.Stat(fullPath)
 	exists := statErr == nil
 	switch runtime.GOOS {
 	case "windows":
+		if isRoot && exists {
+			return startDetached(exec.Command("explorer", fullPath))
+		}
 		if exists {
 			return startDetached(exec.Command("explorer", "/select,", fullPath))
 		}
 		return startDetached(exec.Command("explorer", filepath.Dir(fullPath)))
 	case "darwin":
+		if isRoot && exists {
+			return startDetached(exec.Command("open", fullPath))
+		}
 		if exists {
 			return startDetached(exec.Command("open", "-R", fullPath))
 		}
 		return startDetached(exec.Command("open", filepath.Dir(fullPath)))
 	default:
+		if isRoot && exists {
+			return startDetached(exec.Command("xdg-open", fullPath))
+		}
 		return startDetached(exec.Command("xdg-open", filepath.Dir(fullPath)))
 	}
 }
 
-func (handlerStruct *GitBranchHandler) OpenWithDefaultProgram(file string) error {
-	fullPath, err := handlerStruct.repoFile(file)
+func (handlerStruct *GitBranchHandler) OpenWithDefaultProgram(ctx context.Context, file string) error {
+	fullPath, err := handlerStruct.repoFile(ctx, file)
 	if err != nil {
 		return err
 	}
@@ -156,26 +173,26 @@ func escapeGitignorePattern(value string) string {
 	return result
 }
 
-func (handlerStruct *GitBranchHandler) IgnoreFile(file string) error {
-	if _, err := handlerStruct.repoFile(file); err != nil {
+func (handlerStruct *GitBranchHandler) IgnoreFile(ctx context.Context, file string) error {
+	if _, err := handlerStruct.repoFile(ctx, file); err != nil {
 		return err
 	}
-	return handlerStruct.appendGitignore("/" + escapeGitignorePattern(file))
+	return handlerStruct.appendGitignore(ctx, "/"+escapeGitignorePattern(file))
 }
 
-func (handlerStruct *GitBranchHandler) IgnoreExtension(extension string) error {
+func (handlerStruct *GitBranchHandler) IgnoreExtension(ctx context.Context, extension string) error {
 	extension = strings.TrimPrefix(strings.TrimSpace(extension), ".")
 	if extension == "" || strings.ContainsAny(extension, `/\`) {
 		return fmt.Errorf("extensão inválida: %q", extension)
 	}
-	return handlerStruct.appendGitignore("*." + escapeGitignorePattern(extension))
+	return handlerStruct.appendGitignore(ctx, "*."+escapeGitignorePattern(extension))
 }
 
-func (handlerStruct *GitBranchHandler) appendGitignore(pattern string) error {
+func (handlerStruct *GitBranchHandler) appendGitignore(ctx context.Context, pattern string) error {
 	if strings.ContainsAny(pattern, "\r\n") {
 		return fmt.Errorf("padrão inválido para o .gitignore")
 	}
-	repoPath := handlerStruct.gitHandler.RepoPath()
+	repoPath := handlerStruct.gitHandler.repositoryPath(ctx)
 	if repoPath == "" {
 		return errNoRepository
 	}

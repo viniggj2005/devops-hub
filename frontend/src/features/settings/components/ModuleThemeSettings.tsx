@@ -58,6 +58,7 @@ const ModuleThemeSettings: React.FC = () => {
             icon={module.icon}
             title={module.title}
             color={module.color}
+            moduleName={module.configName}
             description={module.description}
             expandedContent={modules[module.configName].theme === 'custom' && (
               <CustomThemeEditor moduleName={module.configName} />

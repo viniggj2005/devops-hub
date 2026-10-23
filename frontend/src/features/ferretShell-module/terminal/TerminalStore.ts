@@ -1,23 +1,10 @@
 import { create } from 'zustand';
-import {
-  TerminalTab,
-  TerminalLayout,
-  TerminalInstance,
-  TerminalDropZone,
-  TerminalStateProps,
-} from '../../../interfaces/TerminalInterfaces';
+import { maxSplitPanes, splitDropZoneLayouts } from '../../shared/constants/SplitDropZones';
+import { TerminalTab, TerminalInstance, TerminalStateProps } from '../../../interfaces/TerminalInterfaces';
 
-export const maxInstancesPerTab = 4;
+export const maxInstancesPerTab = maxSplitPanes;
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
-
-const dropZoneLayouts: Record<TerminalDropZone, { layout: TerminalLayout; insertAtStart: boolean }> = {
-  center: { layout: 'grid', insertAtStart: false },
-  left: { layout: 'vertical', insertAtStart: true },
-  top: { layout: 'horizontal', insertAtStart: true },
-  right: { layout: 'vertical', insertAtStart: false },
-  bottom: { layout: 'horizontal', insertAtStart: false },
-};
 
 const buildInstance = (instanceData: Omit<TerminalInstance, 'id'>): TerminalInstance => {
   const instanceId = generateId();
@@ -80,7 +67,7 @@ export const useTerminalStore = create<TerminalStateProps>((set) => ({
       if (!sourceTab || !targetTab || sourceTabId === targetTabId) return {};
       if (sourceTab.instances.length + targetTab.instances.length > maxInstancesPerTab) return {};
 
-      const { layout, insertAtStart } = dropZoneLayouts[dropZone];
+      const { layout, insertAtStart } = splitDropZoneLayouts[dropZone];
       const movedInstances = sourceTab.instances.map((instance) => buildInstance(withoutId(instance)));
       const mergedInstances = insertAtStart
         ? [...movedInstances, ...targetTab.instances]

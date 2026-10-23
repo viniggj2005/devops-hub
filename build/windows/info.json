@@ -1,15 +1,15 @@
 {
 	"fixed": {
-		"file_version": "{{.Info.ProductVersion}}"
+		"file_version": "1.0.0"
 	},
 	"info": {
-		"0000": {
-			"ProductVersion": "{{.Info.ProductVersion}}",
-			"CompanyName": "{{.Info.CompanyName}}",
-			"FileDescription": "{{.Info.ProductName}}",
-			"LegalCopyright": "{{.Info.Copyright}}",
-			"ProductName": "{{.Info.ProductName}}",
-			"Comments": "{{.Info.Comments}}"
+		"0409": {
+			"ProductVersion": "1.0.0",
+			"CompanyName": "Vinicius Gabriel Graupmann Juraszek",
+			"FileDescription": "Devops Hub Application",
+			"LegalCopyright": "Vinicius Gabriel Graupmann Juraszek",
+			"ProductName": "Devops Hub",
+			"Comments": "Devops Hub Application"
 		}
 	}
 }

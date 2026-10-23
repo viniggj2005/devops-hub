@@ -5,6 +5,7 @@ import { Box, EyeOff, Settings } from 'lucide-react';
 import { useAppStore } from '../features/appFrame/AppStore';
 import { appModules } from '../features/shared/constants/AppModules';
 import { useGeneralConfigsStore } from '../features/settings/store/GeneralConfigsStore';
+import { moduleIconBackground } from '../features/settings/functions/ModuleIconBackground';
 
 const MainHomePage: React.FC = () => {
     const { user } = useAuth();
@@ -17,7 +18,7 @@ const MainHomePage: React.FC = () => {
     const hasVisibleActiveModule = visibleModules.some(module => module.status === 'Ativo');
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0c] text-gray-900 dark:text-white flex flex-col">
+        <div className="h-full overflow-y-auto bg-gray-50 dark:bg-[#0a0a0c] text-gray-900 dark:text-white flex flex-col">
 
             <header className="relative z-10 p-6 md:p-10 flex justify-between items-center">
                 <div>
@@ -37,10 +38,10 @@ const MainHomePage: React.FC = () => {
             </header>
 
 
-            <main className="flex-1 flex flex-col items-center justify-center p-6 -mt-20">
+            <main className="flex-1 flex flex-col items-center justify-center p-6">
                 <div className="max-w-5xl w-full">
                     <div className="text-center mb-12">
-                        <h2 className="text-4xl md:text-5xl font-extrabold mb-5 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        <h2 className="text-4xl md:text-5xl font-extrabold py-1.5 leading-tight mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                             O que vamos gerenciar hoje?
                         </h2>
                         <p className="text-lg text-gray-500 dark:text-zinc-400">
@@ -75,7 +76,7 @@ const MainHomePage: React.FC = () => {
                                 <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${module.color} opacity-0 group-hover:opacity-10 blur-3xl transition-opacity`} />
 
                                 <div className="flex items-start justify-between mb-6">
-                                    <div className={`p-4 rounded-2xl bg-gradient-to-br ${module.color} text-white shadow-lg shadow-blue-500/20`}>
+                                    <div style={moduleIconBackground(modulesConfig[module.configName])} className={`p-4 rounded-2xl bg-gradient-to-br ${module.color} text-white shadow-lg shadow-blue-500/20`}>
                                         <img src={module.icon} alt={module.title} className="w-14 h-14 brightness-0 invert" />
                                     </div>
                                     <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${module.status === 'Ativo' ? 'bg-green-500/10 text-green-500' :

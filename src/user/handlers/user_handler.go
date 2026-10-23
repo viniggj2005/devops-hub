@@ -9,6 +9,7 @@ import (
 	userDtos "docker-manager-go/src/user/dtos"
 	"errors"
 
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -22,8 +23,9 @@ type UserHandlerStruct struct {
 func NewUserHandler(dataBase *gorm.DB, session *auth.ManagerStruct) *UserHandlerStruct {
 	return &UserHandlerStruct{DataBase: dataBase, Session: session}
 }
-func (handlerStruct *UserHandlerStruct) Startup(context context.Context) {
+func (handlerStruct *UserHandlerStruct) ServiceStartup(context context.Context, _ application.ServiceOptions) error {
 	handlerStruct.context = context
+	return nil
 }
 
 func (handlerStruct *UserHandlerStruct) Create(body userDtos.CreateUserInputDto) (*userDtos.UserDTO, error) {

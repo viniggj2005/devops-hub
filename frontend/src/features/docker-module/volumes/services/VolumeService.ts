@@ -1,7 +1,11 @@
-import { ListVolumes } from '../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
 import { VolumeListResponse } from '../../../../interfaces/VolumeInterfaces';
-
-const getSdkHandler = () => (window as any)?.go?.handlers?.DockerSdkHandlerStruct;
+import * as volumeModels from '../../../../../bindings/github.com/docker/docker/api/types/volume/models';
+import {
+  ListVolumes,
+  CreateVolume,
+  DeleteVolume,
+  InspectVolume,
+} from '../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 
 export const VolumeService = {
   async listVolumes(clientId: number): Promise<VolumeListResponse> {
@@ -10,30 +14,24 @@ export const VolumeService = {
   },
 
   async deleteVolume(clientId: number, volumeName: string): Promise<void> {
-    const sdk = getSdkHandler();
-    if (!sdk?.DeleteVolume) {
-      throw new Error('Função DeleteVolume não disponível');
-    }
-    await sdk.DeleteVolume(clientId, volumeName);
+    await DeleteVolume(clientId, volumeName);
   },
 
   async inspectVolume(clientId: number, volumeName: string): Promise<string> {
-    const sdk = getSdkHandler();
-    if (!sdk?.InspectVolume) {
-      throw new Error('Função InspectVolume não disponível');
-    }
-    return sdk.InspectVolume(clientId, volumeName);
+    return await InspectVolume(clientId, volumeName);
   },
 
   async createVolume(
     clientId: number,
     options: { Name: string; Driver?: string; DriverOpts?: Record<string, string>; Labels?: Record<string, string> }
   ): Promise<string> {
-    const sdk = getSdkHandler();
-    if (!sdk?.CreateVolume) {
-      throw new Error('Função CreateVolume não disponível');
-    }
-    const result = await sdk.CreateVolume(clientId, options);
+    const createOptions = new volumeModels.CreateOptions({
+      Name: options.Name,
+      Driver: options.Driver ?? 'local',
+      Labels: options.Labels ?? {},
+      DriverOpts: options.DriverOpts ?? {},
+    });
+    const result = await CreateVolume(clientId, createOptions);
     return typeof result === 'string' ? result : JSON.stringify(result);
   },
 };

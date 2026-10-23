@@ -1,6 +1,7 @@
 package octohubHandler
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,7 +11,7 @@ import (
 	octohubStructs "docker-manager-go/src/octohub/structs"
 )
 
-func (handlerStruct *GitCommitsHandler) DiscardChanges(files []octohubStructs.CommitFileSelection) error {
+func (handlerStruct *GitCommitsHandler) DiscardChanges(ctx context.Context, files []octohubStructs.CommitFileSelection) error {
 	if len(files) == 0 {
 		return fmt.Errorf("selecione ao menos uma alteração para descartar")
 	}
@@ -23,7 +24,7 @@ func (handlerStruct *GitCommitsHandler) DiscardChanges(files []octohubStructs.Co
 		}
 
 		if !file.All {
-			diff, err := handlerStruct.workingFileDiff(octohubStructs.FilesStatus{
+			diff, err := handlerStruct.workingFileDiff(ctx, octohubStructs.FilesStatus{
 				Kind:        file.Kind,
 				FileName:    file.FileName,
 				OldFileName: file.OldFileName,
@@ -54,10 +55,10 @@ func (handlerStruct *GitCommitsHandler) DiscardChanges(files []octohubStructs.Co
 		}
 	}
 
-	hasHead := handlerStruct.hasHead()
+	hasHead := handlerStruct.hasHead(ctx)
 	backupNote := ""
 	if hasHead {
-		if err := handlerStruct.backupChanges(backupPaths); err != nil {
+		if err := handlerStruct.backupChanges(ctx, backupPaths); err != nil {
 			return fmt.Errorf("não foi possível guardar uma cópia das alterações, nada foi descartado: %w", err)
 		}
 		backupNote = " Uma cópia das alterações ficou guardada nos stashes."
@@ -65,7 +66,7 @@ func (handlerStruct *GitCommitsHandler) DiscardChanges(files []octohubStructs.Co
 
 	for _, patch := range patches {
 		args := []string{"apply", "--unidiff-zero", "--whitespace=nowarn", "-"}
-		if _, err := handlerStruct.gitHandler.RunGitCommandWithInput(args, patch); err != nil {
+		if _, err := handlerStruct.gitHandler.runGitCommandWithInput(ctx, args, patch); err != nil {
 			return fmt.Errorf("erro ao descartar as linhas selecionadas: %w.%s", err, backupNote)
 		}
 	}
@@ -76,18 +77,18 @@ func (handlerStruct *GitCommitsHandler) DiscardChanges(files []octohubStructs.Co
 			args = []string{"--literal-pathspecs", "rm", "-q", "-f", "--cached", "--ignore-unmatch", "--pathspec-from-file=-", "--pathspec-file-nul"}
 			removePaths = append(removePaths, restorePaths...)
 		}
-		if _, err := handlerStruct.gitHandler.RunGitCommandWithInput(args, strings.Join(restorePaths, "\x00")); err != nil {
+		if _, err := handlerStruct.gitHandler.runGitCommandWithInput(ctx, args, strings.Join(restorePaths, "\x00")); err != nil {
 			return fmt.Errorf("erro ao descartar alterações: %w.%s", err, backupNote)
 		}
 	}
 
-	if err := handlerStruct.removeFiles(removePaths); err != nil {
+	if err := handlerStruct.removeFiles(ctx, removePaths); err != nil {
 		return fmt.Errorf("%w.%s", err, backupNote)
 	}
 	return nil
 }
 
-func (handlerStruct *GitCommitsHandler) backupChanges(paths []string) error {
+func (handlerStruct *GitCommitsHandler) backupChanges(ctx context.Context, paths []string) error {
 	indexFile, err := os.CreateTemp("", "octohub-index-*")
 	if err != nil {
 		return err
@@ -105,7 +106,7 @@ func (handlerStruct *GitCommitsHandler) backupChanges(paths []string) error {
 		"GIT_COMMITTER_EMAIL=octohub@localhost",
 	}
 	run := func(input string, args ...string) (string, error) {
-		out, _, err := handlerStruct.gitHandler.runGit(args, input, env...)
+		out, _, err := handlerStruct.gitHandler.runGit(ctx, args, input, env...)
 		return strings.TrimSpace(string(out)), err
 	}
 
@@ -118,7 +119,7 @@ func (handlerStruct *GitCommitsHandler) backupChanges(paths []string) error {
 	if _, err := run("", "read-tree", "HEAD"); err != nil {
 		return err
 	}
-	if _, err := run(strings.Join(paths, "\x00"), "--literal-pathspecs", "add", "-A", "--pathspec-from-file=-", "--pathspec-file-nul"); err != nil {
+	if _, err := run(strings.Join(paths, "\x00"), "--literal-pathspecs", "add", "-A", "--force", "--pathspec-from-file=-", "--pathspec-file-nul"); err != nil {
 		return err
 	}
 	tree, err := run("", "write-tree")
@@ -137,8 +138,8 @@ func (handlerStruct *GitCommitsHandler) backupChanges(paths []string) error {
 	return err
 }
 
-func (handlerStruct *GitCommitsHandler) removeFiles(paths []string) error {
-	root := filepath.Clean(handlerStruct.gitHandler.RepoPath())
+func (handlerStruct *GitCommitsHandler) removeFiles(ctx context.Context, paths []string) error {
+	root := filepath.Clean(handlerStruct.gitHandler.repositoryPath(ctx))
 	for _, path := range paths {
 		fullPath := filepath.Join(root, filepath.FromSlash(path))
 		if !strings.HasPrefix(fullPath, root+string(filepath.Separator)) {

@@ -1,9 +1,10 @@
-import iziToast from 'izitoast';
-import { Copy, Info, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import React, { useCallback, useState } from 'react';
+import { Copy, Info, Network, Trash2 } from 'lucide-react';
 import { NetworkService } from '../../services/NetworkService';
-import { FmtAgo } from '../../../../../features/shared/functions/TreatmentFunction';
 import { NetworkItem } from '../../../../../interfaces/NetworkInterfaces';
+import { copyToClipboard } from '../../../../../features/shared/functions/clipboard';
+import { FmtAgo } from '../../../../../features/shared/functions/TreatmentFunction';
 import InspectModal from '../../../../../features/shared/components/modals/InspectModal';
 import { useConfirmToast } from '../../../../../features/shared/components/toasts/ConfirmToast';
 
@@ -24,17 +25,13 @@ const NetworkCards: React.FC<NetworkCardProps> = ({
   Internal,
   onDeleted,
   Attachable,
-  EnableIPv4,
-  EnableIPv6,
 }) => {
+  const confirmToast = useConfirmToast();
   const [isInspectOpen, setIsInspectOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [isInspectLoading, setIsInspectLoading] = useState(false);
   const [inspectData, setInspectData] = useState<string | null>(null);
-  const confirmToast = useConfirmToast();
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-  };
+
   const handleOpenInspect = useCallback(async () => {
     try {
       setIsInspectLoading(true);
@@ -42,8 +39,8 @@ const NetworkCards: React.FC<NetworkCardProps> = ({
       const formattedData = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
       setInspectData(formattedData);
       setIsInspectOpen(true);
-    } catch (error) {
-      iziToast.error({ title: 'Erro', message: 'Erro ao buscar dados de inspeção.', position: 'bottomRight' });
+    } catch {
+      toast.error('Erro ao buscar dados de inspeção.');
     } finally {
       setIsInspectLoading(false);
     }
@@ -56,7 +53,7 @@ const NetworkCards: React.FC<NetworkCardProps> = ({
   const handleDelete = useCallback(() => {
     confirmToast({
       id: Id,
-      title: 'Rede removida com sucesso!',
+      title: 'Remover rede?',
       message: `Deseja remover a rede "${Name}"?`,
       onConfirm: async () => {
         setDeleteLoading(true);
@@ -78,45 +75,57 @@ const NetworkCards: React.FC<NetworkCardProps> = ({
 
   return (
     <>
-      <div className="group relative flex flex-col gap-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 dark:border-white/5 dark:bg-[#0f172a]/80 dark:backdrop-blur-xl">
+      <div className="group relative flex flex-col gap-4 rounded-2xl border border-gray-200 dark:border-white/[0.07] bg-white dark:bg-zinc-900/60 p-5 shadow-sm transition-all hover:border-blue-500/30 dark:hover:border-white/15">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <h3 className="truncate text-lg font-semibold tracking-tight text-gray-900 dark:text-white" title={Name}>
-                {Name}
-              </h3>
+          <div className="flex items-start gap-3.5 flex-1 min-w-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <Network className="h-5 w-5" />
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-100 bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-gray-600 dark:border-white/5 dark:bg-white/5 dark:text-gray-400">
-                <span className="opacity-50">Driver:</span> {Driver}
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-100 bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-gray-600 dark:border-white/5 dark:bg-white/5 dark:text-gray-400">
-                <span className="opacity-50">Scope:</span> {Scope}
-              </span>
+            <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="truncate text-sm font-bold tracking-tight text-gray-900 dark:text-white" title={Name}>
+                  {Name}
+                </h3>
+                <span className="text-[11px] font-mono text-gray-400 dark:text-zinc-500">
+                  {Id.slice(0, 12)}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                <span className="inline-flex items-center gap-1 rounded-md border border-gray-200/80 bg-gray-50 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:border-white/[0.06] dark:bg-zinc-950/60 dark:text-zinc-400">
+                  Driver: {Driver}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-md border border-gray-200/80 bg-gray-50 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:border-white/[0.06] dark:bg-zinc-950/60 dark:text-zinc-400">
+                  Scope: {Scope}
+                </span>
+              </div>
             </div>
           </div>
 
           <div className="flex gap-1">
             <button
+              type="button"
               onClick={handleOpenInspect}
               disabled={isInspectLoading}
               title="Inspecionar rede"
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer"
             >
               <Info className="h-4 w-4" />
             </button>
             <button
-              onClick={() => copyToClipboard(Id)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white"
+              type="button"
+              onClick={() => copyToClipboard(Id.slice(0, 12), 'ID da rede copiado')}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer"
               title="Copiar ID"
             >
               <Copy className="h-4 w-4" />
             </button>
             <button
+              type="button"
               onClick={handleDelete}
               disabled={deleteLoading}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 cursor-pointer"
               title="Remover rede"
             >
               <Trash2 className="h-4 w-4" />
@@ -124,32 +133,53 @@ const NetworkCards: React.FC<NetworkCardProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 dark:border-white/5">
-          <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Subnet</p>
-            <p className="truncate text-sm font-medium text-gray-700 dark:text-gray-300 font-mono" title={mainSubnet}>{mainSubnet}</p>
+        <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-3 dark:border-white/[0.05]">
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+              Subnet
+            </p>
+            <p className="truncate text-xs font-semibold text-gray-700 dark:text-zinc-300 font-mono" title={mainSubnet}>
+              {mainSubnet}
+            </p>
           </div>
-          <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Gateway</p>
-            <p className="truncate text-sm font-medium text-gray-700 dark:text-gray-300 font-mono" title={mainGateway}>{mainGateway}</p>
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+              Gateway
+            </p>
+            <p className="truncate text-xs font-semibold text-gray-700 dark:text-zinc-300 font-mono" title={mainGateway}>
+              {mainGateway}
+            </p>
           </div>
 
-          <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Configuração</p>
-            <div className="flex flex-wrap gap-2 text-xs text-gray-600 dark:text-gray-400">
-              <span className={Internal ? "text-emerald-500" : "text-gray-400"}>{Internal ? 'Internal' : 'External'}</span>
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+              Propriedades
+            </p>
+            <div className="flex flex-wrap gap-1.5 text-[11px] text-gray-600 dark:text-zinc-400">
+              <span className={Internal ? 'text-emerald-500 font-medium' : ''}>
+                {Internal ? 'Internal' : 'External'}
+              </span>
               <span>•</span>
-              <span className={Attachable ? "text-emerald-500" : "text-gray-400"}>{Attachable ? 'Attachable' : 'Non-attachable'}</span>
-              <span>•</span>
-              <span className={Ingress ? "text-purple-500" : "text-gray-400"}>{Ingress ? 'Ingres' : 'No Ingress'}</span>
+              <span className={Attachable ? 'text-blue-500 font-medium' : ''}>
+                {Attachable ? 'Attachable' : 'Non-attachable'}
+              </span>
+              {Ingress && (
+                <>
+                  <span>•</span>
+                  <span className="text-purple-500 font-medium">Ingress</span>
+                </>
+              )}
             </div>
           </div>
-          <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Criado</p>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{createdTimestamp ? FmtAgo(createdTimestamp) : '—'}</p>
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+              Criado
+            </p>
+            <p className="text-xs font-semibold text-gray-700 dark:text-zinc-300">
+              {createdTimestamp ? FmtAgo(createdTimestamp) : '—'}
+            </p>
           </div>
         </div>
-
       </div>
 
       {isInspectOpen && (
@@ -159,8 +189,7 @@ const NetworkCards: React.FC<NetworkCardProps> = ({
           data={inspectData || ''}
           onClose={handleCloseInspect}
         />
-      )
-      }
+      )}
     </>
   );
 };

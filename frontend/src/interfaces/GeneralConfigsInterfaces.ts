@@ -1,12 +1,12 @@
-export type ConfigType = 'user' | 'theme' | 'colors';
-
 export type ThemeBase = 'light' | 'dark';
+
+export type ConfigType = 'user' | 'theme' | 'colors';
 
 export type ModuleThemePreference = 'light' | 'dark' | 'custom';
 
-export type AccentFamily = 'blue' | 'purple' | 'amber' | 'emerald';
+export type AccentFamily = 'blue' | 'cyan' | 'purple' | 'amber' | 'emerald';
 
-export type ConfigurableModule = 'vulpes' | 'octohub' | 'ferretshell' | 'docker-manager';
+export type ConfigurableModule = 'vulpes' | 'octohub' | 'ferretshell' | 'docker-manager' | 'talpadb';
 
 export interface CustomThemeColors {
   text: string;
@@ -68,3 +68,46 @@ export type OctohubColorKey =
   | 'conflicted';
 
 export type OctohubColors = Record<OctohubColorKey, string>;
+
+export type SqlEditorColorKey =
+  | 'type'
+  | 'cursor'
+  | 'string'
+  | 'number'
+  | 'keyword'
+  | 'comment'
+  | 'operator'
+  | 'function'
+  | 'selection'
+  | 'background'
+  | 'foreground'
+  | 'identifier'
+  | 'activeLine'
+  | 'lineNumbers';
+
+export type SqlEditorColors = Record<SqlEditorColorKey, string>;
+
+export interface SqlEditorThemeConfig {
+  preset: string;
+  fontSize: number;
+  colors: SqlEditorColors;
+}
+
+export interface ThemeProfileModuleTheme {
+  theme: ModuleThemePreference;
+  customTheme: CustomThemeColors;
+}
+
+export interface ThemeProfileConfig {
+  globalTheme: ThemeBase;
+  octohubColors: OctohubColors;
+  terminalTheme: TerminalThemeConfig;
+  sqlEditorTheme: SqlEditorThemeConfig;
+  modules: Record<ConfigurableModule, ThemeProfileModuleTheme>;
+}
+
+export interface ThemeProfile {
+  id: number;
+  name: string;
+  config: ThemeProfileConfig;
+}

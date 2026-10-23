@@ -8,11 +8,11 @@ import (
 )
 
 func (handlerStruct *DockerSdkHandlerStruct) ListNetworks(clientId int) (string, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return "", err
 	}
-	networksList, err := cli.NetworkList(ctx, network.ListOptions{})
+	networksList, err := dockerClient.NetworkList(ctx, network.ListOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -26,11 +26,11 @@ func (handlerStruct *DockerSdkHandlerStruct) ListNetworks(clientId int) (string,
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) InspectNetwork(clientId int, newtworkId string) (string, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return "", err
 	}
-	inspect, err := cli.NetworkInspect(ctx, newtworkId, network.InspectOptions{Verbose: true})
+	inspect, err := dockerClient.NetworkInspect(ctx, newtworkId, network.InspectOptions{Verbose: true})
 	if err != nil {
 		return "", err
 	}
@@ -42,11 +42,11 @@ func (handlerStruct *DockerSdkHandlerStruct) InspectNetwork(clientId int, newtwo
 	return string(bytesArray), nil
 }
 func (handlerStruct *DockerSdkHandlerStruct) DeleteNetwork(clientId int, newtworkId string) error {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return err
 	}
-	err = cli.NetworkRemove(ctx, newtworkId)
+	err = dockerClient.NetworkRemove(ctx, newtworkId)
 	if err != nil {
 		return err
 	}
@@ -55,11 +55,11 @@ func (handlerStruct *DockerSdkHandlerStruct) DeleteNetwork(clientId int, newtwor
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) PruneNetworks(clientId int) (string, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return "", err
 	}
-	report, err := cli.NetworksPrune(ctx, filters.Args{})
+	report, err := dockerClient.NetworksPrune(ctx, filters.Args{})
 	if err != nil {
 		return "", err
 	}
@@ -73,11 +73,11 @@ func (handlerStruct *DockerSdkHandlerStruct) PruneNetworks(clientId int) (string
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) CreateNetwork(clientId int, name string, options network.CreateOptions) (string, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return "", err
 	}
-	report, err := cli.NetworkCreate(ctx, name, options)
+	report, err := dockerClient.NetworkCreate(ctx, name, options)
 	if err != nil {
 		return "", err
 	}

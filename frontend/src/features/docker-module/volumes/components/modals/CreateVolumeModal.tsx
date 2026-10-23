@@ -1,6 +1,6 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import { Database } from 'lucide-react';
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { VolumeService } from '../../services/VolumeService';
 import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { ModalProps } from '../../../../../interfaces/TerminalInterfaces';
@@ -13,28 +13,28 @@ interface KeyValueInput {
 }
 
 const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) => {
-  const { selectedCredentialId } = useDockerClient();
   const [name, setName] = useState('');
   const [driver, setDriver] = useState('local');
-  const [driverOpts, setDriverOpts] = useState<KeyValueInput[]>([{ key: '', value: '' }]);
-  const [labels, setLabels] = useState<KeyValueInput[]>([{ key: '', value: '' }]);
+  const { selectedCredentialId } = useDockerClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [labels, setLabels] = useState<KeyValueInput[]>([{ key: '', value: '' }]);
+  const [driverOpts, setDriverOpts] = useState<KeyValueInput[]>([{ key: '', value: '' }]);
 
   const parsedDriverOpts = useMemo(() => {
     return driverOpts
       .filter((entry) => entry.key.trim())
-      .reduce<Record<string, string>>((acc, { key, value }) => {
-        acc[key] = value;
-        return acc;
+      .reduce<Record<string, string>>((accumulator, { key, value }) => {
+        accumulator[key] = value;
+        return accumulator;
       }, {});
   }, [driverOpts]);
 
   const parsedLabels = useMemo(() => {
     return labels
       .filter((entry) => entry.key.trim())
-      .reduce<Record<string, string>>((acc, { key, value }) => {
-        acc[key] = value;
-        return acc;
+      .reduce<Record<string, string>>((accumulator, { key, value }) => {
+        accumulator[key] = value;
+        return accumulator;
       }, {});
   }, [labels]);
 
@@ -45,14 +45,14 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
     newValue: string
   ) => {
     if (type === 'driver') {
-      setDriverOpts((prev) => {
-        const next = [...prev];
+      setDriverOpts((previous) => {
+        const next = [...previous];
         next[index] = { ...next[index], [field]: newValue };
         return next;
       });
     } else {
-      setLabels((prev) => {
-        const next = [...prev];
+      setLabels((previous) => {
+        const next = [...previous];
         next[index] = { ...next[index], [field]: newValue };
         return next;
       });
@@ -61,31 +61,30 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
 
   const handleAddEntry = (type: 'driver' | 'label') => {
     if (type === 'driver') {
-      setDriverOpts((prev) => [...prev, { key: '', value: '' }]);
+      setDriverOpts((previous) => [...previous, { key: '', value: '' }]);
     } else {
-      setLabels((prev) => [...prev, { key: '', value: '' }]);
+      setLabels((previous) => [...previous, { key: '', value: '' }]);
     }
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleSubmit = async (event?: React.FormEvent) => {
+    event?.preventDefault();
     if (!selectedCredentialId) return;
+    if (!name.trim()) {
+      toast.error('Informe o nome do volume.');
+      return;
+    }
 
     try {
       setIsSubmitting(true);
       await VolumeService.createVolume(selectedCredentialId, {
-        Name: name,
+        Name: name.trim(),
         Driver: driver,
-        DriverOpts: parsedDriverOpts,
         Labels: parsedLabels,
+        DriverOpts: parsedDriverOpts,
       });
 
-      iziToast.success({
-        title: 'Criado com sucesso',
-        message: 'O volume foi criado.',
-        position: 'bottomRight',
-        timeout: 3000,
-      });
+      toast.success('O volume foi criado.');
 
       onClose();
       onCreated?.();
@@ -94,47 +93,44 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
       setDriver('local');
       setDriverOpts([{ key: '', value: '' }]);
       setLabels([{ key: '', value: '' }]);
-    } catch (err) {
-      console.error(err);
-      iziToast.error({
-        title: 'Erro',
-        message: 'Não foi possível criar o volume.',
-        position: 'bottomRight',
-      });
+    } catch (createError) {
+      console.error(createError);
+      toast.error('Não foi possível criar o volume.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const inputClass = `w-full px-4 py-3 rounded-xl border backdrop-blur-sm transition-all outline-none
-    bg-white/80 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
-    dark:bg-white/10 dark:border-white/20 dark:text-white dark:placeholder:text-white/40 dark:focus:border-blue-500/50 dark:focus:ring-blue-500/20`;
+  const inputClass = `w-full px-3.5 py-2.5 rounded-xl border text-sm transition-all outline-none
+    bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
+    dark:bg-zinc-950/70 dark:border-white/10 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-blue-500/60 dark:focus:ring-blue-500/20`;
 
-  const labelClass = `block text-sm mb-2 text-gray-700 dark:text-gray-200`;
+  const labelClass = `block text-xs font-medium mb-1.5 text-gray-700 dark:text-zinc-300`;
 
   return (
     <Modal
       isOpen={open}
       onClose={onClose}
-      title="Novo volume Docker"
-      description="preencha os dados"
-      icon={<Database className="w-5 h-5 text-indigo-500" />}
+      title="Novo Volume Docker"
+      description="Configuração de volume persistente"
+      icon={<Database className="w-5 h-5 text-blue-500" />}
       footer={
         <>
           <ModalButton variant="secondary" onClick={onClose} disabled={isSubmitting}>
             Cancelar
           </ModalButton>
-          <ModalButton variant="primary" onClick={handleSubmit} disabled={isSubmitting} isLoading={isSubmitting}>
+          <ModalButton
+            variant="primary"
+            onClick={() => handleSubmit()}
+            disabled={isSubmitting}
+            isLoading={isSubmitting}
+          >
             Criar Volume
           </ModalButton>
         </>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-sm mb-4 text-gray-600 dark:text-gray-400">
-          Preencha os dados abaixo para criar um novo volume Docker.
-        </p>
-
         <div>
           <label className={labelClass}>
             Nome <span className="text-red-400">*</span>
@@ -156,9 +152,9 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
             onChange={(event) => setDriver(event.target.value)}
             className={inputClass}
           >
-            <option value="local" className="dark:bg-zinc-800">local</option>
-            <option value="nfs" className="dark:bg-zinc-800">nfs</option>
-            <option value="tmpfs" className="dark:bg-zinc-800">tmpfs</option>
+            <option value="local" className="dark:bg-zinc-900">local</option>
+            <option value="nfs" className="dark:bg-zinc-900">nfs</option>
+            <option value="tmpfs" className="dark:bg-zinc-900">tmpfs</option>
           </select>
         </div>
 
@@ -168,7 +164,7 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
             <button
               type="button"
               onClick={() => handleAddEntry('driver')}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-500 transition-colors"
+              className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline transition-colors cursor-pointer"
             >
               + Adicionar opção
             </button>
@@ -199,7 +195,7 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
             <button
               type="button"
               onClick={() => handleAddEntry('label')}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-500 transition-colors"
+              className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline transition-colors cursor-pointer"
             >
               + Adicionar label
             </button>
@@ -223,7 +219,6 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
             </div>
           ))}
         </div>
-
       </form>
     </Modal>
   );

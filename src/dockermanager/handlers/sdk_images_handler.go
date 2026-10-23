@@ -2,6 +2,8 @@ package dockerHandlers
 
 import (
 	"bytes"
+	"context"
+	"docker-manager-go/src/desktop"
 	dockerDtos "docker-manager-go/src/dockermanager/dtos"
 	dockerFunctions "docker-manager-go/src/dockermanager/functions"
 	"encoding/json"
@@ -13,11 +15,10 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-func (handlerStruct *DockerSdkHandlerStruct) ImageCreate(clientId int, body dockerDtos.ImageCreateDto) error {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+func (handlerStruct *DockerSdkHandlerStruct) ImageCreate(ctx context.Context, clientId int, body dockerDtos.ImageCreateDto) error {
+	dockerClient, clientContext, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return err
 	}
@@ -40,13 +41,14 @@ func (handlerStruct *DockerSdkHandlerStruct) ImageCreate(clientId int, body dock
 		Remove:     true,
 	}
 
-	res, err := cli.ImageBuild(ctx, buildContext, options)
+	buildResponse, err := dockerClient.ImageBuild(clientContext, buildContext, options)
 	if err != nil {
 		return &APIError{Code: 500, Message: err.Error()}
 	}
-	defer res.Body.Close()
+	defer buildResponse.Body.Close()
 
-	decoder := json.NewDecoder(res.Body)
+	decoder := json.NewDecoder(buildResponse.Body)
+	windowName := desktop.CallingWindowName(ctx)
 
 	for {
 		var buildResult struct {
@@ -66,7 +68,7 @@ func (handlerStruct *DockerSdkHandlerStruct) ImageCreate(clientId int, body dock
 		}
 
 		if buildResult.Stream != "" {
-			runtime.EventsEmit(handlerStruct.appContext, "image:build", map[string]string{
+			desktop.EmitToWindow(windowName, "image:build", map[string]string{
 				"clientId": fmt.Sprintf("%d", clientId),
 				"log":      buildResult.Stream,
 			})
@@ -77,20 +79,20 @@ func (handlerStruct *DockerSdkHandlerStruct) ImageCreate(clientId int, body dock
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) ImagesList(clientId int) ([]image.Summary, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return nil, err
 	}
 
-	images, err := cli.ImageList(ctx, image.ListOptions{All: false})
+	images, err := dockerClient.ImageList(ctx, image.ListOptions{All: false})
 	if err != nil {
 		return nil, &APIError{Code: 500, Message: err.Error()}
 	}
 
 	var filteredImages []image.Summary
-	for _, img := range images {
-		if len(img.RepoTags) > 0 && img.RepoTags[0] != "<none>:<none>" {
-			filteredImages = append(filteredImages, img)
+	for _, imageSummary := range images {
+		if len(imageSummary.RepoTags) > 0 && imageSummary.RepoTags[0] != "<none>:<none>" {
+			filteredImages = append(filteredImages, imageSummary)
 		}
 	}
 
@@ -98,12 +100,12 @@ func (handlerStruct *DockerSdkHandlerStruct) ImagesList(clientId int) ([]image.S
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) RemoveImage(clientId int, imageId string) ([]image.DeleteResponse, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return nil, err
 	}
 
-	removed, err := cli.ImageRemove(ctx, imageId, image.RemoveOptions{Force: true})
+	removed, err := dockerClient.ImageRemove(ctx, imageId, image.RemoveOptions{Force: true})
 	if err != nil {
 		return nil, &APIError{Code: 500, Message: err.Error()}
 	}
@@ -112,7 +114,7 @@ func (handlerStruct *DockerSdkHandlerStruct) RemoveImage(clientId int, imageId s
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) PruneImages(clientId int) (image.PruneReport, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return image.PruneReport{}, err
 	}
@@ -120,7 +122,7 @@ func (handlerStruct *DockerSdkHandlerStruct) PruneImages(clientId int) (image.Pr
 	pruneFilters := filters.NewArgs()
 	pruneFilters.Add("dangling", "false")
 
-	report, err := cli.ImagesPrune(ctx, pruneFilters)
+	report, err := dockerClient.ImagesPrune(ctx, pruneFilters)
 	if err != nil {
 		return image.PruneReport{}, &APIError{Code: 500, Message: err.Error()}
 	}
@@ -129,14 +131,14 @@ func (handlerStruct *DockerSdkHandlerStruct) PruneImages(clientId int) (image.Pr
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) InspectImage(clientId int, imageId string) (string, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return "", err
 	}
 
 	var raw bytes.Buffer
 
-	_, err = cli.ImageInspect(
+	_, err = dockerClient.ImageInspect(
 		ctx,
 		imageId,
 		client.ImageInspectWithRawResponse(&raw),

@@ -15,13 +15,18 @@ type SessionStruct struct {
 }
 
 type ManagerStruct struct {
-	mutex      sync.RWMutex
-	sessions   map[string]*SessionStruct
-	timeToLive time.Duration
+	mutex        sync.RWMutex
+	sessions     map[string]*SessionStruct
+	timeToLive   time.Duration
+	windowOffers map[string]string
 }
 
 func NewManager(timeToLive time.Duration) *ManagerStruct {
-	manager := &ManagerStruct{sessions: make(map[string]*SessionStruct), timeToLive: timeToLive}
+	manager := &ManagerStruct{
+		sessions:     make(map[string]*SessionStruct),
+		timeToLive:   timeToLive,
+		windowOffers: make(map[string]string),
+	}
 	go manager.garbageCollector()
 	return manager
 }
@@ -64,14 +69,46 @@ func (manager *ManagerStruct) Destroy(token string) {
 	manager.mutex.Unlock()
 }
 
+func (manager *ManagerStruct) OfferToWindow(windowName string, token string) error {
+	if _, err := manager.Validate(token); err != nil {
+		return err
+	}
+	manager.mutex.Lock()
+	manager.windowOffers[windowName] = token
+	manager.mutex.Unlock()
+	return nil
+}
+
+func (manager *ManagerStruct) ClaimForWindow(windowName string) (string, *SessionStruct, error) {
+	manager.mutex.Lock()
+	originToken, offered := manager.windowOffers[windowName]
+	delete(manager.windowOffers, windowName)
+	manager.mutex.Unlock()
+	if !offered {
+		return "", nil, errors.New("nenhuma sessão disponível para esta janela")
+	}
+
+	originSession, err := manager.Validate(originToken)
+	if err != nil {
+		return "", nil, err
+	}
+	return manager.Create(originSession.UserID)
+}
+
+func (manager *ManagerStruct) RevokeWindowOffer(windowName string) {
+	manager.mutex.Lock()
+	delete(manager.windowOffers, windowName)
+	manager.mutex.Unlock()
+}
+
 func (manager *ManagerStruct) garbageCollector() {
 	ticker := time.NewTicker(time.Minute)
 	for range ticker.C {
 		now := time.Now()
 		manager.mutex.Lock()
-		for key, value := range manager.sessions {
-			if now.After(value.ExpiresAt) {
-				delete(manager.sessions, key)
+		for token, session := range manager.sessions {
+			if now.After(session.ExpiresAt) {
+				delete(manager.sessions, token)
 			}
 		}
 		manager.mutex.Unlock()

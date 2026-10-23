@@ -1,21 +1,14 @@
 package ferretshellHandlers
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 )
 
-type LocalFileHandler struct {
-	ctx context.Context
-}
+type LocalFileHandler struct{}
 
 func NewLocalFileHandler() *LocalFileHandler {
 	return &LocalFileHandler{}
-}
-
-func (handlerStruct *LocalFileHandler) Startup(ctx context.Context) {
-	handlerStruct.ctx = ctx
 }
 
 type LocalFileInfo struct {

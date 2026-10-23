@@ -1,15 +1,19 @@
 import './index.css';
 import { useEffect, useState } from 'react';
 import MainHomePage from './pages/MainHomePage';
+import { Events, Window } from '@wailsio/runtime';
 import { AppFrame } from './features/appFrame/appFrame';
 import SettingsPage from './pages/settings/SettingsPage';
 import { useAppStore } from './features/appFrame/AppStore';
-import { useGeneralConfigsStore } from './features/settings/store/GeneralConfigsStore';
+import { windowInstanceId } from './features/appFrame/WindowContext';
+import { useUpdateNotifier } from './features/shared/hooks/useUpdateNotifier';
+import VulpesModuleWrapper from './features/vulpes-module/components/VulpesModuleWrapper';
 import DockerModuleWrapper from './features/docker-module/components/DockerModuleWrapper';
 import OctohubModuleWrapper from './features/octohub-module/components/OctohubModuleWrapper';
+import TalpadbModuleWrapper from './features/talpadb-module/components/TalpadbModuleWrapper';
 import { applyOctohubColorVariables } from './features/settings/functions/OctohubColorVariables';
 import FerretShellModuleWrapper from './features/ferretShell-module/components/FerretShellModuleWrapper';
-import { WindowIsFullscreen, WindowFullscreen, WindowUnfullscreen, WindowIsMaximised, WindowUnmaximise } from '../wailsjs/runtime/runtime';
+import { generalConfigsChangedEvent, useGeneralConfigsStore } from './features/settings/store/GeneralConfigsStore';
 
 export default function App() {
   const { tabs, activeTabId } = useAppStore();
@@ -18,37 +22,50 @@ export default function App() {
   const resetGeneralConfigs = useGeneralConfigsStore(state => state.reset);
   const octohubColors = useGeneralConfigsStore(state => state.octohubColors);
 
+  useUpdateNotifier();
+
   useEffect(() => {
     loadGeneralConfigs();
     return resetGeneralConfigs;
   }, [loadGeneralConfigs, resetGeneralConfigs]);
 
+  useEffect(() => Events.On(generalConfigsChangedEvent, ({ data: originWindowId }) => {
+    if (originWindowId !== windowInstanceId) loadGeneralConfigs();
+  }), [loadGeneralConfigs]);
+
   useEffect(() => applyOctohubColorVariables(octohubColors), [octohubColors]);
+
+  const activeTab = tabs.find(tab => tab.id === activeTabId);
+  const windowTitle = activeTab && activeTab.type !== 'home' ? `Devops Hub · ${activeTab.title}` : 'Devops Hub';
+
+  useEffect(() => {
+    Window.SetTitle(windowTitle);
+  }, [windowTitle]);
 
   useEffect(() => {
     const handleResize = async () => {
-      const fullscreen = await WindowIsFullscreen();
+      const fullscreen = await Window.IsFullscreen();
       setIsFullscreen(fullscreen);
     };
 
     const handleKeyDown = async (event: KeyboardEvent) => {
       if (event.key === 'F11') {
-        const fullscreen = await WindowIsFullscreen();
+        const fullscreen = await Window.IsFullscreen();
         if (fullscreen) {
-          await WindowUnfullscreen();
+          await Window.UnFullscreen();
           setIsFullscreen(false);
         } else {
           setIsFullscreen(true);
-          const isMax = await WindowIsMaximised();
-          if (isMax) {
-            await WindowUnmaximise();
+          const isMaximised = await Window.IsMaximised();
+          if (isMaximised) {
+            await Window.UnMaximise();
           }
-          await WindowFullscreen();
+          await Window.Fullscreen();
         }
       } else if (event.key === 'Escape') {
-        const fullscreen = await WindowIsFullscreen();
+        const fullscreen = await Window.IsFullscreen();
         if (fullscreen) {
-          await WindowUnfullscreen();
+          await Window.UnFullscreen();
           setIsFullscreen(false);
         }
       }
@@ -77,6 +94,10 @@ export default function App() {
         return <OctohubModuleWrapper />;
       case 'settings':
         return <SettingsPage />;
+      case 'talpadb':
+        return <TalpadbModuleWrapper />;
+      case 'vulpes':
+        return <VulpesModuleWrapper />;
       default:
         return null;
     }

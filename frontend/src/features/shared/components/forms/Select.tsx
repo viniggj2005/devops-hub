@@ -1,25 +1,26 @@
 import React from 'react';
+import { useDismiss } from '../../hooks/useDismiss';
 import { SelectOption, SelectProps, SelectVariant } from '../../../../interfaces/SharedInterfaces';
 
 const buttonBaseClass =
-  'relative flex w-full items-center justify-between rounded-xl border border-gray-300   transition hover:border-blue-600 hover:shadow-[0_18px_45px_-16px_rgba(0,63,123,0.5)] focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:cursor-not-allowed disabled:opacity-60  dark:shadow-[0_14px_40px_-18px_rgba(24,34,56,0.85)] dark:hover:border-blue-600 dark:hover:shadow-[0_18px_45px_-18px_rgba(24,34,56,0.9)]';
+  'relative flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white text-gray-900 transition hover:border-blue-500/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-zinc-900/80 dark:text-zinc-100 dark:hover:border-blue-500/60 cursor-pointer';
 
 const buttonVariantClass: Record<SelectVariant, string> = {
-  default: 'min-h-[48px] px-4 py-3 text-sm font-mediuM',
-  navbar: 'h-9 min-w-[160px] px-3 text-xs font-semibold',
+  default: 'min-h-[42px] px-3.5 py-2 text-sm font-medium',
+  navbar: 'h-9 min-w-[170px] px-3 text-xs font-semibold',
 };
 
 const listboxBaseClass =
-  'absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-xl border border-gray-300 bg-white/10 shadow-2xl dark:bg-zinc-800';
+  'absolute left-0 right-0 z-50 mt-1.5 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-white/10 dark:bg-zinc-900';
 
 const optionBaseClass =
-  'flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-2 text-sm transition hover:bg-blue-600/10 focus:bg-blue-600/15 focus:outline-none dark:hover:bg-blue-600/20 dark:focus:bg-blue-600/25';
+  'flex w-full cursor-pointer items-center justify-between gap-3 px-3.5 py-2 text-xs font-medium text-gray-700 transition hover:bg-blue-500/10 focus:bg-blue-500/15 focus:outline-none dark:text-zinc-200 dark:hover:bg-blue-500/20 dark:focus:bg-blue-500/25';
 
 const optionDisabledClass =
   'cursor-not-allowed opacity-60 hover:bg-transparent focus:bg-transparent';
 
 const caretClass =
-  'ml-3 flex h-4 w-4 items-center justify-center text-gray-500 transition-transform';
+  'ml-2.5 flex h-4 w-4 shrink-0 items-center justify-center text-gray-400 dark:text-zinc-500 transition-transform';
 
 const overlayClass = 'fixed inset-0 z-40 bg-transparent';
 
@@ -38,8 +39,8 @@ const Select: React.FC<SelectProps> = ({
   noOptionsMessage = 'Nenhuma opção disponível',
 }) => {
   const [open, setOpen] = React.useState(false);
-  const containerRef = React.useRef<HTMLDivElement | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
   const optionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
   const [activeIndex, setActiveIndex] = React.useState<number | null>(null);
 
@@ -48,27 +49,11 @@ const Select: React.FC<SelectProps> = ({
     [options, value]
   );
 
-  const handleDocumentClick = React.useCallback(
-    (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    },
-    [containerRef]
-  );
+  useDismiss(containerRef, open, () => setOpen(false));
 
   React.useEffect(() => {
     optionRefs.current = [];
   }, [options]);
-
-  React.useEffect(() => {
-    if (open) {
-      document.addEventListener('mousedown', handleDocumentClick);
-      return () => document.removeEventListener('mousedown', handleDocumentClick);
-    }
-
-    return undefined;
-  }, [open, handleDocumentClick]);
 
   React.useEffect(() => {
     if (open) {
@@ -97,6 +82,13 @@ const Select: React.FC<SelectProps> = ({
   };
 
   const closeDropdown = () => setOpen(false);
+
+  const focusOption = (index: number | null) => {
+    if (index == null) return;
+    requestAnimationFrame(() => {
+      optionRefs.current[index]?.focus({ preventScroll: true });
+    });
+  };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     if (disabled) return;
@@ -147,13 +139,6 @@ const Select: React.FC<SelectProps> = ({
       default:
         break;
     }
-  };
-
-  const focusOption = (index: number | null) => {
-    if (index == null) return;
-    requestAnimationFrame(() => {
-      optionRefs.current[index]?.focus({ preventScroll: true });
-    });
   };
 
   const handleOptionClick = (option: SelectOption) => {
@@ -232,22 +217,23 @@ const Select: React.FC<SelectProps> = ({
         }}
         onClick={() => handleOptionClick(option)}
         onKeyDown={(event) => handleOptionKeyDown(event, index)}
-        className={`${optionBaseClass} ${isDisabled ? optionDisabledClass : ''} ${isSelected ? 'bg-blue-600/10 dark:bg-blue-600/20' : ''
-          }`}
+        className={`${optionBaseClass} ${isDisabled ? optionDisabledClass : ''} ${
+          isSelected ? 'bg-blue-600/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : ''
+        }`}
       >
-        <span className="flex flex-col items-start text-left">
-          <span className="font-medium">{option.label}</span>
+        <span className="flex flex-col items-start text-left truncate">
+          <span className="font-medium truncate">{option.label}</span>
           {option.description ? (
-            <span className="text-xs text-gray-500">
+            <span className="text-[11px] text-gray-500 dark:text-zinc-400 truncate">
               {option.description}
             </span>
           ) : null}
         </span>
         {isSelected ? (
-          <span className="text-blue-600">
+          <span className="text-blue-600 dark:text-blue-400 shrink-0">
             <svg
-              width="16"
-              height="16"
+              width="14"
+              height="14"
               viewBox="0 0 20 20"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
@@ -264,16 +250,14 @@ const Select: React.FC<SelectProps> = ({
     );
   };
 
-  const selectedLabelClass = selectedOption
-    ? ''
-    : 'text-gray-500';
+  const selectedLabelClass = selectedOption ? '' : 'text-gray-400 dark:text-zinc-500';
 
   const combinedButtonClass = [buttonBaseClass, buttonVariantClass[variant], className]
     .filter(Boolean)
     .join(' ');
 
   const containerClass =
-    variant === 'navbar' ? 'relative inline-flex min-w-[160px]' : 'relative w-full';
+    variant === 'navbar' ? 'relative inline-flex min-w-[170px]' : 'relative w-full';
 
   return (
     <div ref={containerRef} className={containerClass}>
@@ -292,10 +276,10 @@ const Select: React.FC<SelectProps> = ({
         onClick={toggleOpen}
         onKeyDown={handleKeyDown}
       >
-        <span className={`flex flex-col text-left ${selectedLabelClass}`}>
-          <span>{selectedOption ? selectedOption.label : placeholder}</span>
+        <span className={`flex flex-col text-left truncate ${selectedLabelClass}`}>
+          <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
           {selectedOption && selectedOption.description ? (
-            <span className="text-xs font-normal text-gray-500">
+            <span className="text-xs font-normal text-gray-500 truncate">
               {selectedOption.description}
             </span>
           ) : null}
@@ -330,7 +314,7 @@ const Select: React.FC<SelectProps> = ({
           className={listboxBaseClass}
         >
           {options.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-gray-500">
+            <div className="px-4 py-3 text-xs text-gray-500 dark:text-zinc-400">
               {noOptionsMessage}
             </div>
           ) : (
@@ -347,7 +331,7 @@ function getNextEnabledIndex(options: SelectOption[], startIndex: number, step: 
   if (length === 0) return null;
 
   let index = startIndex;
-  for (let i = 0; i < length; i += 1) {
+  for (let iteration = 0; iteration < length; iteration += 1) {
     index = (index + step + length) % length;
     if (!options[index].disabled) {
       return index;

@@ -1,25 +1,27 @@
 package main
 
 import (
-	"context"
-	database "docker-manager-go/src/dataBase"
-	dockerHandlers "docker-manager-go/src/dockermanager/handlers"
-	ferretShellHandlers "docker-manager-go/src/ferretshell/handlers"
+	"embed"
+	"log"
 	"os"
+	"time"
 
 	auth "docker-manager-go/src/auth/functions"
 	authHandlers "docker-manager-go/src/auth/handlers"
-	octohub "docker-manager-go/src/octohub/handlers"
-	userHandlers "docker-manager-go/src/user/handlers"
+	database "docker-manager-go/src/dataBase"
+	"docker-manager-go/src/desktop"
+	desktopHandlers "docker-manager-go/src/desktop/handlers"
+	dockerHandlers "docker-manager-go/src/dockermanager/handlers"
+	ferretShellHandlers "docker-manager-go/src/ferretshell/handlers"
 	generalConfigsHandlers "docker-manager-go/src/generalConfigs/handlers"
-	"embed"
-	"time"
+	octohub "docker-manager-go/src/octohub/handlers"
+	talpadbHandlers "docker-manager-go/src/talpadb/handlers"
+	userHandlers "docker-manager-go/src/user/handlers"
+	vulpesHandlers "docker-manager-go/src/vulpes/handlers"
 
 	"github.com/joho/godotenv"
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/windows"
+	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 //go:embed all:frontend/dist
@@ -33,72 +35,66 @@ func main() {
 	sessionManager := auth.NewManager(8 * time.Hour)
 	localFileHandler := ferretShellHandlers.NewLocalFileHandler()
 	terminal := ferretShellHandlers.NewTerminalHandler(sessionManager)
+	localTerminal := ferretShellHandlers.NewLocalTerminalHandler()
 	docker := dockerHandlers.NewDockerHandler(database.DataBase, sessionManager)
 	dockerSdk := dockerHandlers.NewDockerSdkHandler(docker)
-	docker.RegisterDockerSdkHandler(dockerSdk)
 	sftpHandler := ferretShellHandlers.NewSftpHandler(terminal)
+	windowHandler := desktopHandlers.NewWindowHandler(sessionManager)
 	userHandler := userHandlers.NewUserHandler(database.DataBase, sessionManager)
 	octohubHandler := octohub.NewOctohubHandler(database.DataBase, sessionManager)
 	sshHandler := ferretShellHandlers.NewSshHandler(database.DataBase, sessionManager)
 	authHandler := authHandlers.NewAuthHandler(database.DataBase, sessionManager, app)
 	generalConfigsHandler := generalConfigsHandlers.NewGeneralConfigsHandler(database.DataBase, sessionManager)
+	talpadbHandler := talpadbHandlers.NewTalpadbHandler(database.DataBase, sessionManager)
+	talpadbClient := talpadbHandlers.NewTalpadbClientHandler(talpadbHandler)
+	vulpesHandler := vulpesHandlers.NewVulpesHandler(database.DataBase, sessionManager)
+	vulpesClient := vulpesHandlers.NewVulpesClientHandler(vulpesHandler)
 
 	gitHandler := octohub.NewGitHandler(repositoryPath)
 	branchHandler := octohub.NewGitBranchHandler(gitHandler)
 	commitHandler := octohub.NewGitCommitsHandler(gitHandler)
 	repositoryHandler := octohub.NewRepositoryHandler(database.DataBase, sessionManager, gitHandler)
-	err := wails.Run(&options.App{
-		Title:            "Docker Manager",
-		Width:            1024,
-		Height:           768,
-		Fullscreen:       false,
-		WindowStartState: options.Maximised,
-		Frameless:        true,
-		AssetServer: &assetserver.Options{
-			Assets: assets,
-		},
-		BackgroundColour: &options.RGBA{R: 0, G: 0, B: 0, A: 0},
-		OnStartup: func(ctx context.Context) {
-			app.startup(ctx)
-			docker.Startup(ctx)
-			terminal.Startup(ctx)
-			dockerSdk.Startup(ctx)
-			gitHandler.Startup(ctx)
-			sshHandler.Startup(ctx)
-			sftpHandler.Startup(ctx)
-			authHandler.Startup(ctx)
-			userHandler.Startup(ctx)
-			octohubHandler.Startup(ctx)
-			localFileHandler.Startup(ctx)
-			repositoryHandler.Startup(ctx)
-			generalConfigsHandler.Startup(ctx)
 
+	desktopApplication := application.New(application.Options{
+		Name:        "Devops Hub",
+		Description: "Devops Hub Application",
+		Assets: application.AssetOptions{
+			Handler: application.AssetFileServerFS(assets),
 		},
-		Windows: &windows.Options{
-			WebviewIsTransparent: true,
-			WindowIsTranslucent:  true,
-			BackdropType:         windows.Mica,
-		},
-		Bind: []interface{}{
-			app,
-			docker,
-			terminal,
-			dockerSdk,
-			gitHandler,
-			sshHandler,
-			sftpHandler,
-			authHandler,
-			userHandler,
-			branchHandler,
-			commitHandler,
-			octohubHandler,
-			localFileHandler,
-			repositoryHandler,
-			generalConfigsHandler,
+		Services: []application.Service{
+			application.NewService(app),
+			application.NewService(docker),
+			application.NewService(terminal),
+			application.NewService(dockerSdk),
+			application.NewService(gitHandler),
+			application.NewService(sshHandler),
+			application.NewService(sftpHandler),
+			application.NewService(authHandler),
+			application.NewService(userHandler),
+			application.NewService(localTerminal),
+			application.NewService(branchHandler),
+			application.NewService(commitHandler),
+			application.NewService(talpadbClient),
+			application.NewService(vulpesClient),
+			application.NewService(windowHandler),
+			application.NewService(octohubHandler),
+			application.NewService(talpadbHandler),
+			application.NewService(vulpesHandler),
+			application.NewService(localFileHandler),
+			application.NewService(repositoryHandler),
+			application.NewService(generalConfigsHandler),
 		},
 	})
 
-	if err != nil {
-		println("Error:", err.Error())
+	desktop.OnWindowClosed(sessionManager.RevokeWindowOffer)
+	desktopApplication.Window.OnCreate(desktop.TrackWindow)
+
+	mainWindow := desktopApplication.Window.NewWithOptions(desktop.MainWindowOptions())
+	mainWindow.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
+		go desktopApplication.Quit()
+	})
+
+	if err := desktopApplication.Run(); err != nil {
+		log.Println("Error:", err.Error())
 	}
 }

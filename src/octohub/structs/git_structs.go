@@ -31,6 +31,11 @@ type FilesStatus struct {
 	Kind        string
 }
 
+type BranchComparison struct {
+	Ahead  int
+	Behind int
+}
+
 type Stash struct {
 	ID      string
 	Branch  string

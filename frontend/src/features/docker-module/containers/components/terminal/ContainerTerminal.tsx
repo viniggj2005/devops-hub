@@ -1,9 +1,9 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import '@xterm/xterm/css/xterm.css';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { Events } from '@wailsio/runtime';
 import React, { useEffect, useRef } from 'react';
-import { EventsOn } from '../../../../../../wailsjs/runtime/runtime';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
 import { TerminalInstance } from '../../../../../interfaces/TerminalInterfaces';
 import { containerExec, terminalWrite, terminalResize, terminalClose } from '../../services/ContainersService';
@@ -56,11 +56,11 @@ const ContainerTerminal: React.FC<Props> = ({ instance }) => {
 
     terminal.onData(handleData);
 
-    const offData = EventsOn(`terminal:data:${containerId}`, (data: string) => {
+    const offData = Events.On(`terminal:data:${containerId}`, ({ data }) => {
       terminal.write(data);
     });
 
-    const offClosed = EventsOn(`terminal:closed:${containerId}`, () => {
+    const offClosed = Events.On(`terminal:closed:${containerId}`, () => {
       terminal.writeln('\r\n[conexão encerrada pelo servidor]');
       connectedRef.current = false;
     });
@@ -72,11 +72,11 @@ const ContainerTerminal: React.FC<Props> = ({ instance }) => {
         connectedRef.current = true;
         fit.fit();
         terminal.focus();
-        
+
         await terminalResize(selectedCredentialId, containerId, terminal.cols, terminal.rows);
       } catch (error: any) {
         terminal.writeln(`\r\nErro ao conectar: ${error?.message || error}`);
-        iziToast.error({ title: 'Erro', message: error?.message || String(error) });
+        toast.error(error?.message || String(error));
       }
     })();
 
@@ -84,7 +84,7 @@ const ContainerTerminal: React.FC<Props> = ({ instance }) => {
       if (fitRef.current && terminalRef.current && selectedCredentialId && containerId) {
         fitRef.current.fit();
         terminalResize(selectedCredentialId, containerId, terminalRef.current.cols, terminalRef.current.rows)
-          .catch(err => console.error('Resize error:', err));
+          .catch(resizeError => console.error('Resize error:', resizeError));
       }
     };
 
@@ -95,7 +95,7 @@ const ContainerTerminal: React.FC<Props> = ({ instance }) => {
     return () => {
       offData();
       offClosed();
-      terminalClose(containerId).catch(err => console.error('Close error:', err));
+      terminalClose(containerId).catch(closeError => console.error('Close error:', closeError));
       terminal.dispose();
       resizeObserver.disconnect();
       window.removeEventListener('resize', onResize);

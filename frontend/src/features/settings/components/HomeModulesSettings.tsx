@@ -33,6 +33,7 @@ const HomeModulesSettings: React.FC = () => {
             icon={module.icon}
             title={module.title}
             color={module.color}
+            moduleName={module.configName}
             description={module.description}
           >
             <ToggleSwitch

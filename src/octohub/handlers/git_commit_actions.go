@@ -1,6 +1,7 @@
 package octohubHandler
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -18,13 +19,13 @@ func validCommitHash(hash string) error {
 	return nil
 }
 
-func (handlerStruct *GitBranchHandler) isMergeCommit(hash string) bool {
-	out, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-list", "--parents", "-n", "1", hash})
+func (handlerStruct *GitBranchHandler) isMergeCommit(ctx context.Context, hash string) bool {
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-list", "--parents", "-n", "1", hash})
 	return err == nil && len(strings.Fields(string(out))) > 2
 }
 
-func (handlerStruct *GitBranchHandler) ensureNoOperation() error {
-	state, err := handlerStruct.GetOperationState()
+func (handlerStruct *GitBranchHandler) ensureNoOperation(ctx context.Context) error {
+	state, err := handlerStruct.GetOperationState(ctx)
 	if err != nil {
 		return err
 	}
@@ -34,20 +35,20 @@ func (handlerStruct *GitBranchHandler) ensureNoOperation() error {
 	return nil
 }
 
-func (handlerStruct *GitBranchHandler) stashBefore(action string) error {
-	dirty, err := handlerStruct.HasUncommittedChanges()
+func (handlerStruct *GitBranchHandler) stashBefore(ctx context.Context, action string) error {
+	dirty, err := handlerStruct.HasUncommittedChanges(ctx)
 	if err != nil || !dirty {
 		return err
 	}
-	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"stash", "push", "-u", "-m", "OctoHub: alterações guardadas antes de " + action}); err != nil {
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"stash", "push", "-u", "-m", "OctoHub: alterações guardadas antes de " + action}); err != nil {
 		return fmt.Errorf("erro ao guardar as alterações em stash: %w", err)
 	}
 	return nil
 }
 
-func (handlerStruct *GitBranchHandler) runStoppableCommand(args []string, failure string, extraEnv ...string) (octohubStructs.OperationState, error) {
-	_, _, runErr := handlerStruct.gitHandler.runGit(args, "", append(append([]string{}, nonInteractiveEnv...), extraEnv...)...)
-	state, err := handlerStruct.GetOperationState()
+func (handlerStruct *GitBranchHandler) runStoppableCommand(ctx context.Context, args []string, failure string, extraEnv ...string) (octohubStructs.OperationState, error) {
+	_, _, runErr := handlerStruct.gitHandler.runGit(ctx, args, "", append(append([]string{}, nonInteractiveEnv...), extraEnv...)...)
+	state, err := handlerStruct.GetOperationState(ctx)
 	if runErr != nil {
 		if err == nil && len(state.ConflictingFiles) > 0 {
 			return state, nil
@@ -57,44 +58,44 @@ func (handlerStruct *GitBranchHandler) runStoppableCommand(args []string, failur
 	return state, err
 }
 
-func (handlerStruct *GitBranchHandler) CheckoutCommit(hash string, leaveChanges bool) error {
+func (handlerStruct *GitBranchHandler) CheckoutCommit(ctx context.Context, hash string, leaveChanges bool) error {
 	if err := validCommitHash(hash); err != nil {
 		return err
 	}
-	return handlerStruct.ChangeBranch(hash, false, leaveChanges)
+	return handlerStruct.ChangeBranch(ctx, hash, false, leaveChanges)
 }
 
-func (handlerStruct *GitBranchHandler) RevertCommit(hash string) (octohubStructs.OperationState, error) {
+func (handlerStruct *GitBranchHandler) RevertCommit(ctx context.Context, hash string) (octohubStructs.OperationState, error) {
 	if err := validCommitHash(hash); err != nil {
 		return octohubStructs.OperationState{}, err
 	}
-	if err := handlerStruct.ensureNoOperation(); err != nil {
+	if err := handlerStruct.ensureNoOperation(ctx); err != nil {
 		return octohubStructs.OperationState{}, err
 	}
 	args := []string{"revert", "--no-edit"}
-	if handlerStruct.isMergeCommit(hash) {
+	if handlerStruct.isMergeCommit(ctx, hash) {
 		args = append(args, "-m", "1")
 	}
-	return handlerStruct.runStoppableCommand(append(args, hash), "erro ao reverter o commit")
+	return handlerStruct.runStoppableCommand(ctx, append(args, hash), "erro ao reverter o commit")
 }
 
-func (handlerStruct *GitBranchHandler) CreateBranchFromCommit(name, hash string, checkout bool) error {
+func (handlerStruct *GitBranchHandler) CreateBranchFromCommit(ctx context.Context, name, hash string, checkout bool) error {
 	if err := validCommitHash(hash); err != nil {
 		return err
 	}
 	name = strings.TrimSpace(name)
-	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"check-ref-format", "--branch", name}); err != nil || name == "" {
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"check-ref-format", "--branch", name}); err != nil || name == "" {
 		return fmt.Errorf("nome de branch inválido: %s", name)
 	}
 	args := []string{"branch", name, hash}
 	if checkout {
 		args = []string{"checkout", "-b", name, hash}
 	}
-	_, err := handlerStruct.gitHandler.RunGitCommand(args)
+	_, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	return err
 }
 
-func (handlerStruct *GitBranchHandler) CreateTag(name, hash, message string) error {
+func (handlerStruct *GitBranchHandler) CreateTag(ctx context.Context, name, hash, message string) error {
 	if err := validCommitHash(hash); err != nil {
 		return err
 	}
@@ -102,68 +103,68 @@ func (handlerStruct *GitBranchHandler) CreateTag(name, hash, message string) err
 	if name == "" || strings.HasPrefix(name, "-") {
 		return fmt.Errorf("informe um nome de tag válido")
 	}
-	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"check-ref-format", "refs/tags/" + name}); err != nil {
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"check-ref-format", "refs/tags/" + name}); err != nil {
 		return fmt.Errorf("nome de tag inválido: %s", name)
 	}
 	args := []string{"tag"}
 	if summary := strings.TrimSpace(message); summary != "" {
 		args = append(args, "-a", "-m", summary)
 	}
-	_, err := handlerStruct.gitHandler.RunGitCommand(append(args, name, hash))
+	_, err := handlerStruct.gitHandler.runGitCommand(ctx, append(args, name, hash))
 	return err
 }
 
-func (handlerStruct *GitBranchHandler) PushTag(name string) error {
+func (handlerStruct *GitBranchHandler) PushTag(ctx context.Context, name string) error {
 	name = strings.TrimSpace(name)
 	if name == "" || strings.HasPrefix(name, "-") {
 		return fmt.Errorf("informe um nome de tag válido")
 	}
-	_, err := handlerStruct.gitHandler.RunGitCommand([]string{"push", "origin", "refs/tags/" + name})
+	_, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"push", "origin", "refs/tags/" + name})
 	return err
 }
 
-func (handlerStruct *GitBranchHandler) CherryPickCommit(hash, targetBranch string, stashChanges bool) (octohubStructs.OperationState, error) {
+func (handlerStruct *GitBranchHandler) CherryPickCommit(ctx context.Context, hash, targetBranch string, stashChanges bool) (octohubStructs.OperationState, error) {
 	if err := validCommitHash(hash); err != nil {
 		return octohubStructs.OperationState{}, err
 	}
 	if err := validBranchArgument(targetBranch); err != nil {
 		return octohubStructs.OperationState{}, err
 	}
-	if err := handlerStruct.ensureNoOperation(); err != nil {
+	if err := handlerStruct.ensureNoOperation(ctx); err != nil {
 		return octohubStructs.OperationState{}, err
 	}
 	if stashChanges {
-		if err := handlerStruct.stashBefore("o cherry-pick de " + hash[:min(len(hash), 7)]); err != nil {
+		if err := handlerStruct.stashBefore(ctx, "o cherry-pick de "+hash[:min(len(hash), 7)]); err != nil {
 			return octohubStructs.OperationState{}, err
 		}
 	}
 
-	if current, _ := handlerStruct.GetCurrentBranch(); current != targetBranch {
-		if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"checkout", targetBranch}); err != nil {
+	if current, _ := handlerStruct.GetCurrentBranch(ctx); current != targetBranch {
+		if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"checkout", targetBranch}); err != nil {
 			return octohubStructs.OperationState{}, fmt.Errorf("erro ao trocar para %s: %w", targetBranch, err)
 		}
 	}
 
 	args := []string{"cherry-pick"}
-	if handlerStruct.isMergeCommit(hash) {
+	if handlerStruct.isMergeCommit(ctx, hash) {
 		args = append(args, "-m", "1")
 	}
-	state, err := handlerStruct.runStoppableCommand(append(args, hash), "erro ao aplicar o commit")
+	state, err := handlerStruct.runStoppableCommand(ctx, append(args, hash), "erro ao aplicar o commit")
 	if err != nil && state.Kind == "cherry-pick" && len(state.ConflictingFiles) == 0 {
-		handlerStruct.runNonInteractive([]string{"cherry-pick", "--abort"}, "")
+		handlerStruct.runNonInteractive(ctx, []string{"cherry-pick", "--abort"}, "")
 		return octohubStructs.OperationState{}, fmt.Errorf("%s já tem essas alterações, não há nada para aplicar", targetBranch)
 	}
 	return state, err
 }
 
-func (handlerStruct *GitBranchHandler) ListReorderableCommits() ([]octohubStructs.ReorderableCommit, error) {
-	out, err := handlerStruct.gitHandler.RunGitCommand([]string{"log", "--first-parent", "-n", "30", "--format=%H%x1f%h%x1f%P%x1f%an%x1f%s", "HEAD"})
+func (handlerStruct *GitBranchHandler) ListReorderableCommits(ctx context.Context) ([]octohubStructs.ReorderableCommit, error) {
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"log", "--first-parent", "-n", "30", "--format=%H%x1f%h%x1f%P%x1f%an%x1f%s", "HEAD"})
 	if err != nil {
 		return nil, err
 	}
 
 	unpushed := map[string]bool{}
-	upstreamOut, upstreamErr := handlerStruct.gitHandler.RunGitCommand([]string{"rev-list", "@{upstream}..HEAD"})
+	upstreamOut, upstreamErr := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-list", "@{upstream}..HEAD"})
 	for _, hash := range strings.Fields(string(upstreamOut)) {
 		unpushed[hash] = true
 	}
@@ -188,7 +189,7 @@ func (handlerStruct *GitBranchHandler) ListReorderableCommits() ([]octohubStruct
 	return commits, nil
 }
 
-func (handlerStruct *GitBranchHandler) ReorderCommits(order []string, stashChanges bool) (octohubStructs.OperationState, error) {
+func (handlerStruct *GitBranchHandler) ReorderCommits(ctx context.Context, order []string, stashChanges bool) (octohubStructs.OperationState, error) {
 	if len(order) < 2 {
 		return octohubStructs.OperationState{}, fmt.Errorf("escolha ao menos dois commits")
 	}
@@ -197,11 +198,11 @@ func (handlerStruct *GitBranchHandler) ReorderCommits(order []string, stashChang
 			return octohubStructs.OperationState{}, err
 		}
 	}
-	if err := handlerStruct.ensureNoOperation(); err != nil {
+	if err := handlerStruct.ensureNoOperation(ctx); err != nil {
 		return octohubStructs.OperationState{}, err
 	}
 
-	out, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-list", "--first-parent", "-n", fmt.Sprint(len(order)), "HEAD"})
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-list", "--first-parent", "-n", fmt.Sprint(len(order)), "HEAD"})
 	if err != nil {
 		return octohubStructs.OperationState{}, err
 	}
@@ -217,15 +218,15 @@ func (handlerStruct *GitBranchHandler) ReorderCommits(order []string, stashChang
 		}
 	}
 	if changed < 0 {
-		return handlerStruct.GetOperationState()
+		return handlerStruct.GetOperationState(ctx)
 	}
 
 	base := current[changed] + "^"
-	if _, err := handlerStruct.gitHandler.RunGitCommand([]string{"rev-parse", "--verify", "-q", base}); err != nil {
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--verify", "-q", base}); err != nil {
 		base = ""
 	}
 	if base != "" {
-		if merges, _ := handlerStruct.gitHandler.RunGitCommand([]string{"rev-list", "--merges", base + "..HEAD"}); strings.TrimSpace(string(merges)) != "" {
+		if merges, _ := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-list", "--merges", base + "..HEAD"}); strings.TrimSpace(string(merges)) != "" {
 			return octohubStructs.OperationState{}, fmt.Errorf("não dá para reordenar commits que têm um merge no meio")
 		}
 	}
@@ -247,7 +248,7 @@ func (handlerStruct *GitBranchHandler) ReorderCommits(order []string, stashChang
 	}
 
 	if stashChanges {
-		if err := handlerStruct.stashBefore("reordenar commits"); err != nil {
+		if err := handlerStruct.stashBefore(ctx, "reordenar commits"); err != nil {
 			return octohubStructs.OperationState{}, err
 		}
 	}
@@ -258,7 +259,7 @@ func (handlerStruct *GitBranchHandler) ReorderCommits(order []string, stashChang
 	} else {
 		args = append(args, base)
 	}
-	return handlerStruct.runStoppableCommand(args, "erro ao reordenar os commits", "GIT_SEQUENCE_EDITOR=cp "+shellQuote(todoPath))
+	return handlerStruct.runStoppableCommand(ctx, args, "erro ao reordenar os commits", "GIT_SEQUENCE_EDITOR=cp "+shellQuote(todoPath))
 }
 
 func sameCommits(first, second []string) bool {

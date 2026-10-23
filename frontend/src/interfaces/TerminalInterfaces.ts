@@ -1,4 +1,5 @@
-import type {ferretshellDtos } from '../../wailsjs/go/models';
+import type * as ferretshellDtos from '../../bindings/docker-manager-go/src/ferretshell/dtos/models';
+import type { SplitDropZone, SplitLayout } from './SplitInterfaces';
 export type SSHConnectionDto = ferretshellDtos.SSHConnectionDto;
 
 export interface TerminalProps {
@@ -71,17 +72,27 @@ export interface ModalProps {
   onCreated: () => void;
 }
 
+export type LocalShellKind = 'cmd' | 'wsl' | 'unix' | 'gitbash' | 'powershell';
+
+export interface LocalShell {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  kind: LocalShellKind;
+}
+
 export interface TerminalInstance {
   id: string;
   title: string;
-  config?: SSHConnectionDto;
   containerId?: string;
+  localShell?: LocalShell;
   containerName?: string;
+  config?: SSHConnectionDto;
 }
 
-export type TerminalLayout = 'vertical' | 'horizontal' | 'grid';
+export type TerminalLayout = SplitLayout;
 
-export type TerminalDropZone = 'left' | 'right' | 'top' | 'bottom' | 'center';
+export type TerminalDropZone = SplitDropZone;
 
 export interface TerminalTab {
   id: string;

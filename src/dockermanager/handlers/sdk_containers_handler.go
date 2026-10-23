@@ -1,6 +1,8 @@
 package dockerHandlers
 
 import (
+	"context"
+	"docker-manager-go/src/desktop"
 	dockerDtos "docker-manager-go/src/dockermanager/dtos"
 	dockerFunctions "docker-manager-go/src/dockermanager/functions"
 	"encoding/json"
@@ -9,11 +11,10 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func (handlerStruct *DockerSdkHandlerStruct) CreateContainer(clientId int, config dockerDtos.ContainerCreateOptions) (container.CreateResponse, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return container.CreateResponse{}, err
 	}
@@ -36,20 +37,20 @@ func (handlerStruct *DockerSdkHandlerStruct) CreateContainer(clientId int, confi
 		json.Unmarshal(bytes, &networkingConfig)
 	}
 
-	resp, err := cli.ContainerCreate(ctx, &containerConfig, &hostConfig, &networkingConfig, config.Platform, config.ContainerName)
+	createdContainer, err := dockerClient.ContainerCreate(ctx, &containerConfig, &hostConfig, &networkingConfig, config.Platform, config.ContainerName)
 	if err != nil {
 		return container.CreateResponse{}, err
 	}
-	return resp, nil
+	return createdContainer, nil
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) ContainerStart(clientId int, containerId string) error {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return err
 	}
 
-	if err := cli.ContainerStart(ctx, containerId, container.StartOptions{}); err != nil {
+	if err := dockerClient.ContainerStart(ctx, containerId, container.StartOptions{}); err != nil {
 		return &APIError{Code: 500, Message: err.Error()}
 	}
 
@@ -57,12 +58,12 @@ func (handlerStruct *DockerSdkHandlerStruct) ContainerStart(clientId int, contai
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) ContainerStop(clientId int, containerId string) error {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return err
 	}
 
-	if err := cli.ContainerStop(ctx, containerId, container.StopOptions{}); err != nil {
+	if err := dockerClient.ContainerStop(ctx, containerId, container.StopOptions{}); err != nil {
 		return &APIError{Code: 500, Message: err.Error()}
 	}
 
@@ -70,12 +71,12 @@ func (handlerStruct *DockerSdkHandlerStruct) ContainerStop(clientId int, contain
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) ContainerPause(clientId int, containerId string) error {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return err
 	}
 
-	if err := cli.ContainerPause(ctx, containerId); err != nil {
+	if err := dockerClient.ContainerPause(ctx, containerId); err != nil {
 		return &APIError{Code: 500, Message: err.Error()}
 	}
 
@@ -83,12 +84,12 @@ func (handlerStruct *DockerSdkHandlerStruct) ContainerPause(clientId int, contai
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) ContainerUnPause(clientId int, containerId string) error {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return err
 	}
 
-	if err := cli.ContainerUnpause(ctx, containerId); err != nil {
+	if err := dockerClient.ContainerUnpause(ctx, containerId); err != nil {
 		return &APIError{Code: 500, Message: err.Error()}
 	}
 
@@ -96,12 +97,12 @@ func (handlerStruct *DockerSdkHandlerStruct) ContainerUnPause(clientId int, cont
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) ContainerRename(clientId int, containerId, newName string) error {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return err
 	}
 
-	if err := cli.ContainerRename(ctx, containerId, newName); err != nil {
+	if err := dockerClient.ContainerRename(ctx, containerId, newName); err != nil {
 		return &APIError{Code: 500, Message: err.Error()}
 	}
 
@@ -109,12 +110,12 @@ func (handlerStruct *DockerSdkHandlerStruct) ContainerRename(clientId int, conta
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) ContainerLogs(clientId int, containerId string) (string, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return "", err
 	}
 
-	logs, err := cli.ContainerLogs(ctx, containerId, container.LogsOptions{
+	logs, err := dockerClient.ContainerLogs(ctx, containerId, container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Follow:     false,
@@ -129,12 +130,12 @@ func (handlerStruct *DockerSdkHandlerStruct) ContainerLogs(clientId int, contain
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) ContainersList(clientId int) ([]container.Summary, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return nil, err
 	}
 
-	containers, err := cli.ContainerList(ctx, container.ListOptions{All: true})
+	containers, err := dockerClient.ContainerList(ctx, container.ListOptions{All: true})
 	if err != nil {
 		return nil, &APIError{Code: 500, Message: err.Error()}
 	}
@@ -143,12 +144,12 @@ func (handlerStruct *DockerSdkHandlerStruct) ContainersList(clientId int) ([]con
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) ContainerRemove(clientId int, containerId string) error {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return err
 	}
 
-	if err := cli.ContainerRemove(ctx, containerId, container.RemoveOptions{
+	if err := dockerClient.ContainerRemove(ctx, containerId, container.RemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
 	}); err != nil {
@@ -159,12 +160,12 @@ func (handlerStruct *DockerSdkHandlerStruct) ContainerRemove(clientId int, conta
 }
 
 func (handlerStruct *DockerSdkHandlerStruct) ContainerInspect(clientId int, containerId string) (string, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return "", err
 	}
 
-	inspect, err := cli.ContainerInspect(ctx, containerId)
+	inspect, err := dockerClient.ContainerInspect(ctx, containerId)
 	if err != nil {
 		return "", err
 	}
@@ -180,12 +181,12 @@ func (handlerStruct *DockerSdkHandlerStruct) ContainerInspect(clientId int, cont
 func (handlerStruct *DockerSdkHandlerStruct) ContainerRestart(clientId int, containerId string) error {
 	timeoutSec := 10
 
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, ctx, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return err
 	}
 
-	if err := cli.ContainerRestart(ctx, containerId, container.StopOptions{
+	if err := dockerClient.ContainerRestart(ctx, containerId, container.StopOptions{
 		Timeout: &timeoutSec,
 		Signal:  "SIGTERM",
 	}); err != nil {
@@ -195,8 +196,8 @@ func (handlerStruct *DockerSdkHandlerStruct) ContainerRestart(clientId int, cont
 	return nil
 }
 
-func (handlerStruct *DockerSdkHandlerStruct) ContainerExec(clientId int, containerId string) (string, error) {
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+func (handlerStruct *DockerSdkHandlerStruct) ContainerExec(ctx context.Context, clientId int, containerId string) (string, error) {
+	dockerClient, clientContext, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return "", err
 	}
@@ -210,7 +211,7 @@ func (handlerStruct *DockerSdkHandlerStruct) ContainerExec(clientId int, contain
 		Cmd:          []string{"/bin/sh", "-c", "[ -x /bin/bash ] && exec /bin/bash || exec /bin/sh"},
 	}
 
-	execID, err := cli.ContainerExecCreate(ctx, containerId, execConfig)
+	execID, err := dockerClient.ContainerExecCreate(clientContext, containerId, execConfig)
 	if err != nil {
 		return "", &APIError{Code: 500, Message: fmt.Sprintf("Erro ao criar exec: %v", err)}
 	}
@@ -220,67 +221,77 @@ func (handlerStruct *DockerSdkHandlerStruct) ContainerExec(clientId int, contain
 		Tty:    true,
 	}
 
-	resp, err := cli.ContainerExecAttach(ctx, execID.ID, attachConfig)
+	attachResponse, err := dockerClient.ContainerExecAttach(clientContext, execID.ID, attachConfig)
 	if err != nil {
 		return "", &APIError{Code: 500, Message: fmt.Sprintf("Erro ao conectar exec: %v", err)}
 	}
 
+	windowName := desktop.CallingWindowName(ctx)
+	terminalKey := desktop.ScopedKey(windowName, containerId)
+	connection := attachResponse.Conn
+
 	handlerStruct.mutex.Lock()
-	handlerStruct.terminalConns[containerId] = resp.Conn
-	handlerStruct.terminalExecIds[containerId] = execID.ID
+	handlerStruct.terminalConns[terminalKey] = connection
+	handlerStruct.terminalExecIds[terminalKey] = execID.ID
 	handlerStruct.mutex.Unlock()
 
 	go func() {
-		defer resp.Conn.Close()
-		buf := make([]byte, 1024)
+		defer connection.Close()
+		buffer := make([]byte, 1024)
 		for {
-			n, err := resp.Conn.Read(buf)
+			bytesRead, err := connection.Read(buffer)
 			if err != nil {
 				if err != io.EOF {
 					fmt.Printf("Erro ao ler terminal: %v\n", err)
 				}
 				break
 			}
-			if n > 0 {
-				runtime.EventsEmit(handlerStruct.appContext, "terminal:data:"+containerId, string(buf[:n]))
+			if bytesRead > 0 {
+				desktop.EmitToWindow(windowName, "terminal:data:"+containerId, string(buffer[:bytesRead]))
 			}
 		}
 		handlerStruct.mutex.Lock()
-		delete(handlerStruct.terminalConns, containerId)
-		delete(handlerStruct.terminalExecIds, containerId)
+		if handlerStruct.terminalConns[terminalKey] == connection {
+			delete(handlerStruct.terminalConns, terminalKey)
+			delete(handlerStruct.terminalExecIds, terminalKey)
+		}
 		handlerStruct.mutex.Unlock()
-		runtime.EventsEmit(handlerStruct.appContext, "terminal:closed:"+containerId, true)
+		desktop.EmitToWindow(windowName, "terminal:closed:"+containerId, true)
 	}()
 
 	return "Connected", nil
 }
 
-func (handlerStruct *DockerSdkHandlerStruct) TerminalWrite(containerId string, data string) error {
+func (handlerStruct *DockerSdkHandlerStruct) TerminalWrite(ctx context.Context, containerId string, data string) error {
+	terminalKey := desktop.ScopedKey(desktop.CallingWindowName(ctx), containerId)
+
 	handlerStruct.mutex.Lock()
-	conn, ok := handlerStruct.terminalConns[containerId]
+	connection, ok := handlerStruct.terminalConns[terminalKey]
 	handlerStruct.mutex.Unlock()
 
 	if !ok {
 		return fmt.Errorf("conexão terminal não encontrada para container %s", containerId)
 	}
 
-	_, err := conn.Write([]byte(data))
+	_, err := connection.Write([]byte(data))
 	if err != nil {
 		return fmt.Errorf("erro ao escrever terminal: %w", err)
 	}
 	return nil
 }
 
-func (handlerStruct *DockerSdkHandlerStruct) TerminalResize(clientId int, containerId string, cols, rows int) error {
+func (handlerStruct *DockerSdkHandlerStruct) TerminalResize(ctx context.Context, clientId int, containerId string, cols, rows int) error {
+	terminalKey := desktop.ScopedKey(desktop.CallingWindowName(ctx), containerId)
+
 	handlerStruct.mutex.Lock()
-	execID, ok := handlerStruct.terminalExecIds[containerId]
+	execID, ok := handlerStruct.terminalExecIds[terminalKey]
 	handlerStruct.mutex.Unlock()
 
 	if !ok {
 		return fmt.Errorf("exec ID não encontrado para container %s", containerId)
 	}
 
-	cli, ctx, err := handlerStruct.CatchClient(clientId)
+	dockerClient, clientContext, err := handlerStruct.catchClient(clientId)
 	if err != nil {
 		return err
 	}
@@ -290,7 +301,7 @@ func (handlerStruct *DockerSdkHandlerStruct) TerminalResize(clientId int, contai
 		Width:  uint(cols),
 	}
 
-	err = cli.ContainerExecResize(ctx, execID, resizeOptions)
+	err = dockerClient.ContainerExecResize(clientContext, execID, resizeOptions)
 	if err != nil {
 		return &APIError{Code: 500, Message: fmt.Sprintf("Erro ao redimensionar terminal: %v", err)}
 	}
@@ -298,17 +309,19 @@ func (handlerStruct *DockerSdkHandlerStruct) TerminalResize(clientId int, contai
 	return nil
 }
 
-func (handlerStruct *DockerSdkHandlerStruct) TerminalClose(containerId string) error {
+func (handlerStruct *DockerSdkHandlerStruct) TerminalClose(ctx context.Context, containerId string) error {
+	terminalKey := desktop.ScopedKey(desktop.CallingWindowName(ctx), containerId)
+
 	handlerStruct.mutex.Lock()
-	conn, ok := handlerStruct.terminalConns[containerId]
+	connection, ok := handlerStruct.terminalConns[terminalKey]
 	if ok {
-		delete(handlerStruct.terminalConns, containerId)
-		delete(handlerStruct.terminalExecIds, containerId)
+		delete(handlerStruct.terminalConns, terminalKey)
+		delete(handlerStruct.terminalExecIds, terminalKey)
 	}
 	handlerStruct.mutex.Unlock()
 
 	if ok {
-		return conn.Close()
+		return connection.Close()
 	}
 	return nil
 }

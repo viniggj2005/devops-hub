@@ -3,27 +3,29 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+
+	"docker-manager-go/src/desktop"
 
 	"github.com/blang/semver"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const AppVersion = "1.0.0"
 const RepoSlug = "viniggj2005/devops-hub"
+const UpdateAvailableEvent = "app:update-available"
 
 type App struct {
-	ctx context.Context
+	updateMutex   sync.Mutex
+	pendingUpdate *availableUpdate
 }
 
 func NewApp() *App {
 	return &App{}
-}
-
-func (app *App) startup(ctx context.Context) {
-	app.ctx = ctx
 }
 
 func (app *App) LoadImage(name string) (string, error) {
@@ -47,10 +49,10 @@ func (app *App) SaveImage(base64Str, path string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-func (app *App) GetFilePath() string {
-	selection, err := runtime.OpenFileDialog(app.ctx, runtime.OpenDialogOptions{
+func (app *App) GetFilePath(ctx context.Context) string {
+	selection, err := desktop.ChooseFile(ctx, desktop.FileDialogOptions{
 		Title: "Selecione um arquivo",
-		Filters: []runtime.FileFilter{
+		Filters: []desktop.FileFilter{
 			{
 				DisplayName: "Dockerfiles (Dockerfile*)",
 				Pattern:     "Dockerfile*",
@@ -71,39 +73,37 @@ func (app *App) GetFilePath() string {
 func (app *App) AutoCheckForUpdates() {
 	currentVersion := semver.MustParse(AppVersion)
 	latest, found, err := detectLatestRelease(RepoSlug)
-	if err != nil {
+	if err != nil || !found || latest.Version.LTE(currentVersion) {
 		return
 	}
 
-	if !found || latest.Version.LTE(currentVersion) {
-		return
+	app.updateMutex.Lock()
+	app.pendingUpdate = latest
+	app.updateMutex.Unlock()
+
+	desktop.Broadcast(UpdateAvailableEvent, latest.Version.String())
+}
+
+func (app *App) GetAvailableUpdate() string {
+	app.updateMutex.Lock()
+	defer app.updateMutex.Unlock()
+	if app.pendingUpdate == nil {
+		return ""
 	}
+	return app.pendingUpdate.Version.String()
+}
 
-	res, err := runtime.MessageDialog(app.ctx, runtime.MessageDialogOptions{
-		Type:          runtime.QuestionDialog,
-		Title:         "Atualização disponível",
-		Message:       "Uma nova versão (" + latest.Version.String() + ") está disponível. Deseja atualizar agora?",
-		DefaultButton: "Yes",
-	})
-
-	if err != nil || res != "Yes" {
-		return
+func (app *App) ApplyAvailableUpdate() error {
+	app.updateMutex.Lock()
+	defer app.updateMutex.Unlock()
+	if app.pendingUpdate == nil {
+		return errors.New("nenhuma atualização pendente")
 	}
-
-	if err := applyUpdate(latest.AssetURL); err != nil {
-		runtime.MessageDialog(app.ctx, runtime.MessageDialogOptions{
-			Type:    runtime.ErrorDialog,
-			Title:   "Erro na atualização",
-			Message: "Não foi possível atualizar: " + err.Error(),
-		})
-		return
+	if err := applyUpdate(app.pendingUpdate.AssetURL); err != nil {
+		return fmt.Errorf("não foi possível atualizar: %w", err)
 	}
-
-	runtime.MessageDialog(app.ctx, runtime.MessageDialogOptions{
-		Type:    runtime.InfoDialog,
-		Title:   "Atualização concluída",
-		Message: "O aplicativo foi atualizado com sucesso. Por favor, reinicie o aplicativo.",
-	})
+	app.pendingUpdate = nil
+	return nil
 }
 
 func (app *App) CheckForUpdates() (string, error) {

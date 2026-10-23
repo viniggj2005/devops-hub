@@ -1,7 +1,7 @@
 import { mapCredential, toBase64 } from '../functions/treatmentFunctions';
-import { AddDockerClient } from '../../../../../wailsjs/go/dockerHandlers/DockerSdkHandlerStruct';
+import { AddDockerClient } from '../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 import { DockerCredentialSummary, CreateDockerCredentialPayload } from '../../../../interfaces/DockerCredentialInterfaces';
-import { FindAllByUser, CreateDockerConnection, DeleteDockerConnection } from '../../../../../wailsjs/go/dockerHandlers/DockerHandlerStruct';
+import { FindAllByUser, CreateDockerConnection, DeleteDockerConnection } from '../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockerhandlerstruct';
 
 export const DockerCredentialService = {
   async create(token: string, payload: CreateDockerCredentialPayload): Promise<void> {

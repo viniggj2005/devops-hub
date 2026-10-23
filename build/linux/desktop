@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=Devops Hub
+Comment=Devops Hub Application
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/devops-hub %u
+Terminal=false
+Type=Application
+Icon=devops-hub
+Categories=Utility;
+StartupWMClass=devops-hub
+
+ 

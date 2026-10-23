@@ -1,5 +1,11 @@
 # Go build
-/build/
+/bin/
+/build/bin/
+/build/windows/installer/
+/build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
+/build/darwin/icons.icns
+/build/linux/appimage/build/
+*.syso
 *.exe
 *.dll
 *.so
@@ -8,9 +14,9 @@
 *.out
 
 # Wails build artifacts
-/wailsjs/
+/.task/
+/frontend/bindings/
 frontend/vite.config.ts.timestamp-*
-/frontend/wailsjs
 frontend/dist/
 /frontend/node_modules/
 /frontend/.vite/

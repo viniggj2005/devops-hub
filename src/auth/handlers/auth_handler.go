@@ -11,11 +11,12 @@ import (
 
 	authDtos "docker-manager-go/src/auth/dtos"
 	authFunctions "docker-manager-go/src/auth/functions"
+	"docker-manager-go/src/desktop"
 	"docker-manager-go/src/models"
 	"docker-manager-go/src/types"
 	userDtos "docker-manager-go/src/user/dtos"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type UpdateChecker interface {
@@ -24,21 +25,22 @@ type UpdateChecker interface {
 
 type AuthHandlerStruct struct {
 	DataBase      *gorm.DB
+	updateChecker UpdateChecker
 	context       context.Context
 	Session       *authFunctions.ManagerStruct
-	updateChecker UpdateChecker
 }
 
 func NewAuthHandler(dataBase *gorm.DB, sessionManager *authFunctions.ManagerStruct, updateChecker UpdateChecker) *AuthHandlerStruct {
 	return &AuthHandlerStruct{
 		DataBase:      dataBase,
-		Session:       sessionManager,
 		updateChecker: updateChecker,
+		Session:       sessionManager,
 	}
 }
 
-func (handlerStruct *AuthHandlerStruct) Startup(context context.Context) {
+func (handlerStruct *AuthHandlerStruct) ServiceStartup(context context.Context, _ application.ServiceOptions) error {
 	handlerStruct.context = context
+	return nil
 }
 
 func (handlerStruct *AuthHandlerStruct) Login(body authDtos.LoginInputDto) (*authDtos.LoginResponseDto, error) {
@@ -61,7 +63,7 @@ func (handlerStruct *AuthHandlerStruct) Login(body authDtos.LoginInputDto) (*aut
 		return nil, err
 	}
 
-	runtime.EventsEmit(handlerStruct.context, "auth:changed", true)
+	desktop.Broadcast("auth:changed", true)
 	uDTO := userDtos.ToDTO(&userModel)
 
 	if handlerStruct.updateChecker != nil {
@@ -76,7 +78,30 @@ func (handlerStruct *AuthHandlerStruct) Login(body authDtos.LoginInputDto) (*aut
 
 func (handlerStruct *AuthHandlerStruct) Logout(token string) {
 	handlerStruct.Session.Destroy(token)
-	runtime.EventsEmit(handlerStruct.context, "auth:changed", false)
+	desktop.Broadcast("auth:changed", false)
+}
+
+func (handlerStruct *AuthHandlerStruct) ClaimWindowSession(ctx context.Context) (*authDtos.LoginResponseDto, error) {
+	windowName := desktop.CallingWindowName(ctx)
+	if windowName == "" {
+		return nil, errors.New("janela de origem desconhecida")
+	}
+
+	token, session, err := handlerStruct.Session.ClaimForWindow(windowName)
+	if err != nil {
+		return nil, err
+	}
+
+	var userModel models.UserModel
+	if err := handlerStruct.DataBase.WithContext(handlerStruct.context).First(&userModel, session.UserID).Error; err != nil {
+		handlerStruct.Session.Destroy(token)
+		return nil, err
+	}
+
+	return &authDtos.LoginResponseDto{
+		Token: token,
+		User:  *userDtos.ToDTO(&userModel),
+	}, nil
 }
 
 func deriveSessionKey(password, email string) string {

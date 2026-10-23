@@ -42,19 +42,17 @@ func (handlerStruct *RepositoryHandler) repositoryAuth(userID uint, account *mod
 }
 
 func (handlerStruct *RepositoryHandler) refreshAuth(userID uint) {
-	path := handlerStruct.gitHandler.RepoPath()
-	if path == "" {
-		return
-	}
-	var repository models.OctohubModel
-	if err := handlerStruct.DataBase.Where("user_id = ? AND local_path = ?", userID, path).Limit(1).Find(&repository).Error; err != nil || repository.ID == 0 {
-		return
-	}
 	account, _, err := handlerStruct.githubScope(userID)
 	if err != nil {
 		return
 	}
-	handlerStruct.gitHandler.setRepository(path, handlerStruct.repositoryAuth(userID, account, repository.GithubID, originURL(path)))
+	handlerStruct.gitHandler.refreshAuth(func(path string) (gitAuth, bool) {
+		var repository models.OctohubModel
+		if err := handlerStruct.DataBase.Where("user_id = ? AND local_path = ?", userID, path).Limit(1).Find(&repository).Error; err != nil || repository.ID == 0 {
+			return gitAuth{}, false
+		}
+		return handlerStruct.repositoryAuth(userID, account, repository.GithubID, originURL(path)), true
+	})
 }
 
 func (handlerStruct *RepositoryHandler) ListGitCredentials(token string) ([]octohubDtos.GitCredentialDto, error) {

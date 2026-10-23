@@ -1,10 +1,10 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 
-export const copyToClipboard = async (text: string, label = 'copiado') => {
+export const copyToClipboard = async (text: string, label = 'Copiado para a área de transferência') => {
   try {
     await navigator.clipboard.writeText(text);
-    iziToast.success({ message: label, position: 'bottomRight' });
+    toast.success(label);
   } catch {
-    iziToast.error({ title: 'Erro', message: 'Falha ao copiar', position: 'bottomRight' });
+    toast.error('Falha ao copiar');
   }
 };

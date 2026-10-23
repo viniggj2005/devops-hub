@@ -4,11 +4,20 @@
 
 @layer utilities {
   .appframe-drag {
+    cursor: grab;
     --wails-draggable: drag;
+  }
+
+  .appframe-drag:active {
+    cursor: grabbing;
   }
 
   .appframe-no-drag {
     --wails-draggable: no-drag;
+  }
+
+  :where(.appframe-no-drag) {
+    cursor: default;
   }
 }
 
@@ -26,6 +35,26 @@
 
   .dark body {
     @apply bg-zinc-900 text-white;
+  }
+
+  :root {
+    color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  select option,
+  select optgroup {
+    background-color: rgb(var(--color-surface, 255 255 255));
+    color: rgb(var(--color-gray-900, 17 24 39));
+  }
+
+  .dark select option,
+  .dark select optgroup {
+    background-color: rgb(var(--color-zinc-900, 24 24 27));
+    color: rgb(var(--color-zinc-100, 244 244 245));
   }
 
   input[type="password"]::-ms-reveal {

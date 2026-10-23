@@ -1,9 +1,10 @@
-import iziToast from 'izitoast';
+import toast from 'react-hot-toast';
 import React, { useState, useEffect } from 'react';
 import { FileUploader } from 'react-drag-drop-files';
 import { toBase64 } from '../functions/TreatmentFunctions';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { TerminalServices } from '../services/TerminalServices';
+import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import { EditSshConnectionFormProps, CreateSshConnectionInterface } from '../../../../interfaces/TerminalInterfaces';
 
 const labelBase = 'text-xs font-medium text-zinc-400';
@@ -54,11 +55,7 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!formData.key && !formData.password) {
-      iziToast.error({
-        title: 'Erro',
-        message: 'Você deve fornecer uma senha ou um arquivo de chave.',
-        position: 'bottomRight',
-      });
+      toast.error('Você deve fornecer uma senha ou um arquivo de chave.');
       return;
     }
     setSubmitting(true);
@@ -70,18 +67,10 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
         password: formData.password ? btoa(formData.password) : undefined,
       };
       await TerminalServices.updateSshConnection(token ?? '', id, payload);
-      iziToast.success({
-        title: 'Sucesso!',
-        message: 'Conexão atualizada com sucesso',
-        position: 'bottomRight',
-      });
+      toast.success('Conexão atualizada com sucesso');
       onSuccess?.();
     } catch (error: any) {
-      iziToast.error({
-        title: 'Erro',
-        message: `Erro ao atualizar conexão: ${String(error)}`,
-        position: 'bottomRight',
-      });
+      toast.error(`Erro ao atualizar conexão: ${errorMessage(error)}`);
     } finally {
       setSubmitting(false);
     }

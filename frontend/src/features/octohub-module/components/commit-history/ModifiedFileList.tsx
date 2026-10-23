@@ -1,11 +1,12 @@
 import React from 'react';
-import { octohubStructs } from '../../../../../wailsjs/go/models';
+import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { ChevronRight, FileText, Plus, Minus, SquareDot, SquareArrowRight } from 'lucide-react';
 
 interface ModifiedFileListProps {
     loadingFiles: boolean;
     selectedFile: string | null;
     onFileClick: (file: string) => void;
+    onFileDoubleClick?: (file: string) => void;
     modifications: octohubStructs.FileModification[];
 }
 
@@ -34,6 +35,7 @@ const ModifiedFileList: React.FC<ModifiedFileListProps> = ({
     loadingFiles,
     selectedFile,
     modifications,
+    onFileDoubleClick,
 }) => {
     return (
         <div className="flex-1 flex flex-col min-h-0 bg-transparent">
@@ -56,6 +58,8 @@ const ModifiedFileList: React.FC<ModifiedFileListProps> = ({
                                 key={index}
                                 className={`flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors group cursor-pointer ${selectedFile === modifiedFile.File ? 'bg-zinc-200 dark:bg-white/10 ring-1 ring-zinc-300 dark:ring-white/10' : ''}`}
                                 onClick={() => onFileClick(modifiedFile.File)}
+                                onDoubleClick={() => onFileDoubleClick?.(modifiedFile.File)}
+                                title={onFileDoubleClick ? 'Clique duas vezes para abrir no VS Code' : undefined}
                             >
                                 <div className="flex items-center gap-2.5 min-w-0">
                                     <div

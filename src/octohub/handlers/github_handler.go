@@ -11,10 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 
 	auth "docker-manager-go/src/auth/functions"
+	"docker-manager-go/src/desktop"
 	"docker-manager-go/src/models"
 	octohubDtos "docker-manager-go/src/octohub/dtos"
 	"docker-manager-go/src/types"
@@ -52,8 +53,9 @@ func NewOctohubHandler(dataBase *gorm.DB, sessionManager *auth.ManagerStruct) *O
 	return &OctohubHandler{DataBase: dataBase, Session: sessionManager}
 }
 
-func (handlerStruct *OctohubHandler) Startup(ctx context.Context) {
+func (handlerStruct *OctohubHandler) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	handlerStruct.ctx = ctx
+	return nil
 }
 
 func (handlerStruct *OctohubHandler) userID(token string) (uint, error) {
@@ -64,7 +66,7 @@ func (handlerStruct *OctohubHandler) userID(token string) (uint, error) {
 	return session.UserID, nil
 }
 
-func (handlerStruct *OctohubHandler) StartDeviceLogin(token string) (*octohubDtos.DeviceCodeDto, error) {
+func (handlerStruct *OctohubHandler) StartDeviceLogin(callContext context.Context, token string) (*octohubDtos.DeviceCodeDto, error) {
 	userID, err := handlerStruct.userID(token)
 	if err != nil {
 		return nil, err
@@ -98,7 +100,7 @@ func (handlerStruct *OctohubHandler) StartDeviceLogin(token string) (*octohubDto
 	handlerStruct.cancelLogin = cancel
 	handlerStruct.mutex.Unlock()
 
-	go handlerStruct.pollDeviceToken(loginCtx, userID, response.DeviceCode, response.Interval)
+	go handlerStruct.pollDeviceToken(loginCtx, desktop.CallingWindowName(callContext), userID, response.DeviceCode, response.Interval)
 
 	return &octohubDtos.DeviceCodeDto{
 		UserCode:        response.UserCode,
@@ -116,14 +118,14 @@ func (handlerStruct *OctohubHandler) CancelDeviceLogin() {
 	}
 }
 
-func (handlerStruct *OctohubHandler) pollDeviceToken(ctx context.Context, userID uint, deviceCode string, intervalSeconds int) {
+func (handlerStruct *OctohubHandler) pollDeviceToken(ctx context.Context, windowName string, userID uint, deviceCode string, intervalSeconds int) {
 	interval := time.Duration(max(intervalSeconds, 5)) * time.Second
 
 	for {
 		select {
 		case <-ctx.Done():
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				runtime.EventsEmit(handlerStruct.ctx, LoginErrorEvent, "o código expirou, tente conectar novamente")
+				desktop.EmitToWindow(windowName, LoginErrorEvent, "o código expirou, tente conectar novamente")
 			}
 			return
 		case <-time.After(interval):
@@ -148,9 +150,9 @@ func (handlerStruct *OctohubHandler) pollDeviceToken(ctx context.Context, userID
 		case "":
 			account, err := handlerStruct.saveAccount(userID, response.AccessToken, response.Scope)
 			if err != nil {
-				runtime.EventsEmit(handlerStruct.ctx, LoginErrorEvent, err.Error())
+				desktop.EmitToWindow(windowName, LoginErrorEvent, err.Error())
 			} else {
-				runtime.EventsEmit(handlerStruct.ctx, LoginSuccessEvent, account)
+				desktop.Broadcast(LoginSuccessEvent, account)
 			}
 			handlerStruct.CancelDeviceLogin()
 			return
@@ -158,10 +160,10 @@ func (handlerStruct *OctohubHandler) pollDeviceToken(ctx context.Context, userID
 		case "slow_down":
 			interval = time.Duration(max(response.Interval, int(interval.Seconds())+5)) * time.Second
 		case "access_denied":
-			runtime.EventsEmit(handlerStruct.ctx, LoginErrorEvent, "autorização negada no GitHub")
+			desktop.EmitToWindow(windowName, LoginErrorEvent, "autorização negada no GitHub")
 			return
 		default:
-			runtime.EventsEmit(handlerStruct.ctx, LoginErrorEvent, fmt.Sprintf("github: %s - %s", response.Error, response.ErrorDesc))
+			desktop.EmitToWindow(windowName, LoginErrorEvent, fmt.Sprintf("github: %s - %s", response.Error, response.ErrorDesc))
 			return
 		}
 	}
