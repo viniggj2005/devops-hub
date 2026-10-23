@@ -47,7 +47,7 @@ func assetSuffixes() []string {
 	if runtime.GOOS == "windows" {
 		return []string{platform + ".exe", platform}
 	}
-	return []string{platform}
+	return []string{platform + assetVariantSuffix}
 }
 
 func findPlatformAsset(assets []releaseAsset) (releaseAsset, bool) {
