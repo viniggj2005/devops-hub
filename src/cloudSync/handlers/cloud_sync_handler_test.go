@@ -9,6 +9,9 @@ import (
 
 	auth "docker-manager-go/src/auth/functions"
 	cloudSyncFunctions "docker-manager-go/src/cloudSync/functions"
+
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
 )
 
 func TestCloudSyncHandlerWithoutAccount(test *testing.T) {
@@ -41,5 +44,37 @@ func TestCloudSyncHandlerWithoutAccount(test *testing.T) {
 	}
 	if err := handler.Disconnect(ctx, token); err != nil {
 		test.Fatalf("expected disconnect without account to succeed, got %v", err)
+	}
+}
+
+func TestRestoreAndRestartKeepsDatabaseWhenNothingToRestore(test *testing.T) {
+	dataBasePath := filepath.Join(test.TempDir(), "secure.db")
+	dataBase, err := gorm.Open(sqlite.Open("file:"+dataBasePath), &gorm.Config{})
+	if err != nil {
+		test.Fatalf("unexpected error opening database: %v", err)
+	}
+	test.Cleanup(func() {
+		if connection, err := dataBase.DB(); err == nil {
+			connection.Close()
+		}
+	})
+	handler := NewCloudSyncHandler(dataBase, auth.NewManager(time.Hour), dataBasePath)
+	restarted := false
+	handler.restartApp = func() error {
+		restarted = true
+		return nil
+	}
+
+	if status, err := handler.LoginScreenStatus(context.Background()); err != nil || status.Connected {
+		test.Fatalf("expected a disconnected login screen status, got %+v err=%v", status, err)
+	}
+	if err := handler.RestoreAndRestart(context.Background()); err == nil {
+		test.Fatalf("expected restore without a cloud backup to fail")
+	}
+	if restarted || handler.skipShutdownUpload {
+		test.Fatalf("expected no restart and the shutdown upload to stay enabled")
+	}
+	if err := dataBase.Exec("SELECT 1").Error; err != nil {
+		test.Fatalf("expected the local database to stay open, got %v", err)
 	}
 }

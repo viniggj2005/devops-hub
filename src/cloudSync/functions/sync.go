@@ -72,36 +72,59 @@ func UploadDatabase(ctx context.Context, dataBase *gorm.DB, dataBasePath string,
 	return true, SaveState(dataBasePath, state)
 }
 
-func RestoreBeforeOpen(dataBasePath string) (bool, error) {
+type PreparedRestore struct {
+	state        SyncState
+	remote       *RemoteBackup
+	dataBasePath string
+	downloadPath string
+}
+
+func PrepareRestore(ctx context.Context, dataBasePath string) (*PreparedRestore, error) {
 	state, err := LoadState(dataBasePath)
 	if err != nil || !state.Connected() {
-		return false, err
+		return nil, err
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), restoreTimeout)
-	defer cancel()
 	remote, err := FindRemoteBackup(ctx, state.Token)
 	if err != nil || remote == nil || !remote.SyncedAt.After(state.LastSyncedAt) {
-		return false, err
+		return nil, err
 	}
 
 	downloadPath := dataBasePath + ".cloud"
-	defer os.Remove(downloadPath)
 	if err := downloadBackup(ctx, driveHTTPClient(ctx, state.Token), remote.ID, downloadPath); err != nil {
-		return false, fmt.Errorf("não foi possível baixar o backup da nuvem: %w", err)
+		os.Remove(downloadPath)
+		return nil, fmt.Errorf("não foi possível baixar o backup da nuvem: %w", err)
 	}
 	if err := verifyBackup(downloadPath, remote.Hash); err != nil {
-		return false, err
+		os.Remove(downloadPath)
+		return nil, err
 	}
-	if err := backupLocalDatabase(dataBasePath, time.Now()); err != nil {
-		return false, fmt.Errorf("não foi possível guardar uma cópia do banco local: %w", err)
-	}
-	if err := replaceDatabase(dataBasePath, downloadPath); err != nil {
-		return false, err
-	}
+	return &PreparedRestore{state: state, remote: remote, dataBasePath: dataBasePath, downloadPath: downloadPath}, nil
+}
 
-	state.LastSyncedAt, state.LastSyncedHash = remote.SyncedAt, remote.Hash
-	return true, SaveState(dataBasePath, state)
+func (restore *PreparedRestore) Discard() {
+	os.Remove(restore.downloadPath)
+}
+
+func (restore *PreparedRestore) Apply() error {
+	defer restore.Discard()
+	if err := backupLocalDatabase(restore.dataBasePath, time.Now()); err != nil {
+		return fmt.Errorf("não foi possível guardar uma cópia do banco local: %w", err)
+	}
+	if err := replaceDatabase(restore.dataBasePath, restore.downloadPath); err != nil {
+		return err
+	}
+	restore.state.LastSyncedAt, restore.state.LastSyncedHash = restore.remote.SyncedAt, restore.remote.Hash
+	return SaveState(restore.dataBasePath, restore.state)
+}
+
+func RestoreBeforeOpen(dataBasePath string) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), restoreTimeout)
+	defer cancel()
+	restore, err := PrepareRestore(ctx, dataBasePath)
+	if err != nil || restore == nil {
+		return false, err
+	}
+	return true, restore.Apply()
 }
 
 func snapshotDatabase(ctx context.Context, dataBase *gorm.DB, destination string) error {

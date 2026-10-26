@@ -75,6 +75,34 @@ func (handlerStruct *GitBranchHandler) FetchRemotes(ctx context.Context) error {
 	return err
 }
 
+func (handlerStruct *GitBranchHandler) PullCurrentBranch(ctx context.Context) (octohubStructs.OperationState, error) {
+	state, err := handlerStruct.GetOperationState(ctx)
+	if err != nil {
+		return state, err
+	}
+	if state.Kind != "" {
+		return state, fmt.Errorf("conclua ou aborte o %s em andamento antes", operationNames[state.Kind])
+	}
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"}); err != nil {
+		return state, fmt.Errorf("a branch atual não acompanha nenhuma branch remota; publique-a antes")
+	}
+
+	args := []string{"pull", "--no-edit"}
+	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"config", "--get", "pull.rebase"}); err != nil {
+		args = append(args, "--no-rebase")
+	}
+
+	runErr := handlerStruct.runNonInteractive(ctx, args, "")
+	state, err = handlerStruct.GetOperationState(ctx)
+	if runErr != nil {
+		if err == nil && len(state.ConflictingFiles) > 0 {
+			return state, nil
+		}
+		return state, fmt.Errorf("erro ao trazer as alterações do remoto: %w", runErr)
+	}
+	return state, err
+}
+
 func (handlerStruct *GitBranchHandler) revCount(ctx context.Context, revisionRange string) (int, error) {
 	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-list", "--count", revisionRange})
 	if err != nil {

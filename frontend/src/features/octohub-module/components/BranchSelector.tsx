@@ -20,6 +20,7 @@ import {
     ChevronDown,
     CloudUpload,
     GitBranchPlus,
+    ArrowDownToLine,
 } from 'lucide-react';
 import {
     ListBranches,
@@ -27,6 +28,7 @@ import {
     FetchRemotes,
     GetOriginURL,
     PublishBranch,
+    PullCurrentBranch,
     HasUncommittedChanges,
 } from '../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 
@@ -188,6 +190,20 @@ const BranchSelector: React.FC = () => {
         }
     };
 
+    const handlePull = async () => {
+        setFetching(true);
+        try {
+            const state = await PullCurrentBranch();
+            notifyChange();
+            if (state.Kind) openConflicts();
+            else toast.success(`${currentBranch} atualizada com o remoto.`);
+        } catch (error) {
+            handleGitError(error, 'Erro ao trazer as alterações do remoto', handlePull);
+        } finally {
+            setFetching(false);
+        }
+    };
+
     const choose = (index: number) => {
         const item = items[index];
         if (!item) return;
@@ -203,6 +219,7 @@ const BranchSelector: React.FC = () => {
 
     const showPublish =
         hasRepository && !isDetached && current && (!current.Upstream || current.Ahead > 0);
+    const canPull = Boolean(!isDetached && current?.Upstream && current.Behind > 0);
 
     return (
         <div className="relative">
@@ -240,20 +257,26 @@ const BranchSelector: React.FC = () => {
                 <div className="h-5 w-px bg-zinc-200 dark:bg-white/10 mx-0.5" />
 
                 <button
-                    onClick={handleFetch}
+                    onClick={canPull ? handlePull : handleFetch}
                     disabled={!hasRepository || !originUrl || loading || fetching}
                     title={
-                        originUrl
-                            ? 'Buscar atualizações de todos os remotos (git fetch --all --prune)'
-                            : 'Repositório sem remoto'
+                        !originUrl
+                            ? 'Repositório sem remoto'
+                            : canPull
+                              ? `Trazer ${current?.Behind} commit(s) de ${current?.Upstream} (git pull)`
+                              : 'Buscar atualizações de todos os remotos (git fetch --all --prune)'
                     }
                     className="px-2.5 py-1.5 hover:bg-zinc-200/70 dark:hover:bg-white/10 rounded-lg transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                    <RefreshCw
-                        className={`w-3.5 h-3.5 text-emerald-500 ${fetching ? 'animate-spin' : ''}`}
-                    />
+                    {canPull && !fetching ? (
+                        <ArrowDownToLine className="w-3.5 h-3.5 text-amber-500" />
+                    ) : (
+                        <RefreshCw
+                            className={`w-3.5 h-3.5 text-emerald-500 ${fetching ? 'animate-spin' : ''}`}
+                        />
+                    )}
                     <span className="text-xs font-bold hidden xl:inline text-zinc-700 dark:text-zinc-300">
-                        Fetch
+                        {canPull ? 'Pull' : 'Fetch'}
                     </span>
                     {current && current.Behind > 0 && (
                         <span className="px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-mono font-bold">
