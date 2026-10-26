@@ -3,7 +3,10 @@ package cloudSyncHandlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
+	"os"
+	"os/exec"
 	"sync"
 	"time"
 
@@ -18,21 +21,25 @@ import (
 const (
 	loginTimeout    = 5 * time.Minute
 	remoteTimeout   = 10 * time.Second
+	restoreTimeout  = 2 * time.Minute
 	shutdownTimeout = time.Minute
 )
 
 type CloudSyncHandlerStruct struct {
-	DataBase     *gorm.DB
-	Session      *auth.ManagerStruct
-	syncMutex    sync.Mutex
-	openBrowser  func(address string) error
-	dataBasePath string
+	DataBase           *gorm.DB
+	Session            *auth.ManagerStruct
+	syncMutex          sync.Mutex
+	restartApp         func() error
+	openBrowser        func(address string) error
+	dataBasePath       string
+	skipShutdownUpload bool
 }
 
 func NewCloudSyncHandler(dataBase *gorm.DB, session *auth.ManagerStruct, dataBasePath string) *CloudSyncHandlerStruct {
 	return &CloudSyncHandlerStruct{
 		DataBase:     dataBase,
 		Session:      session,
+		restartApp:   restartApplication,
 		openBrowser:  openInSystemBrowser,
 		dataBasePath: dataBasePath,
 	}
@@ -46,9 +53,28 @@ func openInSystemBrowser(address string) error {
 	return app.Browser.OpenURL(address)
 }
 
+func restartApplication() error {
+	executable, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	command := exec.Command(executable, os.Args[1:]...)
+	command.Env = os.Environ()
+	if err := command.Start(); err != nil {
+		return fmt.Errorf("não foi possível reiniciar o app: %w", err)
+	}
+	if app := application.Get(); app != nil {
+		go app.Quit()
+	}
+	return nil
+}
+
 func (handlerStruct *CloudSyncHandlerStruct) ServiceShutdown() error {
 	handlerStruct.syncMutex.Lock()
 	defer handlerStruct.syncMutex.Unlock()
+	if handlerStruct.skipShutdownUpload {
+		return nil
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
@@ -74,6 +100,49 @@ func (handlerStruct *CloudSyncHandlerStruct) Connect(ctx context.Context, token 
 	if _, err := handlerStruct.Session.Validate(token); err != nil {
 		return cloudSyncDtos.CloudSyncStatusDto{}, err
 	}
+	return handlerStruct.connect(ctx)
+}
+
+func (handlerStruct *CloudSyncHandlerStruct) LoginScreenStatus(ctx context.Context) (cloudSyncDtos.CloudSyncStatusDto, error) {
+	return handlerStruct.status(ctx)
+}
+
+func (handlerStruct *CloudSyncHandlerStruct) ConnectFromLoginScreen(ctx context.Context) (cloudSyncDtos.CloudSyncStatusDto, error) {
+	return handlerStruct.connect(ctx)
+}
+
+func (handlerStruct *CloudSyncHandlerStruct) RestoreAndRestart(ctx context.Context) error {
+	handlerStruct.syncMutex.Lock()
+	defer handlerStruct.syncMutex.Unlock()
+
+	restoreContext, cancel := context.WithTimeout(ctx, restoreTimeout)
+	defer cancel()
+	restore, err := cloudSyncFunctions.PrepareRestore(restoreContext, handlerStruct.dataBasePath)
+	if err != nil {
+		return err
+	}
+	if restore == nil {
+		return errors.New("não há uma versão mais nova na nuvem para restaurar")
+	}
+
+	connection, err := handlerStruct.DataBase.DB()
+	if err == nil {
+		err = connection.Close()
+	}
+	if err != nil {
+		restore.Discard()
+		return fmt.Errorf("não foi possível fechar o banco local: %w", err)
+	}
+
+	handlerStruct.skipShutdownUpload = true
+	applyErr := restore.Apply()
+	if applyErr != nil {
+		log.Println("não foi possível aplicar o backup do Google Drive:", applyErr)
+	}
+	return errors.Join(applyErr, handlerStruct.restartApp())
+}
+
+func (handlerStruct *CloudSyncHandlerStruct) connect(ctx context.Context) (cloudSyncDtos.CloudSyncStatusDto, error) {
 	if !cloudSyncFunctions.IsConfigured() {
 		return cloudSyncDtos.CloudSyncStatusDto{}, errors.New("o login com Google não está configurado nesta versão do app")
 	}

@@ -3,6 +3,7 @@ import { ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import appIcon from '../assets/images/hub.svg';
 import LoginForm from '../features/login/LoginForm';
+import CloudRestorePanel from '../features/login/CloudRestorePanel';
 import { AuthWindowBar } from '../features/appFrame/WindowControls';
 import { appModules } from '../features/shared/constants/AppModules';
 
@@ -116,6 +117,10 @@ const LoginPage: React.FC = () => {
                   Criar nova conta
                 </button>
               </p>
+            </div>
+
+            <div className="mt-6">
+              <CloudRestorePanel />
             </div>
           </div>
         </div>
