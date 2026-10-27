@@ -50,8 +50,8 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => {
       size="lg"
       isOpen={isOpen}
       onClose={close}
-      title="Importar do Postman"
-      description="Coleções v2.0/v2.1, ambientes e globals"
+      title="Importar do Postman ou do Insomnia"
+      description="Postman v2.0/v2.1 (coleções, ambientes e globals) e Insomnia v4/v5 (JSON ou YAML)"
       icon={<Upload className="w-4 h-4 text-amber-500" />}
       footer={
         result ? (
@@ -70,7 +70,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => {
               className={primaryButtonClass}
             >
               {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ClipboardPaste className="w-3.5 h-3.5" />}
-              Importar JSON colado
+              Importar conteúdo colado
             </button>
           </>
         )
@@ -122,14 +122,15 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => {
             <div>
               <p className="text-sm font-bold text-gray-900 dark:text-white">Selecionar arquivos</p>
               <p className="text-xs text-gray-500 dark:text-zinc-400">
-                Escolha um ou mais arquivos <span className="font-mono">.postman_collection.json</span> e{' '}
-                <span className="font-mono">.postman_environment.json</span> exportados pelo Postman.
+                Escolha um ou mais arquivos exportados pelo Postman (<span className="font-mono">.postman_collection.json</span>,{' '}
+                <span className="font-mono">.postman_environment.json</span>) ou pelo Insomnia (<span className="font-mono">.json</span>,{' '}
+                <span className="font-mono">.yaml</span>).
               </p>
             </div>
           </button>
 
           <div>
-            <label className={fieldLabelClass}>Ou cole o JSON exportado</label>
+            <label className={fieldLabelClass}>Ou cole o conteúdo exportado (JSON ou YAML)</label>
             <textarea
               value={text}
               spellCheck={false}
@@ -146,7 +147,8 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => {
             </p>
           )}
           <p className="text-[11px] text-gray-400 dark:text-zinc-500">
-            Scripts de pré-requisição e testes são preservados, mas não executados. Exemplos de resposta salvos não são importados.
+            Scripts de pré-requisição e testes são preservados, mas não executados. Exemplos de resposta salvos não são importados. Cookies do
+            Insomnia vão para a coleção importada; ambientes base viram variáveis da coleção e sub-ambientes viram ambientes.
           </p>
         </div>
       )}

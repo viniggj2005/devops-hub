@@ -34,6 +34,11 @@ const (
 	DescriptorProtoFiles = "proto"
 )
 
+const (
+	ExportFormatPostman  = "postman"
+	ExportFormatInsomnia = "insomnia"
+)
+
 type KeyValueDto struct {
 	Key         string `json:"key"`
 	Value       string `json:"value"`
@@ -159,6 +164,7 @@ type CollectionItemDto struct {
 type CollectionContentDto struct {
 	Auth        AuthDto             `json:"auth"`
 	Items       []CollectionItemDto `json:"items"`
+	Cookies     []CookieDto         `json:"cookies"`
 	Scripts     []ScriptDto         `json:"scripts"`
 	Variables   []VariableDto       `json:"variables"`
 	Description string              `json:"description"`
@@ -169,6 +175,7 @@ type CollectionDto struct {
 	Name        string              `json:"name"`
 	Auth        AuthDto             `json:"auth"`
 	Items       []CollectionItemDto `json:"items"`
+	Cookies     []CookieDto         `json:"cookies"`
 	Scripts     []ScriptDto         `json:"scripts"`
 	Variables   []VariableDto       `json:"variables"`
 	Description string              `json:"description"`

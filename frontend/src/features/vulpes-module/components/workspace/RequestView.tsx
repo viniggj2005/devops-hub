@@ -23,9 +23,10 @@ const editors: Record<RequestTab['request']['protocol'], React.FC<ProtocolEditor
 interface RequestViewProps {
   tab: RequestTab;
   onSave: () => void;
+  paneControls?: React.ReactNode;
 }
 
-const RequestView: React.FC<RequestViewProps> = ({ tab, onSave }) => {
+const RequestView: React.FC<RequestViewProps> = ({ tab, onSave, paneControls }) => {
   const renameTab = useVulpesStore((state) => state.renameTab);
   const runtime = useVulpesStore((state) => state.runtimes[tab.id]) ?? fallbackRuntime;
   const collection = useVulpesStore((state) => state.collections.find((candidate) => candidate.id === tab.collectionId));
@@ -60,6 +61,7 @@ const RequestView: React.FC<RequestViewProps> = ({ tab, onSave }) => {
           <Save className={`w-3.5 h-3.5 ${tab.dirty ? 'text-amber-500' : ''}`} />
           {tab.itemId ? 'Salvar' : 'Salvar em…'}
         </button>
+        {paneControls}
       </div>
       <div className="flex-1 min-h-0">
         <Editor

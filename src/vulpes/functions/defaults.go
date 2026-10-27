@@ -2,6 +2,7 @@ package vulpesFunctions
 
 import (
 	"strings"
+	"time"
 
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 
@@ -219,6 +220,7 @@ func NormalizeContent(content *vulpesDtos.CollectionContentDto) {
 	if content.Scripts == nil {
 		content.Scripts = []vulpesDtos.ScriptDto{}
 	}
+	content.Cookies = NormalizeCookies(content.Cookies, time.Now())
 	content.Variables = NormalizeVariables(content.Variables)
 	for index := range content.Items {
 		NormalizeItem(&content.Items[index])

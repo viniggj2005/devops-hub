@@ -88,8 +88,9 @@ func elapsedMs(from time.Time, to time.Time) float64 {
 	return float64(to.Sub(from).Microseconds()) / 1000
 }
 
-func (handlerStruct *VulpesClientHandlerStruct) httpClient(settings vulpesDtos.HttpSettingsDto) *http.Client {
+func (handlerStruct *VulpesClientHandlerStruct) httpClient(settings vulpesDtos.HttpSettingsDto, cookieJar http.CookieJar) *http.Client {
 	return &http.Client{
+		Jar:       cookieJar,
 		Transport: handlerStruct.httpTransports.pick(settings.SkipTlsVerify),
 		CheckRedirect: func(_ *http.Request, previous []*http.Request) error {
 			if settings.DisableRedirects {
@@ -104,14 +105,14 @@ func (handlerStruct *VulpesClientHandlerStruct) httpClient(settings vulpesDtos.H
 }
 
 func (handlerStruct *VulpesClientHandlerStruct) SendHttpRequest(callContext context.Context, token string, input vulpesDtos.ExecutionInputDto) (*vulpesDtos.HttpResponseDto, error) {
-	resolver, request, auth, err := handlerStruct.prepareExecution(token, input)
+	plan, err := handlerStruct.prepareExecution(token, input)
 	if err != nil {
 		return nil, err
 	}
-	if request.Http == nil {
+	if plan.request.Http == nil {
 		return nil, errors.New("a requisição não é HTTP")
 	}
-	httpRequest := resolver.ResolveHttpRequest(*request.Http)
+	httpRequest := plan.resolver.ResolveHttpRequest(*plan.request.Http)
 
 	requestContext := callContext
 	if httpRequest.Settings.TimeoutMs > 0 {
@@ -121,13 +122,14 @@ func (handlerStruct *VulpesClientHandlerStruct) SendHttpRequest(callContext cont
 	}
 
 	timings := &requestTimings{}
-	built, err := vulpesFunctions.BuildHttpRequest(httptrace.WithClientTrace(requestContext, timings.trace()), httpRequest, auth)
+	built, err := vulpesFunctions.BuildHttpRequest(httptrace.WithClientTrace(requestContext, timings.trace()), httpRequest, plan.auth)
 	if err != nil {
 		return nil, err
 	}
 
 	started := time.Now()
-	response, err := handlerStruct.httpClient(httpRequest.Settings).Do(built)
+	response, err := handlerStruct.httpClient(httpRequest.Settings, plan.httpCookieJar()).Do(built)
+	collectionCookies := handlerStruct.persistReceivedCookies(plan)
 	if err != nil {
 		return nil, describeRequestError(err, requestContext)
 	}
@@ -141,18 +143,19 @@ func (handlerStruct *VulpesClientHandlerStruct) SendHttpRequest(callContext cont
 
 	contentType := response.Header.Get("Content-Type")
 	result := &vulpesDtos.HttpResponseDto{
-		Url:            response.Request.URL.String(),
-		Status:         response.Status,
-		Method:         response.Request.Method,
-		Cookies:        responseCookies(response),
-		Headers:        flattenHeaders(response.Header),
-		Timings:        timings.summary(started, finished),
-		Protocol:       response.Proto,
-		SizeBytes:      int64(len(body)),
-		Truncated:      truncated,
-		StatusCode:     response.StatusCode,
-		ContentType:    contentType,
-		RequestHeaders: sentHeaders(response.Request),
+		Url:               response.Request.URL.String(),
+		Status:            response.Status,
+		Method:            response.Request.Method,
+		Cookies:           responseCookies(response),
+		Headers:           flattenHeaders(response.Header),
+		Timings:           timings.summary(started, finished),
+		Protocol:          response.Proto,
+		SizeBytes:         int64(len(body)),
+		Truncated:         truncated,
+		StatusCode:        response.StatusCode,
+		ContentType:       contentType,
+		RequestHeaders:    sentHeaders(response.Request),
+		CollectionCookies: collectionCookies,
 	}
 	if isTextual(contentType, body) {
 		result.Body, result.BodyEncoding = string(body), vulpesDtos.EncodingText
@@ -214,27 +217,10 @@ func sentHeaders(request *http.Request) []vulpesDtos.HeaderDto {
 }
 
 func responseCookies(response *http.Response) []vulpesDtos.CookieDto {
-	sameSiteNames := map[http.SameSite]string{
-		http.SameSiteLaxMode:    "Lax",
-		http.SameSiteNoneMode:   "None",
-		http.SameSiteStrictMode: "Strict",
-	}
+	now := time.Now()
 	cookies := []vulpesDtos.CookieDto{}
 	for _, cookie := range response.Cookies() {
-		expires := ""
-		if !cookie.Expires.IsZero() {
-			expires = cookie.Expires.UTC().Format(time.RFC1123)
-		}
-		cookies = append(cookies, vulpesDtos.CookieDto{
-			Name:     cookie.Name,
-			Path:     cookie.Path,
-			Value:    cookie.Value,
-			Domain:   cookie.Domain,
-			Secure:   cookie.Secure,
-			Expires:  expires,
-			HttpOnly: cookie.HttpOnly,
-			SameSite: sameSiteNames[cookie.SameSite],
-		})
+		cookies = append(cookies, vulpesFunctions.ResponseCookie(cookie, now))
 	}
 	return cookies
 }

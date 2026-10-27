@@ -2,10 +2,16 @@ import React from 'react';
 import { useVulpesStore } from '../VulpesStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../appFrame/AppStore';
-import { Globe2, LogOut, Settings2 } from 'lucide-react';
 import Select from '../../shared/components/forms/Select';
 import { VULPES_MODULE, VulpesModuleIcon } from '../moduleInfo';
+import { Globe2, LogOut, Settings2, Cookie as CookieIcon } from 'lucide-react';
 import ToggleThemeButton from '../../shared/components/buttons/ToggleThemeButton';
+
+const openCookiesForActiveTab = () => {
+  const { tabs, activeTabId, collections, openCookies } = useVulpesStore.getState();
+  const activeTab = tabs.find((tab) => tab.id === activeTabId);
+  openCookies(activeTab?.collectionId ?? collections[0]?.id ?? null);
+};
 
 const VulpesNavbar: React.FC<{ onManageEnvironments: () => void }> = ({ onManageEnvironments }) => {
   const setActiveTab = useAppStore((state) => state.setActiveTab);
@@ -55,6 +61,15 @@ const VulpesNavbar: React.FC<{ onManageEnvironments: () => void }> = ({ onManage
             <Settings2 className="w-4 h-4" />
           </button>
         </div>
+        <button
+          type="button"
+          title="Gerenciar cookies da coleção"
+          onClick={openCookiesForActiveTab}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-500 hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+        >
+          <CookieIcon className="w-4 h-4" />
+          <span className="hidden lg:inline">Cookies</span>
+        </button>
         <ToggleThemeButton />
         <button
           onClick={() => setActiveTab('home')}

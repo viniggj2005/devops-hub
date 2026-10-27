@@ -4,7 +4,7 @@ import { requestActions } from './RequestActions';
 import { findItem } from '../functions/CollectionTree';
 import { VulpesServices } from '../services/VulpesServices';
 import { createRequest, emptyAuth, generateId } from '../functions/RequestDefaults';
-import type { Collection, Environment, MoveItemInput, CollectionItem, VulpesProtocol, CollectionInput } from '../../../interfaces/VulpesInterfaces';
+import type { Cookie, Collection, Environment, ExportFormat, MoveItemInput, CollectionItem, VulpesProtocol, CollectionInput } from '../../../interfaces/VulpesInterfaces';
 
 const store = () => useVulpesStore.getState();
 
@@ -13,7 +13,7 @@ const requestIdsWithin = (item: CollectionItem): string[] =>
 
 const closeTabsFor = (matches: (itemId: string | null, collectionId: number | null) => boolean) => {
   const tabIds = store()
-    .tabs.filter((tab) => matches(tab.itemId, tab.collectionId))
+    .tabs.filter((tab) => matches(tab.kind === 'request' ? tab.itemId : null, tab.collectionId))
     .map((tab) => tab.id);
   tabIds.forEach(requestActions.releaseTab);
   if (tabIds.length) store().removeTabs(tabIds);
@@ -60,8 +60,14 @@ export const collectionActions = {
     store().removeCollection(collection.id);
   },
 
-  exportCollection(collection: Collection) {
-    return VulpesServices.exportCollection(requireToken(), collection.id);
+  exportCollection(collection: Collection, format: ExportFormat) {
+    return VulpesServices.exportCollection(requireToken(), collection.id, format);
+  },
+
+  async saveCookies(collectionId: number, cookies: Cookie[]) {
+    const collection = await VulpesServices.saveCollectionCookies(requireToken(), collectionId, cookies);
+    store().upsertCollection(collection);
+    return collection;
   },
 
   async createRequest(collectionId: number, parentId: string, protocol: VulpesProtocol) {
@@ -153,7 +159,7 @@ export const collectionActions = {
     store().removeEnvironment(environment.id);
   },
 
-  exportEnvironment(environment: Environment) {
-    return VulpesServices.exportEnvironment(requireToken(), environment.id);
+  exportEnvironment(environment: Environment, format: ExportFormat) {
+    return VulpesServices.exportEnvironment(requireToken(), environment.id, format);
   },
 };

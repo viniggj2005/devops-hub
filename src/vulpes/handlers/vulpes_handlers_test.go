@@ -412,12 +412,12 @@ func TestWebSocketSessionLifecycle(test *testing.T) {
 
 	unauthorized := request
 	unauthorized.Auth = vulpesDtos.AuthDto{Type: vulpesDtos.AuthNone}
-	if err := environment.client.ConnectWebSocket(context.Background(), environment.token, "tab-0", vulpesDtos.ExecutionInputDto{Request: unauthorized}); err == nil || !strings.Contains(err.Error(), "401") {
+	if _, err := environment.client.ConnectWebSocket(context.Background(), environment.token, "tab-0", vulpesDtos.ExecutionInputDto{Request: unauthorized}); err == nil || !strings.Contains(err.Error(), "401") {
 		test.Fatalf("expected the handshake to be refused, got %v", err)
 	}
 
 	callContext, cancelCall := context.WithCancel(context.Background())
-	if err := environment.client.ConnectWebSocket(callContext, environment.token, "tab-1", vulpesDtos.ExecutionInputDto{Request: request}); err != nil {
+	if _, err := environment.client.ConnectWebSocket(callContext, environment.token, "tab-1", vulpesDtos.ExecutionInputDto{Request: request}); err != nil {
 		test.Fatalf("unexpected connect error: %v", err)
 	}
 	cancelCall()
@@ -456,7 +456,7 @@ func TestWebSocketSessionLifecycle(test *testing.T) {
 		test.Fatalf("unexpected closure message: %q", closed.Data)
 	}
 
-	if err := environment.client.ConnectWebSocket(context.Background(), environment.token, "tab-2", vulpesDtos.ExecutionInputDto{Request: request}); err != nil {
+	if _, err := environment.client.ConnectWebSocket(context.Background(), environment.token, "tab-2", vulpesDtos.ExecutionInputDto{Request: request}); err != nil {
 		test.Fatalf("unexpected reconnect error: %v", err)
 	}
 	environment.collector.waitFor(test, "second connection", func(event vulpesDtos.RealtimeEventDto) bool { return event.Kind == vulpesDtos.RealtimeConnected })
@@ -531,7 +531,7 @@ func TestSocketIoSessionProtocol(test *testing.T) {
 	request.SocketIo.HandshakeAuth = `{"token":"abc"}`
 
 	callContext, cancelCall := context.WithCancel(context.Background())
-	if err := environment.client.ConnectSocketIo(callContext, environment.token, "sio", vulpesDtos.ExecutionInputDto{Request: request}); err != nil {
+	if _, err := environment.client.ConnectSocketIo(callContext, environment.token, "sio", vulpesDtos.ExecutionInputDto{Request: request}); err != nil {
 		test.Fatalf("unexpected connect error: %v", err)
 	}
 	cancelCall()
@@ -593,13 +593,13 @@ func TestSocketIoConnectErrorAndInvalidAuth(test *testing.T) {
 	request := vulpesFunctions.NewRequest(vulpesDtos.ProtocolSocketIo)
 	request.SocketIo.Url = server.URL
 	request.SocketIo.Namespace = "admin"
-	err := environment.client.ConnectSocketIo(context.Background(), environment.token, "sio", vulpesDtos.ExecutionInputDto{Request: request})
+	_, err := environment.client.ConnectSocketIo(context.Background(), environment.token, "sio", vulpesDtos.ExecutionInputDto{Request: request})
 	if err == nil || !strings.Contains(err.Error(), "não autorizado") {
 		test.Fatalf("expected connect error from the server, got %v", err)
 	}
 
 	request.SocketIo.HandshakeAuth = `["not","object"]`
-	if err := environment.client.ConnectSocketIo(context.Background(), environment.token, "sio", vulpesDtos.ExecutionInputDto{Request: request}); err == nil {
+	if _, err := environment.client.ConnectSocketIo(context.Background(), environment.token, "sio", vulpesDtos.ExecutionInputDto{Request: request}); err == nil {
 		test.Fatalf("expected non-object handshake auth to fail")
 	}
 }

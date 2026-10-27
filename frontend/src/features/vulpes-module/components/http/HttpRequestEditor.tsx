@@ -152,7 +152,7 @@ const HttpRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
             </div>
           </>
         }
-        bottom={<HttpResponseViewer runtime={runtime} onCancel={() => requestActions.cancel(tab.id)} />}
+        bottom={<HttpResponseViewer runtime={runtime} collectionId={tab.collectionId} onCancel={() => requestActions.cancel(tab.id)} />}
       />
     </div>
   );

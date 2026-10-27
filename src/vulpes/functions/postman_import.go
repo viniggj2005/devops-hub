@@ -49,11 +49,12 @@ type postmanInfo struct {
 }
 
 type postmanCollection struct {
-	Info     postmanInfo     `json:"info"`
-	Item     []postmanItem   `json:"item"`
-	Auth     json.RawMessage `json:"auth"`
-	Event    []postmanEvent  `json:"event"`
-	Variable []postmanEntry  `json:"variable"`
+	Info          postmanInfo            `json:"info"`
+	Item          []postmanItem          `json:"item"`
+	Auth          json.RawMessage        `json:"auth"`
+	Event         []postmanEvent         `json:"event"`
+	Variable      []postmanEntry         `json:"variable"`
+	VulpesCookies []vulpesDtos.CookieDto `json:"vulpesCookies"`
 }
 
 type postmanItem struct {
@@ -177,7 +178,7 @@ func ParsePostmanFile(content []byte, sourceName string) (*ImportedData, error) 
 	case probe["requests"] != nil && probe["order"] != nil:
 		return nil, fmt.Errorf("%s está no formato Postman v1, que não é suportado; exporte a coleção novamente como v2.1", sourceName)
 	default:
-		return nil, fmt.Errorf("%s não é uma coleção nem um ambiente do Postman", sourceName)
+		return nil, fmt.Errorf("%s não é uma coleção nem um ambiente do Postman ou do Insomnia", sourceName)
 	}
 	imported.Warnings = importer.warnings.list()
 	return imported, nil
@@ -200,6 +201,7 @@ func (importer postmanImporter) parseCollection(content []byte, sourceName strin
 		Name: name,
 		Content: vulpesDtos.CollectionContentDto{
 			Auth:        importer.parseAuth(collection.Auth, vulpesDtos.AuthNone),
+			Cookies:     collection.VulpesCookies,
 			Scripts:     importer.parseScripts(collection.Event),
 			Variables:   parseVariables(collection.Variable),
 			Description: descriptionText(collection.Info.Description),

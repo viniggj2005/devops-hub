@@ -97,19 +97,59 @@ func (handlerStruct *VulpesClientHandlerStruct) baseContext() context.Context {
 	return context.Background()
 }
 
-func (handlerStruct *VulpesClientHandlerStruct) prepareExecution(token string, input vulpesDtos.ExecutionInputDto) (*vulpesFunctions.VariableResolver, vulpesDtos.RequestDto, vulpesDtos.AuthDto, error) {
+type executionPlan struct {
+	auth         vulpesDtos.AuthDto
+	userID       uint
+	request      vulpesDtos.RequestDto
+	resolver     *vulpesFunctions.VariableResolver
+	cookieJar    *vulpesFunctions.CookieJar
+	collectionID uint
+}
+
+func (plan *executionPlan) httpCookieJar() http.CookieJar {
+	if plan.cookieJar == nil {
+		return nil
+	}
+	return plan.cookieJar
+}
+
+func (handlerStruct *VulpesClientHandlerStruct) prepareExecution(token string, input vulpesDtos.ExecutionInputDto) (*executionPlan, error) {
 	userID, err := handlerStruct.vulpes.authenticate(token)
 	if err != nil {
-		return nil, vulpesDtos.RequestDto{}, vulpesDtos.AuthDto{}, err
+		return nil, err
 	}
 	resolver, content, err := handlerStruct.vulpes.loadExecutionScope(userID, input.Scope)
 	if err != nil {
-		return nil, vulpesDtos.RequestDto{}, vulpesDtos.AuthDto{}, err
+		return nil, err
 	}
 	request := input.Request
 	vulpesFunctions.NormalizeRequest(&request)
-	auth := resolver.ResolveAuth(vulpesFunctions.EffectiveAuth(content, input.Scope.ItemID, request.Auth))
-	return resolver, request, auth, nil
+	plan := &executionPlan{
+		auth:         resolver.ResolveAuth(vulpesFunctions.EffectiveAuth(content, input.Scope.ItemID, request.Auth)),
+		userID:       userID,
+		request:      request,
+		resolver:     resolver,
+		collectionID: input.Scope.CollectionID,
+	}
+	if content != nil {
+		plan.cookieJar = vulpesFunctions.NewCookieJar(content.Cookies)
+	}
+	return plan, nil
+}
+
+func (handlerStruct *VulpesClientHandlerStruct) persistReceivedCookies(plan *executionPlan) *[]vulpesDtos.CookieDto {
+	if plan.cookieJar == nil {
+		return nil
+	}
+	changes := plan.cookieJar.Changes()
+	if len(changes) == 0 {
+		return nil
+	}
+	cookies, err := handlerStruct.vulpes.storeReceivedCookies(plan.userID, plan.collectionID, changes)
+	if err != nil {
+		return nil
+	}
+	return cookies
 }
 
 func requestHeaders(entries []vulpesDtos.KeyValueDto, auth vulpesFunctions.AuthEntries) http.Header {

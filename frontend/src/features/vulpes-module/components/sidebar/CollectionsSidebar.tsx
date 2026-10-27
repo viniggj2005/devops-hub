@@ -1,17 +1,16 @@
-import toast from 'react-hot-toast';
 import { CollectionNode } from './TreeNodes';
 import ImportModal from '../modals/ImportModal';
-import { useVulpesStore } from '../../VulpesStore';
-import { runWithToast } from '../../actions/ActionHelpers';
 import React, { useEffect, useMemo, useState } from 'react';
 import { containsItem } from '../../functions/CollectionTree';
+import { isRequestTab, useVulpesStore } from '../../VulpesStore';
 import { collectionActions } from '../../actions/CollectionActions';
 import CollectionSettingsModal from '../modals/CollectionSettingsModal';
 import { PROTOCOLS, protocolLabels } from '../../functions/RequestDefaults';
 import { useConfirmToast } from '../../../shared/components/toasts/ConfirmToast';
+import { announceExport, exportFormats, runWithToast } from '../../actions/ActionHelpers';
 import ContextMenu, { ContextMenuEntry } from '../../../shared/components/menus/ContextMenu';
-import { Copy, Download, FilePlus2, FolderPlus, PanelLeftClose, Pencil, Plus, Search, Settings2, Trash2, Upload } from 'lucide-react';
 import { itemKey, DropHint, TreeTarget, DragPayload, collectionKey, SidebarTreeContext, SidebarTreeContextValue } from './SidebarTreeContext';
+import { Copy, Plus, Pencil, Search, Trash2, Upload, Download, Settings2, FilePlus2, FolderPlus, PanelLeftClose, Cookie as CookieIcon } from 'lucide-react';
 
 const expandedStorageKey = 'vulpes-expanded-nodes';
 
@@ -41,7 +40,10 @@ const CollectionsSidebar: React.FC<{ onCollapse: () => void }> = ({ onCollapse }
   const [renamingKey, setRenamingKey] = useState<string | null>(null);
   const [settingsTarget, setSettingsTarget] = useState<TreeTarget | null>(null);
   const collections = useVulpesStore((state) => state.collections);
-  const activeItemId = useVulpesStore((state) => state.tabs.find((tab) => tab.id === state.activeTabId)?.itemId ?? null);
+  const activeItemId = useVulpesStore((state) => {
+    const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId);
+    return isRequestTab(activeTab) ? activeTab.itemId : null;
+  });
 
   useEffect(() => {
     try {
@@ -172,14 +174,13 @@ const CollectionsSidebar: React.FC<{ onCollapse: () => void }> = ({ onCollapse }
       ...(item
         ? [{ icon: Copy, label: 'Duplicar', onClick: () => runWithToast(() => collectionActions.duplicateItem(collection.id, item)) }]
         : [
-            {
+            { icon: CookieIcon, label: 'Cookies', onClick: () => useVulpesStore.getState().openCookies(collection.id) },
+            'separator' as const,
+            ...exportFormats.map(({ format, label }) => ({
               icon: Download,
-              label: 'Exportar (Postman v2.1)',
-              onClick: async () => {
-                const path = await runWithToast(() => collectionActions.exportCollection(collection));
-                if (path) toast.success(`Coleção exportada para ${path}`);
-              },
-            },
+              label: `Exportar para ${label}`,
+              onClick: async () => announceExport(await runWithToast(() => collectionActions.exportCollection(collection, format)), 'Coleção'),
+            })),
           ]),
       'separator',
       deleteEntry,
@@ -194,7 +195,7 @@ const CollectionsSidebar: React.FC<{ onCollapse: () => void }> = ({ onCollapse }
           <button type="button" title="Nova coleção" onClick={createCollection} className="p-1.5 rounded-lg text-gray-500 hover:text-amber-500 hover:bg-amber-500/10">
             <Plus className="w-4 h-4" />
           </button>
-          <button type="button" title="Importar do Postman" onClick={() => setImportOpen(true)} className="p-1.5 rounded-lg text-gray-500 hover:text-amber-500 hover:bg-amber-500/10">
+          <button type="button" title="Importar do Postman ou do Insomnia" onClick={() => setImportOpen(true)} className="p-1.5 rounded-lg text-gray-500 hover:text-amber-500 hover:bg-amber-500/10">
             <Upload className="w-4 h-4" />
           </button>
           <button type="button" title="Recolher barra lateral (Ctrl+B)" onClick={onCollapse} className="p-1.5 rounded-lg text-gray-500 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10">
@@ -215,7 +216,7 @@ const CollectionsSidebar: React.FC<{ onCollapse: () => void }> = ({ onCollapse }
         <div className="flex-1 min-h-0 overflow-auto pb-3">
           {collections.length === 0 && (
             <div className="px-4 py-8 text-center space-y-3">
-              <p className="text-xs text-gray-500 dark:text-zinc-400">Nenhuma coleção ainda. Crie uma ou importe arquivos do Postman.</p>
+              <p className="text-xs text-gray-500 dark:text-zinc-400">Nenhuma coleção ainda. Crie uma ou importe arquivos do Postman ou do Insomnia.</p>
               <div className="flex justify-center gap-2">
                 <button type="button" onClick={createCollection} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20">
                   Nova coleção

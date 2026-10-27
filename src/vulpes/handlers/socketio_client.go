@@ -37,19 +37,19 @@ type socketIoSession struct {
 	closedByClient atomic.Bool
 }
 
-func (handlerStruct *VulpesClientHandlerStruct) ConnectSocketIo(callContext context.Context, token string, sessionID string, input vulpesDtos.ExecutionInputDto) error {
-	resolver, request, auth, err := handlerStruct.prepareExecution(token, input)
+func (handlerStruct *VulpesClientHandlerStruct) ConnectSocketIo(callContext context.Context, token string, sessionID string, input vulpesDtos.ExecutionInputDto) (*vulpesDtos.ConnectionResultDto, error) {
+	plan, err := handlerStruct.prepareExecution(token, input)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if request.SocketIo == nil {
-		return errors.New("a requisição não é Socket.IO")
+	if plan.request.SocketIo == nil {
+		return nil, errors.New("a requisição não é Socket.IO")
 	}
-	socketRequest := resolver.ResolveSocketIoRequest(*request.SocketIo)
-	authEntries := vulpesFunctions.BuildAuthEntries(auth)
+	socketRequest := plan.resolver.ResolveSocketIoRequest(*plan.request.SocketIo)
+	authEntries := vulpesFunctions.BuildAuthEntries(plan.auth)
 	endpoint, namespace, err := vulpesFunctions.SocketIoEndpoint(socketRequest.Url, socketRequest.Path, socketRequest.Namespace, socketRequest.Version)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	endpoint = vulpesFunctions.AppendQuery(endpoint, authEntries.Query)
 
@@ -58,9 +58,10 @@ func (handlerStruct *VulpesClientHandlerStruct) ConnectSocketIo(callContext cont
 	emit(vulpesDtos.RealtimeEventDto{Kind: vulpesDtos.RealtimeConnecting, Data: endpoint, Direction: vulpesDtos.DirectionSystem})
 
 	headers := requestHeaders(socketRequest.Headers, authEntries)
-	connection, err := handlerStruct.dialRealtime(callContext, endpoint, headers, nil, socketRequest.SkipTlsVerify)
+	connection, err := handlerStruct.dialRealtime(callContext, endpoint, headers, nil, socketRequest.SkipTlsVerify, plan.httpCookieJar())
+	collectionCookies := handlerStruct.persistReceivedCookies(plan)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	sessionContext, cancel := context.WithCancel(handlerStruct.baseContext())
@@ -68,7 +69,7 @@ func (handlerStruct *VulpesClientHandlerStruct) ConnectSocketIo(callContext cont
 		emit:       emit,
 		cancel:     cancel,
 		version:    socketRequest.Version,
-		resolver:   resolver,
+		resolver:   plan.resolver,
 		namespace:  namespace,
 		connection: connection,
 	}
@@ -78,7 +79,7 @@ func (handlerStruct *VulpesClientHandlerStruct) ConnectSocketIo(callContext cont
 	if err != nil {
 		cancel()
 		connection.CloseNow()
-		return err
+		return nil, err
 	}
 
 	handlerStruct.registerSession(key, session)
@@ -92,7 +93,7 @@ func (handlerStruct *VulpesClientHandlerStruct) ConnectSocketIo(callContext cont
 	if session.version == legacySocketIoVersion && open.PingInterval > 0 {
 		go session.ping(sessionContext, time.Duration(open.PingInterval)*time.Millisecond)
 	}
-	return nil
+	return &vulpesDtos.ConnectionResultDto{CollectionCookies: collectionCookies}, nil
 }
 
 func (handlerStruct *VulpesClientHandlerStruct) EmitSocketIo(callContext context.Context, token string, sessionID string, input vulpesDtos.SocketIoEmitInputDto) error {

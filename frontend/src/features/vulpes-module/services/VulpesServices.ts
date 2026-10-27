@@ -2,7 +2,25 @@ import { CancellablePromise, Events } from '@wailsio/runtime';
 import { windowInstanceId } from '../../appFrame/WindowContext';
 import * as CollectionsApi from '../../../../bindings/docker-manager-go/src/vulpes/handlers/vulpeshandlerstruct';
 import * as ClientApi from '../../../../bindings/docker-manager-go/src/vulpes/handlers/vulpesclienthandlerstruct';
-import type { Collection, Environment, GrpcService, GrpcResponse, HttpResponse, ImportResult, MoveItemInput, RealtimeEvent, CollectionItem, ExecutionInput, CollectionInput, EnvironmentInput, ItemMutationResult } from '../../../interfaces/VulpesInterfaces';
+import type {
+  Cookie,
+  Collection,
+  Environment,
+  GrpcService,
+  ExportFormat,
+  ExportResult,
+  GrpcResponse,
+  HttpResponse,
+  ImportResult,
+  MoveItemInput,
+  RealtimeEvent,
+  CollectionItem,
+  ExecutionInput,
+  CollectionInput,
+  ConnectionResult,
+  EnvironmentInput,
+  ItemMutationResult,
+} from '../../../interfaces/VulpesInterfaces';
 
 export const vulpesDataChangedEvent = 'vulpes:data-changed';
 
@@ -19,6 +37,8 @@ const withNotification = async <Result>(operation: Promise<Result>) => {
 };
 
 export const VulpesServices = {
+  announceDataChange: notifyDataChanged,
+
   async findAllCollections(token: string): Promise<Collection[]> {
     return ((await CollectionsApi.FindAllCollections(token)) ?? []) as Collection[];
   },
@@ -33,6 +53,10 @@ export const VulpesServices = {
 
   deleteCollection(token: string, collectionId: number) {
     return withNotification(CollectionsApi.DeleteCollection(token, collectionId));
+  },
+
+  saveCollectionCookies(token: string, collectionId: number, cookies: Cookie[]) {
+    return withNotification(CollectionsApi.SaveCollectionCookies(token, collectionId, cookies) as Promise<Collection>);
   },
 
   createItem(token: string, collectionId: number, parentId: string, item: CollectionItem) {
@@ -81,12 +105,12 @@ export const VulpesServices = {
     return withNotification(CollectionsApi.ImportFromText(token, content) as Promise<ImportResult>);
   },
 
-  exportCollection(token: string, collectionId: number) {
-    return CollectionsApi.ExportCollection(token, collectionId);
+  exportCollection(token: string, collectionId: number, format: ExportFormat) {
+    return CollectionsApi.ExportCollection(token, collectionId, format) as Promise<ExportResult>;
   },
 
-  exportEnvironment(token: string, environmentId: number) {
-    return CollectionsApi.ExportEnvironment(token, environmentId);
+  exportEnvironment(token: string, environmentId: number, format: ExportFormat) {
+    return CollectionsApi.ExportEnvironment(token, environmentId, format) as Promise<ExportResult>;
   },
 
   sendHttpRequest(token: string, input: ExecutionInput) {
@@ -114,7 +138,7 @@ export const VulpesServices = {
   },
 
   connectWebSocket(token: string, sessionId: string, input: ExecutionInput) {
-    return ClientApi.ConnectWebSocket(token, sessionId, input);
+    return ClientApi.ConnectWebSocket(token, sessionId, input) as Promise<ConnectionResult | null>;
   },
 
   sendWebSocketMessage(token: string, sessionId: string, data: string, kind: string) {
@@ -122,7 +146,7 @@ export const VulpesServices = {
   },
 
   connectSocketIo(token: string, sessionId: string, input: ExecutionInput) {
-    return ClientApi.ConnectSocketIo(token, sessionId, input);
+    return ClientApi.ConnectSocketIo(token, sessionId, input) as Promise<ConnectionResult | null>;
   },
 
   emitSocketIo(token: string, sessionId: string, event: string, eventArguments: string[], withAck: boolean) {

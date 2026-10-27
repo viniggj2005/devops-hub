@@ -1,3 +1,5 @@
+import type { SplitLayout } from './SplitInterfaces';
+
 export type ItemKind = 'folder' | 'request';
 
 export type FormFieldKind = 'text' | 'file';
@@ -7,6 +9,10 @@ export type ApiKeyLocation = 'header' | 'query';
 export type SocketIoVersion = 'v2' | 'v3' | 'v4';
 
 export type BodyEncoding = 'text' | 'base64';
+
+export type ExportFormat = 'postman' | 'insomnia';
+
+export type CookieSameSite = '' | 'Lax' | 'Strict' | 'None';
 
 export type DescriptorSource = 'reflection' | 'proto';
 
@@ -152,6 +158,7 @@ export interface Collection {
   id: number;
   auth: Auth;
   name: string;
+  cookies: Cookie[];
   scripts: Script[];
   description: string;
   variables: Variable[];
@@ -195,6 +202,11 @@ export interface ImportResult {
   environments: Environment[];
 }
 
+export interface ExportResult {
+  path: string;
+  warnings: string[];
+}
+
 export interface ExecutionScope {
   itemId: string;
   collectionId: number;
@@ -211,15 +223,20 @@ export interface HeaderEntry {
   value: string;
 }
 
-export interface ResponseCookie {
+export interface Cookie {
   name: string;
   path: string;
   value: string;
   domain: string;
   secure: boolean;
   expires: string;
+  hostOnly: boolean;
   httpOnly: boolean;
-  sameSite: string;
+  sameSite: CookieSameSite;
+}
+
+export interface ConnectionResult {
+  collectionCookies: Cookie[] | null;
 }
 
 export interface ResponseTimings {
@@ -242,10 +259,11 @@ export interface HttpResponse {
   statusCode: number;
   contentType: string;
   headers: HeaderEntry[];
+  cookies: Cookie[];
   timings: ResponseTimings;
-  cookies: ResponseCookie[];
   bodyEncoding: BodyEncoding;
   requestHeaders: HeaderEntry[];
+  collectionCookies: Cookie[] | null;
 }
 
 export interface GrpcMethod {
@@ -292,10 +310,26 @@ export interface LoggedRealtimeEvent extends RealtimeEvent {
 export interface RequestTab {
   id: string;
   name: string;
+  kind: 'request';
   dirty: boolean;
   itemId: string | null;
   request: VulpesRequest;
   collectionId: number | null;
+}
+
+export interface CookiesTab {
+  id: string;
+  kind: 'cookies';
+  collectionId: number | null;
+}
+
+export type WorkspaceTab = RequestTab | CookiesTab;
+
+export interface TabGroup {
+  id: string;
+  paneIds: string[];
+  layout: SplitLayout;
+  focusedPaneId: string;
 }
 
 export interface TabRuntime {

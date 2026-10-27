@@ -15,7 +15,11 @@ A ferramenta permite autenticação de usuários, conexão segura a daemons Dock
 - **Imagens Docker**: listar,filtrar, remover imagens rapidamente e buildar imagens remotamente.
 - **Redes Docker**: visualização e gerenciamento básico das redes disponíveis. 
 - **Terminais SSH**: criação de conexões SSH para servidores remotos e abertura de terminais interativos pela interface.
-- **Vulpes (cliente de APIs)**: coleções, pastas e ambientes no estilo Postman, com requisições HTTP, gRPC (reflection ou arquivos `.proto`, unário e streaming), WebSocket e Socket.IO (v2, v3 e v4). Importa e exporta coleções Postman v2.0/v2.1, ambientes e globals; variáveis `{{nome}}` e autenticação herdada da pasta/coleção. Coleções e ambientes ficam criptografados no banco local.
+- **Vulpes (cliente de APIs)**: coleções, pastas e ambientes no estilo Postman, com requisições HTTP, gRPC (reflection ou arquivos `.proto`, unário e streaming), WebSocket e Socket.IO (v2, v3 e v4). Variáveis `{{nome}}` e autenticação herdada da pasta/coleção. Coleções e ambientes ficam criptografados no banco local.
+  - **Importação**: coleções Postman v2.0/v2.1, ambientes e globals; exports do Insomnia v4 (JSON ou YAML) e v5 (YAML do Insomnia 10+), com pastas, autenticação, headers de pasta, ambientes, sub-ambientes, cookies, gRPC e WebSocket.
+  - **Exportação**: para Postman v2.1 ou Insomnia v4, tanto coleções quanto ambientes.
+  - **Cookies por coleção**: cookies recebidos via `Set-Cookie` (inclusive em redirecionamentos e no handshake de WebSocket/Socket.IO) são guardados na coleção da requisição e enviados nas próximas requisições que combinarem com domínio, path e `Secure`. A aba **Cookies** permite criar, editar e remover cookies manualmente.
+  - **Abas**: arraste uma aba para reordená-la na barra ou solte-a sobre a requisição aberta para dividir a tela (até 4 painéis, como no terminal).
 
 ## $\textcolor{green}{\textsf{Features Futuras}}$
 -  **Docker Compose**: suporte para visualização, gerenciamento de arquivos compose e gereciamentos de contêineres usando compose.

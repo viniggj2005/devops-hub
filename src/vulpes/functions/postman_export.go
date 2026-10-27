@@ -97,11 +97,12 @@ type exportInfo struct {
 }
 
 type exportCollection struct {
-	Info     exportInfo     `json:"info"`
-	Item     []exportItem   `json:"item"`
-	Auth     map[string]any `json:"auth,omitempty"`
-	Event    []exportEvent  `json:"event,omitempty"`
-	Variable []exportEntry  `json:"variable,omitempty"`
+	Info          exportInfo             `json:"info"`
+	Item          []exportItem           `json:"item"`
+	Auth          map[string]any         `json:"auth,omitempty"`
+	Event         []exportEvent          `json:"event,omitempty"`
+	Variable      []exportEntry          `json:"variable,omitempty"`
+	VulpesCookies []vulpesDtos.CookieDto `json:"vulpesCookies,omitempty"`
 }
 
 type exportEnvironmentValue struct {
@@ -128,9 +129,10 @@ func ExportPostmanCollection(name string, content vulpesDtos.CollectionContentDt
 			PostmanID:   uuid.NewString(),
 			Description: content.Description,
 		},
-		Item:  exportItems(content.Items),
-		Auth:  exportAuth(content.Auth),
-		Event: exportEvents(content.Scripts),
+		Item:          exportItems(content.Items),
+		Auth:          exportAuth(content.Auth),
+		Event:         exportEvents(content.Scripts),
+		VulpesCookies: content.Cookies,
 	}
 	for _, variable := range content.Variables {
 		collection.Variable = append(collection.Variable, exportEntry{

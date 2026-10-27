@@ -4,12 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useVulpesStore } from '../../VulpesStore';
 import VariablesTable from '../editors/VariablesTable';
-import { runWithToast } from '../../actions/ActionHelpers';
 import { Modal } from '../../../shared/components/modals/Modal';
 import { collectionActions } from '../../actions/CollectionActions';
 import { errorMessage } from '../../../shared/functions/ErrorMessage';
-import type { Environment } from '../../../../interfaces/VulpesInterfaces';
+import ContextMenu from '../../../shared/components/menus/ContextMenu';
 import { useConfirmToast } from '../../../shared/components/toasts/ConfirmToast';
+import type { Environment, ExportFormat } from '../../../../interfaces/VulpesInterfaces';
+import { announceExport, exportFormats, runWithToast } from '../../actions/ActionHelpers';
 import { CheckCircle2, Download, Globe2, Loader2, Plus, Trash2, Upload } from 'lucide-react';
 import { fieldInputClass, fieldLabelClass, iconButtonClass, primaryButtonClass, secondaryButtonClass } from '../editors/FormStyles';
 
@@ -22,6 +23,7 @@ const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }
   const confirm = useConfirmToast();
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<Environment | null>(null);
+  const [exportMenu, setExportMenu] = useState<{ x: number; y: number } | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const { environments, activeEnvironmentId, setActiveEnvironment } = useVulpesStore(
     useShallow((state) => ({
@@ -68,10 +70,8 @@ const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }
     }
   };
 
-  const exportEnvironment = async (environment: Environment) => {
-    const path = await runWithToast(() => collectionActions.exportEnvironment(environment));
-    if (path) toast.success(`Ambiente exportado para ${path}`);
-  };
+  const exportEnvironment = async (environment: Environment, format: ExportFormat) =>
+    announceExport(await runWithToast(() => collectionActions.exportEnvironment(environment, format)), 'Ambiente');
 
   const removeEnvironment = (environment: Environment) =>
     confirm({
@@ -99,7 +99,7 @@ const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }
               <Plus className="w-3.5 h-3.5" />
               Novo
             </button>
-            <button type="button" onClick={importEnvironments} title="Importar do Postman" className={secondaryButtonClass}>
+            <button type="button" onClick={importEnvironments} title="Importar do Postman ou do Insomnia" className={secondaryButtonClass}>
               <Upload className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -140,9 +140,30 @@ const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }
                 >
                   {draft.id === activeEnvironmentId ? 'Desativar' : 'Usar este ambiente'}
                 </button>
-                <button type="button" title="Exportar (Postman)" onClick={() => exportEnvironment(draft)} className={iconButtonClass}>
+                <button
+                  type="button"
+                  title="Exportar para Postman ou Insomnia"
+                  onClick={(event) => {
+                    const bounds = event.currentTarget.getBoundingClientRect();
+                    setExportMenu({ x: bounds.left, y: bounds.bottom + 4 });
+                  }}
+                  className={iconButtonClass}
+                >
                   <Download className="w-4 h-4" />
                 </button>
+                {exportMenu && (
+                  <ContextMenu
+                    x={exportMenu.x}
+                    y={exportMenu.y}
+                    title={draft.name}
+                    onClose={() => setExportMenu(null)}
+                    entries={exportFormats.map(({ format, label }) => ({
+                      icon: Download,
+                      label: `Exportar para ${label}`,
+                      onClick: () => exportEnvironment(draft, format),
+                    }))}
+                  />
+                )}
                 <button
                   type="button"
                   title="Excluir ambiente"
