@@ -1,18 +1,27 @@
 import { requireToken } from './ActionHelpers';
-import { useVulpesStore } from '../VulpesStore';
 import { findItem } from '../functions/CollectionTree';
 import { getToken } from '../../../contexts/AuthContext';
 import { generateId } from '../functions/RequestDefaults';
 import { VulpesServices } from '../services/VulpesServices';
+import { isRequestTab, useVulpesStore } from '../VulpesStore';
 import { CancelError, CancellablePromise } from '@wailsio/runtime';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
-import type { GrpcMethod, RequestTab, CollectionItem, ExecutionInput } from '../../../interfaces/VulpesInterfaces';
+import type { Cookie, GrpcMethod, RequestTab, CollectionItem, ExecutionInput } from '../../../interfaces/VulpesInterfaces';
 
 const pendingCalls = new Map<string, CancellablePromise<unknown>>();
 
 const store = () => useVulpesStore.getState();
 
-const findTab = (tabId: string) => store().tabs.find((tab) => tab.id === tabId);
+const findTab = (tabId: string): RequestTab | undefined => {
+  const tab = store().tabs.find((candidate) => candidate.id === tabId);
+  return isRequestTab(tab) ? tab : undefined;
+};
+
+const applyReceivedCookies = (collectionId: number | null, cookies: Cookie[] | null | undefined) => {
+  if (!collectionId || !cookies) return;
+  store().applyCollectionCookies(collectionId, cookies);
+  VulpesServices.announceDataChange();
+};
 
 const executionInput = (tab: RequestTab): ExecutionInput => ({
   request: tab.request,
@@ -78,6 +87,7 @@ export const requestActions = {
     try {
       const response = await trackCall(tabId, VulpesServices.sendHttpRequest(requireToken(), executionInput(tab)));
       store().patchRuntime(tabId, { running: false, httpResponse: response });
+      applyReceivedCookies(tab.collectionId, response.collectionCookies);
     } catch (error) {
       store().patchRuntime(tabId, { running: false, error: failureMessage(error) });
     }
@@ -157,8 +167,11 @@ export const requestActions = {
     if (!tab) return;
     listenToTab(tabId);
     try {
-      if (tab.request.protocol === 'socketio') await VulpesServices.connectSocketIo(requireToken(), tabId, executionInput(tab));
-      else await VulpesServices.connectWebSocket(requireToken(), tabId, executionInput(tab));
+      const result =
+        tab.request.protocol === 'socketio'
+          ? await VulpesServices.connectSocketIo(requireToken(), tabId, executionInput(tab))
+          : await VulpesServices.connectWebSocket(requireToken(), tabId, executionInput(tab));
+      applyReceivedCookies(tab.collectionId, result?.collectionCookies);
     } catch (error) {
       failConnection(tabId, error);
     }

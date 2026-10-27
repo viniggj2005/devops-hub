@@ -5,6 +5,7 @@ import { SplitDropZone } from '../../../../interfaces/SplitInterfaces';
 
 const accentClasses = {
     cyan: { zone: 'border-cyan-400 bg-cyan-500/20', icon: 'text-cyan-400' },
+    amber: { zone: 'border-amber-400 bg-amber-500/20', icon: 'text-amber-400' },
     purple: { zone: 'border-purple-400 bg-purple-500/20', icon: 'text-purple-400' },
 };
 

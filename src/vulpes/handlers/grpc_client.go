@@ -92,19 +92,19 @@ func loadGrpcDescriptors(callContext context.Context, connection *grpc.ClientCon
 }
 
 func (handlerStruct *VulpesClientHandlerStruct) prepareGrpcCall(callContext context.Context, token string, input vulpesDtos.ExecutionInputDto) (*grpcCall, *vulpesFunctions.GrpcDescriptorSource, error) {
-	resolver, request, auth, err := handlerStruct.prepareExecution(token, input)
+	plan, err := handlerStruct.prepareExecution(token, input)
 	if err != nil {
 		return nil, nil, err
 	}
-	if request.Grpc == nil {
+	if plan.request.Grpc == nil {
 		return nil, nil, errors.New("a requisição não é gRPC")
 	}
-	grpcRequest := resolver.ResolveGrpcRequest(*request.Grpc)
+	grpcRequest := plan.resolver.ResolveGrpcRequest(*plan.request.Grpc)
 	connection, err := dialGrpc(grpcRequest)
 	if err != nil {
 		return nil, nil, err
 	}
-	callMetadata := grpcMetadata(grpcRequest, auth)
+	callMetadata := grpcMetadata(grpcRequest, plan.auth)
 	source, err := loadGrpcDescriptors(callContext, connection, grpcRequest, callMetadata)
 	if err != nil {
 		connection.Close()
@@ -114,7 +114,7 @@ func (handlerStruct *VulpesClientHandlerStruct) prepareGrpcCall(callContext cont
 		types:      source.Types(),
 		request:    grpcRequest,
 		metadata:   callMetadata,
-		resolver:   resolver,
+		resolver:   plan.resolver,
 		connection: connection,
 	}, source, nil
 }

@@ -1,6 +1,7 @@
 import toast from 'react-hot-toast';
 import SearchBar from '../editors/SearchBar';
 import SectionTabs from '../editors/SectionTabs';
+import { useVulpesStore } from '../../VulpesStore';
 import { iconButtonClass } from '../editors/FormStyles';
 import React, { useMemo, useRef, useState } from 'react';
 import { requireToken } from '../../actions/ActionHelpers';
@@ -8,9 +9,10 @@ import { VulpesServices } from '../../services/VulpesServices';
 import { emptySearchSummary } from '../../functions/EditorSearch';
 import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import { copyToClipboard } from '../../../shared/functions/clipboard';
-import { Copy, Download, WrapText, AlertTriangle } from 'lucide-react';
+import { cookieFlags, formatCookieExpiry } from '../../functions/Cookies';
 import CodeEditor, { type CodeEditorHandle } from '../editors/CodeEditor';
 import type { HttpResponse, TabRuntime } from '../../../../interfaces/VulpesInterfaces';
+import { Copy, Download, WrapText, AlertTriangle, Cookie as CookieIcon } from 'lucide-react';
 import { HeadersTable, ResponseEmpty, ResponseError, ResponseLoading } from '../response/ResponseStates';
 import { prettyJson, statusTone, formatBytes, mediaTypeOf, formatDuration, responseFileName, languageForContentType } from '../../functions/Formatters';
 
@@ -21,6 +23,7 @@ type BodyView = 'pretty' | 'raw' | 'preview';
 interface HttpResponseViewerProps {
   runtime: TabRuntime;
   onCancel: () => void;
+  collectionId: number | null;
 }
 
 const timingRows = (response: HttpResponse) => [
@@ -144,9 +147,10 @@ const ResponseBody: React.FC<ResponseBodyProps> = ({ searchTerm, response, onSea
   );
 };
 
-const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCancel }) => {
+const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCancel, collectionId }) => {
   const [section, setSection] = useState<ResponseSection>('body');
   const [searchTerm, setSearchTerm] = useState('');
+  const openCookies = useVulpesStore((state) => state.openCookies);
   const response = runtime.httpResponse;
 
   if (runtime.running) return <ResponseLoading label="Enviando requisição…" onCancel={onCancel} />;
@@ -225,6 +229,23 @@ const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCanc
       )}
       {section === 'cookies' && (
         <div className="flex-1 overflow-auto">
+          <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-100 dark:border-white/5 text-[11px] text-gray-500 dark:text-zinc-400">
+            <CookieIcon className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+            <span className="flex-1 min-w-0">
+              {collectionId
+                ? 'Cookies recebidos são salvos na coleção e enviados nas próximas requisições para o mesmo domínio.'
+                : 'Salve a requisição em uma coleção para guardar os cookies recebidos.'}
+            </span>
+            {collectionId && (
+              <button
+                type="button"
+                onClick={() => openCookies(collectionId)}
+                className="flex-shrink-0 px-2 py-0.5 rounded-md font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
+              >
+                Gerenciar cookies
+              </button>
+            )}
+          </div>
           {response.cookies.length === 0 ? (
             <p className="p-4 text-xs text-gray-500 dark:text-zinc-400">Nenhum cookie definido pela resposta.</p>
           ) : (
@@ -245,12 +266,8 @@ const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCanc
                     <td className="px-3 py-1.5 font-mono text-gray-600 dark:text-zinc-400 break-all">{cookie.value}</td>
                     <td className="px-3 py-1.5 text-gray-600 dark:text-zinc-400">{cookie.domain || '—'}</td>
                     <td className="px-3 py-1.5 text-gray-600 dark:text-zinc-400">{cookie.path || '—'}</td>
-                    <td className="px-3 py-1.5 text-gray-600 dark:text-zinc-400 whitespace-nowrap">{cookie.expires || 'Sessão'}</td>
-                    <td className="px-3 py-1.5 text-gray-600 dark:text-zinc-400 whitespace-nowrap">
-                      {[cookie.httpOnly && 'HttpOnly', cookie.secure && 'Secure', cookie.sameSite && `SameSite=${cookie.sameSite}`]
-                        .filter(Boolean)
-                        .join(' · ') || '—'}
-                    </td>
+                    <td className="px-3 py-1.5 text-gray-600 dark:text-zinc-400 whitespace-nowrap">{formatCookieExpiry(cookie.expires)}</td>
+                    <td className="px-3 py-1.5 text-gray-600 dark:text-zinc-400 whitespace-nowrap">{cookieFlags(cookie) || '—'}</td>
                   </tr>
                 ))}
               </tbody>

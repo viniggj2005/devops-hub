@@ -44,6 +44,7 @@ type CookieDto struct {
 	Domain   string `json:"domain"`
 	Secure   bool   `json:"secure"`
 	Expires  string `json:"expires"`
+	HostOnly bool   `json:"hostOnly"`
 	HttpOnly bool   `json:"httpOnly"`
 	SameSite string `json:"sameSite"`
 }
@@ -58,20 +59,25 @@ type TimingsDto struct {
 }
 
 type HttpResponseDto struct {
-	Url            string      `json:"url"`
-	Body           string      `json:"body"`
-	Status         string      `json:"status"`
-	Method         string      `json:"method"`
-	Cookies        []CookieDto `json:"cookies"`
-	Headers        []HeaderDto `json:"headers"`
-	Timings        TimingsDto  `json:"timings"`
-	Protocol       string      `json:"protocol"`
-	SizeBytes      int64       `json:"sizeBytes"`
-	Truncated      bool        `json:"truncated"`
-	StatusCode     int         `json:"statusCode"`
-	ContentType    string      `json:"contentType"`
-	BodyEncoding   string      `json:"bodyEncoding"`
-	RequestHeaders []HeaderDto `json:"requestHeaders"`
+	Url               string       `json:"url"`
+	Body              string       `json:"body"`
+	Status            string       `json:"status"`
+	Method            string       `json:"method"`
+	Cookies           []CookieDto  `json:"cookies"`
+	Headers           []HeaderDto  `json:"headers"`
+	Timings           TimingsDto   `json:"timings"`
+	Protocol          string       `json:"protocol"`
+	SizeBytes         int64        `json:"sizeBytes"`
+	Truncated         bool         `json:"truncated"`
+	StatusCode        int          `json:"statusCode"`
+	ContentType       string       `json:"contentType"`
+	BodyEncoding      string       `json:"bodyEncoding"`
+	RequestHeaders    []HeaderDto  `json:"requestHeaders"`
+	CollectionCookies *[]CookieDto `json:"collectionCookies"`
+}
+
+type ConnectionResultDto struct {
+	CollectionCookies *[]CookieDto `json:"collectionCookies"`
 }
 
 type GrpcMethodDto struct {

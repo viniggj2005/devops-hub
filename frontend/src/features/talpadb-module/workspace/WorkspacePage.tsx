@@ -15,7 +15,7 @@ import { maxSplitPanes } from '../../shared/constants/SplitDropZones';
 import { PanelLeftOpen, SquareArrowOutUpRight, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { WorkspaceTab } from '../../../interfaces/TalpadbInterfaces';
-import { computeSplitLayout, defaultSplitRatios, SplitHandle, SplitRatios } from '../functions/SplitRects';
+import { computeSplitLayout, defaultSplitRatios, SplitHandle, SplitRatios } from '../../shared/functions/SplitRects';
 
 const EXPLORER_STORAGE_KEY = 'talpadb-explorer-layout';
 

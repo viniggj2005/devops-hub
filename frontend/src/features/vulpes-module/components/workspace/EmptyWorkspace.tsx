@@ -10,6 +10,7 @@ const shortcuts = [
   ['{{variavel}}', 'Usar variáveis do ambiente'],
   ['Botão direito', 'Ações de coleções e pastas'],
   ['Arrastar', 'Reorganizar itens na barra lateral'],
+  ['Arrastar aba', 'Reordenar ou soltar na tela para dividir'],
 ];
 
 const EmptyWorkspace: React.FC = () => {
@@ -24,7 +25,7 @@ const EmptyWorkspace: React.FC = () => {
         <div className="space-y-2">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">Nenhuma requisição aberta</h3>
           <p className="text-sm text-gray-500 dark:text-zinc-400">
-            Abra uma requisição pela barra lateral, importe uma coleção do Postman ou comece uma nova:
+            Abra uma requisição pela barra lateral, importe uma coleção do Postman ou do Insomnia ou comece uma nova:
           </p>
         </div>
         <div className="flex flex-wrap justify-center gap-2">

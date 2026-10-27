@@ -16,3 +16,8 @@ type ImportResultDto struct {
 	Collections  []CollectionDto  `json:"collections"`
 	Environments []EnvironmentDto `json:"environments"`
 }
+
+type ExportResultDto struct {
+	Path     string   `json:"path"`
+	Warnings []string `json:"warnings"`
+}

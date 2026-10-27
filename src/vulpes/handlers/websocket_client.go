@@ -33,12 +33,12 @@ type webSocketSession struct {
 	closedByClient atomic.Bool
 }
 
-func (handlerStruct *VulpesClientHandlerStruct) dialRealtime(callContext context.Context, endpoint string, headers http.Header, subprotocols []string, skipTlsVerify bool) (*websocket.Conn, error) {
+func (handlerStruct *VulpesClientHandlerStruct) dialRealtime(callContext context.Context, endpoint string, headers http.Header, subprotocols []string, skipTlsVerify bool, cookieJar http.CookieJar) (*websocket.Conn, error) {
 	dialContext, cancel := context.WithTimeout(callContext, dialTimeout)
 	defer cancel()
 
 	connection, response, err := websocket.Dial(dialContext, endpoint, &websocket.DialOptions{
-		HTTPClient:   &http.Client{Transport: handlerStruct.upgradeTransports.pick(skipTlsVerify)},
+		HTTPClient:   &http.Client{Jar: cookieJar, Transport: handlerStruct.upgradeTransports.pick(skipTlsVerify)},
 		HTTPHeader:   headers,
 		Subprotocols: subprotocols,
 	})
@@ -79,19 +79,19 @@ func nonEmptyValues(values []string) []string {
 	return filtered
 }
 
-func (handlerStruct *VulpesClientHandlerStruct) ConnectWebSocket(callContext context.Context, token string, sessionID string, input vulpesDtos.ExecutionInputDto) error {
-	resolver, request, auth, err := handlerStruct.prepareExecution(token, input)
+func (handlerStruct *VulpesClientHandlerStruct) ConnectWebSocket(callContext context.Context, token string, sessionID string, input vulpesDtos.ExecutionInputDto) (*vulpesDtos.ConnectionResultDto, error) {
+	plan, err := handlerStruct.prepareExecution(token, input)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if request.WebSocket == nil {
-		return errors.New("a requisição não é WebSocket")
+	if plan.request.WebSocket == nil {
+		return nil, errors.New("a requisição não é WebSocket")
 	}
-	webSocketRequest := resolver.ResolveWebSocketRequest(*request.WebSocket)
-	authEntries := vulpesFunctions.BuildAuthEntries(auth)
+	webSocketRequest := plan.resolver.ResolveWebSocketRequest(*plan.request.WebSocket)
+	authEntries := vulpesFunctions.BuildAuthEntries(plan.auth)
 	endpoint, err := realtimeEndpoint(webSocketRequest.Url, "ws", authEntries.Query)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	key, windowName := handlerStruct.sessionKey(callContext, sessionID)
@@ -99,13 +99,14 @@ func (handlerStruct *VulpesClientHandlerStruct) ConnectWebSocket(callContext con
 	emit(vulpesDtos.RealtimeEventDto{Kind: vulpesDtos.RealtimeConnecting, Data: endpoint, Direction: vulpesDtos.DirectionSystem})
 
 	headers := requestHeaders(webSocketRequest.Headers, authEntries)
-	connection, err := handlerStruct.dialRealtime(callContext, endpoint, headers, nonEmptyValues(webSocketRequest.Subprotocols), webSocketRequest.SkipTlsVerify)
+	connection, err := handlerStruct.dialRealtime(callContext, endpoint, headers, nonEmptyValues(webSocketRequest.Subprotocols), webSocketRequest.SkipTlsVerify, plan.httpCookieJar())
+	collectionCookies := handlerStruct.persistReceivedCookies(plan)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	sessionContext, cancel := context.WithCancel(handlerStruct.baseContext())
-	session := &webSocketSession{emit: emit, cancel: cancel, resolver: resolver, connection: connection}
+	session := &webSocketSession{emit: emit, cancel: cancel, resolver: plan.resolver, connection: connection}
 	handlerStruct.registerSession(key, session)
 	emit(vulpesDtos.RealtimeEventDto{
 		Kind:      vulpesDtos.RealtimeConnected,
@@ -114,7 +115,7 @@ func (handlerStruct *VulpesClientHandlerStruct) ConnectWebSocket(callContext con
 		Direction: vulpesDtos.DirectionSystem,
 	})
 	go session.read(sessionContext, func() { handlerStruct.forgetSession(key, session) })
-	return nil
+	return &vulpesDtos.ConnectionResultDto{CollectionCookies: collectionCookies}, nil
 }
 
 func (handlerStruct *VulpesClientHandlerStruct) SendWebSocketMessage(callContext context.Context, token string, sessionID string, input vulpesDtos.RealtimeMessageInputDto) error {

@@ -1,10 +1,10 @@
 import toast from 'react-hot-toast';
 import { Loader2, Save } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { useVulpesStore } from '../../VulpesStore';
 import { listFolders } from '../../functions/CollectionTree';
 import { requestActions } from '../../actions/RequestActions';
 import { Modal } from '../../../shared/components/modals/Modal';
+import { isRequestTab, useVulpesStore } from '../../VulpesStore';
 import { collectionActions } from '../../actions/CollectionActions';
 import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import { fieldInputClass, fieldLabelClass, primaryButtonClass, secondaryButtonClass } from '../editors/FormStyles';
@@ -15,7 +15,10 @@ interface SaveRequestModalProps {
 }
 
 const SaveRequestModal: React.FC<SaveRequestModalProps> = ({ tabId, onClose }) => {
-  const tab = useVulpesStore((state) => state.tabs.find((candidate) => candidate.id === tabId));
+  const tab = useVulpesStore((state) => {
+    const candidate = state.tabs.find((workspaceTab) => workspaceTab.id === tabId);
+    return isRequestTab(candidate) ? candidate : undefined;
+  });
   const collections = useVulpesStore((state) => state.collections);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);

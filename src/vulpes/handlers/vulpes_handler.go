@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -126,6 +127,7 @@ func toCollectionDto(collection *models.VulpesCollectionModel, content vulpesDto
 		Name:        collection.Name,
 		Auth:        content.Auth,
 		Items:       content.Items,
+		Cookies:     content.Cookies,
 		Scripts:     content.Scripts,
 		Variables:   content.Variables,
 		Description: content.Description,
@@ -249,6 +251,20 @@ func (handlerStruct *VulpesHandlerStruct) DeleteCollection(token string, collect
 		return errCollectionNotFound
 	}
 	return nil
+}
+
+func (handlerStruct *VulpesHandlerStruct) SaveCollectionCookies(token string, collectionID uint, cookies []vulpesDtos.CookieDto) (*vulpesDtos.CollectionDto, error) {
+	userID, err := handlerStruct.authenticate(token)
+	if err != nil {
+		return nil, err
+	}
+	if err := vulpesFunctions.ValidateCookies(cookies); err != nil {
+		return nil, err
+	}
+	return handlerStruct.mutateCollection(userID, collectionID, func(content *vulpesDtos.CollectionContentDto) error {
+		content.Cookies = cookies
+		return nil
+	})
 }
 
 func (handlerStruct *VulpesHandlerStruct) CreateItem(token string, collectionID uint, parentID string, item vulpesDtos.CollectionItemDto) (*vulpesDtos.ItemMutationResultDto, error) {
@@ -527,6 +543,17 @@ func (handlerStruct *VulpesHandlerStruct) DeleteEnvironment(token string, enviro
 		return errEnvironmentNotFound
 	}
 	return nil
+}
+
+func (handlerStruct *VulpesHandlerStruct) storeReceivedCookies(userID uint, collectionID uint, changes []vulpesDtos.CookieDto) (*[]vulpesDtos.CookieDto, error) {
+	collection, err := handlerStruct.mutateCollection(userID, collectionID, func(content *vulpesDtos.CollectionContentDto) error {
+		content.Cookies = vulpesFunctions.ApplyCookieChanges(content.Cookies, changes, time.Now())
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &collection.Cookies, nil
 }
 
 func (handlerStruct *VulpesHandlerStruct) loadExecutionScope(userID uint, scope vulpesDtos.ExecutionScopeDto) (*vulpesFunctions.VariableResolver, *vulpesDtos.CollectionContentDto, error) {
