@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -705,5 +706,92 @@ func TestGrpcReflectionUnaryAndStreaming(test *testing.T) {
 	request.Grpc.Url = "grpc://127.0.0.1:1"
 	if _, err := environment.client.ListGrpcServices(context.Background(), environment.token, vulpesDtos.ExecutionInputDto{Request: request}); err == nil {
 		test.Fatalf("expected an unreachable server to fail")
+	}
+}
+
+func TestSendHttpRequestResolvesResponseReferences(test *testing.T) {
+	environment := setupVulpesTest(test)
+
+	var logins atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		if request.URL.Path == "/login" {
+			count := logins.Add(1)
+			writer.Header().Set("X-Session", fmt.Sprintf("session-%d", count))
+			fmt.Fprintf(writer, `{"data": {"token": "token-%d"}}`, count)
+			return
+		}
+		json.NewEncoder(writer).Encode(map[string]string{
+			"session":       request.Header.Get("X-Session"),
+			"authorization": request.Header.Get("Authorization"),
+		})
+	}))
+	defer server.Close()
+
+	collection, err := environment.vulpes.CreateCollection(environment.token, vulpesDtos.CollectionInputDto{
+		Name:      "Autoleads",
+		Variables: []vulpesDtos.VariableDto{{Key: "baseUrl", Value: server.URL, Enabled: true}},
+	})
+	if err != nil {
+		test.Fatalf("unexpected collection error: %v", err)
+	}
+	createRequest := func(identifier string, name string, path string, headers []vulpesDtos.KeyValueDto) {
+		request := vulpesFunctions.NewRequest(vulpesDtos.ProtocolHttp)
+		request.Http.Url = "{{baseUrl}}" + path
+		request.Http.Headers = headers
+		item := requestItem(name, request)
+		item.ID = identifier
+		if _, err := environment.vulpes.CreateItem(environment.token, collection.ID, "", item); err != nil {
+			test.Fatalf("unexpected item error: %v", err)
+		}
+	}
+	createRequest("req_login", "Login", "/login", nil)
+	createRequest("req_loop", "Loop", "/me", []vulpesDtos.KeyValueDto{{Key: "X-Session", Value: "{{$response 'raw', 'req_loop', '', 'always'}}", Enabled: true}})
+
+	send := func(trigger string, headerReference string) (map[string]string, error) {
+		request := vulpesFunctions.NewRequest(vulpesDtos.ProtocolHttp)
+		request.Http.Url = "{{baseUrl}}/me"
+		request.Http.Headers = []vulpesDtos.KeyValueDto{
+			{Key: "Authorization", Value: "Bearer {{$response 'body', 'req_login', '$.data.token', '" + trigger + "'}}", Enabled: true},
+			{Key: "X-Session", Value: headerReference, Enabled: true},
+		}
+		scope := vulpesDtos.ExecutionScopeDto{ItemID: "draft", CollectionID: collection.ID}
+		response, err := environment.client.SendHttpRequest(context.Background(), environment.token, vulpesDtos.ExecutionInputDto{Scope: scope, Request: request})
+		if err != nil {
+			return nil, err
+		}
+		var echoed map[string]string
+		if err := json.Unmarshal([]byte(response.Body), &echoed); err != nil {
+			test.Fatalf("unexpected response body %q: %v", response.Body, err)
+		}
+		return echoed, nil
+	}
+
+	echoed, err := send(vulpesFunctions.ResendNever, "{{$response 'header', 'Login', 'X-Session', 'never'}}")
+	if err != nil || echoed["authorization"] != "Bearer token-1" || echoed["session"] != "session-1" || logins.Load() != 1 {
+		test.Fatalf("expected login to be sent once when there is no history: %v %v (logins=%d)", echoed, err, logins.Load())
+	}
+	if echoed, err = send(vulpesFunctions.ResendNoHistory, "fixed"); err != nil || echoed["authorization"] != "Bearer token-1" || logins.Load() != 1 {
+		test.Fatalf("expected the stored login response to be reused: %v %v", echoed, err)
+	}
+	if echoed, err = send(vulpesFunctions.ResendAlways, "fixed"); err != nil || echoed["authorization"] != "Bearer token-2" || logins.Load() != 2 {
+		test.Fatalf("expected login to be resent: %v %v", echoed, err)
+	}
+
+	failures := map[string]string{
+		"{{$response 'body', 'req_missing', '$.a'}}":          "não existe",
+		"{{$response 'body', 'req_login', '$.data.missing'}}": "não encontrou",
+		"{{$response 'body', 'req_loop', '', 'always'}}":      "circular",
+	}
+	for reference, message := range failures {
+		if _, err := send(vulpesFunctions.ResendNever, reference); err == nil || !strings.Contains(err.Error(), message) {
+			test.Fatalf("%s: expected error containing %q, got %v", reference, message, err)
+		}
+	}
+
+	standalone := vulpesFunctions.NewRequest(vulpesDtos.ProtocolHttp)
+	standalone.Http.Url = server.URL + "/me?token={{$response 'body', 'req_login'}}"
+	if _, err := environment.client.SendHttpRequest(context.Background(), environment.token, vulpesDtos.ExecutionInputDto{Request: standalone}); err == nil || !strings.Contains(err.Error(), "coleção") {
+		test.Fatalf("expected response references outside a collection to fail, got %v", err)
 	}
 }

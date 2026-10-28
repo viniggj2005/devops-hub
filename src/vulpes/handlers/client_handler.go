@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -20,7 +21,10 @@ import (
 	vulpesFunctions "docker-manager-go/src/vulpes/functions"
 )
 
-const realtimeEventPrefix = "vulpes:realtime:"
+const (
+	maxResponseChainDepth = 10
+	realtimeEventPrefix   = "vulpes:realtime:"
+)
 
 var errSessionNotFound = errors.New("conexão não encontrada; conecte novamente")
 
@@ -55,12 +59,19 @@ func (pair transportPair) pick(skipVerify bool) *http.Transport {
 	return pair.secure
 }
 
+type storedResponse struct {
+	response   *vulpesDtos.HttpResponseDto
+	receivedAt time.Time
+}
+
 type VulpesClientHandlerStruct struct {
 	vulpes            *VulpesHandlerStruct
 	context           context.Context
 	sessions          map[string]realtimeSession
+	responses         map[string]storedResponse
 	emitToWindow      func(windowName string, name string, data any)
 	sessionsMutex     sync.Mutex
+	responsesMutex    sync.Mutex
 	httpTransports    transportPair
 	upgradeTransports transportPair
 }
@@ -69,6 +80,7 @@ func NewVulpesClientHandler(vulpesHandler *VulpesHandlerStruct) *VulpesClientHan
 	return &VulpesClientHandlerStruct{
 		vulpes:            vulpesHandler,
 		sessions:          map[string]realtimeSession{},
+		responses:         map[string]storedResponse{},
 		emitToWindow:      desktop.EmitToWindow,
 		httpTransports:    newTransportPair(true),
 		upgradeTransports: newTransportPair(false),
@@ -113,14 +125,22 @@ func (plan *executionPlan) httpCookieJar() http.CookieJar {
 	return plan.cookieJar
 }
 
-func (handlerStruct *VulpesClientHandlerStruct) prepareExecution(token string, input vulpesDtos.ExecutionInputDto) (*executionPlan, error) {
+func (handlerStruct *VulpesClientHandlerStruct) prepareExecution(callContext context.Context, token string, input vulpesDtos.ExecutionInputDto) (*executionPlan, error) {
 	userID, err := handlerStruct.vulpes.authenticate(token)
 	if err != nil {
 		return nil, err
 	}
+	return handlerStruct.planExecution(callContext, userID, input, nil)
+}
+
+func (handlerStruct *VulpesClientHandlerStruct) planExecution(callContext context.Context, userID uint, input vulpesDtos.ExecutionInputDto, pendingItemIDs []string) (*executionPlan, error) {
 	resolver, content, err := handlerStruct.vulpes.loadExecutionScope(userID, input.Scope)
 	if err != nil {
 		return nil, err
+	}
+	if content != nil {
+		chain := append(slices.Clone(pendingItemIDs), input.Scope.ItemID)
+		resolver.UseResponses(handlerStruct.responseSource(callContext, userID, input.Scope, content, chain))
 	}
 	request := input.Request
 	vulpesFunctions.NormalizeRequest(&request)
@@ -135,6 +155,58 @@ func (handlerStruct *VulpesClientHandlerStruct) prepareExecution(token string, i
 		plan.cookieJar = vulpesFunctions.NewCookieJar(content.Cookies)
 	}
 	return plan, nil
+}
+
+func responseKey(userID uint, collectionID uint, itemID string) string {
+	return fmt.Sprintf("%d:%d:%s", userID, collectionID, itemID)
+}
+
+func (handlerStruct *VulpesClientHandlerStruct) rememberResponse(userID uint, scope vulpesDtos.ExecutionScopeDto, response *vulpesDtos.HttpResponseDto) {
+	if scope.CollectionID == 0 || scope.ItemID == "" {
+		return
+	}
+	handlerStruct.responsesMutex.Lock()
+	defer handlerStruct.responsesMutex.Unlock()
+	handlerStruct.responses[responseKey(userID, scope.CollectionID, scope.ItemID)] = storedResponse{response: response, receivedAt: time.Now()}
+}
+
+func (handlerStruct *VulpesClientHandlerStruct) latestResponse(key string) (storedResponse, bool) {
+	handlerStruct.responsesMutex.Lock()
+	defer handlerStruct.responsesMutex.Unlock()
+	stored, found := handlerStruct.responses[key]
+	return stored, found
+}
+
+func (handlerStruct *VulpesClientHandlerStruct) responseSource(callContext context.Context, userID uint, scope vulpesDtos.ExecutionScopeDto, content *vulpesDtos.CollectionContentDto, chain []string) vulpesFunctions.ResponseSource {
+	return func(reference vulpesFunctions.ResponseReference) (*vulpesDtos.HttpResponseDto, error) {
+		item := vulpesFunctions.FindRequestItem(content.Items, reference.RequestID)
+		if item == nil || item.Request == nil {
+			return nil, fmt.Errorf("a requisição %q usada em {{$response}} não existe nesta coleção", reference.RequestID)
+		}
+		if item.Request.Protocol != vulpesDtos.ProtocolHttp {
+			return nil, fmt.Errorf("{{$response}} só pode usar respostas de requisições HTTP, e %q não é HTTP", item.Name)
+		}
+		stored, found := handlerStruct.latestResponse(responseKey(userID, scope.CollectionID, item.ID))
+		if !reference.ShouldResend(found, stored.receivedAt, time.Now()) {
+			return stored.response, nil
+		}
+		if slices.Contains(chain, item.ID) {
+			return nil, fmt.Errorf("{{$response}} criou uma dependência circular ao reenviar %q", item.Name)
+		}
+		if len(chain) > maxResponseChainDepth {
+			return nil, fmt.Errorf("{{$response}} encadeou mais de %d requisições", maxResponseChainDepth)
+		}
+		requestContext := callContext
+		if requestContext.Err() != nil {
+			requestContext = handlerStruct.baseContext()
+		}
+		chainedScope := vulpesDtos.ExecutionScopeDto{ItemID: item.ID, CollectionID: scope.CollectionID, EnvironmentID: scope.EnvironmentID}
+		response, err := handlerStruct.executeHttp(requestContext, userID, vulpesDtos.ExecutionInputDto{Scope: chainedScope, Request: *item.Request}, chain)
+		if err != nil {
+			return nil, fmt.Errorf("falha ao enviar %q para usar a resposta em {{$response}}: %w", item.Name, err)
+		}
+		return response, nil
+	}
 }
 
 func (handlerStruct *VulpesClientHandlerStruct) persistReceivedCookies(plan *executionPlan) *[]vulpesDtos.CookieDto {

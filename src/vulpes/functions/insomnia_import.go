@@ -418,6 +418,7 @@ func (importer *insomniaImporter) buildItems(parentID string, content *vulpesDto
 		case insomniaRequest, insomniaGrpcRequest, insomniaWebSocketRequest:
 			request := importer.parseRequest(resource, inheritedHeaders)
 			items = append(items, vulpesDtos.CollectionItemDto{
+				ID:          resource.ID,
 				Kind:        vulpesDtos.ItemKindRequest,
 				Name:        string(resource.Name),
 				Request:     &request,
@@ -811,17 +812,44 @@ func (importer *insomniaImporter) template(text string) string {
 
 func (importer *insomniaImporter) convertTag(tag string) string {
 	parts := insomniaTagPattern.FindStringSubmatch(tag)
-	name, arguments := parts[1], strings.ToLower(parts[2])
+	name, arguments := parts[1], parts[2]
+	loweredArguments := strings.ToLower(arguments)
 	switch {
 	case name == "uuid":
 		return "{{$guid}}"
-	case name == "now" && strings.Contains(arguments, "iso-8601"):
+	case name == "now" && strings.Contains(loweredArguments, "iso-8601"):
 		return "{{$isoTimestamp}}"
-	case name == "now" && strings.Contains(arguments, "unix"):
+	case name == "now" && strings.Contains(loweredArguments, "unix"):
 		return "{{$timestamp}}"
+	case name == "faker":
+		return importer.convertFakerTag(tag, ParseTagArguments(arguments))
+	case name == "response":
+		return importer.convertResponseTag(tag, ParseTagArguments(arguments))
 	}
 	importer.warnings.add(fmt.Sprintf("Tags de template do Insomnia ({%% %s %%}) não são suportadas e foram mantidas como texto", name))
 	return tag
+}
+
+func (importer *insomniaImporter) convertFakerTag(tag string, arguments []string) string {
+	if len(arguments) > 0 {
+		if variable := "$" + strings.TrimSpace(arguments[0]); IsDynamicVariable(variable) {
+			return "{{" + variable + "}}"
+		}
+	}
+	importer.warnings.add(fmt.Sprintf("Alguns dados fake do Insomnia ({%% faker %s %%}) não são suportados e foram mantidos como texto", strings.Join(arguments, ", ")))
+	return tag
+}
+
+func (importer *insomniaImporter) convertResponseTag(tag string, arguments []string) string {
+	reference, err := ResponseReferenceFromArguments(arguments)
+	if err != nil {
+		importer.warnings.add(fmt.Sprintf("Uma tag {%% response %%} do Insomnia foi mantida como texto: %v", err))
+		return tag
+	}
+	if _, isKnown := importer.byID[reference.RequestID]; !isKnown {
+		importer.warnings.add("Tags {% response %} que apontam para requisições de fora do arquivo importado foram convertidas, mas só funcionam se a requisição existir na coleção")
+	}
+	return reference.Expression()
 }
 
 func (importer *insomniaImporter) ofType(resourceType string) []*insomniaResource {

@@ -38,7 +38,7 @@ type socketIoSession struct {
 }
 
 func (handlerStruct *VulpesClientHandlerStruct) ConnectSocketIo(callContext context.Context, token string, sessionID string, input vulpesDtos.ExecutionInputDto) (*vulpesDtos.ConnectionResultDto, error) {
-	plan, err := handlerStruct.prepareExecution(token, input)
+	plan, err := handlerStruct.prepareExecution(callContext, token, input)
 	if err != nil {
 		return nil, err
 	}
@@ -46,6 +46,9 @@ func (handlerStruct *VulpesClientHandlerStruct) ConnectSocketIo(callContext cont
 		return nil, errors.New("a requisição não é Socket.IO")
 	}
 	socketRequest := plan.resolver.ResolveSocketIoRequest(*plan.request.SocketIo)
+	if err := plan.resolver.TakeError(); err != nil {
+		return nil, err
+	}
 	authEntries := vulpesFunctions.BuildAuthEntries(plan.auth)
 	endpoint, namespace, err := vulpesFunctions.SocketIoEndpoint(socketRequest.Url, socketRequest.Path, socketRequest.Namespace, socketRequest.Version)
 	if err != nil {
@@ -108,6 +111,9 @@ func (handlerStruct *VulpesClientHandlerStruct) EmitSocketIo(callContext context
 
 	event := strings.TrimSpace(session.resolver.Resolve(input.Event))
 	arguments := vulpesFunctions.SocketIoArguments(session.resolver.ResolveAll(input.Arguments))
+	if err := session.resolver.TakeError(); err != nil {
+		return err
+	}
 	payload, err := vulpesFunctions.SocketIoEventPayload(event, arguments)
 	if err != nil {
 		return err
