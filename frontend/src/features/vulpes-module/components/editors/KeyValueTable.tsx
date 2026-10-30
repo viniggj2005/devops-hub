@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import VariableInput from './VariableInput';
 import { ListPlus, Table2, Trash2 } from 'lucide-react';
 import { emptyKeyValue } from '../../functions/RequestDefaults';
 import type { KeyValue } from '../../../../interfaces/VulpesInterfaces';
@@ -66,7 +67,10 @@ const KeyValueTable: React.FC<KeyValueTableProps> = ({
   return (
     <div className="space-y-2">
       {!fixedKeys && (
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11px] text-gray-400 dark:text-zinc-500">
+            Digite <code className="font-mono">{'{{'}</code> ou pressione <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 font-mono text-[10px]">Ctrl+Espaço</kbd> / <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 font-mono text-[10px]">Ctrl+/</kbd> para inserir variáveis
+          </span>
           <button
             type="button"
             onClick={toggleBulk}
@@ -113,20 +117,21 @@ const KeyValueTable: React.FC<KeyValueTableProps> = ({
                     />
                   )}
                 </span>
-                <input
+                <VariableInput
+                  compact
                   value={row.key}
                   disabled={fixedKeys}
-                  spellCheck={false}
                   placeholder={keyPlaceholder}
-                  onChange={(event) => updateRow(rowIndex, { key: event.target.value })}
-                  className={cellInputClass}
+                  inputClassName="focus:bg-amber-500/5"
+                  onChange={(key) => updateRow(rowIndex, { key })}
                 />
-                <input
+                <VariableInput
+                  compact
                   value={row.value}
-                  spellCheck={false}
                   placeholder={valuePlaceholder}
-                  onChange={(event) => updateRow(rowIndex, { value: event.target.value })}
-                  className={`${cellInputClass} border-l border-gray-200 dark:border-white/10`}
+                  inputClassName="focus:bg-amber-500/5"
+                  onChange={(value) => updateRow(rowIndex, { value })}
+                  className="border-l border-gray-200 dark:border-white/10"
                 />
                 {showDescription && (
                   <input

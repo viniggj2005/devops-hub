@@ -105,7 +105,15 @@ func (handlerStruct *VulpesClientHandlerStruct) httpClient(settings vulpesDtos.H
 }
 
 func (handlerStruct *VulpesClientHandlerStruct) SendHttpRequest(callContext context.Context, token string, input vulpesDtos.ExecutionInputDto) (*vulpesDtos.HttpResponseDto, error) {
-	plan, err := handlerStruct.prepareExecution(token, input)
+	userID, err := handlerStruct.vulpes.authenticate(token)
+	if err != nil {
+		return nil, err
+	}
+	return handlerStruct.executeHttp(callContext, userID, input, nil)
+}
+
+func (handlerStruct *VulpesClientHandlerStruct) executeHttp(callContext context.Context, userID uint, input vulpesDtos.ExecutionInputDto, pendingItemIDs []string) (*vulpesDtos.HttpResponseDto, error) {
+	plan, err := handlerStruct.planExecution(callContext, userID, input, pendingItemIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +121,9 @@ func (handlerStruct *VulpesClientHandlerStruct) SendHttpRequest(callContext cont
 		return nil, errors.New("a requisição não é HTTP")
 	}
 	httpRequest := plan.resolver.ResolveHttpRequest(*plan.request.Http)
+	if err := plan.resolver.TakeError(); err != nil {
+		return nil, err
+	}
 
 	requestContext := callContext
 	if httpRequest.Settings.TimeoutMs > 0 {
@@ -162,6 +173,7 @@ func (handlerStruct *VulpesClientHandlerStruct) SendHttpRequest(callContext cont
 	} else {
 		result.Body, result.BodyEncoding = base64.StdEncoding.EncodeToString(body), vulpesDtos.EncodingBase64
 	}
+	handlerStruct.rememberResponse(userID, input.Scope, result)
 	return result, nil
 }
 

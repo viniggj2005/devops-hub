@@ -3,6 +3,7 @@ package vulpesFunctions
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -216,14 +217,16 @@ func (object *orderedMap) MarshalJSON() ([]byte, error) {
 }
 
 type insomniaExporter struct {
-	now       time.Time
-	warnings  *warningCollector
-	resources []any
-	sortKey   int64
+	now        time.Time
+	sortKey    int64
+	warnings   *warningCollector
+	resources  []any
+	requestIDs map[string]string
 }
 
 func ExportInsomniaCollection(name string, content vulpesDtos.CollectionContentDto) ([]byte, []string, error) {
 	exporter := newInsomniaExporter()
+	exporter.assignRequestIDs(content.Items)
 	workspaceID := insomniaID("wrk")
 	exporter.append(insomniaWorkspaceExport{
 		insomniaExportBase: exporter.base(workspaceID, "workspace", name, nil),
@@ -250,7 +253,31 @@ func ExportInsomniaEnvironment(name string, variables []vulpesDtos.VariableDto) 
 }
 
 func newInsomniaExporter() *insomniaExporter {
-	return &insomniaExporter{now: time.Now(), warnings: newWarningCollector()}
+	return &insomniaExporter{now: time.Now(), warnings: newWarningCollector(), requestIDs: map[string]string{}}
+}
+
+func (exporter *insomniaExporter) assignRequestIDs(items []vulpesDtos.CollectionItemDto) {
+	for _, item := range items {
+		exporter.assignRequestIDs(item.Children)
+		if item.Kind != vulpesDtos.ItemKindRequest || item.Request == nil {
+			continue
+		}
+		switch item.Request.Protocol {
+		case vulpesDtos.ProtocolGrpc:
+			exporter.requestIDs[item.ID] = insomniaID("greq")
+		case vulpesDtos.ProtocolWebSocket:
+			exporter.requestIDs[item.ID] = insomniaID("ws-req")
+		default:
+			exporter.requestIDs[item.ID] = insomniaID("req")
+		}
+	}
+}
+
+func (exporter *insomniaExporter) requestID(item vulpesDtos.CollectionItemDto, prefix string) string {
+	if identifier, assigned := exporter.requestIDs[item.ID]; assigned {
+		return identifier
+	}
+	return insomniaID(prefix)
 }
 
 func (exporter *insomniaExporter) append(resource any) {
@@ -397,7 +424,7 @@ func (exporter *insomniaExporter) request(item vulpesDtos.CollectionItemDto, par
 	default:
 		exporter.warnings.add("Requisições Socket.IO não são suportadas pelo Insomnia e foram exportadas como requisições GET com a URL")
 		exporter.append(insomniaRequestExport{
-			insomniaExportBase:     exporter.base(insomniaID("req"), "request", item.Name, parentID),
+			insomniaExportBase:     exporter.base(exporter.requestID(item, "req"), "request", item.Name, parentID),
 			Url:                    protocolUrl(request),
 			Method:                 "GET",
 			Headers:                []insomniaExportPair{},
@@ -431,7 +458,7 @@ func (exporter *insomniaExporter) httpRequest(item vulpesDtos.CollectionItemDto,
 	}
 	preRequest, afterResponse := exporter.scripts(item.Scripts)
 	exporter.append(insomniaRequestExport{
-		insomniaExportBase:     exporter.base(insomniaID("req"), "request", item.Name, parentID),
+		insomniaExportBase:     exporter.base(exporter.requestID(item, "req"), "request", item.Name, parentID),
 		Url:                    url,
 		Body:                   body,
 		Method:                 httpRequest.Method,
@@ -464,7 +491,7 @@ func (exporter *insomniaExporter) grpcRequest(item vulpesDtos.CollectionItemDto,
 		methodName = "/" + method
 	}
 	exporter.append(insomniaGrpcExport{
-		insomniaExportBase: exporter.base(insomniaID("greq"), "grpc_request", item.Name, parentID),
+		insomniaExportBase: exporter.base(exporter.requestID(item, "greq"), "grpc_request", item.Name, parentID),
 		Url:                url,
 		Body:               insomniaGrpcBody{Text: exporter.template(grpcRequest.Message)},
 		Metadata:           exporter.pairs(grpcRequest.Metadata),
@@ -476,7 +503,7 @@ func (exporter *insomniaExporter) grpcRequest(item vulpesDtos.CollectionItemDto,
 
 func (exporter *insomniaExporter) webSocketRequest(item vulpesDtos.CollectionItemDto, request vulpesDtos.RequestDto, parentID string, inheritedAuth *vulpesDtos.AuthDto) {
 	webSocketRequest := request.WebSocket
-	requestID := insomniaID("ws-req")
+	requestID := exporter.requestID(item, "ws-req")
 	url, parameters := exporter.splitUrl(webSocketRequest.Url, webSocketRequest.Params)
 	exporter.append(insomniaWebSocketExport{
 		insomniaExportBase:     exporter.base(requestID, "websocket_request", item.Name, parentID),
@@ -660,6 +687,12 @@ func (exporter *insomniaExporter) template(text string) string {
 		if tag, isDynamic := insomniaDynamicVariables[name]; isDynamic {
 			return tag
 		}
+		if IsResponseExpression(name) {
+			return exporter.responseTag(name, match)
+		}
+		if strings.HasPrefix(name, "$random") && IsDynamicVariable(name) {
+			return "{% faker '" + strings.TrimPrefix(name, "$") + "' %}"
+		}
 		if strings.HasPrefix(name, "$") {
 			return match
 		}
@@ -668,6 +701,18 @@ func (exporter *insomniaExporter) template(text string) string {
 		}
 		return "{{ _['" + strings.ReplaceAll(name, "'", `\'`) + "'] }}"
 	})
+}
+
+func (exporter *insomniaExporter) responseTag(expression string, match string) string {
+	reference, err := ParseResponseReference(expression)
+	if err != nil {
+		exporter.warnings.add(fmt.Sprintf("Uma referência {{$response}} inválida foi exportada como texto: %v", err))
+		return match
+	}
+	if identifier, found := exporter.requestIDs[reference.RequestID]; found {
+		reference.RequestID = identifier
+	}
+	return reference.InsomniaTag()
 }
 
 func hasHeader(headers []vulpesDtos.KeyValueDto, key string) bool {

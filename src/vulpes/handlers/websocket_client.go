@@ -80,7 +80,7 @@ func nonEmptyValues(values []string) []string {
 }
 
 func (handlerStruct *VulpesClientHandlerStruct) ConnectWebSocket(callContext context.Context, token string, sessionID string, input vulpesDtos.ExecutionInputDto) (*vulpesDtos.ConnectionResultDto, error) {
-	plan, err := handlerStruct.prepareExecution(token, input)
+	plan, err := handlerStruct.prepareExecution(callContext, token, input)
 	if err != nil {
 		return nil, err
 	}
@@ -88,6 +88,9 @@ func (handlerStruct *VulpesClientHandlerStruct) ConnectWebSocket(callContext con
 		return nil, errors.New("a requisição não é WebSocket")
 	}
 	webSocketRequest := plan.resolver.ResolveWebSocketRequest(*plan.request.WebSocket)
+	if err := plan.resolver.TakeError(); err != nil {
+		return nil, err
+	}
 	authEntries := vulpesFunctions.BuildAuthEntries(plan.auth)
 	endpoint, err := realtimeEndpoint(webSocketRequest.Url, "ws", authEntries.Query)
 	if err != nil {
@@ -129,6 +132,9 @@ func (handlerStruct *VulpesClientHandlerStruct) SendWebSocketMessage(callContext
 	}
 
 	data := session.resolver.Resolve(input.Data)
+	if err := session.resolver.TakeError(); err != nil {
+		return err
+	}
 	messageType, payload := websocket.MessageText, []byte(data)
 	encoding := vulpesDtos.EncodingText
 	switch input.Kind {

@@ -1,10 +1,12 @@
 package vulpesFunctions
 
 import (
+	"errors"
 	"math/rand/v2"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
@@ -38,8 +40,14 @@ var dynamicVariables = map[string]func() string{
 	},
 }
 
+type ResponseSource func(reference ResponseReference) (*vulpesDtos.HttpResponseDto, error)
+
 type VariableResolver struct {
-	values map[string]string
+	mutex     sync.Mutex
+	values    map[string]string
+	failure   error
+	responses ResponseSource
+	extracted map[string]string
 }
 
 func NewVariableResolver(layers ...[]vulpesDtos.VariableDto) *VariableResolver {
@@ -51,7 +59,22 @@ func NewVariableResolver(layers ...[]vulpesDtos.VariableDto) *VariableResolver {
 			}
 		}
 	}
-	return &VariableResolver{values: values}
+	return &VariableResolver{values: values, extracted: map[string]string{}}
+}
+
+func (resolver *VariableResolver) UseResponses(source ResponseSource) {
+	resolver.responses = source
+}
+
+func (resolver *VariableResolver) TakeError() error {
+	if resolver == nil {
+		return nil
+	}
+	resolver.mutex.Lock()
+	defer resolver.mutex.Unlock()
+	failure := resolver.failure
+	resolver.failure = nil
+	return failure
 }
 
 func (resolver *VariableResolver) Resolve(text string) string {
@@ -73,10 +96,45 @@ func (resolver *VariableResolver) replaceMatch(match string) string {
 	if value, found := resolver.values[name]; found {
 		return value
 	}
-	if generate, found := dynamicVariables[name]; found {
+	if IsResponseExpression(name) {
+		return resolver.responseValue(name, match)
+	}
+	if generate, found := dynamicVariable(name); found {
 		return generate()
 	}
 	return match
+}
+
+func (resolver *VariableResolver) responseValue(expression string, match string) string {
+	resolver.mutex.Lock()
+	defer resolver.mutex.Unlock()
+	if value, found := resolver.extracted[expression]; found {
+		return value
+	}
+	value, err := resolver.fetchResponseValue(expression)
+	if err != nil {
+		if resolver.failure == nil {
+			resolver.failure = err
+		}
+		return match
+	}
+	resolver.extracted[expression] = value
+	return value
+}
+
+func (resolver *VariableResolver) fetchResponseValue(expression string) (string, error) {
+	reference, err := ParseResponseReference(expression)
+	if err != nil {
+		return "", err
+	}
+	if resolver.responses == nil {
+		return "", errors.New("{{$response}} só pode ser usado em requisições salvas em uma coleção")
+	}
+	response, err := resolver.responses(reference)
+	if err != nil {
+		return "", err
+	}
+	return ExtractResponseValue(response, reference)
 }
 
 func (resolver *VariableResolver) ResolveAll(values []string) []string {

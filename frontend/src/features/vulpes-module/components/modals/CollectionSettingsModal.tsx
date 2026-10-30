@@ -11,6 +11,7 @@ import { Modal } from '../../../shared/components/modals/Modal';
 import { collectionActions } from '../../actions/CollectionActions';
 import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import { describeInheritedAuth } from '../../functions/CollectionTree';
+import { VariableScopeProvider } from '../../contexts/VariableScopeContext';
 import type { Auth, Variable } from '../../../../interfaces/VulpesInterfaces';
 import { fieldLabelClass, primaryButtonClass, secondaryButtonClass } from '../editors/FormStyles';
 
@@ -74,45 +75,50 @@ const CollectionSettingsModal: React.FC<CollectionSettingsModalProps> = ({ targe
         </>
       }
     >
-      <div className="-mx-6 -mt-6 mb-4">
-        <SectionTabs
-          active={section}
-          onChange={setSection}
-          tabs={[
-            { key: 'variables', label: 'Variáveis', hidden: Boolean(folder), count: variables.length },
-            { key: 'auth', label: 'Autorização' },
-            { key: 'description', label: 'Descrição' },
-            { key: 'scripts', label: 'Scripts', hidden: scripts.length === 0 },
-          ]}
-        />
-      </div>
-      {section === 'variables' && !folder && (
-        <div className="space-y-2">
-          <VariablesTable variables={variables} onChange={setVariables} />
-          <p className="text-[11px] text-gray-400 dark:text-zinc-500">
-            Use como {'{{nome}}'} em qualquer requisição da coleção. Variáveis do ambiente ativo têm prioridade sobre as da coleção.
-          </p>
-        </div>
-      )}
-      {section === 'auth' && target && (
-        <AuthEditor
-          auth={auth}
-          onChange={setAuth}
-          allowInherit={Boolean(folder)}
-          inheritedHint={folder ? describeInheritedAuth(target.collection, folder.id) : undefined}
-        />
-      )}
-      {section === 'description' && (
-        <div>
-          <label className={fieldLabelClass}>Descrição (Markdown)</label>
-          <textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            className="w-full h-56 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-zinc-950 p-3 text-xs text-gray-800 dark:text-zinc-200 focus:outline-none focus:border-amber-500"
+      <VariableScopeProvider
+        collectionId={target?.collection.id ?? null}
+        collectionVariablesOverride={variables}
+      >
+        <div className="-mx-6 -mt-6 mb-4">
+          <SectionTabs
+            active={section}
+            onChange={setSection}
+            tabs={[
+              { key: 'variables', label: 'Variáveis', hidden: Boolean(folder), count: variables.length },
+              { key: 'auth', label: 'Autorização' },
+              { key: 'description', label: 'Descrição' },
+              { key: 'scripts', label: 'Scripts', hidden: scripts.length === 0 },
+            ]}
           />
         </div>
-      )}
-      {section === 'scripts' && <ScriptsPanel scripts={scripts} />}
+        {section === 'variables' && !folder && (
+          <div className="space-y-2">
+            <VariablesTable variables={variables} onChange={setVariables} />
+            <p className="text-[11px] text-gray-400 dark:text-zinc-500">
+              Use como {'{{nome}}'} em qualquer requisição da coleção. Você também pode pressionar <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 font-mono text-[10px]">Ctrl+Espaço</kbd> ou <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 font-mono text-[10px]">Ctrl+/</kbd> no valor para vincular o resultado de outra requisição.
+            </p>
+          </div>
+        )}
+        {section === 'auth' && target && (
+          <AuthEditor
+            auth={auth}
+            onChange={setAuth}
+            allowInherit={Boolean(folder)}
+            inheritedHint={folder ? describeInheritedAuth(target.collection, folder.id) : undefined}
+          />
+        )}
+        {section === 'description' && (
+          <div>
+            <label className={fieldLabelClass}>Descrição (Markdown)</label>
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              className="w-full h-56 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-zinc-950 p-3 text-xs text-gray-800 dark:text-zinc-200 focus:outline-none focus:border-amber-500"
+            />
+          </div>
+        )}
+        {section === 'scripts' && <ScriptsPanel scripts={scripts} />}
+      </VariableScopeProvider>
     </Modal>
   );
 };

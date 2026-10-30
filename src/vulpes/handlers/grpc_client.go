@@ -92,7 +92,7 @@ func loadGrpcDescriptors(callContext context.Context, connection *grpc.ClientCon
 }
 
 func (handlerStruct *VulpesClientHandlerStruct) prepareGrpcCall(callContext context.Context, token string, input vulpesDtos.ExecutionInputDto) (*grpcCall, *vulpesFunctions.GrpcDescriptorSource, error) {
-	plan, err := handlerStruct.prepareExecution(token, input)
+	plan, err := handlerStruct.prepareExecution(callContext, token, input)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -100,6 +100,9 @@ func (handlerStruct *VulpesClientHandlerStruct) prepareGrpcCall(callContext cont
 		return nil, nil, errors.New("a requisição não é gRPC")
 	}
 	grpcRequest := plan.resolver.ResolveGrpcRequest(*plan.request.Grpc)
+	if err := plan.resolver.TakeError(); err != nil {
+		return nil, nil, err
+	}
 	connection, err := dialGrpc(grpcRequest)
 	if err != nil {
 		return nil, nil, err
@@ -322,7 +325,11 @@ func (handlerStruct *VulpesClientHandlerStruct) EndGrpcStream(callContext contex
 }
 
 func (session *grpcStreamSession) send(text string) error {
-	message, err := session.call.decodeMessage(session.call.resolver.Resolve(text), session.call.method.Input())
+	resolved := session.call.resolver.Resolve(text)
+	if err := session.call.resolver.TakeError(); err != nil {
+		return err
+	}
+	message, err := session.call.decodeMessage(resolved, session.call.method.Input())
 	if err != nil {
 		return err
 	}

@@ -10,6 +10,7 @@ import type {
   RequestTab,
   TabRuntime,
   Environment,
+  HttpResponse,
   WorkspaceTab,
   RealtimeEvent,
   VulpesRequest,
@@ -123,6 +124,7 @@ interface VulpesState extends WorkspaceSlice {
   environments: Environment[];
   draggingGroupId: string | null;
   activeEnvironmentId: number | null;
+  itemResponses: Record<string, HttpResponse>;
   reset: () => void;
   activateTab: (tabId: string) => void;
   removeTabs: (tabIds: string[]) => void;
@@ -149,6 +151,7 @@ interface VulpesState extends WorkspaceSlice {
   pushRealtimeEvent: (tabId: string, event: RealtimeEvent) => void;
   patchRuntime: (tabId: string, patch: Partial<TabRuntime>) => void;
   setData: (collections: Collection[], environments: Environment[]) => void;
+  setItemResponse: (collectionId: number, itemId: string, response: HttpResponse) => void;
   mergeGroupInto: (sourceGroupId: string, targetGroupId: string, dropZone: SplitDropZone) => void;
   updateRequest: (tabId: string, update: (request: VulpesRequest) => VulpesRequest) => void;
 }
@@ -163,6 +166,7 @@ const initialState = () => ({
   activeTabId: null,
   eventSequence: 0,
   activeGroupId: null,
+  itemResponses: {},
   draggingGroupId: null,
   activeEnvironmentId: readActiveEnvironment(),
 });
@@ -377,6 +381,9 @@ export const useVulpesStore = create<VulpesState>((set, get) => ({
     }),
 
   clearRealtimeEvents: (tabId) => get().patchRuntime(tabId, { events: [] }),
+
+  setItemResponse: (collectionId, itemId, response) =>
+    set((state) => ({ itemResponses: { ...state.itemResponses, [`${collectionId}:${itemId}`]: response } })),
 
   reset: () => set(initialState()),
 }));

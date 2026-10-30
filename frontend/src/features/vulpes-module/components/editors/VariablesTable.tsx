@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import VariableInput from './VariableInput';
 import { cellInputClass } from './KeyValueTable';
 import { Eye, EyeOff, Lock, LockOpen, Trash2 } from 'lucide-react';
 import type { Variable } from '../../../../interfaces/VulpesInterfaces';
@@ -63,15 +64,15 @@ const VariablesTable: React.FC<VariablesTableProps> = ({ variables, onChange }) 
               onChange={(event) => updateRow(rowIndex, { key: event.target.value })}
               className={cellInputClass}
             />
-            <div className="flex items-center border-l border-gray-200 dark:border-white/10">
-              <input
+            <div className="flex items-center border-l border-gray-200 dark:border-white/10 min-w-0">
+              <VariableInput
+                compact
+                masked={masked}
+                className="flex-1"
                 value={variable.value}
-                spellCheck={false}
-                placeholder="valor"
-                autoComplete="off"
-                type={masked ? 'password' : 'text'}
-                onChange={(event) => updateRow(rowIndex, { value: event.target.value })}
-                className={cellInputClass}
+                placeholder="valor ou {{$response ...}}"
+                inputClassName="focus:bg-amber-500/5"
+                onChange={(value) => updateRow(rowIndex, { value })}
               />
               {variable.secret && (
                 <button
