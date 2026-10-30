@@ -2,15 +2,7 @@ import { useVariableScope } from '../../contexts/VariableScopeContext';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { resolveText, tokenizeVariables, VariableMap } from '../../functions/Variables';
 import { VariableAutocompletePortal, VariableInspectorPortal } from './VariableAutocompletePortal';
-import {
-  buildSuggestions,
-  describeVariable,
-  filterSuggestions,
-  findVariableQuery,
-  type VariableQuery,
-  suggestionInsertion,
-  type VariableSuggestion,
-} from '../../functions/VariableSuggestions';
+import { buildSuggestions, describeVariable, filterSuggestions, findVariableQuery, suggestionInsertion, type VariableQuery, type VariableSuggestion } from '../../functions/VariableSuggestions';
 
 interface VariableInputProps {
   value: string;
@@ -18,10 +10,10 @@ interface VariableInputProps {
   compact?: boolean;
   disabled?: boolean;
   className?: string;
-  placeholder?: string;
   onEnter?: () => void;
-  inputClassName?: string;
+  placeholder?: string;
   variables?: VariableMap;
+  inputClassName?: string;
   onChange: (value: string) => void;
 }
 
@@ -30,19 +22,20 @@ const VariableInput: React.FC<VariableInputProps> = ({
   onEnter,
   onChange,
   placeholder,
-  className = '',
   masked = false,
   compact = false,
   disabled = false,
+  className = '',
   inputClassName = '',
   variables: overrideVariables,
 }) => {
   const scope = useVariableScope(overrideVariables);
   const { variables, requests, responsesByItemId, openResponseBuilder } = scope;
 
-  const mirrorRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const mirrorRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const explicitModeRef = useRef(false);
   const hoverTimerRef = useRef<number | null>(null);
 
   const [isFocused, setIsFocused] = useState(false);
@@ -95,10 +88,12 @@ const VariableInput: React.FC<VariableInputProps> = ({
 
   const updateQueryFromCursor = useCallback((text: string, cursor: number | null) => {
     if (cursor === null) {
+      explicitModeRef.current = false;
       setActiveQuery(null);
       return;
     }
-    const detected = findVariableQuery(text, cursor, false);
+    const detected = findVariableQuery(text, cursor, explicitModeRef.current);
+    if (!detected) explicitModeRef.current = false;
     setActiveQuery(detected);
   }, []);
 
@@ -106,6 +101,7 @@ const VariableInput: React.FC<VariableInputProps> = ({
     (insertionText: string, replaceFrom: number, replaceTo: number, nextCursorPos?: number) => {
       const nextValue = value.slice(0, replaceFrom) + insertionText + value.slice(replaceTo);
       const nextCursor = nextCursorPos ?? replaceFrom + insertionText.length;
+      explicitModeRef.current = false;
       onChange(nextValue);
       setActiveQuery(null);
       requestAnimationFrame(() => {
@@ -130,6 +126,7 @@ const VariableInput: React.FC<VariableInputProps> = ({
   const handleOpenResponseBuilder = useCallback(
     (existingExpression?: string) => {
       const querySnapshot = activeQuery;
+      explicitModeRef.current = false;
       setActiveQuery(null);
       openResponseBuilder({
         initialExpression: existingExpression,
@@ -216,6 +213,7 @@ const VariableInput: React.FC<VariableInputProps> = ({
         }}
         onBlur={() => {
           setIsFocused(false);
+          explicitModeRef.current = false;
           setActiveQuery(null);
         }}
         onChange={(event) => {
@@ -227,6 +225,7 @@ const VariableInput: React.FC<VariableInputProps> = ({
         onKeyDown={(event) => {
           if ((event.ctrlKey || event.metaKey) && (event.code === 'Space' || event.key === ' ' || event.key === '/')) {
             event.preventDefault();
+            explicitModeRef.current = true;
             const cursor = event.currentTarget.selectionStart ?? value.length;
             const detected = findVariableQuery(value, cursor, true);
             setActiveQuery(detected);
@@ -255,6 +254,7 @@ const VariableInput: React.FC<VariableInputProps> = ({
             }
             if (event.key === 'Escape') {
               event.preventDefault();
+              explicitModeRef.current = false;
               setActiveQuery(null);
               return;
             }

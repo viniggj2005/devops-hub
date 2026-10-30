@@ -10,36 +10,12 @@ import { buildCodeEditorTheme } from '../../../shared/functions/CodeEditorTheme'
 import { useGeneralConfigsStore } from '../../../settings/store/GeneralConfigsStore';
 import { resolveSqlEditorColors } from '../../../settings/constants/SqlEditorThemePresets';
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
-import { Annotation, Compartment, EditorState, Prec, RangeSetBuilder } from '@codemirror/state';
 import { useVariableScope, type VariableScopeValue } from '../../contexts/VariableScopeContext';
-import { autocompletion, startCompletion, type Completion, type CompletionContext } from '@codemirror/autocomplete';
-import {
-  buildSuggestions,
-  describeVariable,
-  filterSuggestions,
-  findVariableQuery,
-  isResponseVariable,
-  suggestionInsertion,
-} from '../../functions/VariableSuggestions';
-import {
-  keymap,
-  Decoration,
-  EditorView,
-  ViewPlugin,
-  ViewUpdate,
-  hoverTooltip,
-  DecorationSet,
-  placeholder as placeholderExtension,
-} from '@codemirror/view';
-import {
-  editorSearch,
-  searchSummary,
-  applySearchTerm,
-  selectSearchMatch,
-  type SearchSummary,
-  searchSummaryChanged,
-  type SearchDirection,
-} from '../../functions/EditorSearch';
+import { Annotation, Compartment, EditorSelection, EditorState, Prec, RangeSetBuilder } from '@codemirror/state';
+import { autocompletion, startCompletion, type Completion, type CompletionResult, type CompletionContext } from '@codemirror/autocomplete';
+import { keymap, Decoration, EditorView, ViewPlugin, ViewUpdate, DecorationSet, hoverTooltip, placeholder as placeholderExtension } from '@codemirror/view';
+import { buildSuggestions, describeVariable, filterSuggestions, findVariableQuery, isResponseVariable, suggestionInsertion } from '../../functions/VariableSuggestions';
+import { editorSearch, searchSummary, applySearchTerm, selectSearchMatch, searchSummaryChanged, type SearchSummary, type SearchDirection } from '../../functions/EditorSearch';
 
 export type CodeLanguage = RawLanguage | 'graphql';
 
@@ -71,7 +47,7 @@ const responseDecoration = Decoration.mark({ class: 'cm-vulpes-variable cm-vulpe
 
 const buildVariableDecorations = (view: EditorView, scope: VariableScopeValue): DecorationSet => {
   const builder = new RangeSetBuilder<Decoration>();
-  const pattern = /\{\{([^{}]+)\}\}/g;
+  const pattern = /\{\{([^{}\r\n]+)\}\}/g;
   for (const { from, to } of view.visibleRanges) {
     const slice = view.state.doc.sliceString(from, to);
     pattern.lastIndex = 0;
@@ -113,10 +89,47 @@ const createVariableHighlighter = (scopeRef: React.MutableRefObject<VariableScop
     { decorations: (plugin) => plugin.decorations }
   );
 
+const variableBraceInputHandler = EditorView.inputHandler.of((view, from, to, text) => {
+  if (view.state.readOnly || from !== to) return false;
+
+  if (text === '}' && view.state.doc.sliceString(to, to + 1) === '}') {
+    const line = view.state.doc.lineAt(from);
+    const beforeInLine = line.text.slice(0, from - line.from);
+    if (beforeInLine.includes('{{')) {
+      view.dispatch({
+        selection: EditorSelection.cursor(from + 1),
+        userEvent: 'input.type',
+      });
+      return true;
+    }
+  }
+
+  if (text !== '{' || from < 1) return false;
+  const beforeChar = view.state.doc.sliceString(from - 1, from);
+  const prevBeforeChar = from >= 2 ? view.state.doc.sliceString(from - 2, from - 1) : '';
+  if (beforeChar !== '{' || prevBeforeChar === '{') return false;
+
+  const afterText = view.state.doc.sliceString(to, to + 2);
+  let insertText = '{}}';
+  if (afterText.startsWith('}}')) {
+    insertText = '{';
+  } else if (afterText.startsWith('}')) {
+    insertText = '{}';
+  }
+
+  view.dispatch({
+    changes: { from, to, insert: insertText },
+    selection: EditorSelection.cursor(from + 1),
+    userEvent: 'input.type',
+  });
+  startCompletion(view);
+  return true;
+});
+
 const createVariableHoverTooltip = (scopeRef: React.MutableRefObject<VariableScopeValue>) =>
   hoverTooltip((view, pos) => {
     const line = view.state.doc.lineAt(pos);
-    const pattern = /\{\{([^{}]+)\}\}/g;
+    const pattern = /\{\{([^{}\r\n]+)\}\}/g;
     let match = pattern.exec(line.text);
     while (match !== null) {
       const from = line.from + match.index;
@@ -196,87 +209,120 @@ const createVariableHoverTooltip = (scopeRef: React.MutableRefObject<VariableSco
   });
 
 const createVariableCompletionSource =
-  (scopeRef: React.MutableRefObject<VariableScopeValue>) => (context: CompletionContext) => {
-    const docText = context.state.doc.toString();
-    const queryState = findVariableQuery(docText, context.pos, context.explicit);
-    if (!queryState) return null;
+  (scopeRef: React.MutableRefObject<VariableScopeValue>) => {
+    const buildResult = (context: CompletionContext, forceExplicit: boolean): CompletionResult | null => {
+      const docText = context.state.doc.toString();
+      const queryState = findVariableQuery(docText, context.pos, forceExplicit || context.explicit);
+      if (!queryState) return null;
 
-    const scope = scopeRef.current;
-    const allSuggestions = buildSuggestions(
-      scope.variables,
-      scope.requests,
-      scope.responsesByItemId
-    );
-    const filtered = filterSuggestions(allSuggestions, queryState.query);
+      const scope = scopeRef.current;
+      const allSuggestions = buildSuggestions(
+        scope.variables,
+        scope.requests,
+        scope.responsesByItemId
+      );
+      const filtered = filterSuggestions(allSuggestions, queryState.query);
 
-    const options: Completion[] = [];
+      const options: Completion[] = [];
 
-    if (scope.requests.length > 0) {
-      options.push({
-        label: '🔗 Vincular resposta de outra requisição…',
-        detail: 'construtor visual',
-        info: 'Escolher requisição, inspecionar JSON e inserir {{$response ...}}',
-        boost: 99,
-        apply: (view) => {
-          scope.openResponseBuilder({
-            onApply: (expression: string) => {
-              view.dispatch({
-                changes: {
-                  from: queryState.from,
-                  to: queryState.to,
-                  insert: expression,
-                },
-              });
-              view.focus();
-            },
-          });
-        },
-      });
-    }
+      if (scope.requests.length > 0) {
+        options.push({
+          label: '🔗 Vincular resposta de outra requisição…',
+          detail: 'construtor visual',
+          info: 'Escolher requisição, inspecionar JSON e inserir {{$response ...}}',
+          boost: 99,
+          apply: (view, _completion, mappedFrom, mappedTo) => {
+            const currentPos = view.state.selection.main.head;
+            const currentDoc = view.state.doc.toString();
+            const liveQuery = findVariableQuery(currentDoc, currentPos, true) ?? {
+              from: mappedFrom,
+              to: mappedTo,
+              query: '',
+            };
+            scope.openResponseBuilder({
+              onApply: (expression: string) => {
+                view.dispatch({
+                  changes: {
+                    from: liveQuery.from,
+                    to: liveQuery.to,
+                    insert: expression,
+                  },
+                });
+                view.focus();
+              },
+            });
+          },
+        });
+      }
 
-    for (const suggestion of filtered) {
-      options.push({
-        label: suggestion.label,
-        detail: `${suggestion.kind} · ${suggestion.detail}`,
-        apply: (view) => {
-          const { insert, from, to, cursor } = suggestionInsertion(queryState, suggestion);
-          view.dispatch({
-            changes: { from, to, insert },
-            selection: { anchor: cursor },
-          });
-        },
-      });
-    }
+      for (const suggestion of filtered) {
+        options.push({
+          label: suggestion.label,
+          detail: `${suggestion.kind} · ${suggestion.detail}`,
+          apply: (view, _completion, mappedFrom, mappedTo) => {
+            const currentPos = view.state.selection.main.head;
+            const currentDoc = view.state.doc.toString();
+            const liveQuery = findVariableQuery(currentDoc, currentPos, true) ?? {
+              from: mappedFrom,
+              to: mappedTo,
+              query: '',
+            };
+            const { insert, from, to, cursor } = suggestionInsertion(liveQuery, suggestion);
+            view.dispatch({
+              changes: { from, to, insert },
+              selection: { anchor: cursor },
+            });
+          },
+        });
+      }
 
-    return {
-      from: queryState.from,
-      to: context.pos,
-      filter: false,
-      options,
+      const wasExplicit = forceExplicit || context.explicit;
+      return {
+        from: queryState.from,
+        to: context.pos,
+        filter: false,
+        options,
+        update: (_current, _from, _to, nextContext) => buildResult(nextContext, wasExplicit),
+      };
     };
+
+    return (context: CompletionContext) => buildResult(context, false);
   };
 
 const variableTheme = EditorView.baseTheme({
   '.cm-vulpes-variable': {
-    borderRadius: '3px',
-    padding: '0 2px',
+    borderRadius: '4px',
+    padding: '0 3px',
+    fontWeight: '600',
+  },
+  '.cm-vulpes-variable-defined, .cm-vulpes-variable-defined *': {
+    color: '#f59e0b !important',
   },
   '.cm-vulpes-variable-defined': {
-    color: '#f59e0b',
-    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+    backgroundColor: 'rgba(245, 158, 11, 0.16)',
+    boxShadow: 'inset 0 0 0 1px rgba(245, 158, 11, 0.35)',
+  },
+  '.cm-vulpes-variable-response, .cm-vulpes-variable-response *': {
+    color: '#a78bfa !important',
   },
   '.cm-vulpes-variable-response': {
-    color: '#a78bfa',
-    backgroundColor: 'rgba(139, 92, 246, 0.16)',
+    backgroundColor: 'rgba(139, 92, 246, 0.18)',
+    boxShadow: 'inset 0 0 0 1px rgba(139, 92, 246, 0.35)',
+  },
+  '.cm-vulpes-variable-dynamic, .cm-vulpes-variable-dynamic *': {
+    color: '#38bdf8 !important',
   },
   '.cm-vulpes-variable-dynamic': {
-    color: '#38bdf8',
-    backgroundColor: 'rgba(56, 189, 248, 0.14)',
+    backgroundColor: 'rgba(56, 189, 248, 0.16)',
+    boxShadow: 'inset 0 0 0 1px rgba(56, 189, 248, 0.35)',
+  },
+  '.cm-vulpes-variable-missing, .cm-vulpes-variable-missing *': {
+    color: '#f43f5e !important',
+    textDecoration: 'underline wavy rgba(244, 63, 94, 0.85)',
   },
   '.cm-vulpes-variable-missing': {
-    color: '#f43f5e',
-    backgroundColor: 'rgba(244, 63, 94, 0.14)',
-    textDecoration: 'underline wavy rgba(244, 63, 94, 0.8)',
+    backgroundColor: 'rgba(244, 63, 94, 0.16)',
+    boxShadow: 'inset 0 0 0 1px rgba(244, 63, 94, 0.35)',
   },
   '.cm-tooltip.cm-vulpes-tooltip, .cm-vulpes-tooltip': {
     padding: '8px 10px',
@@ -432,6 +478,7 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(({
               { key: 'Mod-s', preventDefault: true, run: runCommand(() => callbacks.current.onSave?.()) },
             ])
           ),
+          Prec.high(variableBraceInputHandler),
           basicSetup,
           editorSearch,
           variableTheme,
@@ -440,6 +487,8 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(({
           autocompletion({
             override: [createVariableCompletionSource(scopeRef)],
             activateOnTyping: true,
+            activateOnTypingDelay: 10,
+            interactionDelay: 10,
           }),
           keymap.of([indentWithTab]),
           compartments.language.of(languageExtension(language)),

@@ -44,17 +44,17 @@ export interface SuggestionInsertion {
 
 const maxSuggestions = 60;
 const hiddenValue = '••••••';
-const responseVariable = '$response';
 const maxPathsPerRequest = 18;
 const maxHeadersPerRequest = 6;
+const responseVariable = '$response';
 
 export const dynamicVariableDescriptions: Record<string, string> = {
   $guid: 'UUID v4 aleatório',
-  $randomUUID: 'UUID v4 aleatório',
-  $timestamp: 'Data atual em segundos (Unix)',
-  $isoTimestamp: 'Data atual em ISO 8601',
-  $randomInt: 'Número inteiro entre 0 e 1000',
   $randomBoolean: 'true ou false',
+  $randomUUID: 'UUID v4 aleatório',
+  $isoTimestamp: 'Data atual em ISO 8601',
+  $timestamp: 'Data atual em segundos (Unix)',
+  $randomInt: 'Número inteiro entre 0 e 1000',
   $randomAlphaNumeric: 'Um caractere alfanumérico',
   $randomFirstName: 'Primeiro nome',
   $randomLastName: 'Sobrenome',
@@ -156,13 +156,38 @@ export const findVariableQuery = (text: string, cursor: number, explicit: boolea
   const before = text.slice(0, cursor);
   const open = before.lastIndexOf('{{');
   const typed = open >= 0 ? before.slice(open + 2) : null;
-  if (typed !== null && !/[{}]/.test(typed)) {
+  if (typed !== null && !/[{}"\r\n]/.test(typed)) {
     const after = text.slice(cursor);
     const close = after.indexOf('}}');
-    const closesHere = close >= 0 && !/[{}]/.test(after.slice(0, close));
-    return { from: open, to: closesHere ? cursor + close + 2 : cursor, query: typed.trim() };
+    const closesHere = close >= 0 && !/[{}"\r\n]/.test(after.slice(0, close));
+    if (closesHere) {
+      return { from: open, to: cursor + close + 2, query: typed.trim() };
+    }
+    const singleClose = after.indexOf('}');
+    const hasSingleClose = singleClose >= 0 && !/[{}"\r\n]/.test(after.slice(0, singleClose));
+    return {
+      from: open,
+      to: hasSingleClose ? cursor + singleClose + 1 : cursor,
+      query: typed.trim(),
+    };
   }
-  return explicit ? { from: cursor, to: cursor, query: '' } : null;
+  if (!explicit) return null;
+
+  const partialMatch = before.match(/(\{?[$A-Za-z0-9_.-]*)$/);
+  if (partialMatch && partialMatch[1].length > 0) {
+    const token = partialMatch[1];
+    const hasLeadingBrace = token.startsWith('{');
+    const word = hasLeadingBrace ? token.slice(1) : token;
+    const after = text.slice(cursor);
+    const consumeTrailingBrace = hasLeadingBrace && after.startsWith('}') ? 1 : 0;
+    return {
+      from: cursor - token.length,
+      to: cursor + consumeTrailingBrace,
+      query: word,
+    };
+  }
+
+  return { from: cursor, to: cursor, query: '' };
 };
 
 export const buildSuggestions = (
