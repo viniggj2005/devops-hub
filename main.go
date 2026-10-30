@@ -40,7 +40,7 @@ func main() {
 	}
 	database.InitDb()
 	repositoryPath := os.Getenv("REPOSITORY")
-	sessionManager := auth.NewManager(8 * time.Hour)
+	sessionManager := auth.NewManager(7 * 24 * time.Hour)
 	localFileHandler := ferretShellHandlers.NewLocalFileHandler()
 	terminal := ferretShellHandlers.NewTerminalHandler(sessionManager)
 	localTerminal := ferretShellHandlers.NewLocalTerminalHandler()

@@ -2,8 +2,10 @@ import toast from 'react-hot-toast';
 import { Events } from '@wailsio/runtime';
 import { isDetachedWindow } from '../features/appFrame/WindowContext';
 import { AuthContextType, LoginResponse, UserDTO } from '../interfaces/AuthInterfaces';
-import { claimWindowSessionApi, loginApi, logoutApi } from '../features/login/services/Auth';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { claimWindowSessionApi, loginApi, logoutApi, myInfo } from '../features/login/services/Auth';
+
+const sessionKeepAliveIntervalMs = 15 * 60 * 1000;
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -71,6 +73,24 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   useEffect(() => Events.On('auth:changed', ({ data: isLogged }) => {
     if (!isLogged) clearSession();
   }), []);
+
+  useEffect(() => {
+    if (!token) return;
+    const pingSession = () => {
+      myInfo(token).catch((pingError) => {
+        const message = String(pingError?.message ?? pingError ?? '').toLowerCase();
+        if (message.includes('token inválido') || message.includes('sessão expirada')) {
+          clearSession();
+        }
+      });
+    };
+    const intervalId = window.setInterval(pingSession, sessionKeepAliveIntervalMs);
+    window.addEventListener('focus', pingSession);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', pingSession);
+    };
+  }, [token]);
 
   const value = useMemo(
     () => ({

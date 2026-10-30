@@ -50,16 +50,22 @@ func (manager *ManagerStruct) Create(userID uint) (string, *SessionStruct, error
 }
 
 func (manager *ManagerStruct) Validate(token string) (*SessionStruct, error) {
-	manager.mutex.RLock()
+	now := time.Now()
+	manager.mutex.Lock()
 	session, ok := manager.sessions[token]
-	manager.mutex.RUnlock()
 	if !ok {
+		manager.mutex.Unlock()
 		return nil, errors.New("token inválido")
 	}
-	if time.Now().After(session.ExpiresAt) {
-		manager.Destroy(token)
+	if now.After(session.ExpiresAt) {
+		delete(manager.sessions, token)
+		manager.mutex.Unlock()
 		return nil, errors.New("sessão expirada")
 	}
+	if manager.timeToLive > 0 {
+		session.ExpiresAt = now.Add(manager.timeToLive)
+	}
+	manager.mutex.Unlock()
 	return session, nil
 }
 
