@@ -87,6 +87,7 @@ export const requestActions = {
     try {
       const response = await trackCall(tabId, VulpesServices.sendHttpRequest(requireToken(), executionInput(tab)));
       store().patchRuntime(tabId, { running: false, httpResponse: response });
+      if (tab.collectionId && tab.itemId) store().setItemResponse(tab.collectionId, tab.itemId, response);
       applyReceivedCookies(tab.collectionId, response.collectionCookies);
     } catch (error) {
       store().patchRuntime(tabId, { running: false, error: failureMessage(error) });

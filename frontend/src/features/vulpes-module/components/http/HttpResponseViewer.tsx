@@ -9,10 +9,11 @@ import { VulpesServices } from '../../services/VulpesServices';
 import { emptySearchSummary } from '../../functions/EditorSearch';
 import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import { copyToClipboard } from '../../../shared/functions/clipboard';
+import { useVariableScope } from '../../contexts/VariableScopeContext';
 import { cookieFlags, formatCookieExpiry } from '../../functions/Cookies';
 import CodeEditor, { type CodeEditorHandle } from '../editors/CodeEditor';
 import type { HttpResponse, TabRuntime } from '../../../../interfaces/VulpesInterfaces';
-import { Copy, Download, WrapText, AlertTriangle, Cookie as CookieIcon } from 'lucide-react';
+import { Copy, Download, Link2, WrapText, AlertTriangle, Cookie as CookieIcon } from 'lucide-react';
 import { HeadersTable, ResponseEmpty, ResponseError, ResponseLoading } from '../response/ResponseStates';
 import { prettyJson, statusTone, formatBytes, mediaTypeOf, formatDuration, responseFileName, languageForContentType } from '../../functions/Formatters';
 
@@ -23,6 +24,7 @@ type BodyView = 'pretty' | 'raw' | 'preview';
 interface HttpResponseViewerProps {
   runtime: TabRuntime;
   onCancel: () => void;
+  itemId?: string | null;
   collectionId: number | null;
 }
 
@@ -147,10 +149,11 @@ const ResponseBody: React.FC<ResponseBodyProps> = ({ searchTerm, response, onSea
   );
 };
 
-const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCancel, collectionId }) => {
+const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCancel, itemId, collectionId }) => {
   const [section, setSection] = useState<ResponseSection>('body');
   const [searchTerm, setSearchTerm] = useState('');
   const openCookies = useVulpesStore((state) => state.openCookies);
+  const { openResponseBuilder } = useVariableScope();
   const response = runtime.httpResponse;
 
   if (runtime.running) return <ResponseLoading label="Enviando requisição…" onCancel={onCancel} />;
@@ -164,6 +167,16 @@ const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCanc
     } catch (error) {
       toast.error(errorMessage(error));
     }
+  };
+
+  const handleUseInAnotherRequest = () => {
+    if (!collectionId || !itemId) {
+      toast('Salve esta requisição em uma coleção (Ctrl+S) para usar a resposta dela em outras requisições.', {
+        icon: '💡',
+      });
+      return;
+    }
+    openResponseBuilder({ defaultRequestId: itemId });
   };
 
   return (
@@ -187,7 +200,16 @@ const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCanc
         </span>
         <span className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400">{formatBytes(response.sizeBytes)}</span>
         <span className="text-[11px] text-gray-400 dark:text-zinc-500">{response.protocol}</span>
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={handleUseInAnotherRequest}
+            title="Extrair um campo desta resposta para usar como variável em outra requisição"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-violet-500/15 text-violet-700 dark:text-violet-300 hover:bg-violet-500/25 transition-colors"
+          >
+            <Link2 className="w-3.5 h-3.5" />
+            Usar em outra requisição
+          </button>
           {response.bodyEncoding === 'text' && (
             <button type="button" title="Copiar corpo" onClick={() => copyToClipboard(response.body)} className={iconButtonClass}>
               <Copy className="w-3.5 h-3.5" />

@@ -54,7 +54,7 @@ const HttpRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
             className="flex-1"
             variables={variables}
             onChange={changeUrl}
-            placeholder="https://api.exemplo.com/recurso ou {{baseUrl}}/recurso"
+            placeholder="https://api.exemplo.com/recurso ou {{baseUrl}}/recurso (Ctrl+Espaço para variáveis)"
           />
         </div>
         {runtime.running ? (
@@ -152,7 +152,14 @@ const HttpRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
             </div>
           </>
         }
-        bottom={<HttpResponseViewer runtime={runtime} collectionId={tab.collectionId} onCancel={() => requestActions.cancel(tab.id)} />}
+        bottom={
+          <HttpResponseViewer
+            runtime={runtime}
+            itemId={tab.itemId}
+            collectionId={tab.collectionId}
+            onCancel={() => requestActions.cancel(tab.id)}
+          />
+        }
       />
     </div>
   );

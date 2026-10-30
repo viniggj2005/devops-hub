@@ -1,6 +1,7 @@
 import React from 'react';
 import toast from 'react-hot-toast';
 import { FileUp, Trash2 } from 'lucide-react';
+import VariableInput from '../editors/VariableInput';
 import { cellInputClass } from '../editors/KeyValueTable';
 import { requireToken } from '../../actions/ActionHelpers';
 import { VulpesServices } from '../../services/VulpesServices';
@@ -62,12 +63,12 @@ const FormDataTable: React.FC<FormDataTableProps> = ({ fields, onChange }) => {
                 />
               )}
             </span>
-            <input
+            <VariableInput
+              compact
               value={field.key}
               placeholder="Chave"
-              spellCheck={false}
-              onChange={(event) => updateRow(rowIndex, { key: event.target.value })}
-              className={cellInputClass}
+              inputClassName="focus:bg-amber-500/5"
+              onChange={(key) => updateRow(rowIndex, { key })}
             />
             <select
               value={field.kind}
@@ -88,12 +89,13 @@ const FormDataTable: React.FC<FormDataTableProps> = ({ fields, onChange }) => {
                 <span className="truncate">{field.filePath ? fileName(field.filePath) : 'Selecionar arquivo…'}</span>
               </button>
             ) : (
-              <input
+              <VariableInput
+                compact
                 value={field.value}
                 placeholder="Valor"
-                spellCheck={false}
-                onChange={(event) => updateRow(rowIndex, { value: event.target.value })}
-                className={`${cellInputClass} border-l border-gray-200 dark:border-white/10`}
+                inputClassName="focus:bg-amber-500/5"
+                onChange={(value) => updateRow(rowIndex, { value })}
+                className="border-l border-gray-200 dark:border-white/10"
               />
             )}
             <input

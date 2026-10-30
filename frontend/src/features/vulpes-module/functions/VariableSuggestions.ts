@@ -1,5 +1,6 @@
 import { isDynamicVariable, type VariableMap } from './Variables';
-import type { CollectionItem } from '../../../interfaces/VulpesInterfaces';
+import type { CollectionItem, HttpResponse } from '../../../interfaces/VulpesInterfaces';
+import { parseResponseTag, buildResponseTag, discoverJsonPaths, decodeResponseBodyText, extractResponsePreview } from './ResponseVariables';
 
 export type SuggestionKind = 'coleção' | 'ambiente' | 'dinâmica' | 'resposta';
 
@@ -19,17 +20,19 @@ export interface SourceRequest {
 
 export interface VariableSuggestion {
   name: string;
-  kind: SuggestionKind;
   label: string;
   detail: string;
   cursorBack: number;
+  kind: SuggestionKind;
 }
 
 export interface VariableDescription {
   name: string;
-  status: VariableStatus;
-  source: string;
   value: string;
+  source: string;
+  preview?: string;
+  requestId?: string;
+  status: VariableStatus;
 }
 
 export interface SuggestionInsertion {
@@ -39,11 +42,11 @@ export interface SuggestionInsertion {
   cursor: number;
 }
 
-const responseVariable = '$response';
-
 const maxSuggestions = 60;
-
 const hiddenValue = '••••••';
+const responseVariable = '$response';
+const maxPathsPerRequest = 18;
+const maxHeadersPerRequest = 6;
 
 export const dynamicVariableDescriptions: Record<string, string> = {
   $guid: 'UUID v4 aleatório',
@@ -162,28 +165,62 @@ export const findVariableQuery = (text: string, cursor: number, explicit: boolea
   return explicit ? { from: cursor, to: cursor, query: '' } : null;
 };
 
-export const buildSuggestions = (variables: VariableMap, requests: SourceRequest[]): VariableSuggestion[] => {
+export const buildSuggestions = (
+  variables: VariableMap,
+  requests: SourceRequest[],
+  responsesByItemId: Record<string, HttpResponse> = {}
+): VariableSuggestion[] => {
   const defined: VariableSuggestion[] = [...variables.entries()].map(([name, variable]) => ({
     name,
-    kind: variable.source,
     label: name,
-    detail: variable.secret ? hiddenValue : variable.value || '(vazio)',
     cursorBack: 0,
+    kind: variable.source,
+    detail: variable.secret ? hiddenValue : variable.value || '(vazio)',
   }));
+
+  const responses: VariableSuggestion[] = [];
+  requests.forEach((request) => {
+    const response = responsesByItemId[request.id];
+    if (response) {
+      const discoveredPaths = discoverJsonPaths(decodeResponseBodyText(response), maxPathsPerRequest);
+      discoveredPaths.forEach((pathItem) => {
+        responses.push({
+          cursorBack: 0,
+          kind: 'resposta',
+          label: `${request.name} → ${pathItem.path}`,
+          detail: `Valor atual: ${pathItem.preview}`,
+          name: buildResponseTag({ field: 'body', requestReference: request.reference, filter: pathItem.path, trigger: 'never' }, false),
+        });
+      });
+      response.headers.slice(0, maxHeadersPerRequest).forEach((header) => {
+        responses.push({
+          cursorBack: 0,
+          kind: 'resposta',
+          label: `${request.name} → Header ${header.key}`,
+          detail: `Header: ${header.value}`,
+          name: buildResponseTag({ field: 'header', requestReference: request.reference, filter: header.key, trigger: 'never' }, false),
+        });
+      });
+    }
+    responses.push({
+      cursorBack: 1,
+      kind: 'resposta',
+      label: `${responseVariable} → ${request.name} (JSONPath)`,
+      name: `${responseVariable} 'body', '${request.reference}', '$.'`,
+      detail: response
+        ? `Extrair outro campo do body de "${request.name}"`
+        : `Valor do body da resposta de "${request.name}" (complete o JSONPath)`,
+    });
+  });
+
   const dynamic: VariableSuggestion[] = Object.entries(dynamicVariableDescriptions).map(([name, description]) => ({
     name,
-    kind: 'dinâmica',
     label: name,
-    detail: description,
     cursorBack: 0,
+    kind: 'dinâmica',
+    detail: description,
   }));
-  const responses: VariableSuggestion[] = requests.map((request) => ({
-    name: `${responseVariable} 'body', '${request.reference}', '$.'`,
-    kind: 'resposta',
-    label: `${responseVariable} → ${request.name}`,
-    detail: `Valor do body da resposta de "${request.name}" (complete o JSONPath)`,
-    cursorBack: 1,
-  }));
+
   return [...defined, ...responses, ...dynamic];
 };
 
@@ -193,13 +230,15 @@ export const filterSuggestions = (suggestions: VariableSuggestion[], query: stri
   const rank = (suggestion: VariableSuggestion) => {
     const label = suggestion.label.toLowerCase();
     const name = suggestion.name.toLowerCase();
+    const detail = suggestion.detail.toLowerCase();
     if (name.startsWith(needle) || label.startsWith(needle)) return 0;
     if (name.includes(needle) || label.includes(needle)) return 1;
-    return 2;
+    if (detail.includes(needle)) return 2;
+    return 3;
   };
   return suggestions
     .map((suggestion) => ({ suggestion, score: rank(suggestion) }))
-    .filter((ranked) => ranked.score < 2)
+    .filter((ranked) => ranked.score < 3)
     .sort((left, right) => left.score - right.score)
     .slice(0, maxSuggestions)
     .map((ranked) => ranked.suggestion);
@@ -211,26 +250,107 @@ export const suggestionInsertion = (query: VariableQuery, suggestion: VariableSu
   return { from: query.from, to: query.to, insert, cursor };
 };
 
-const quotedArguments = (expression: string) =>
-  [...expression.matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g)].map((match) => (match[1] ?? match[2] ?? '').replace(/\\(.)/g, '$1'));
-
-const describeResponse = (name: string, requests: SourceRequest[]): VariableDescription => {
-  const [field = 'body', reference = '', filter = '', trigger = 'never'] = quotedArguments(name);
-  const request = requests.find((candidate) => candidate.id === reference) ?? requests.find((candidate) => candidate.name === reference);
-  if (!request) {
-    return { name, status: 'missing', source: 'resposta', value: reference ? `Requisição "${reference}" não encontrada na coleção` : 'Informe a requisição de origem' };
+const describeResponse = (
+  name: string,
+  requests: SourceRequest[],
+  responsesByItemId: Record<string, HttpResponse>
+): VariableDescription => {
+  const parsed = parseResponseTag(name);
+  if (!parsed.valid) {
+    return {
+      name,
+      status: 'missing',
+      source: 'resposta',
+      value: parsed.error ?? 'Referência {{$response}} inválida',
+    };
   }
-  const readableFilter = filter.startsWith('b64::') ? 'filtro codificado' : filter || 'conteúdo inteiro';
-  return { name, status: 'response', source: 'resposta', value: `${field} de "${request.name}" · ${readableFilter} · reenvio ${trigger}` };
+
+  const request =
+    requests.find((candidate) => candidate.id === parsed.requestReference) ??
+    requests.find((candidate) => candidate.name === parsed.requestReference);
+
+  if (!request) {
+    return {
+      name,
+      status: 'missing',
+      source: 'resposta',
+      value: parsed.requestReference
+        ? `Requisição "${parsed.requestReference}" não encontrada na coleção`
+        : 'Informe a requisição de origem',
+    };
+  }
+
+  if (parsed.field === 'body' && parsed.filter.trim() === '$.') {
+    return {
+      name,
+      status: 'missing',
+      source: 'resposta',
+      requestId: request.id,
+      value: `Complete o JSONPath para "${request.name}" (ex: $.token)`,
+    };
+  }
+
+  const readableFilter = parsed.filter || 'conteúdo inteiro';
+  const summary = `${parsed.field} de "${request.name}" · ${readableFilter}`;
+  const response = responsesByItemId[request.id];
+
+  if (response) {
+    const extracted = extractResponsePreview(response, parsed);
+    if (!extracted.ok) {
+      return {
+        name,
+        status: 'missing',
+        source: 'resposta',
+        requestId: request.id,
+        value: `${extracted.value} (em "${request.name}")`,
+      };
+    }
+    return {
+      name,
+      value: summary,
+      status: 'response',
+      source: 'resposta',
+      requestId: request.id,
+      preview: extracted.value,
+    };
+  }
+
+  return {
+    name,
+    value: `${summary} · será extraído ao enviar`,
+    status: 'response',
+    source: 'resposta',
+    requestId: request.id,
+  };
 };
 
-export const describeVariable = (name: string, variables: VariableMap, requests: SourceRequest[], masked = false): VariableDescription => {
+export const describeVariable = (
+  name: string,
+  variables: VariableMap,
+  requests: SourceRequest[],
+  masked = false,
+  responsesByItemId: Record<string, HttpResponse> = {}
+): VariableDescription => {
   const variable = variables.get(name);
   if (variable) {
+    const rawValue = variable.value.trim();
+    const innerResponse =
+      rawValue.startsWith('{{') && rawValue.endsWith('}}') ? rawValue.slice(2, -2).trim() : null;
+    if (innerResponse && isResponseVariable(innerResponse) && !variable.secret && !masked) {
+      const responseDesc = describeResponse(innerResponse, requests, responsesByItemId);
+      return {
+        name,
+        source: variable.source,
+        status: responseDesc.status === 'missing' ? 'missing' : 'defined',
+        value: `${responseDesc.value}`,
+        preview: responseDesc.preview,
+        requestId: responseDesc.requestId,
+      };
+    }
     const value = variable.secret || masked ? hiddenValue : variable.value || '(vazio)';
     return { name, status: 'defined', source: variable.source, value };
   }
-  if (isResponseVariable(name)) return describeResponse(name, requests);
+  if (isResponseVariable(name)) return describeResponse(name, requests, responsesByItemId);
   const description = dynamicVariableDescriptions[name];
   if (description) return { name, status: 'dynamic', source: 'dinâmica', value: `${description} · gerado no envio` };
   if (isDynamicVariable(name)) return { name, status: 'missing', source: 'dinâmica', value: 'Variável dinâmica desconhecida' };

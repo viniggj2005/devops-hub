@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import VariableInput from './VariableInput';
 import { Eye, EyeOff, Info } from 'lucide-react';
 import Select from '../../../shared/components/forms/Select';
 import { authLabels } from '../../functions/RequestDefaults';
@@ -34,15 +35,13 @@ const AuthEditor: React.FC<AuthEditorProps> = ({ auth, onChange, allowInherit = 
     .map((type) => ({ value: type, label: authLabels[type] }));
 
   const secretInput = (value: string, placeholder: string, onValueChange: (value: string) => void) => (
-    <div className="relative">
-      <input
+    <div className="relative rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 focus-within:border-amber-500 transition-colors">
+      <VariableInput
         value={value}
-        spellCheck={false}
-        autoComplete="off"
+        masked={!showSecret}
         placeholder={placeholder}
-        type={showSecret ? 'text' : 'password'}
-        onChange={(event) => onValueChange(event.target.value)}
-        className={`${fieldInputClass} font-mono pr-9`}
+        onChange={onValueChange}
+        inputClassName="pr-9"
       />
       <button
         type="button"
@@ -52,6 +51,12 @@ const AuthEditor: React.FC<AuthEditorProps> = ({ auth, onChange, allowInherit = 
       >
         {showSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
       </button>
+    </div>
+  );
+
+  const textInput = (value: string, placeholder: string, onValueChange: (value: string) => void) => (
+    <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 focus-within:border-amber-500 transition-colors">
+      <VariableInput value={value} placeholder={placeholder} onChange={onValueChange} />
     </div>
   );
 
@@ -76,16 +81,11 @@ const AuthEditor: React.FC<AuthEditorProps> = ({ auth, onChange, allowInherit = 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className={fieldLabelClass}>Usuário</label>
-            <input
-              value={auth.username}
-              spellCheck={false}
-              onChange={(event) => update({ username: event.target.value })}
-              className={`${fieldInputClass} font-mono`}
-            />
+            {textInput(auth.username, '{{username}}', (username) => update({ username }))}
           </div>
           <div>
             <label className={fieldLabelClass}>Senha</label>
-            {secretInput(auth.password, '', (password) => update({ password }))}
+            {secretInput(auth.password, '{{password}}', (password) => update({ password }))}
           </div>
         </div>
       )}
@@ -119,7 +119,7 @@ const AuthEditor: React.FC<AuthEditorProps> = ({ auth, onChange, allowInherit = 
 
       {auth.type !== 'inherit' && auth.type !== 'none' && (
         <p className="text-[11px] text-gray-400 dark:text-zinc-500">
-          Os campos aceitam variáveis do ambiente e da coleção, por exemplo {'{{token}}'}.
+          Digite <code className="font-mono">{'{{'}</code> ou pressione <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 font-mono text-[10px]">Ctrl+Espaço</kbd> / <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 font-mono text-[10px]">Ctrl+/</kbd> para usar variáveis ou respostas de outras requisições.
         </p>
       )}
     </div>
