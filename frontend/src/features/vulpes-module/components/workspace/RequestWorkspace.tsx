@@ -2,6 +2,7 @@ import toast from 'react-hot-toast';
 import RequestView from './RequestView';
 import RequestTabBar from './RequestTabBar';
 import EmptyWorkspace from './EmptyWorkspace';
+import RunnerView from '../runner/RunnerView';
 import CookiesView from '../cookies/CookiesView';
 import SaveRequestModal from './SaveRequestModal';
 import { useShallow } from 'zustand/react/shallow';
@@ -187,10 +188,14 @@ const RequestWorkspace: React.FC = () => {
                     isSplit ? `rounded-lg border ${focused ? 'border-amber-500/70' : 'border-gray-200 dark:border-white/10'}` : ''
                   }`}
                 >
-                  {tab.kind === 'request' ? (
+                  {tab.kind === 'request' && (
                     <RequestView tab={tab} onSave={() => save(tab.id)} paneControls={controls} />
-                  ) : (
+                  )}
+                  {tab.kind === 'cookies' && (
                     <CookiesView tab={tab} paneControls={controls} />
+                  )}
+                  {tab.kind === 'runner' && (
+                    <RunnerView tab={tab} paneControls={controls} />
                   )}
                 </div>
               </div>

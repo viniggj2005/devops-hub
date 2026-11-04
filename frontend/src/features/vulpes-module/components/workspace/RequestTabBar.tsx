@@ -5,7 +5,7 @@ import { workspaceTabLabel } from '../../functions/WorkspaceTabs';
 import type { TabGroup, WorkspaceTab } from '../../../../interfaces/VulpesInterfaces';
 import { PROTOCOLS, protocolLabels, requestBadge } from '../../functions/RequestDefaults';
 import ContextMenu, { ContextMenuEntry } from '../../../shared/components/menus/ContextMenu';
-import { X, Plus, Layers, XCircle, Ungroup, ArrowLeft, ArrowRight, LayoutGrid, Cookie as CookieIcon } from 'lucide-react';
+import { X, Play, Plus, Layers, XCircle, Ungroup, ArrowLeft, ArrowRight, LayoutGrid, Cookie as CookieIcon } from 'lucide-react';
 
 interface RequestTabBarProps {
   onClose: (tabs: WorkspaceTab[]) => void;
@@ -32,6 +32,7 @@ const RequestTabBar: React.FC<RequestTabBarProps> = ({ onClose }) => {
     groups,
     ungroup,
     moveGroup,
+    openRunner,
     openScratch,
     openCookies,
     collections,
@@ -46,6 +47,7 @@ const RequestTabBar: React.FC<RequestTabBarProps> = ({ onClose }) => {
       groups: state.groups,
       ungroup: state.ungroup,
       moveGroup: state.moveGroup,
+      openRunner: state.openRunner,
       openScratch: state.openScratch,
       openCookies: state.openCookies,
       collections: state.collections,
@@ -76,6 +78,7 @@ const RequestTabBar: React.FC<RequestTabBarProps> = ({ onClose }) => {
           onClick: () => openScratch(protocol),
         })),
         'separator',
+        { icon: Play, label: 'Executar em lote (Runner)', onClick: () => openRunner(currentCollectionId(), null) },
         { icon: CookieIcon, label: 'Gerenciar cookies', onClick: () => openCookies(currentCollectionId()) },
       ];
     }
@@ -182,6 +185,8 @@ const RequestTabBar: React.FC<RequestTabBarProps> = ({ onClose }) => {
                 <LayoutGrid className="w-3.5 h-3.5 flex-shrink-0 text-amber-500" />
               ) : badge ? (
                 <span className={`flex-shrink-0 text-[10px] font-extrabold ${badge.className}`}>{badge.label}</span>
+              ) : firstPane.kind === 'runner' ? (
+                <Play className="w-3.5 h-3.5 flex-shrink-0 text-amber-500 fill-current" />
               ) : (
                 <CookieIcon className="w-3.5 h-3.5 flex-shrink-0 text-amber-500" />
               )}

@@ -7,6 +7,8 @@ export interface TreeTarget {
 }
 
 export interface DragPayload {
+  index: number;
+  parentId: string;
   collectionId: number;
   item: CollectionItem;
 }
@@ -16,7 +18,7 @@ export interface DropHint {
   index: number;
   parentId: string;
   collectionId: number;
-  position: 'into' | 'before';
+  position: 'into' | 'before' | 'after';
 }
 
 export interface SidebarTreeContextValue {
@@ -33,6 +35,8 @@ export interface SidebarTreeContextValue {
   openItem: (collection: Collection, item: CollectionItem) => void;
   finishRename: (target: TreeTarget, name: string | null) => void;
   openMenu: (event: React.MouseEvent, target: TreeTarget) => void;
+  openRunner: (collectionId: number, folderId: string | null) => void;
+  moveByOffset: (collection: Collection, item: CollectionItem, direction: 'up' | 'down') => void;
 }
 
 export const SidebarTreeContext = createContext<SidebarTreeContextValue | null>(null);

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Play } from 'lucide-react';
 import { useVulpesStore } from '../../VulpesStore';
 import { VULPES_MODULE, VulpesModuleIcon } from '../../moduleInfo';
 import { PROTOCOLS, protocolLabels } from '../../functions/RequestDefaults';
@@ -9,12 +10,14 @@ const shortcuts = [
   ['Ctrl+Enter', 'Enviar, invocar ou emitir'],
   ['{{variavel}}', 'Usar variáveis do ambiente'],
   ['Botão direito', 'Ações de coleções e pastas'],
-  ['Arrastar', 'Reorganizar itens na barra lateral'],
+  ['Arrastar / ↑↓', 'Ordenar requisições e pastas'],
   ['Arrastar aba', 'Reordenar ou soltar na tela para dividir'],
 ];
 
 const EmptyWorkspace: React.FC = () => {
   const openScratch = useVulpesStore((state) => state.openScratch);
+  const openRunner = useVulpesStore((state) => state.openRunner);
+  const collections = useVulpesStore((state) => state.collections);
 
   return (
     <div className="h-full overflow-auto flex items-center justify-center p-8">
@@ -25,7 +28,7 @@ const EmptyWorkspace: React.FC = () => {
         <div className="space-y-2">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">Nenhuma requisição aberta</h3>
           <p className="text-sm text-gray-500 dark:text-zinc-400">
-            Abra uma requisição pela barra lateral, importe uma coleção do Postman ou do Insomnia ou comece uma nova:
+            Abra uma requisição pela barra lateral, execute uma coleção em lote pelo Runner ou comece uma nova:
           </p>
         </div>
         <div className="flex flex-wrap justify-center gap-2">
@@ -39,6 +42,14 @@ const EmptyWorkspace: React.FC = () => {
               {protocolLabels[protocol]}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => openRunner(collections[0]?.id ?? null, null)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors shadow-sm"
+          >
+            <Play className="w-3.5 h-3.5 fill-current" />
+            Runner
+          </button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
           {shortcuts.map(([keys, description]) => (

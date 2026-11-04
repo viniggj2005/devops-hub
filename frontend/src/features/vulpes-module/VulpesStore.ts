@@ -5,6 +5,7 @@ import { maxSplitPanes, splitDropZoneLayouts } from '../shared/constants/SplitDr
 import type {
   Cookie,
   TabGroup,
+  RunnerTab,
   Collection,
   CookiesTab,
   RequestTab,
@@ -142,6 +143,8 @@ interface VulpesState extends WorkspaceSlice {
   renameTab: (tabId: string, name: string) => void;
   moveGroup: (groupId: string, targetIndex: number) => void;
   setCookiesCollection: (tabId: string, collectionId: number | null) => void;
+  openRunner: (collectionId: number | null, folderId?: string | null) => void;
+  setRunnerTarget: (tabId: string, collectionId: number | null, folderId: string | null) => void;
   renameTabs: (itemId: string, name: string) => void;
   applyCollectionCookies: (collectionId: number, cookies: Cookie[]) => void;
   moveTabsToCollection: (itemIds: string[], collectionId: number) => void;
@@ -256,6 +259,27 @@ export const useVulpesStore = create<VulpesState>((set, get) => ({
   setCookiesCollection: (tabId, collectionId) =>
     set((state) => ({
       tabs: state.tabs.map((tab) => (tab.id === tabId && tab.kind === 'cookies' ? { ...tab, collectionId } : tab)),
+    })),
+
+  openRunner: (collectionId, folderId = null) => {
+    const normalizedFolderId = folderId ?? null;
+    const existing = get().tabs.find(
+      (tab): tab is RunnerTab =>
+        tab.kind === 'runner' && tab.collectionId === collectionId && (tab.folderId ?? null) === normalizedFolderId
+    );
+    if (existing) {
+      get().activateTab(existing.id);
+      return;
+    }
+    const tab: RunnerTab = { id: generateId(), kind: 'runner', collectionId, folderId: normalizedFolderId };
+    set((state) => withAppendedTab(state, tab));
+  },
+
+  setRunnerTarget: (tabId, collectionId, folderId) =>
+    set((state) => ({
+      tabs: state.tabs.map((tab) =>
+        tab.id === tabId && tab.kind === 'runner' ? { ...tab, collectionId, folderId } : tab
+      ),
     })),
 
   activateTab: (tabId) =>

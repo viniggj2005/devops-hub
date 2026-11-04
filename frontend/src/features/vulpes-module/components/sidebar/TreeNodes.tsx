@@ -1,15 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { requestBadge } from '../../functions/RequestDefaults';
 import { countRequests, filterTree } from '../../functions/CollectionTree';
-import { ChevronRight, Folder, FolderOpen, Library, MoreHorizontal } from 'lucide-react';
 import type { Collection, CollectionItem } from '../../../../interfaces/VulpesInterfaces';
 import { collectionKey, DropHint, itemKey, TreeTarget, useSidebarTree } from './SidebarTreeContext';
+import { Play, ArrowUp, ArrowDown, Folder, Library, FolderOpen, ChevronRight, MoreHorizontal } from 'lucide-react';
 
 const indentFor = (depth: number) => ({ paddingLeft: 6 + depth * 14 });
 
 const dropHighlight = (hint: DropHint | null, key: string) => {
   if (hint?.key !== key) return '';
-  return hint.position === 'into' ? 'ring-1 ring-inset ring-amber-500 bg-amber-500/10' : 'shadow-[inset_0_2px_0_0_#f59e0b]';
+  if (hint.position === 'into') return 'ring-1 ring-inset ring-amber-500 bg-amber-500/10';
+  return hint.position === 'before' ? 'shadow-[inset_0_2px_0_0_#f59e0b]' : 'shadow-[inset_0_-2px_0_0_#f59e0b]';
 };
 
 const InlineRename: React.FC<{ initialName: string; onFinish: (name: string | null) => void }> = ({ initialName, onFinish }) => {
@@ -63,21 +64,38 @@ interface ItemNodeProps {
   depth: number;
   index: number;
   parentId: string;
+  siblingCount: number;
   item: CollectionItem;
   collection: Collection;
 }
 
-const ItemNode: React.FC<ItemNodeProps> = ({ collection, item, depth, parentId, index }) => {
+const ItemNode: React.FC<ItemNodeProps> = ({ collection, item, depth, parentId, index, siblingCount }) => {
   const tree = useSidebarTree();
   const key = itemKey(item.id);
   const isFolder = item.kind === 'folder';
   const isRenaming = tree.renamingKey === key;
   const expanded = isFolder && (tree.searching || tree.isExpanded(key));
   const target: TreeTarget = { collection, item };
-  const hint: DropHint = isFolder
-    ? { key, index: -1, parentId: item.id, collectionId: collection.id, position: 'into' }
-    : { key, index, parentId, collectionId: collection.id, position: 'before' };
   const badge = requestBadge(item.request);
+  const canMoveUp = index > 0;
+  const canMoveDown = index < siblingCount - 1;
+
+  const resolveDropHint = (event: React.DragEvent<HTMLDivElement>): DropHint => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const ratio = bounds.height > 0 ? (event.clientY - bounds.top) / bounds.height : 0.5;
+    if (isFolder) {
+      if (ratio < 0.28) {
+        return { key, index, parentId, collectionId: collection.id, position: 'before' };
+      }
+      if (ratio > 0.72) {
+        return { key, index: index + 1, parentId, collectionId: collection.id, position: 'after' };
+      }
+      return { key, index: -1, parentId: item.id, collectionId: collection.id, position: 'into' };
+    }
+    return ratio < 0.5
+      ? { key, index, parentId, collectionId: collection.id, position: 'before' }
+      : { key, index: index + 1, parentId, collectionId: collection.id, position: 'after' };
+  };
 
   return (
     <>
@@ -87,11 +105,11 @@ const ItemNode: React.FC<ItemNodeProps> = ({ collection, item, depth, parentId, 
         onDragStart={(event) => {
           event.dataTransfer.effectAllowed = 'move';
           event.dataTransfer.setData('text/plain', item.name);
-          tree.beginDrag({ collectionId: collection.id, item });
+          tree.beginDrag({ index, parentId, collectionId: collection.id, item });
         }}
         onDragEnd={tree.endDrag}
-        onDragOver={(event) => tree.dragOver(event, hint)}
-        onDrop={(event) => tree.drop(event, hint)}
+        onDragOver={(event) => tree.dragOver(event, resolveDropHint(event))}
+        onDrop={(event) => tree.drop(event, resolveDropHint(event))}
         onClick={() => (isFolder ? tree.toggle(key) : tree.openItem(collection, item))}
         onContextMenu={(event) => {
           event.preventDefault();
@@ -120,11 +138,64 @@ const ItemNode: React.FC<ItemNodeProps> = ({ collection, item, depth, parentId, 
         ) : (
           <span className="flex-1 min-w-0 truncate">{item.name}</span>
         )}
-        {!isRenaming && <MenuButton target={target} />}
+        {!isRenaming && (
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            {isFolder && (
+              <button
+                type="button"
+                title="Executar pasta no Runner"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  tree.openRunner(collection.id, item.id);
+                }}
+                className="p-0.5 rounded text-gray-400 opacity-0 group-hover:opacity-100 hover:text-amber-500 hover:bg-amber-500/10"
+              >
+                <Play className="w-3 h-3" />
+              </button>
+            )}
+            {!tree.searching && siblingCount > 1 && (
+              <>
+                <button
+                  type="button"
+                  disabled={!canMoveUp}
+                  title="Mover para cima"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    tree.moveByOffset(collection, item, 'up');
+                  }}
+                  className="p-0.5 rounded text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-0"
+                >
+                  <ArrowUp className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  disabled={!canMoveDown}
+                  title="Mover para baixo"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    tree.moveByOffset(collection, item, 'down');
+                  }}
+                  className="p-0.5 rounded text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-0"
+                >
+                  <ArrowDown className="w-3 h-3" />
+                </button>
+              </>
+            )}
+            <MenuButton target={target} />
+          </div>
+        )}
       </div>
       {expanded &&
         item.children.map((child, childIndex) => (
-          <ItemNode key={child.id} collection={collection} item={child} depth={depth + 1} parentId={item.id} index={childIndex} />
+          <ItemNode
+            key={child.id}
+            collection={collection}
+            item={child}
+            depth={depth + 1}
+            parentId={item.id}
+            index={childIndex}
+            siblingCount={item.children.length}
+          />
         ))}
       {expanded && item.children.length === 0 && (
         <p style={indentFor(depth + 2)} className="h-6 flex items-center text-[11px] italic text-gray-400 dark:text-zinc-500">
@@ -171,10 +242,35 @@ export const CollectionNode: React.FC<{ collection: Collection; search: string }
         {!isRenaming && (
           <span className="text-[10px] font-normal text-gray-400 dark:text-zinc-500 group-hover:hidden">{countRequests(collection.items)}</span>
         )}
-        {!isRenaming && <MenuButton target={target} />}
+        {!isRenaming && (
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <button
+              type="button"
+              title="Executar coleção no Runner"
+              onClick={(event) => {
+                event.stopPropagation();
+                tree.openRunner(collection.id, null);
+              }}
+              className="p-0.5 rounded text-gray-400 opacity-0 group-hover:opacity-100 hover:text-amber-500 hover:bg-amber-500/10"
+            >
+              <Play className="w-3.5 h-3.5" />
+            </button>
+            <MenuButton target={target} />
+          </div>
+        )}
       </div>
       {expanded &&
-        items.map((item, index) => <ItemNode key={item.id} collection={collection} item={item} depth={1} parentId="" index={index} />)}
+        items.map((item, index) => (
+          <ItemNode
+            key={item.id}
+            collection={collection}
+            item={item}
+            depth={1}
+            parentId=""
+            index={index}
+            siblingCount={items.length}
+          />
+        ))}
       {expanded && collection.items.length === 0 && (
         <p className="pl-9 h-6 flex items-center text-[11px] italic text-gray-400 dark:text-zinc-500">Coleção vazia — use o menu ⋯ para adicionar</p>
       )}
