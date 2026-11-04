@@ -1,10 +1,16 @@
 import { authLabels, requestUrl } from './RequestDefaults';
 import type { Collection, CollectionItem } from '../../../interfaces/VulpesInterfaces';
 
-interface FolderOption {
+export interface FolderOption {
   id: string;
   name: string;
   depth: number;
+}
+
+export interface ItemPosition {
+  index: number;
+  parentId: string;
+  siblingCount: number;
 }
 
 export const findItem = (items: CollectionItem[], itemId: string): CollectionItem | null => {
@@ -12,6 +18,20 @@ export const findItem = (items: CollectionItem[], itemId: string): CollectionIte
     if (item.id === itemId) return item;
     const nested = findItem(item.children, itemId);
     if (nested) return nested;
+  }
+  return null;
+};
+
+export const findItemPosition = (items: CollectionItem[], itemId: string, parentId = ''): ItemPosition | null => {
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    if (item.id === itemId) {
+      return { index, parentId, siblingCount: items.length };
+    }
+    if (item.kind === 'folder' && item.children.length > 0) {
+      const nested = findItemPosition(item.children, itemId, item.id);
+      if (nested) return nested;
+    }
   }
   return null;
 };

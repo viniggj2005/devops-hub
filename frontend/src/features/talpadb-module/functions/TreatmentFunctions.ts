@@ -12,7 +12,6 @@ import type {
 
 export { errorMessage } from '../../shared/functions/ErrorMessage';
 
-// Palavras-chave que o PostgreSQL não aceita como identificador sem aspas (mesma regra do quote_ident).
 const RESERVED_WORDS = new Set(
   (
     'all analyse analyze and any array as asc asymmetric both case cast check collate column constraint create ' +
@@ -60,15 +59,21 @@ const NUMERIC_TYPES = new Set([
   'decimal',
   'tinyint',
   'smallint',
+  'mediumint',
   'binary_float',
   'binary_double',
 ]);
 
 const quoted = (name: string) => `"${name.replace(/"/g, '""')}"`;
 
+const backtickQuoted = (name: string) => `\`${name.replace(/`/g, '``')}\``;
+
 export function quoteIdent(name: string, engine: DatabaseEngine = 'postgres'): string {
   if (engine === 'oracle') {
     return /^[A-Z][A-Z0-9_$#]*$/.test(name) && !ORACLE_RESERVED_WORDS.has(name.toLowerCase()) ? name : quoted(name);
+  }
+  if (engine === 'mysql') {
+    return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !RESERVED_WORDS.has(name.toLowerCase()) ? name : backtickQuoted(name);
   }
   if (engine === 'sqlite') {
     return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !RESERVED_WORDS.has(name.toLowerCase()) ? name : quoted(name);
@@ -168,8 +173,7 @@ function csvField(value: QueryCell): string {
 export function resultToCsv(resultSet: QueryResultSet): string {
   const lines = [resultSet.columns.map((column) => csvField(column.name)).join(',')];
   for (const row of resultSet.rows) lines.push(row.map(csvField).join(','));
-  // BOM para o Excel reconhecer UTF-8 (acentos).
-  return '﻿' + lines.join('\r\n');
+  return '\uFEFF' + lines.join('\r\n');
 }
 
 function jsonValue(value: QueryCell, dataType: string): unknown {
@@ -234,7 +238,6 @@ export function buildInsertScript(schema: string, name: string, columns: ColumnI
   return `INSERT INTO ${qualifiedName(schema, name, engine)}(\n\t${names})\n\tVALUES (${placeholders});`;
 }
 
-// Monta o namespace usado pelo autocomplete do editor: { schema: { tabela: [colunas] } }.
 export function buildCompletionNamespace(tables: CompletionTable[]): SQLNamespace {
   const namespace: Record<string, Record<string, string[]>> = {};
   for (const table of tables) {

@@ -1,16 +1,32 @@
 import { CollectionNode } from './TreeNodes';
 import ImportModal from '../modals/ImportModal';
 import React, { useEffect, useMemo, useState } from 'react';
-import { containsItem } from '../../functions/CollectionTree';
 import { isRequestTab, useVulpesStore } from '../../VulpesStore';
 import { collectionActions } from '../../actions/CollectionActions';
 import CollectionSettingsModal from '../modals/CollectionSettingsModal';
 import { PROTOCOLS, protocolLabels } from '../../functions/RequestDefaults';
+import { containsItem, findItemPosition } from '../../functions/CollectionTree';
 import { useConfirmToast } from '../../../shared/components/toasts/ConfirmToast';
 import { announceExport, exportFormats, runWithToast } from '../../actions/ActionHelpers';
 import ContextMenu, { ContextMenuEntry } from '../../../shared/components/menus/ContextMenu';
 import { itemKey, DropHint, TreeTarget, DragPayload, collectionKey, SidebarTreeContext, SidebarTreeContextValue } from './SidebarTreeContext';
-import { Copy, Plus, Pencil, Search, Trash2, Upload, Download, Settings2, FilePlus2, FolderPlus, PanelLeftClose, Cookie as CookieIcon } from 'lucide-react';
+import {
+  Play,
+  Copy,
+  Plus,
+  Pencil,
+  Search,
+  Trash2,
+  Upload,
+  ArrowUp,
+  Download,
+  ArrowDown,
+  Settings2,
+  FilePlus2,
+  FolderPlus,
+  PanelLeftClose,
+  Cookie as CookieIcon,
+} from 'lucide-react';
 
 const expandedStorageKey = 'vulpes-expanded-nodes';
 
@@ -65,9 +81,35 @@ const CollectionsSidebar: React.FC<{ onCollapse: () => void }> = ({ onCollapse }
   };
 
   const canDrop = (hint: DropHint) => {
-    if (!dragging || hint.key === itemKey(dragging.item.id)) return false;
+    if (!dragging) return false;
     const sameCollection = dragging.collectionId === hint.collectionId;
-    return !(sameCollection && dragging.item.kind === 'folder' && hint.parentId && containsItem(dragging.item, hint.parentId));
+    if (sameCollection && dragging.item.kind === 'folder' && hint.parentId && containsItem(dragging.item, hint.parentId)) {
+      return false;
+    }
+    if (hint.position === 'into') {
+      return hint.key !== itemKey(dragging.item.id);
+    }
+    if (sameCollection && dragging.parentId === hint.parentId && (hint.index === dragging.index || hint.index === dragging.index + 1)) {
+      return false;
+    }
+    return true;
+  };
+
+  const moveByOffset = (collection: TreeTarget['collection'], item: NonNullable<TreeTarget['item']>, direction: 'up' | 'down') => {
+    const position = findItemPosition(collection.items, item.id);
+    if (!position) return;
+    if (direction === 'up' && position.index <= 0) return;
+    if (direction === 'down' && position.index >= position.siblingCount - 1) return;
+    const targetIndex = direction === 'up' ? position.index - 1 : position.index + 2;
+    runWithToast(() =>
+      collectionActions.moveItem({
+        itemId: item.id,
+        targetIndex,
+        collectionId: collection.id,
+        targetParentId: position.parentId,
+        targetCollectionId: collection.id,
+      })
+    );
   };
 
   const treeContext = useMemo<SidebarTreeContextValue>(
@@ -86,16 +128,23 @@ const CollectionsSidebar: React.FC<{ onCollapse: () => void }> = ({ onCollapse }
         }),
       openItem: (collection, item) => useVulpesStore.getState().openItem(collection.id, item),
       openMenu: (event, target) => setMenu({ x: event.clientX, y: event.clientY, target }),
+      openRunner: (collectionId, folderId) => useVulpesStore.getState().openRunner(collectionId, folderId),
+      moveByOffset,
       beginDrag: setDragging,
       endDrag: () => {
         setDragging(null);
         setDropHint(null);
       },
       dragOver: (event, hint) => {
-        if (!canDrop(hint)) return;
+        if (!canDrop(hint)) {
+          if (dropHint) setDropHint(null);
+          return;
+        }
         event.preventDefault();
         event.dataTransfer.dropEffect = 'move';
-        if (dropHint?.key !== hint.key) setDropHint(hint);
+        if (dropHint?.key !== hint.key || dropHint?.position !== hint.position || dropHint?.index !== hint.index) {
+          setDropHint(hint);
+        }
       },
       drop: (event, hint) => {
         event.preventDefault();
@@ -130,9 +179,16 @@ const CollectionsSidebar: React.FC<{ onCollapse: () => void }> = ({ onCollapse }
     const target = { collection, item };
     const parentId = item?.id ?? '';
     const isRequest = item?.kind === 'request';
+    const position = item ? findItemPosition(collection.items, item.id) : null;
     const creationEntries: ContextMenuEntry[] = isRequest
       ? []
       : [
+          {
+            icon: Play,
+            label: item ? 'Executar pasta (Runner)' : 'Executar coleção (Runner)',
+            onClick: () => useVulpesStore.getState().openRunner(collection.id, item?.id ?? null),
+          },
+          'separator',
           ...PROTOCOLS.map((protocol) => ({
             icon: FilePlus2,
             label: `Nova requisição ${protocolLabels[protocol]}`,
@@ -154,6 +210,25 @@ const CollectionsSidebar: React.FC<{ onCollapse: () => void }> = ({ onCollapse }
           'separator',
           { icon: Settings2, label: item ? 'Configurações da pasta' : 'Variáveis e autorização', onClick: () => setSettingsTarget(target) },
         ];
+
+    const reorderEntries: ContextMenuEntry[] =
+      item && position
+        ? [
+            'separator',
+            {
+              icon: ArrowUp,
+              label: 'Mover para cima',
+              disabled: position.index <= 0,
+              onClick: () => moveByOffset(collection, item, 'up'),
+            },
+            {
+              icon: ArrowDown,
+              label: 'Mover para baixo',
+              disabled: position.index >= position.siblingCount - 1,
+              onClick: () => moveByOffset(collection, item, 'down'),
+            },
+          ]
+        : [];
 
     const deleteEntry: ContextMenuEntry = {
       icon: Trash2,
@@ -182,6 +257,7 @@ const CollectionsSidebar: React.FC<{ onCollapse: () => void }> = ({ onCollapse }
               onClick: async () => announceExport(await runWithToast(() => collectionActions.exportCollection(collection, format)), 'Coleção'),
             })),
           ]),
+      ...reorderEntries,
       'separator',
       deleteEntry,
     ];

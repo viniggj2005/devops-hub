@@ -49,6 +49,7 @@ const emptyForm = (engine: DatabaseEngine): FormState => {
 
 const engineDescriptions: Record<DatabaseEngine, string> = {
   postgres: 'Servidor PostgreSQL',
+  mysql: 'Servidor MySQL / MariaDB',
   oracle: 'Servidor Oracle (service name)',
   sqlite: 'Arquivo local .db / .sqlite',
 };
@@ -213,7 +214,7 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {!isEditing && (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {ENGINE_OPTIONS.map((engine) => (
               <button
                 key={engine}
@@ -304,7 +305,10 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
               </div>
 
               <div>
-                <label className={labelClass}>{form.engine === 'oracle' ? 'Service name' : 'Banco padrão'}</label>
+                <label className={labelClass}>
+                  {form.engine === 'oracle' ? 'Service name' : 'Banco padrão'}
+                  {form.engine === 'mysql' && <span className="opacity-60 text-xs"> (opcional)</span>}
+                </label>
                 <input
                   className={inputClass}
                   type="text"
@@ -312,7 +316,13 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
                   value={form.database}
                   onChange={handleChange}
                   required={form.engine === 'oracle'}
-                  placeholder={form.engine === 'oracle' ? 'ex: FREEPDB1, ORCL' : 'postgres'}
+                  placeholder={
+                    form.engine === 'oracle'
+                      ? 'ex: FREEPDB1, ORCL'
+                      : form.engine === 'mysql'
+                        ? 'ex: app_db'
+                        : 'postgres'
+                  }
                 />
               </div>
 
@@ -325,7 +335,13 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
                   value={form.username}
                   onChange={handleChange}
                   required
-                  placeholder={form.engine === 'oracle' ? 'ex: system' : 'ex: postgres'}
+                  placeholder={
+                    form.engine === 'oracle'
+                      ? 'ex: system'
+                      : form.engine === 'mysql'
+                        ? 'ex: root'
+                        : 'ex: postgres'
+                  }
                 />
               </div>
 

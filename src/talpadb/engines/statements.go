@@ -27,10 +27,11 @@ type token struct {
 
 type dialect struct {
 	plsqlBlocks       bool
+	hashComments      bool
 	triggerBlocks     bool
+	returningRows     bool
 	bracketIdentifier bool
 	rowKeywords       map[string]bool
-	returningRows     bool
 }
 
 type Statement struct {
@@ -68,6 +69,18 @@ func CommandTag(statement Statement, affected int64) string {
 	return statement.Keyword
 }
 
+var postgresDialect = dialect{
+	returningRows: true,
+	rowKeywords: map[string]bool{
+		"SHOW":    true,
+		"WITH":    true,
+		"TABLE":   true,
+		"SELECT":  true,
+		"VALUES":  true,
+		"EXPLAIN": true,
+	},
+}
+
 var oracleDialect = dialect{
 	plsqlBlocks: true,
 	rowKeywords: map[string]bool{"SELECT": true, "WITH": true},
@@ -78,6 +91,21 @@ var sqliteDialect = dialect{
 	returningRows:     true,
 	bracketIdentifier: true,
 	rowKeywords:       map[string]bool{"SELECT": true, "WITH": true, "PRAGMA": true, "EXPLAIN": true, "VALUES": true},
+}
+
+var mysqlDialect = dialect{
+	hashComments:      true,
+	triggerBlocks:     true,
+	bracketIdentifier: true,
+	rowKeywords: map[string]bool{
+		"DESC":     true,
+		"SHOW":     true,
+		"WITH":     true,
+		"SELECT":   true,
+		"VALUES":   true,
+		"EXPLAIN":  true,
+		"DESCRIBE": true,
+	},
 }
 
 func isWordStart(character byte) bool {
@@ -152,7 +180,7 @@ func tokenize(script string, language dialect) []token {
 		switch {
 		case character == ' ' || character == '\t' || character == '\r' || character == '\n':
 			position++
-		case character == '-' && position+1 < length && script[position+1] == '-':
+		case (character == '-' && position+1 < length && script[position+1] == '-') || (character == '#' && language.hashComments):
 			lineEnd := strings.IndexByte(script[position:], '\n')
 			if lineEnd < 0 {
 				position = length

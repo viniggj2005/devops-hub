@@ -1,10 +1,10 @@
 package talpadbEngines
 
 import (
+	"fmt"
+	"errors"
 	"context"
 	"database/sql"
-	"errors"
-	"fmt"
 
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 	talpadbFunctions "docker-manager-go/src/talpadb/functions"
@@ -56,8 +56,10 @@ type Engine interface {
 }
 
 var engines = map[string]Engine{
-	talpadbFunctions.EngineSqlite: &SqliteEngine{},
-	talpadbFunctions.EngineOracle: &OracleEngine{},
+	talpadbFunctions.EngineMysql:    &MysqlEngine{},
+	talpadbFunctions.EngineSqlite:   &SqliteEngine{},
+	talpadbFunctions.EngineOracle:   &OracleEngine{},
+	talpadbFunctions.EnginePostgres: &PostgresEngine{},
 }
 
 func ForName(name string) (Engine, error) {

@@ -323,7 +323,14 @@ export interface CookiesTab {
   collectionId: number | null;
 }
 
-export type WorkspaceTab = RequestTab | CookiesTab;
+export interface RunnerTab {
+  id: string;
+  kind: 'runner';
+  folderId: string | null;
+  collectionId: number | null;
+}
+
+export type WorkspaceTab = RequestTab | CookiesTab | RunnerTab;
 
 export interface TabGroup {
   id: string;

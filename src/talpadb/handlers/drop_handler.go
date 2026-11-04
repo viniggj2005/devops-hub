@@ -2,12 +2,13 @@ package talpadbHandlers
 
 import (
 	"context"
-	"docker-manager-go/src/desktop"
 	"errors"
 	"fmt"
 	"strings"
 
+	"docker-manager-go/src/desktop"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
+	talpadbEngines "docker-manager-go/src/talpadb/engines"
 )
 
 const (
@@ -16,19 +17,8 @@ const (
 	dropKindRelation = "relation"
 )
 
-var relationDropKeywords = map[string]string{
-	"r": "TABLE",
-	"p": "TABLE",
-	"v": "VIEW",
-	"f": "FOREIGN TABLE",
-	"m": "MATERIALIZED VIEW",
-}
-
 func cascadeClause(cascade bool) string {
-	if cascade {
-		return " CASCADE"
-	}
-	return ""
+	return talpadbEngines.PostgresCascadeClause(cascade)
 }
 
 func (handlerStruct *TalpadbClientHandlerStruct) maintenanceDatabase(userID uint, connectionID uint, target string) (string, error) {
@@ -60,7 +50,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) buildDropSql(ctx context.Contex
 		if err != nil {
 			return "", nil, err
 		}
-		sql := "DROP DATABASE " + quoteIdentifier(name)
+		sql := "DROP DATABASE " + talpadbEngines.Postgres.QuoteIdentifier(name)
 		if input.Force {
 			if entry.versionNumber < 130000 {
 				return "", nil, errors.New("a opção FORCE exige PostgreSQL 13 ou superior")
@@ -74,23 +64,22 @@ func (handlerStruct *TalpadbClientHandlerStruct) buildDropSql(ctx context.Contex
 		if err != nil {
 			return "", nil, err
 		}
-		return "DROP SCHEMA " + quoteIdentifier(name) + cascadeClause(input.Cascade) + ";", entry, nil
+		return "DROP SCHEMA " + talpadbEngines.Postgres.QuoteIdentifier(name) + cascadeClause(input.Cascade) + ";", entry, nil
 
 	case dropKindRelation:
 		entry, err := handlerStruct.getPoolForUser(windowName, userID, connectionID, database)
 		if err != nil {
 			return "", nil, err
 		}
-		_, kind, err := relationOid(ctx, entry, input.Schema, name)
+		_, kind, err := talpadbEngines.Postgres.RelationOid(ctx, entry.pool, input.Schema, name)
 		if err != nil {
 			return "", nil, err
 		}
-		keyword, supported := relationDropKeywords[kind]
-		if !supported {
-			return "", nil, fmt.Errorf("%s.%s não é uma tabela ou view", input.Schema, name)
+		statement, err := talpadbEngines.Postgres.BuildRelationDropSql(input.Schema, name, kind, input.Cascade)
+		if err != nil {
+			return "", nil, err
 		}
-		qualified := quoteIdentifier(input.Schema) + "." + quoteIdentifier(name)
-		return "DROP " + keyword + " " + qualified + cascadeClause(input.Cascade) + ";", entry, nil
+		return statement, entry, nil
 	}
 	return "", nil, fmt.Errorf("tipo de objeto desconhecido: %s", input.Kind)
 }

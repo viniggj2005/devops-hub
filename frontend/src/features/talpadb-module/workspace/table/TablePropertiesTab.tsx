@@ -450,7 +450,7 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
           openQueryTab({
             connectionId: tab.connectionId,
             database: tab.database,
-            sql: engine === 'oracle' ? script : `BEGIN;\n${script}\nCOMMIT;`,
+            sql: !info.supportsAtomicAlter ? script : `BEGIN;\n${script}\nCOMMIT;`,
             title: `${details.name} (ALTER)`,
           });
         }}

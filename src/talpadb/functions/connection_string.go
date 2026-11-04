@@ -1,29 +1,40 @@
 package talpadbFunctions
 
 import (
-	"errors"
+	"os"
 	"fmt"
 	"net"
+	"time"
+	"errors"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 
 	goOra "github.com/sijms/go-ora/v2"
+	"github.com/go-sql-driver/mysql"
 )
 
 const ApplicationName = "Devops Hub"
 
 const (
+	EngineMysql    = "mysql"
 	EngineOracle   = "oracle"
 	EngineSqlite   = "sqlite"
 	EnginePostgres = "postgres"
 )
 
 var allowedEngines = map[string]bool{
+	EngineMysql:    true,
 	EngineOracle:   true,
 	EngineSqlite:   true,
 	EnginePostgres: true,
+}
+
+var mysqlSslModes = map[string]bool{
+	"prefer":      true,
+	"disable":     true,
+	"require":     true,
+	"verify-full": true,
 }
 
 var oracleSslModes = map[string]bool{
@@ -33,9 +44,9 @@ var oracleSslModes = map[string]bool{
 }
 
 var allowedSslModes = map[string]bool{
-	"disable":     true,
 	"allow":       true,
 	"prefer":      true,
+	"disable":     true,
 	"require":     true,
 	"verify-ca":   true,
 	"verify-full": true,
@@ -60,6 +71,39 @@ func NormalizeEngine(engine string) (string, error) {
 		return "", fmt.Errorf("banco não suportado: %s", engine)
 	}
 	return normalized, nil
+}
+
+func NormalizeMysqlSslMode(sslMode string) (string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(sslMode))
+	if normalized == "" {
+		return "prefer", nil
+	}
+	if !mysqlSslModes[normalized] {
+		return "", fmt.Errorf("modo SSL inválido para MySQL: %s", sslMode)
+	}
+	return normalized, nil
+}
+
+func BuildMysqlConnectionString(params ConnectionParams) string {
+	config := mysql.NewConfig()
+	config.Net = "tcp"
+	config.User = params.Username
+	config.Passwd = params.Password
+	config.DBName = params.Database
+	config.Timeout = 20 * time.Second
+	config.AllowNativePasswords = true
+	config.Addr = net.JoinHostPort(params.Host, strconv.FormatInt(params.Port, 10))
+	switch params.SslMode {
+	case "disable":
+		config.TLSConfig = "false"
+	case "prefer":
+		config.TLSConfig = "preferred"
+	case "require":
+		config.TLSConfig = "skip-verify"
+	case "verify-full":
+		config.TLSConfig = "true"
+	}
+	return config.FormatDSN()
 }
 
 func NormalizeOracleSslMode(sslMode string) (string, error) {
@@ -115,8 +159,6 @@ func NormalizeSslMode(sslMode string) (string, error) {
 	return normalized, nil
 }
 
-// BuildConnectionString monta a URL de conexão escapando usuário, senha e banco,
-// evitando quebras quando esses valores possuem caracteres especiais.
 func BuildConnectionString(params ConnectionParams) string {
 	userInfo := url.User(params.Username)
 	if params.Password != "" {
