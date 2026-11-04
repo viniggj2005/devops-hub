@@ -16,6 +16,7 @@ import type { DatabaseEngine, TalpadbConnection } from '../../../interfaces/Talp
 const engineFilters: { value: 'all' | DatabaseEngine; label: string }[] = [
   { value: 'all', label: 'Todos' },
   { value: 'postgres', label: 'PostgreSQL' },
+  { value: 'mysql', label: 'MySQL' },
   { value: 'sqlite', label: 'SQLite' },
   { value: 'oracle', label: 'Oracle' },
 ];

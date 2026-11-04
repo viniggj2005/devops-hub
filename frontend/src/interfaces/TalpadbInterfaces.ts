@@ -1,6 +1,6 @@
 import type { SplitDropZone, SplitLayout } from './SplitInterfaces';
 
-export type DatabaseEngine = 'postgres' | 'sqlite' | 'oracle';
+export type DatabaseEngine = 'postgres' | 'mysql' | 'sqlite' | 'oracle';
 
 export interface TalpadbConnection {
   id: number;

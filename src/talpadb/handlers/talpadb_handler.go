@@ -1,16 +1,16 @@
 package talpadbHandlers
 
 import (
-	"context"
-	"errors"
 	"fmt"
+	"errors"
+	"context"
 	"strings"
 
-	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
+	"github.com/wailsapp/wails/v3/pkg/application"
 
-	auth "docker-manager-go/src/auth/functions"
 	"docker-manager-go/src/models"
+	auth "docker-manager-go/src/auth/functions"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 	talpadbFunctions "docker-manager-go/src/talpadb/functions"
 )
@@ -104,6 +104,14 @@ func applyConnectionInput(connection *models.TalpadbConnectionModel, body talpad
 		}
 		database = trimmedOrDefault(body.Database, "postgres")
 		if sslMode, err = talpadbFunctions.NormalizeSslMode(trimmedOrDefault(body.SslMode, "")); err != nil {
+			return err
+		}
+	case talpadbFunctions.EngineMysql:
+		if port, err = resolvePort(body.Port, 3306); err != nil {
+			return err
+		}
+		database = trimmedOrDefault(body.Database, "")
+		if sslMode, err = talpadbFunctions.NormalizeMysqlSslMode(trimmedOrDefault(body.SslMode, "")); err != nil {
 			return err
 		}
 	case talpadbFunctions.EngineOracle:

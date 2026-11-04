@@ -2,10 +2,10 @@ package talpadbHandlers
 
 import (
 	"context"
-	"database/sql"
-	"path/filepath"
 	"strings"
 	"testing"
+	"database/sql"
+	"path/filepath"
 
 	_ "github.com/glebarez/go-sqlite"
 
@@ -46,7 +46,7 @@ func TestSqliteEngineEndToEnd(test *testing.T) {
 	defer clientHandler.closeResourcesAndWait(func(poolIdentity) bool { return true })
 	path := createSqliteFixture(test)
 
-	unsupported := "mysql"
+	unsupported := "mssql"
 	if _, err := talpadbHandler.CreateConnection(token, talpadbDtos.CreateConnectionInputDto{Engine: &unsupported, Host: "x", Username: "y"}); err == nil {
 		test.Fatalf("expected error for unsupported engine")
 	}
@@ -246,25 +246,38 @@ func TestSqliteEngineEndToEnd(test *testing.T) {
 	}
 }
 
-func TestOracleConnectionValidation(test *testing.T) {
+func TestOracleAndMysqlConnectionValidation(test *testing.T) {
 	talpadbHandler, _, token := setupTalpadbTestHandlers(test)
-	engine := "oracle"
+	oracleEngine := "oracle"
 
-	if _, err := talpadbHandler.CreateConnection(token, talpadbDtos.CreateConnectionInputDto{Engine: &engine, Host: "db", Username: "app"}); err == nil {
+	if _, err := talpadbHandler.CreateConnection(token, talpadbDtos.CreateConnectionInputDto{Engine: &oracleEngine, Host: "db", Username: "app"}); err == nil {
 		test.Fatalf("expected error without oracle service name")
 	}
 	invalidSsl := "prefer"
 	service := "FREEPDB1"
-	if _, err := talpadbHandler.CreateConnection(token, talpadbDtos.CreateConnectionInputDto{Engine: &engine, Host: "db", Username: "app", Database: &service, SslMode: &invalidSsl}); err == nil {
+	if _, err := talpadbHandler.CreateConnection(token, talpadbDtos.CreateConnectionInputDto{Engine: &oracleEngine, Host: "db", Username: "app", Database: &service, SslMode: &invalidSsl}); err == nil {
 		test.Fatalf("expected error for invalid oracle ssl mode")
 	}
 
-	created, err := talpadbHandler.CreateConnection(token, talpadbDtos.CreateConnectionInputDto{Engine: &engine, Host: "db", Username: "app", Database: &service})
+	created, err := talpadbHandler.CreateConnection(token, talpadbDtos.CreateConnectionInputDto{Engine: &oracleEngine, Host: "db", Username: "app", Database: &service})
 	if err != nil {
 		test.Fatalf("unexpected error creating oracle connection: %v", err)
 	}
 	if created.Engine != "oracle" || created.Port != 1521 || created.Database != "FREEPDB1" || created.SslMode != "disable" {
 		test.Fatalf("unexpected oracle defaults: %+v", created)
+	}
+
+	mysqlEngine := "mysql"
+	invalidMysqlSsl := "allow"
+	if _, err := talpadbHandler.CreateConnection(token, talpadbDtos.CreateConnectionInputDto{Engine: &mysqlEngine, Host: "db", Username: "root", SslMode: &invalidMysqlSsl}); err == nil {
+		test.Fatalf("expected error for invalid mysql ssl mode")
+	}
+	mysqlCreated, err := talpadbHandler.CreateConnection(token, talpadbDtos.CreateConnectionInputDto{Engine: &mysqlEngine, Host: "db", Username: "root"})
+	if err != nil {
+		test.Fatalf("unexpected error creating mysql connection: %v", err)
+	}
+	if mysqlCreated.Engine != "mysql" || mysqlCreated.Port != 3306 || mysqlCreated.SslMode != "prefer" {
+		test.Fatalf("unexpected mysql defaults: %+v", mysqlCreated)
 	}
 }
 

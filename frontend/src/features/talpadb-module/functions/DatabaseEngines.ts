@@ -1,4 +1,4 @@
-import { PLSQL, PostgreSQL, SQLite, type SQLDialect } from '@codemirror/lang-sql';
+import { MySQL, PLSQL, PostgreSQL, SQLite, type SQLDialect } from '@codemirror/lang-sql';
 import type {
   RunMode,
   DatabaseEngine,
@@ -57,6 +57,35 @@ export const DATABASE_ENGINES: Record<DatabaseEngine, EngineInfo> = {
     supportsCreateDatabase: true,
     supportsConstraintChanges: true,
     supportsAtomicAlter: true,
+  },
+  mysql: {
+    label: 'MySQL',
+    dialect: MySQL,
+    badgeClass: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+    sslModes: [
+      { value: 'disable', label: 'disable — sem SSL' },
+      { value: 'prefer', label: 'prefer — usa SSL se disponível' },
+      { value: 'require', label: 'require — exige SSL (sem validar certificado)' },
+      { value: 'verify-full', label: 'verify-full — SSL + validação do certificado' },
+    ],
+    columnTypes: [
+      'VARCHAR(255)', 'TEXT', 'INT', 'BIGINT', 'SMALLINT', 'TINYINT(1)', 'DECIMAL(12,2)',
+      'DOUBLE', 'BOOLEAN', 'DATE', 'DATETIME', 'TIMESTAMP', 'JSON', 'BLOB', 'CHAR(36)',
+    ],
+    defaultPort: 3306,
+    defaultSslMode: 'prefer',
+    defaultDatabase: '',
+    defaultUsername: 'root',
+    explorerGroups: ['tables', 'views', 'functions'],
+    supportsDashboard: false,
+    supportsDropSchema: true,
+    supportsIndexMethods: false,
+    supportsDropDatabase: false,
+    supportsColumnChanges: true,
+    supportsExplainAnalyze: true,
+    supportsCreateDatabase: false,
+    supportsConstraintChanges: true,
+    supportsAtomicAlter: false,
   },
   sqlite: {
     label: 'SQLite',
@@ -119,7 +148,8 @@ export const engineInfo = (engine: DatabaseEngine): EngineInfo => DATABASE_ENGIN
 export function connectionAddress(connection: TalpadbConnection): string {
   const engine = engineOf(connection);
   if (engine === 'sqlite') return connection.host;
-  return `${connection.username}@${connection.host}:${connection.port}/${connection.database}`;
+  const suffix = connection.database ? `/${connection.database}` : '';
+  return `${connection.username}@${connection.host}:${connection.port}${suffix}`;
 }
 
 export function fileName(path: string): string {
@@ -128,6 +158,7 @@ export function fileName(path: string): string {
 
 export function defaultSchemaFor(engine: DatabaseEngine, connection?: TalpadbConnection | null): string {
   if (engine === 'sqlite') return 'main';
+  if (engine === 'mysql') return connection?.database ?? '';
   if (engine === 'oracle') return (connection?.username ?? '').toUpperCase();
   return 'public';
 }
@@ -138,6 +169,10 @@ export function buildExplainSql(engine: DatabaseEngine, mode: RunMode, text: str
   if (mode === 'run') return { sql: text, prefixLength: 0 };
   if (engine === 'sqlite') {
     const prefix = 'EXPLAIN QUERY PLAN ';
+    return { sql: prefix + text, prefixLength: prefix.length };
+  }
+  if (engine === 'mysql') {
+    const prefix = mode === 'explain' ? 'EXPLAIN ' : 'EXPLAIN ANALYZE ';
     return { sql: prefix + text, prefixLength: prefix.length };
   }
   if (engine === 'oracle') {

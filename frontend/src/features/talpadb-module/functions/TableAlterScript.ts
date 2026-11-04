@@ -71,7 +71,7 @@ export function createTableDraft(details: TableDetails): TableDraft {
 }
 
 export function createColumnDraft(engine: DatabaseEngine = 'postgres'): ColumnDraft {
-  const dataType = { postgres: 'text', sqlite: 'TEXT', oracle: 'VARCHAR2(255)' }[engine];
+  const dataType = { postgres: 'text', mysql: 'VARCHAR(255)', sqlite: 'TEXT', oracle: 'VARCHAR2(255)' }[engine];
   return { id: generateId(), name: '', comment: '', dropped: false, notNull: false, original: null, dataType, defaultValue: '' };
 }
 
@@ -97,7 +97,23 @@ function alterColumnStatements(table: string, column: ColumnDraft, engine: Datab
 
   const dataType = column.dataType.trim();
   const defaultValue = column.defaultValue.trim();
+  const commentChanged = column.comment.trim() !== (original.comment ?? '');
   const defaultChanged = !original.identity && !original.generated && defaultValue !== (original.defaultValue ?? '');
+
+  if (engine === 'mysql') {
+    if (dataType !== original.dataType || column.notNull !== original.notNull || defaultChanged || commentChanged) {
+      const definition = [
+        `ALTER TABLE ${table} MODIFY COLUMN ${columnName} ${dataType}`,
+        column.notNull ? 'NOT NULL' : 'NULL',
+        !original.identity && !original.generated && defaultValue && `DEFAULT ${defaultValue}`,
+        column.comment.trim() && `COMMENT ${quoteLiteral(column.comment.trim())}`,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      statements.push(`${definition};`);
+    }
+    return statements;
+  }
 
   if (engine === 'oracle') {
     if (dataType !== original.dataType) statements.push(`ALTER TABLE ${table} MODIFY (${columnName} ${dataType});`);
@@ -120,7 +136,7 @@ function alterColumnStatements(table: string, column: ColumnDraft, engine: Datab
       );
     }
   }
-  if (column.comment.trim() !== (original.comment ?? '')) {
+  if (commentChanged) {
     statements.push(`COMMENT ON COLUMN ${table}.${columnName} IS ${commentLiteral(column.comment, engine)};`);
   }
   return statements;
@@ -147,6 +163,7 @@ function addColumnStatements(table: string, column: ColumnDraft, engine: Databas
     `ALTER TABLE ${table} ADD COLUMN ${columnName} ${dataType}`,
     column.notNull && 'NOT NULL',
     defaultValue && `DEFAULT ${defaultValue}`,
+    engine === 'mysql' && column.comment.trim() && `COMMENT ${quoteLiteral(column.comment.trim())}`,
   ]
     .filter(Boolean)
     .join(' ');
@@ -165,6 +182,9 @@ function createIndexStatement(details: TableDetails, index: IndexDraft, table: s
     return `CREATE ${unique}INDEX ${name ? `${quoteIdent(name)} ` : ''}ON ${table} USING ${index.method} (${columns});`;
   }
   const indexName = newIdentifier(name || generatedIndexName(details, index, engine), engine);
+  if (engine === 'mysql') {
+    return `CREATE ${unique}INDEX ${indexName} ON ${table} (${columns});`;
+  }
   const schema = quoteIdent(details.schema, engine);
   if (engine === 'sqlite') {
     return `CREATE ${unique}INDEX ${schema}.${indexName} ON ${quoteIdent(details.name, engine)} (${columns});`;
@@ -179,11 +199,19 @@ export function buildAlterScript(details: TableDetails, draft: TableDraft, engin
 
   if (info.supportsConstraintChanges) {
     for (const constraintName of draft.droppedConstraints) {
-      statements.push(`ALTER TABLE ${table} DROP CONSTRAINT ${constraintName};`);
+      if (engine === 'mysql' && constraintName === 'PRIMARY') {
+        statements.push(`ALTER TABLE ${table} DROP PRIMARY KEY;`);
+      } else {
+        statements.push(`ALTER TABLE ${table} DROP CONSTRAINT ${constraintName};`);
+      }
     }
   }
   for (const indexName of draft.droppedIndexes) {
-    statements.push(`DROP INDEX ${quoteIdent(details.schema, engine)}.${indexName};`);
+    if (engine === 'mysql') {
+      statements.push(`DROP INDEX ${indexName} ON ${table};`);
+    } else {
+      statements.push(`DROP INDEX ${quoteIdent(details.schema, engine)}.${indexName};`);
+    }
   }
 
   for (const column of draft.columns) statements.push(...alterColumnStatements(table, column, engine));
@@ -198,7 +226,11 @@ export function buildAlterScript(details: TableDetails, draft: TableDraft, engin
   for (const index of draft.newIndexes) statements.push(createIndexStatement(details, index, table, engine));
 
   if (engine !== 'sqlite' && draft.comment.trim() !== (details.comment ?? '')) {
-    statements.push(`COMMENT ON TABLE ${table} IS ${commentLiteral(draft.comment, engine)};`);
+    if (engine === 'mysql') {
+      statements.push(`ALTER TABLE ${table} COMMENT = ${quoteLiteral(draft.comment.trim())};`);
+    } else {
+      statements.push(`COMMENT ON TABLE ${table} IS ${commentLiteral(draft.comment, engine)};`);
+    }
   }
   const newName = draft.name.trim();
   if (newName && newName !== details.name) {

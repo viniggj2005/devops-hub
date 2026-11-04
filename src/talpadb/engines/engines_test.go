@@ -1,11 +1,11 @@
 package talpadbEngines
 
 import (
-	"database/sql"
-	"path/filepath"
+	"time"
 	"strings"
 	"testing"
-	"time"
+	"database/sql"
+	"path/filepath"
 
 	talpadbFunctions "docker-manager-go/src/talpadb/functions"
 )
@@ -80,7 +80,30 @@ UPDATE t SET a = 1`
 	}
 }
 
+func TestMysqlSplitStatements(test *testing.T) {
+	engine := &MysqlEngine{}
+	script := "# comentário; com ponto e vírgula\n" +
+		"SHOW TABLES;\n" +
+		"DESCRIBE `users`;\n" +
+		"CREATE TRIGGER trg BEFORE INSERT ON `users` FOR EACH ROW BEGIN\n" +
+		"  SET NEW.name = TRIM(NEW.name);\n" +
+		"END;\n" +
+		"SELECT * FROM `app`.`users`"
+
+	statements := engine.SplitStatements(script)
+	if len(statements) != 4 {
+		test.Fatalf("expected 4 statements, got %d: %+v", len(statements), statements)
+	}
+	if !statements[0].ReturnsRows || !statements[1].ReturnsRows || !statements[3].ReturnsRows {
+		test.Fatalf("expected SHOW, DESCRIBE and SELECT to return rows")
+	}
+	if statements[2].ReturnsRows || !strings.HasPrefix(statements[2].Text, "CREATE TRIGGER") {
+		test.Fatalf("unexpected mysql trigger statement: %+v", statements[2])
+	}
+}
+
 func TestSingleTableDetection(test *testing.T) {
+	mysql := &MysqlEngine{}
 	sqlite := &SqliteEngine{}
 	oracle := &OracleEngine{}
 	cases := []struct {
@@ -94,6 +117,7 @@ func TestSingleTableDetection(test *testing.T) {
 		{script: "SELECT * FROM users WHERE id = 1", engine: sqlite, table: "users", single: true},
 		{script: "select a, b from main.users u order by a limit 10", engine: sqlite, schema: "main", table: "users", single: true},
 		{script: `SELECT * FROM "Mixed Case" AS m`, engine: sqlite, table: "Mixed Case", quoted: true, single: true},
+		{script: "SELECT * FROM `app`.`user_accounts` LIMIT 50", engine: mysql, schema: "app", table: "user_accounts", quoted: true, single: true},
 		{script: "SELECT (SELECT max(id) FROM other) AS biggest, name FROM people", engine: sqlite, table: "people", single: true},
 		{script: "SELECT * FROM emp FETCH FIRST 10 ROWS ONLY", engine: oracle, table: "emp", single: true},
 		{script: "SELECT * FROM a JOIN b ON a.id = b.id", engine: sqlite},
@@ -121,9 +145,13 @@ func TestSingleTableDetection(test *testing.T) {
 	if sqlite.NormalizeIdentifier("Emp", false) != "Emp" {
 		test.Fatalf("unexpected sqlite identifier normalization")
 	}
+	if mysql.NormalizeIdentifier("Users", false) != "Users" {
+		test.Fatalf("unexpected mysql identifier normalization")
+	}
 }
 
 func TestCommandTagsAndTransactions(test *testing.T) {
+	mysql := &MysqlEngine{}
 	engine := &SqliteEngine{}
 	tagOf := func(script string, affected int64) string {
 		return CommandTag(engine.SplitStatements(script)[0], affected)
@@ -140,6 +168,9 @@ func TestCommandTagsAndTransactions(test *testing.T) {
 	}
 	if !stateAfter("BEGIN", false) || stateAfter("COMMIT", true) || stateAfter("ROLLBACK", true) || !stateAfter("ROLLBACK TO sp", true) {
 		test.Fatalf("unexpected sqlite transaction tracking")
+	}
+	if !mysql.TransactionState(mysql.SplitStatements("START TRANSACTION")[0], false) || mysql.TransactionState(mysql.SplitStatements("COMMIT")[0], true) {
+		test.Fatalf("unexpected mysql transaction tracking")
 	}
 	if (&OracleEngine{}).TransactionState(engine.SplitStatements("BEGIN")[0], true) {
 		test.Fatalf("oracle sessions are autocommit")
@@ -181,6 +212,7 @@ func TestFormatValueAndQuoting(test *testing.T) {
 		test.Fatalf("unexpected scalar formatting")
 	}
 
+	mysql := &MysqlEngine{}
 	sqlite := &SqliteEngine{}
 	oracle := &OracleEngine{}
 	if sqlite.displayName("users") != "users" || sqlite.displayName("order") != `"order"` || sqlite.displayName("Nome Completo") != `"Nome Completo"` {
@@ -189,7 +221,10 @@ func TestFormatValueAndQuoting(test *testing.T) {
 	if oracle.displayName("EMP") != "EMP" || oracle.displayName("emp") != `"emp"` || oracle.displayName("DATE") != `"DATE"` {
 		test.Fatalf("unexpected oracle display names")
 	}
-	if oracle.QuoteIdentifier(`a"b`) != `"a""b"` || oracle.Placeholder(2) != ":2" || sqlite.Placeholder(2) != "?" {
+	if mysql.quoteSimple("users") != "users" || mysql.quoteSimple("order") != "`order`" || mysql.QuoteIdentifier("a`b") != "`a``b`" {
+		test.Fatalf("unexpected mysql quoting")
+	}
+	if oracle.QuoteIdentifier(`a"b`) != `"a""b"` || oracle.Placeholder(2) != ":2" || sqlite.Placeholder(2) != "?" || mysql.Placeholder(2) != "?" {
 		test.Fatalf("unexpected quoting or placeholders")
 	}
 }
@@ -198,14 +233,20 @@ func TestConnectionStrings(test *testing.T) {
 	if engine, err := talpadbFunctions.NormalizeEngine(" Oracle "); err != nil || engine != "oracle" {
 		test.Fatalf("unexpected NormalizeEngine: %s %v", engine, err)
 	}
+	if engine, err := talpadbFunctions.NormalizeEngine(" MySQL "); err != nil || engine != "mysql" {
+		test.Fatalf("unexpected NormalizeEngine for mysql: %s %v", engine, err)
+	}
 	if engine, err := talpadbFunctions.NormalizeEngine(""); err != nil || engine != "postgres" {
 		test.Fatalf("expected postgres as default engine")
 	}
-	if _, err := talpadbFunctions.NormalizeEngine("mysql"); err == nil {
+	if _, err := talpadbFunctions.NormalizeEngine("mssql"); err == nil {
 		test.Fatalf("expected error for unsupported engine")
 	}
 	if _, err := talpadbFunctions.NormalizeOracleSslMode("prefer"); err == nil {
 		test.Fatalf("expected error for unsupported oracle ssl mode")
+	}
+	if _, err := talpadbFunctions.NormalizeMysqlSslMode("allow"); err == nil {
+		test.Fatalf("expected error for unsupported mysql ssl mode")
 	}
 
 	url := talpadbFunctions.BuildOracleConnectionString(talpadbFunctions.ConnectionParams{
@@ -213,6 +254,13 @@ func TestConnectionStrings(test *testing.T) {
 	})
 	if !strings.HasPrefix(url, "oracle://app:p@ss%20word@db.local:1521/FREEPDB1?") || !strings.Contains(url, "SSL=enable") {
 		test.Fatalf("unexpected oracle url: %s", url)
+	}
+
+	mysqlDsn := talpadbFunctions.BuildMysqlConnectionString(talpadbFunctions.ConnectionParams{
+		Host: "db.local", Port: 3306, Database: "app_db", Username: "root", Password: "secret", SslMode: "require",
+	})
+	if !strings.Contains(mysqlDsn, "@tcp(db.local:3306)/app_db") || !strings.Contains(mysqlDsn, "tls=skip-verify") {
+		test.Fatalf("unexpected mysql dsn: %s", mysqlDsn)
 	}
 
 	if _, err := talpadbFunctions.BuildSqliteConnectionString(talpadbFunctions.ConnectionParams{Host: filepath.Join(test.TempDir(), "missing.db")}); err == nil {
