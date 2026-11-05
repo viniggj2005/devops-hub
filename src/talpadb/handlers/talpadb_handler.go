@@ -242,6 +242,9 @@ func (handlerStruct *TalpadbHandlerStruct) DeleteConnection(token string, id uin
 	if err := handlerStruct.deleteDiagramLayouts(userID, id); err != nil {
 		return fmt.Errorf("conexão excluída, mas os layouts de diagrama não foram removidos: %w", err)
 	}
+	if err := handlerStruct.deleteSavedQueries(userID, id); err != nil {
+		return fmt.Errorf("conexão excluída, mas as queries salvas não foram removidas: %w", err)
+	}
 
 	if handlerStruct.client != nil {
 		handlerStruct.client.closeConnectionResources(userID, id)

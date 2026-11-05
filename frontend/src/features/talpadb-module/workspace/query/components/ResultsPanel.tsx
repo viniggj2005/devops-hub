@@ -1,6 +1,8 @@
 import HistoryPanel from './HistoryPanel';
 import MessagesPanel from './MessagesPanel';
+import VariablesPanel from './VariablesPanel';
 import CellViewerModal from './CellViewerModal';
+import SavedQueriesPanel from './SavedQueriesPanel';
 import { useGridEdits } from '../hooks/useGridEdits';
 import ResultGrid, { type ResultGridHandle } from './ResultGrid';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -10,42 +12,66 @@ import { formatNumber, rowsToTsv } from '../../../functions/TreatmentFunctions';
 import { Ban, Braces, Copy, Download, Loader2, Pencil, Plus, Save, Trash2, Undo2 } from 'lucide-react';
 import type {
   QueryCell,
+  SavedQuery,
   QueryColumn,
   TableChanges,
+  QueryVariable,
   QueryExecution,
   QueryHistoryEntry,
 } from '../../../../../interfaces/TalpadbInterfaces';
 
-export type ResultsPanelTab = 'results' | 'messages' | 'history';
+export type ResultsPanelTab = 'results' | 'messages' | 'variables' | 'saved' | 'history';
 
 interface ResultsPanelProps {
+  sqlText: string;
   running: boolean;
   resultIndex: number;
+  savingQuery: boolean;
   panel: ResultsPanelTab;
+  savedQueryName: string;
   runError: string | null;
+  loadingSavedQueries: boolean;
+  savedQueries: SavedQuery[];
+  variables: QueryVariable[];
   history: QueryHistoryEntry[];
   execution: QueryExecution | null;
+  activeSavedQueryId: number | null;
   onLoadHistory: (sql: string) => void;
+  onDeleteSavedQuery: (id: number) => Promise<void> | void;
+  onSaveWithName: (name: string) => void;
   onResultIndexChange: (index: number) => void;
   onPanelChange: (panel: ResultsPanelTab) => void;
   errorLocation: { line: number; column: number } | null;
+  onChangeVariables: (nextVariables: QueryVariable[]) => void;
   onSaveChanges: (changes: TableChanges) => Promise<boolean>;
   onExport: (format: 'csv' | 'json', resultIndex: number) => void;
+  onSelectSavedQuery: (savedQuery: SavedQuery, runImmediately: boolean) => void;
 }
 
 const ResultsPanel: React.FC<ResultsPanelProps> = ({
   panel,
+  sqlText,
   running,
   history,
   runError,
   onExport,
   execution,
+  variables,
   resultIndex,
+  savingQuery,
+  savedQueries,
   errorLocation,
   onPanelChange,
   onLoadHistory,
   onSaveChanges,
+  savedQueryName,
+  onSaveWithName,
+  onChangeVariables,
+  activeSavedQueryId,
+  onDeleteSavedQuery,
+  onSelectSavedQuery,
   onResultIndexChange,
+  loadingSavedQueries,
 }) => {
   const [saving, setSaving] = useState(false);
   const gridRef = useRef<ResultGridHandle>(null);
@@ -136,6 +162,20 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
         <span className="h-2 w-2 rounded-full bg-amber-500" />
       ) : undefined,
     },
+    {
+      id: 'variables',
+      label: 'Variáveis',
+      badge: variables.length ? (
+        <span className="px-1.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-mono tabular-nums">
+          {variables.length}
+        </span>
+      ) : undefined,
+    },
+    {
+      id: 'saved',
+      label: 'Salvas',
+      badge: savedQueries.length ? savedQueries.length : undefined,
+    },
     { id: 'history', label: 'Histórico', badge: history.length ? history.length : undefined },
   ];
 
@@ -146,12 +186,12 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
     <div className="flex flex-col h-full min-h-0 relative">
       {running && <div className="absolute inset-x-0 top-0 h-0.5 bg-cyan-500 animate-pulse z-10" />}
 
-      <div className="flex items-center gap-1 h-10 px-2 border-b border-gray-200 dark:border-white/5 bg-gray-50/80 dark:bg-zinc-950/40 flex-shrink-0">
+      <div className="flex items-center gap-1 h-10 px-2 border-b border-gray-200 dark:border-white/5 bg-gray-50/80 dark:bg-zinc-950/40 flex-shrink-0 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onPanelChange(tab.id)}
-            className={`flex items-center gap-2 h-7 px-3 rounded-lg text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-2 h-7 px-3 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
               panel === tab.id
                 ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm'
                 : 'text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'
@@ -315,6 +355,30 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
           ))}
         {panel === 'messages' && (
           <MessagesPanel execution={execution} runError={runError} errorLocation={errorLocation} />
+        )}
+        {panel === 'variables' && (
+          <VariablesPanel
+            sqlText={sqlText}
+            variables={variables}
+            savingQuery={savingQuery}
+            savedQueryName={savedQueryName}
+            onSaveWithName={onSaveWithName}
+            onChangeVariables={onChangeVariables}
+            onOpenSavedTab={() => onPanelChange('saved')}
+          />
+        )}
+        {panel === 'saved' && (
+          <SavedQueriesPanel
+            sqlText={sqlText}
+            savingQuery={savingQuery}
+            savedQueries={savedQueries}
+            loading={loadingSavedQueries}
+            savedQueryName={savedQueryName}
+            onSaveWithName={onSaveWithName}
+            activeSavedQueryId={activeSavedQueryId}
+            onDeleteSavedQuery={onDeleteSavedQuery}
+            onSelectSavedQuery={onSelectSavedQuery}
+          />
         )}
         {panel === 'history' && <HistoryPanel entries={history} onLoad={onLoadHistory} />}
       </div>

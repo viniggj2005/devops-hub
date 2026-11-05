@@ -356,6 +356,33 @@ export interface SqlFile {
   content: string;
 }
 
+export type QueryVariableType = 'auto' | 'text' | 'number' | 'boolean' | 'null' | 'raw';
+
+export interface QueryVariable {
+  index: number;
+  value: string;
+  type: QueryVariableType;
+}
+
+export interface SavedQuery {
+  id: number;
+  name: string;
+  sql: string;
+  updatedAt: string;
+  connectionId: number;
+  databaseName: string;
+  variables: QueryVariable[];
+}
+
+export interface SaveQueryInput {
+  id?: number | null;
+  name: string;
+  sql: string;
+  connectionId: number;
+  databaseName: string;
+  variables: QueryVariable[];
+}
+
 export interface DatabaseStat {
   name: string;
   sizeBytes: number | null;
@@ -417,6 +444,9 @@ export interface WorkspaceTab {
   objectName?: string;
   initialSql?: string;
   autoRun?: boolean;
+  savedQueryId?: number;
+  savedQueryName?: string;
+  initialVariables?: QueryVariable[];
 }
 
 export type OpenWorkspaceTabInput = Omit<WorkspaceTab, 'id'>;
@@ -427,6 +457,9 @@ export interface OpenQueryTabInput {
   sql?: string;
   autoRun?: boolean;
   title?: string;
+  savedQueryId?: number;
+  savedQueryName?: string;
+  initialVariables?: QueryVariable[];
 }
 
 export interface WorkspaceGroup {

@@ -1,6 +1,7 @@
 import { Modal } from '../../../../shared/components/modals/Modal';
-import { Braces, Check, PencilLine, RotateCcw } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { copyToClipboard } from '../../../../shared/functions/clipboard';
+import { Braces, Check, Copy, PencilLine, RotateCcw } from 'lucide-react';
 import type { QueryCell, QueryColumn } from '../../../../../interfaces/TalpadbInterfaces';
 
 type EditMode = 'value' | 'null' | 'default';
@@ -74,6 +75,15 @@ const CellEditorModal: React.FC<CellEditorModalProps> = ({ target, onApply, onRe
 
   const dataType = target.column.dataType;
   const unchanged = mode === initialMode(target) && (mode !== 'value' || draft === initialDraft(target));
+  const canCopyValue = mode === 'value' && draft.length > 0;
+
+  const handleCopyValue = () => {
+    if (mode === 'null') {
+      copyToClipboard('NULL', 'Valor copiado');
+      return;
+    }
+    copyToClipboard(draft, 'Valor copiado');
+  };
 
   const apply = () => {
     if (unchanged) {
@@ -107,7 +117,7 @@ const CellEditorModal: React.FC<CellEditorModalProps> = ({ target, onApply, onRe
     }`;
 
   const secondaryButton =
-    'flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10';
+    'flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
 
   return (
     <Modal
@@ -125,13 +135,23 @@ const CellEditorModal: React.FC<CellEditorModalProps> = ({ target, onApply, onRe
               {target.isNewRow ? 'Usar DEFAULT' : 'Restaurar original'}
             </button>
           )}
+          <button
+            type="button"
+            onClick={handleCopyValue}
+            disabled={!canCopyValue && mode !== 'null'}
+            className={secondaryButton}
+            title="Copiar conteúdo da célula"
+          >
+            <Copy className="w-4 h-4" />
+            Copiar
+          </button>
           <button onClick={onClose} className={secondaryButton}>
             Cancelar
           </button>
           <button
             onClick={apply}
             title="Aplicar (Ctrl+Enter)"
-            className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700"
+            className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 transition-colors"
           >
             <Check className="w-4 h-4" />
             Aplicar
@@ -165,17 +185,31 @@ const CellEditorModal: React.FC<CellEditorModalProps> = ({ target, onApply, onRe
                 {booleanValue}
               </button>
             ))}
-          {isJsonType(dataType) && mode === 'value' && (
+
+          <div className="ml-auto flex items-center gap-1.5">
+            {isJsonType(dataType) && mode === 'value' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDraft(prettyJson(draft));
+                  setError(null);
+                }}
+                className="flex items-center gap-1.5 px-2.5 h-7 rounded-md text-xs font-semibold text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+              >
+                <Braces className="w-3.5 h-3.5" /> Formatar
+              </button>
+            )}
             <button
-              onClick={() => {
-                setDraft(prettyJson(draft));
-                setError(null);
-              }}
-              className="ml-auto flex items-center gap-1.5 px-2.5 h-7 rounded-md text-xs font-semibold text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-white/10"
+              type="button"
+              onClick={handleCopyValue}
+              disabled={!canCopyValue && mode !== 'null'}
+              className="flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900 text-xs font-semibold text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              title="Copiar valor da coluna"
             >
-              <Braces className="w-3.5 h-3.5" /> Formatar
+              <Copy className="w-3.5 h-3.5 text-cyan-500" />
+              Copiar
             </button>
-          )}
+          </div>
         </div>
 
         {mode === 'value' ? (

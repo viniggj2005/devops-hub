@@ -1,14 +1,14 @@
 package database
 
 import (
-	"docker-manager-go/src/models"
+	"os"
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
+	"github.com/glebarez/sqlite"
+	"docker-manager-go/src/models"
 )
 
 var (
@@ -58,6 +58,7 @@ func migrateDatabase(dataBase *gorm.DB) error {
 		&models.GeneralConfigsModel{},
 		&models.DockerCredentialsModel{},
 		&models.TalpadbConnectionModel{},
+		&models.TalpadbSavedQueryModel{},
 		&models.VulpesCollectionModel{},
 		&models.VulpesEnvironmentModel{},
 		&models.TalpadbDiagramLayoutModel{},

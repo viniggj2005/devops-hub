@@ -52,14 +52,24 @@ const CellViewerModal: React.FC<CellViewerModalProps> = ({ cell, onClose }) => {
       {formatted === null ? (
         <p className="italic text-gray-400">NULL</p>
       ) : (
-        <>
-          <pre className="max-h-[55vh] overflow-auto rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/5 p-4 text-xs font-mono whitespace-pre-wrap break-all text-gray-800 dark:text-zinc-200">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-gray-400 dark:text-zinc-500">
+              {formatted.length.toLocaleString('pt-BR')} caracteres
+            </span>
+            <button
+              type="button"
+              onClick={() => copyToClipboard(formatted, 'Valor copiado')}
+              className="flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900 text-xs font-semibold text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-white/10 transition-colors"
+            >
+              <Copy className="w-3.5 h-3.5 text-cyan-500" />
+              Copiar
+            </button>
+          </div>
+          <pre className="max-h-[55vh] overflow-auto rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 p-4 text-xs font-mono whitespace-pre-wrap break-all text-gray-800 dark:text-zinc-200">
             {formatted}
           </pre>
-          <p className="mt-2 text-[11px] text-gray-400">
-            {formatted.length.toLocaleString('pt-BR')} caracteres
-          </p>
-        </>
+        </div>
       )}
     </Modal>
   );

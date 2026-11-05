@@ -30,6 +30,10 @@ func NewApp() *App {
 	return &App{}
 }
 
+func (app *App) GetAppVersion() string {
+	return AppVersion
+}
+
 func (app *App) LoadImage(name string) (string, error) {
 	execPath, _ := os.Getwd()
 	imgPath := filepath.Join(execPath, "uploads", name)

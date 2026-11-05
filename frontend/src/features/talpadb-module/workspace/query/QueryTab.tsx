@@ -9,9 +9,40 @@ import { getToken, useAuth } from '../../../../contexts/AuthContext';
 import SqlEditor, { type SqlEditorHandle } from './components/SqlEditor';
 import ResultsPanel, { type ResultsPanelTab } from './components/ResultsPanel';
 import { TalpadbServices, SESSION_NOT_FOUND_MESSAGE } from '../../services/TalpadbServices';
-import { buildExplainSql, defaultSchemaFor, engineInfo, engineOf } from '../../functions/DatabaseEngines';
-import type { RunMode, TxStatus, TableChanges, WorkspaceTab, TableSaveResult, QuerySession, QueryExecution, QueryHistoryEntry } from '../../../../interfaces/TalpadbInterfaces';
-import { generateId, resultToCsv, resultToJson, errorMessage, formatNumber, formatDuration, summarizeExecution, buildCompletionNamespace, errorLocation as locateError } from '../../functions/TreatmentFunctions';
+import {
+  syncVariablesWithSql,
+  interpolateSqlVariables,
+  normalizeQueryVariableType,
+} from './functions/QueryVariables';
+import {
+  engineOf,
+  engineInfo,
+  buildExplainSql,
+  defaultSchemaFor,
+} from '../../functions/DatabaseEngines';
+import type {
+  RunMode,
+  TxStatus,
+  SavedQuery,
+  TableChanges,
+  WorkspaceTab,
+  QuerySession,
+  QueryVariable,
+  QueryExecution,
+  TableSaveResult,
+  QueryHistoryEntry,
+} from '../../../../interfaces/TalpadbInterfaces';
+import {
+  generateId,
+  resultToCsv,
+  resultToJson,
+  errorMessage,
+  formatNumber,
+  formatDuration,
+  summarizeExecution,
+  buildCompletionNamespace,
+  errorLocation as locateError,
+} from '../../functions/TreatmentFunctions';
 
 const safeFileName = (title: string) =>
   title
@@ -31,8 +62,11 @@ const summarizeSave = (result: TableSaveResult) =>
 const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, active }) => {
   const { token } = useAuth();
   const renameTab = useTalpadbStore((state) => state.renameTab);
+  const updateTab = useTalpadbStore((state) => state.updateTab);
   const setTabTxStatus = useTalpadbStore((state) => state.setTabTxStatus);
-  const connection = useTalpadbStore((state) => state.connections.find((item) => item.id === tab.connectionId));
+  const connection = useTalpadbStore((state) =>
+    state.connections.find((item) => item.id === tab.connectionId)
+  );
   const engine = engineOf(connection);
   const info = engineInfo(engine);
 
@@ -49,15 +83,29 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
   const [maxRows, setMaxRows] = useState(1000);
   const [running, setRunning] = useState(false);
   const [resultIndex, setResultIndex] = useState(0);
+  const [savingQuery, setSavingQuery] = useState(false);
   const [editorRatio, setEditorRatio] = useState(0.35);
+  const [sqlText, setSqlText] = useState(tab.initialSql ?? '');
   const [runError, setRunError] = useState<string | null>(null);
   const [panel, setPanel] = useState<ResultsPanelTab>('results');
   const [txStatus, setTxStatus] = useState<TxStatus | null>(null);
   const [history, setHistory] = useState<QueryHistoryEntry[]>([]);
   const [session, setSession] = useState<QuerySession | null>(null);
+  const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
   const [completion, setCompletion] = useState<SQLNamespace | undefined>();
   const [execution, setExecution] = useState<QueryExecution | null>(null);
+  const [loadingSavedQueries, setLoadingSavedQueries] = useState(false);
+  const [savedQueryName, setSavedQueryName] = useState(tab.savedQueryName ?? '');
+  const [activeSavedQueryId, setActiveSavedQueryId] = useState<number | null>(
+    tab.savedQueryId ?? null
+  );
   const [errorPlace, setErrorPlace] = useState<{ line: number; column: number } | null>(null);
+  const [variables, setVariables] = useState<QueryVariable[]>(() =>
+    syncVariablesWithSql(tab.initialSql ?? '', tab.initialVariables ?? [])
+  );
+
+  const variablesRef = useRef<QueryVariable[]>(variables);
+  variablesRef.current = variables;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -85,6 +133,23 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
   }, [token, tab.connectionId, tab.database]);
 
   useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    setLoadingSavedQueries(true);
+    TalpadbServices.listSavedQueries(token, tab.connectionId, tab.database)
+      .then((items) => {
+        if (!cancelled) setSavedQueries(items);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoadingSavedQueries(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, tab.connectionId, tab.database]);
+
+  useEffect(() => {
     if (!running) return;
     const startedAt = Date.now();
     setElapsed(0);
@@ -99,6 +164,11 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
   useEffect(() => {
     if (active) editorRef.current?.focus();
   }, [active]);
+
+  const handleEditorSqlChange = (nextSql: string) => {
+    setSqlText(nextSql);
+    setVariables((previousVariables) => syncVariablesWithSql(nextSql, previousVariables));
+  };
 
   const ensureSession = (): Promise<string> => {
     if (sessionRef.current) return Promise.resolve(sessionRef.current);
@@ -134,7 +204,11 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       ].slice(0, 50)
     );
 
-  const run = async (mode: RunMode = 'run', rerunText?: string) => {
+  const run = async (
+    mode: RunMode = 'run',
+    rerunText?: string,
+    overrideVariables?: QueryVariable[]
+  ) => {
     const editor = editorRef.current;
     if (!editor || !token || runningRef.current) return;
 
@@ -145,9 +219,12 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       toast('Digite uma consulta para executar.');
       return;
     }
-    const { sql: statement, prefixLength } = buildExplainSql(engine, mode, text);
+
+    const activeVariables = overrideVariables ?? variablesRef.current;
+    const resolvedSqlText = interpolateSqlVariables(text, activeVariables);
+    const { sql: statement, prefixLength } = buildExplainSql(engine, mode, resolvedSqlText);
     const offset = useSelection ? selection.from : 0;
-    const markable = rerunText === undefined;
+    const markable = rerunText === undefined && resolvedSqlText === text;
     lastRunRef.current = { mode, text };
 
     editor.markError(null);
@@ -187,14 +264,14 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
             : 'messages'
         );
       }
-      addHistory(text, !result.error, result.durationMs, summarizeExecution(result));
+      addHistory(resolvedSqlText, !result.error, result.durationMs, summarizeExecution(result));
     } catch (error) {
       if (!mountedRef.current) return;
       const message = errorMessage(error);
       setExecution(null);
       setRunError(message);
       setPanel('messages');
-      addHistory(text, false, Date.now() - startedAt, message);
+      addHistory(resolvedSqlText, false, Date.now() - startedAt, message);
     } finally {
       runningRef.current = false;
       if (mountedRef.current) setRunning(false);
@@ -206,7 +283,6 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       autoRunRef.current = true;
       run('run');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cancel = async () => {
@@ -225,6 +301,8 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       const file = await TalpadbServices.openSqlFile(token);
       if (!file) return;
       editorRef.current?.setValue(file.content);
+      setSqlText(file.content);
+      setVariables((previous) => syncVariablesWithSql(file.content, previous));
       renameTab(tab.id, file.name);
     } catch (error) {
       toast.error(`Erro ao abrir arquivo: ${errorMessage(error)}`);
@@ -242,6 +320,107 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       if (path) toast.success(`Arquivo salvo: ${path}`);
     } catch (error) {
       toast.error(`Erro ao salvar: ${errorMessage(error)}`);
+    }
+  };
+
+  const handleSaveNamedQuery = async (name: string) => {
+    if (!token) return;
+    const currentSql = editorRef.current?.getValue() ?? sqlText;
+    if (!currentSql.trim()) {
+      toast('Digite uma consulta SQL antes de salvar.');
+      return;
+    }
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      toast('Informe um nome para salvar a query.');
+      return;
+    }
+
+    const matchingId =
+      activeSavedQueryId &&
+      savedQueryName.trim().toLowerCase() === trimmedName.toLowerCase()
+        ? activeSavedQueryId
+        : null;
+
+    setSavingQuery(true);
+    try {
+      const saved = await TalpadbServices.saveQuery(token, {
+        id: matchingId,
+        name: trimmedName,
+        sql: currentSql,
+        databaseName: tab.database,
+        connectionId: tab.connectionId,
+        variables: variablesRef.current,
+      });
+
+      setActiveSavedQueryId(saved.id);
+      setSavedQueryName(saved.name);
+      renameTab(tab.id, saved.name);
+      updateTab(tab.id, {
+        savedQueryId: saved.id,
+        savedQueryName: saved.name,
+        initialSql: saved.sql,
+        initialVariables: saved.variables,
+      });
+
+      setSavedQueries((previousList) => {
+        const filtered = previousList.filter((item) => item.id !== saved.id);
+        return [saved, ...filtered];
+      });
+
+      toast.success(`Query "${saved.name}" salva com suas variáveis!`);
+    } catch (error) {
+      toast.error(`Erro ao salvar query: ${errorMessage(error)}`);
+    } finally {
+      setSavingQuery(false);
+    }
+  };
+
+  const handleSelectSavedQuery = (savedItem: SavedQuery, runImmediately: boolean) => {
+    const normalizedVars: QueryVariable[] = (savedItem.variables ?? []).map((variableItem) => ({
+      index: variableItem.index,
+      value: variableItem.value ?? '',
+      type: normalizeQueryVariableType(variableItem.type),
+    }));
+    const syncedVariables = syncVariablesWithSql(savedItem.sql, normalizedVars);
+
+    editorRef.current?.setValue(savedItem.sql);
+    setSqlText(savedItem.sql);
+    setVariables(syncedVariables);
+    variablesRef.current = syncedVariables;
+    setActiveSavedQueryId(savedItem.id);
+    setSavedQueryName(savedItem.name);
+    renameTab(tab.id, savedItem.name);
+    updateTab(tab.id, {
+      savedQueryId: savedItem.id,
+      savedQueryName: savedItem.name,
+      initialSql: savedItem.sql,
+      initialVariables: syncedVariables,
+    });
+
+    if (runImmediately) {
+      run('run', savedItem.sql, syncedVariables);
+    } else if (syncedVariables.length > 0) {
+      setPanel('variables');
+      toast.success(`Query "${savedItem.name}" carregada (${syncedVariables.length} variável(is)).`);
+    } else {
+      toast.success(`Query "${savedItem.name}" carregada.`);
+    }
+  };
+
+  const handleDeleteSavedQuery = async (id: number) => {
+    if (!token) return;
+    try {
+      await TalpadbServices.deleteSavedQuery(token, id);
+      setSavedQueries((previousList) => previousList.filter((item) => item.id !== id));
+      if (activeSavedQueryId === id) {
+        setActiveSavedQueryId(null);
+        setSavedQueryName('');
+      }
+      toast.success('Query salva excluída.');
+    } catch (error) {
+      toast.error(`Erro ao excluir query: ${errorMessage(error)}`);
     }
   };
 
@@ -306,27 +485,35 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
         running={running}
         maxRows={maxRows}
         txStatus={txStatus}
-        canAnalyze={info.supportsExplainAnalyze}
-        onRun={() => run('run')}
-        onCancel={cancel}
-        onExplain={(analyze) => run(analyze ? 'explain-analyze' : 'explain')}
-        onOpenFile={openFile}
         onSave={saveFile}
+        onCancel={cancel}
+        onOpenFile={openFile}
+        onRun={() => run('run')}
+        savedQueryName={savedQueryName}
         onMaxRowsChange={setMaxRows}
+        savingNamedQuery={savingQuery}
+        variableCount={variables.length}
+        canAnalyze={info.supportsExplainAnalyze}
+        savedQueriesCount={savedQueries.length}
+        onSaveNamedQuery={handleSaveNamedQuery}
+        onOpenVariables={() => setPanel('variables')}
+        onOpenSavedQueries={() => setPanel('saved')}
+        onExplain={(analyze) => run(analyze ? 'explain-analyze' : 'explain')}
       />
 
       <div ref={splitRef} className="flex-1 min-h-0 flex flex-col">
         <div style={{ height: `${editorRatio * 100}%` }} className="min-h-[80px] flex-shrink-0">
           <SqlEditor
             ref={editorRef}
-            initialValue={tab.initialSql ?? ''}
-            placeholder="-- Escreva sua consulta. Ctrl+Enter ou F5 executa; com um trecho selecionado, executa só ele."
-            schema={completion}
             engine={engine}
-            defaultSchema={defaultSchemaFor(engine, connection)}
-            onRun={() => run('run')}
-            onExplain={(analyze) => run(analyze ? 'explain-analyze' : 'explain')}
             onSave={saveFile}
+            schema={completion}
+            onRun={() => run('run')}
+            onChange={handleEditorSqlChange}
+            initialValue={tab.initialSql ?? ''}
+            defaultSchema={defaultSchemaFor(engine, connection)}
+            onExplain={(analyze) => run(analyze ? 'explain-analyze' : 'explain')}
+            placeholder="-- Escreva sua consulta (use $1, $2 para variáveis). Ctrl+Enter ou F5 executa."
           />
         </div>
         <div
@@ -338,20 +525,33 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
         <div className="flex-1 min-h-0">
           <ResultsPanel
             panel={panel}
+            sqlText={sqlText}
             running={running}
-            runError={runError}
-            resultIndex={resultIndex}
             history={history}
+            runError={runError}
             execution={execution}
-            errorLocation={errorPlace}
+            variables={variables}
+            onExport={exportResult}
+            resultIndex={resultIndex}
+            savingQuery={savingQuery}
             onPanelChange={setPanel}
+            errorLocation={errorPlace}
+            savedQueries={savedQueries}
+            onSaveChanges={saveChanges}
+            savedQueryName={savedQueryName}
+            onChangeVariables={setVariables}
             onResultIndexChange={setResultIndex}
+            activeSavedQueryId={activeSavedQueryId}
+            loadingSavedQueries={loadingSavedQueries}
+            onSaveWithName={handleSaveNamedQuery}
+            onDeleteSavedQuery={handleDeleteSavedQuery}
+            onSelectSavedQuery={handleSelectSavedQuery}
             onLoadHistory={(sql) => {
               editorRef.current?.setValue(sql);
+              setSqlText(sql);
+              setVariables((previous) => syncVariablesWithSql(sql, previous));
               editorRef.current?.focus();
             }}
-            onExport={exportResult}
-            onSaveChanges={saveChanges}
           />
         </div>
       </div>
