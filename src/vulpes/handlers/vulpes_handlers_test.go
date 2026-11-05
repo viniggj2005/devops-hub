@@ -795,3 +795,118 @@ func TestSendHttpRequestResolvesResponseReferences(test *testing.T) {
 		test.Fatalf("expected response references outside a collection to fail, got %v", err)
 	}
 }
+
+func startMqttBroker(test *testing.T) string {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		test.Fatalf("unexpected mqtt listen error: %v", err)
+	}
+	test.Cleanup(func() { _ = listener.Close() })
+
+	go func() {
+		for {
+			connection, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			go func(client net.Conn) {
+				defer client.Close()
+				for {
+					packetType, flags, body, err := vulpesFunctions.ReadMqttPacket(client)
+					if err != nil {
+						return
+					}
+					switch packetType {
+					case vulpesFunctions.MqttConnect:
+						_, _ = client.Write([]byte{vulpesFunctions.MqttConnack << 4, 2, 0, 0})
+					case vulpesFunctions.MqttSubscribe:
+						if len(body) >= 2 {
+							_, _ = client.Write([]byte{vulpesFunctions.MqttSuback << 4, 3, body[0], body[1], 0})
+						}
+					case vulpesFunctions.MqttUnsubscribe:
+						if len(body) >= 2 {
+							_, _ = client.Write([]byte{vulpesFunctions.MqttUnsuback << 4, 2, body[0], body[1]})
+						}
+					case vulpesFunctions.MqttPublish:
+						published, err := vulpesFunctions.ParseMqttPublish(flags, body)
+						if err != nil {
+							continue
+						}
+						if published.Qos == 1 {
+							_, _ = client.Write(vulpesFunctions.EncodeMqttPacketAck(vulpesFunctions.MqttPuback, 0, published.PacketID))
+						}
+						echoPacket, err := vulpesFunctions.EncodeMqttPublish(1, published.Topic, append([]byte("broker:"), published.Payload...), 0, published.Retain)
+						if err == nil {
+							_, _ = client.Write(echoPacket)
+						}
+					case vulpesFunctions.MqttPingreq:
+						_, _ = client.Write(vulpesFunctions.EncodeMqttSimplePacket(vulpesFunctions.MqttPingresp))
+					case vulpesFunctions.MqttDisconnect:
+						return
+					}
+				}
+			}(connection)
+		}
+	}()
+
+	return listener.Addr().String()
+}
+
+func TestMqttSessionLifecycle(test *testing.T) {
+	environment := setupVulpesTest(test)
+	brokerAddress := startMqttBroker(test)
+
+	request := vulpesFunctions.NewRequest(vulpesDtos.ProtocolMqtt)
+	request.Mqtt.Url = "mqtt://" + brokerAddress
+	request.Mqtt.ClientID = "test-client"
+	request.Mqtt.Subscriptions = []vulpesDtos.MqttSubscriptionDto{
+		{Topic: "devices/+/telemetry", Qos: 1, Enabled: true},
+	}
+
+	if _, err := environment.client.ConnectMqtt(context.Background(), environment.token, "mqtt-1", vulpesDtos.ExecutionInputDto{Request: request}); err != nil {
+		test.Fatalf("unexpected mqtt connect error: %v", err)
+	}
+	connected := environment.collector.waitFor(test, "mqtt connected", func(event vulpesDtos.RealtimeEventDto) bool {
+		return event.Kind == vulpesDtos.RealtimeConnected
+	})
+	if connected.Event != "test-client" {
+		test.Fatalf("expected client ID test-client, got %q", connected.Event)
+	}
+	environment.collector.waitFor(test, "initial subscription metadata", func(event vulpesDtos.RealtimeEventDto) bool {
+		return event.Kind == vulpesDtos.RealtimeMetadata && strings.Contains(event.Data, "devices/+/telemetry")
+	})
+
+	if err := environment.client.PublishMqtt(context.Background(), environment.token, "mqtt-1", vulpesDtos.MqttPublishInputDto{
+		Topic:  "devices/sensor-1/telemetry",
+		Data:   `{"value":42}`,
+		Kind:   "json",
+		Qos:    1,
+		Retain: true,
+	}); err != nil {
+		test.Fatalf("unexpected mqtt publish error: %v", err)
+	}
+
+	environment.collector.waitFor(test, "outgoing publish", func(event vulpesDtos.RealtimeEventDto) bool {
+		return event.Direction == vulpesDtos.DirectionOutgoing && event.Event == "devices/sensor-1/telemetry [retain]" && event.Data == `{"value":42}`
+	})
+	environment.collector.waitFor(test, "puback", func(event vulpesDtos.RealtimeEventDto) bool {
+		return event.Kind == vulpesDtos.RealtimeAck
+	})
+	environment.collector.waitFor(test, "incoming echo", func(event vulpesDtos.RealtimeEventDto) bool {
+		return event.Direction == vulpesDtos.DirectionIncoming && event.Event == "devices/sensor-1/telemetry [retain]" && event.Data == `broker:{"value":42}`
+	})
+
+	if err := environment.client.SubscribeMqtt(context.Background(), environment.token, "mqtt-1", vulpesDtos.MqttSubscriptionDto{Topic: "alerts/#", Qos: 0, Enabled: true}); err != nil {
+		test.Fatalf("unexpected live subscribe error: %v", err)
+	}
+	if err := environment.client.UnsubscribeMqtt(context.Background(), environment.token, "mqtt-1", "alerts/#"); err != nil {
+		test.Fatalf("unexpected live unsubscribe error: %v", err)
+	}
+
+	if err := environment.client.CloseSession(context.Background(), environment.token, "mqtt-1"); err != nil {
+		test.Fatalf("unexpected close error: %v", err)
+	}
+	environment.collector.waitFor(test, "mqtt closed", func(event vulpesDtos.RealtimeEventDto) bool {
+		return event.Kind == vulpesDtos.RealtimeClosed
+	})
+}

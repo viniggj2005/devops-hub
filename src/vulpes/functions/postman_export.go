@@ -231,6 +231,8 @@ func protocolUrl(request vulpesDtos.RequestDto) string {
 	switch {
 	case request.Grpc != nil:
 		return request.Grpc.Url
+	case request.Mqtt != nil:
+		return request.Mqtt.Url
 	case request.SocketIo != nil:
 		return request.SocketIo.Url
 	case request.WebSocket != nil:

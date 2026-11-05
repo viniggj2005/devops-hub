@@ -3,10 +3,10 @@ import React from 'react';
 export const VULPES_MODULE = {
   id: 'vulpes',
   name: 'Vulpes',
-  tagline: 'HTTP, gRPC, WebSocket e Socket.IO',
+  tagline: 'HTTP, gRPC, WebSocket, Socket.IO e MQTT',
   gradient: 'from-amber-500 to-amber-700',
   textGradient: 'from-amber-500 to-amber-700',
-  description: 'Cliente de APIs no estilo Postman: coleções, ambientes e requisições HTTP, gRPC, WebSocket e Socket.IO.',
+  description: 'Cliente de APIs no estilo Postman: coleções, ambientes e requisições HTTP, gRPC, WebSocket, Socket.IO e MQTT.',
 } as const;
 
 const foxMaskStyle: React.CSSProperties = {

@@ -16,9 +16,11 @@ export type CookieSameSite = '' | 'Lax' | 'Strict' | 'None';
 
 export type DescriptorSource = 'reflection' | 'proto';
 
+export type MqttQos = 0 | 1 | 2;
+
 export type WebSocketMessageKind = 'text' | 'json' | 'binary';
 
-export type VulpesProtocol = 'http' | 'grpc' | 'websocket' | 'socketio';
+export type VulpesProtocol = 'http' | 'grpc' | 'websocket' | 'socketio' | 'mqtt';
 
 export type RealtimeDirection = 'incoming' | 'outgoing' | 'system';
 
@@ -129,11 +131,38 @@ export interface SocketIoRequest {
   skipTlsVerify: boolean;
 }
 
+export interface MqttSubscription {
+  qos: MqttQos;
+  topic: string;
+  enabled: boolean;
+}
+
+export interface MqttRequest {
+  qos: MqttQos;
+  url: string;
+  topic: string;
+  retain: boolean;
+  willQos: MqttQos;
+  message: string;
+  clientId: string;
+  username: string;
+  password: string;
+  willTopic: string;
+  willRetain: boolean;
+  willMessage: string;
+  cleanSession: boolean;
+  keepAliveSec: number;
+  skipTlsVerify: boolean;
+  messageKind: WebSocketMessageKind;
+  subscriptions: MqttSubscription[];
+}
+
 export interface VulpesRequest {
   auth: Auth;
   protocol: VulpesProtocol;
   http?: HttpRequest | null;
   grpc?: GrpcRequest | null;
+  mqtt?: MqttRequest | null;
   socketIo?: SocketIoRequest | null;
   webSocket?: WebSocketRequest | null;
 }

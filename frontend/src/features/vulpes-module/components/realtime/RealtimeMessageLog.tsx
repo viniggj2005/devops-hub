@@ -34,7 +34,7 @@ const eventIcon = (event: LoggedRealtimeEvent) => {
 const eventSummary = (event: LoggedRealtimeEvent) => {
   if (event.kind === 'connecting') return `Conectando em ${event.data}`;
   if (event.kind === 'connected') return event.data ? `Conectado · ${event.data}` : 'Conectado';
-  if (event.kind === 'metadata') return `Metadata (${event.event}) recebida`;
+  if (event.kind === 'metadata') return event.event === 'SUBSCRIBE' || event.event === 'UNSUBSCRIBE' ? event.data : `Metadata (${event.event}) recebida`;
   if (event.kind === 'closed' && event.event) return `Stream encerrado · ${event.event}${event.data ? `: ${event.data}` : ''}`;
   if (event.encoding === 'base64') return `[binário] ${event.data}`;
   return event.data || '(vazio)';

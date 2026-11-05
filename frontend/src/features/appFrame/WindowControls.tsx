@@ -8,7 +8,9 @@ const closeLabel = isDetachedWindow ? "Fechar janela" : "Fechar";
 const controlButtonClass = `
   inline-flex h-8 w-8 items-center justify-center
   rounded-full cursor-pointer
-  text-gray-400 hover:bg-white/10 hover:text-white
+  text-gray-500 dark:text-zinc-400
+  hover:bg-black/10 dark:hover:bg-white/10
+  hover:text-gray-900 dark:hover:text-white
   hover:scale-95 transition
 `;
 
@@ -55,8 +57,9 @@ export function WindowControls({ maximized, onToggleMaximise }: WindowControlsPr
         className="
           inline-flex h-8 w-8 items-center justify-center
           rounded-full cursor-pointer
-          text-red-400/80
-          hover:bg-red-500/20 hover:text-red-300 hover:scale-95
+          text-red-500/80 dark:text-red-400/80
+          hover:bg-red-500/15 dark:hover:bg-red-500/20
+          hover:text-red-600 dark:hover:text-red-300 hover:scale-95
           transition
         "
       >

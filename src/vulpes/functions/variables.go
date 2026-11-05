@@ -215,3 +215,21 @@ func (resolver *VariableResolver) ResolveSocketIoRequest(socketIoRequest vulpesD
 	socketIoRequest.Headers = resolver.ResolveKeyValues(socketIoRequest.Headers)
 	return socketIoRequest
 }
+
+func (resolver *VariableResolver) ResolveMqttRequest(mqttRequest vulpesDtos.MqttRequestDto) vulpesDtos.MqttRequestDto {
+	mqttRequest.Url = resolver.Resolve(mqttRequest.Url)
+	mqttRequest.Topic = resolver.Resolve(mqttRequest.Topic)
+	mqttRequest.Message = resolver.Resolve(mqttRequest.Message)
+	mqttRequest.ClientID = resolver.Resolve(mqttRequest.ClientID)
+	mqttRequest.Username = resolver.Resolve(mqttRequest.Username)
+	mqttRequest.Password = resolver.Resolve(mqttRequest.Password)
+	mqttRequest.WillTopic = resolver.Resolve(mqttRequest.WillTopic)
+	mqttRequest.WillMessage = resolver.Resolve(mqttRequest.WillMessage)
+	subscriptions := make([]vulpesDtos.MqttSubscriptionDto, 0, len(mqttRequest.Subscriptions))
+	for _, subscription := range mqttRequest.Subscriptions {
+		subscription.Topic = resolver.Resolve(subscription.Topic)
+		subscriptions = append(subscriptions, subscription)
+	}
+	mqttRequest.Subscriptions = subscriptions
+	return mqttRequest
+}
