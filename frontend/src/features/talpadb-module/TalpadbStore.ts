@@ -90,18 +90,30 @@ export const useTalpadbStore = create<TalpadbStoreState>((set, get) => ({
     }));
   },
 
-  openQueryTab: ({ connectionId, database, sql, autoRun, title }) => {
+  openQueryTab: ({
+    connectionId,
+    database,
+    sql,
+    autoRun,
+    title,
+    savedQueryId,
+    savedQueryName,
+    initialVariables,
+  }) => {
     const connection = get().connections.find((item) => item.id === connectionId);
     const counter = get().queryCounter + 1;
     set({ queryCounter: counter });
     get().openTab({
       type: 'query',
-      title: title ?? `Query ${counter}`,
+      title: title ?? savedQueryName ?? `Query ${counter}`,
       connectionId,
       connectionName: connectionLabel(connection),
       database: database || connection?.database || 'postgres',
       initialSql: sql,
       autoRun,
+      savedQueryId,
+      savedQueryName,
+      initialVariables,
     });
   },
 

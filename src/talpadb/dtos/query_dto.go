@@ -83,3 +83,28 @@ type SqlFileDto struct {
 	Name    string `json:"name"`
 	Content string `json:"content"`
 }
+
+type QueryVariableDto struct {
+	Index int    `json:"index"`
+	Value string `json:"value"`
+	Type  string `json:"type"`
+}
+
+type SavedQueryDto struct {
+	ID           uint               `json:"id"`
+	ConnectionID uint               `json:"connectionId"`
+	DatabaseName string             `json:"databaseName"`
+	Name         string             `json:"name"`
+	Sql          string             `json:"sql"`
+	Variables    []QueryVariableDto `json:"variables"`
+	UpdatedAt    string             `json:"updatedAt"`
+}
+
+type SaveQueryInputDto struct {
+	ID           *uint              `json:"id"`
+	ConnectionID uint               `json:"connectionId"`
+	DatabaseName string             `json:"databaseName"`
+	Name         string             `json:"name"`
+	Sql          string             `json:"sql"`
+	Variables    []QueryVariableDto `json:"variables"`
+}

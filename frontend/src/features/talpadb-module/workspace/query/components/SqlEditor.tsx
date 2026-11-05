@@ -8,9 +8,18 @@ import { diagnosticCount, setDiagnostics } from '@codemirror/lint';
 import type { DatabaseEngine } from '../../../../../interfaces/TalpadbInterfaces';
 import { buildCodeEditorTheme } from '../../../../shared/functions/CodeEditorTheme';
 import { useGeneralConfigsStore } from '../../../../settings/store/GeneralConfigsStore';
-import { EditorView, keymap, placeholder as placeholderExtension } from '@codemirror/view';
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { resolveSqlEditorColors } from '../../../../settings/constants/SqlEditorThemePresets';
+import {
+  keymap,
+  Decoration,
+  EditorView,
+  ViewPlugin,
+  MatchDecorator,
+  type ViewUpdate,
+  type DecorationSet,
+  placeholder as placeholderExtension,
+} from '@codemirror/view';
 
 export interface SqlEditorHandle {
   focus: () => void;
@@ -29,8 +38,33 @@ interface SqlEditorProps {
   schema?: SQLNamespace;
   defaultSchema?: string;
   engine?: DatabaseEngine;
+  onChange?: (value: string) => void;
   onExplain?: (analyze: boolean) => void;
 }
+
+const sqlVariableMark = Decoration.mark({
+  class: 'rounded bg-amber-500/15 px-0.5 font-semibold text-amber-400 ring-1 ring-amber-500/30',
+});
+
+const sqlVariableMatcher = new MatchDecorator({
+  regexp: /\$[1-9]\d{0,2}\b/g,
+  decoration: sqlVariableMark,
+});
+
+const sqlVariableHighlightExtension = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+    constructor(editorView: EditorView) {
+      this.decorations = sqlVariableMatcher.createDeco(editorView);
+    }
+    update(viewUpdate: ViewUpdate) {
+      this.decorations = sqlVariableMatcher.updateDeco(viewUpdate, this.decorations);
+    }
+  },
+  {
+    decorations: (pluginInstance) => pluginInstance.decorations,
+  }
+);
 
 const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
   (
@@ -38,6 +72,7 @@ const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
       onRun,
       schema,
       onSave,
+      onChange,
       onExplain,
       placeholder,
       readOnly = false,
@@ -57,8 +92,8 @@ const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
     );
     const containerRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<EditorView | null>(null);
-    const callbacks = useRef({ onRun, onExplain, onSave });
-    callbacks.current = { onRun, onExplain, onSave };
+    const callbacks = useRef({ onRun, onExplain, onSave, onChange });
+    callbacks.current = { onRun, onExplain, onSave, onChange };
     const compartments = useMemo(
       () => ({
         theme: new Compartment(),
@@ -106,6 +141,7 @@ const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
             ),
             basicSetup,
             keymap.of([indentWithTab]),
+            sqlVariableHighlightExtension,
             compartments.language.of(
               sql({ dialect: engineInfo(engine).dialect, upperCaseKeywords: true, schema, defaultSchema })
             ),
@@ -115,10 +151,12 @@ const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
               EditorView.editable.of(!readOnly),
             ]),
             placeholder ? placeholderExtension(placeholder) : [],
-            // Ao editar, some o destaque de erro da última execução.
             EditorView.updateListener.of((update) => {
-              if (update.docChanged && diagnosticCount(update.state) > 0) {
-                queueMicrotask(() => update.view.dispatch(setDiagnostics(update.view.state, [])));
+              if (update.docChanged) {
+                callbacks.current.onChange?.(update.state.doc.toString());
+                if (diagnosticCount(update.state) > 0) {
+                  queueMicrotask(() => update.view.dispatch(setDiagnostics(update.view.state, [])));
+                }
               }
             }),
           ],
@@ -129,8 +167,6 @@ const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
         view.destroy();
         viewRef.current = null;
       };
-      // O editor é criado uma única vez; mudanças de props são aplicadas via compartments abaixo.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -195,7 +231,6 @@ const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
       []
     );
 
-    // F5 recarrega a janela globalmente (main.tsx); dentro do editor ele executa a query.
     const stopGlobalShortcuts = (event: React.KeyboardEvent) => {
       if (event.key === 'F5') event.stopPropagation();
     };

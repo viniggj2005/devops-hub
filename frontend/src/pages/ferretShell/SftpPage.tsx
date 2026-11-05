@@ -5,15 +5,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { errorMessage } from '../../features/shared/functions/ErrorMessage';
 import { usePromptToast } from '../../features/shared/components/toasts/PromptToast';
 import { useConfirmToast } from '../../features/shared/components/toasts/ConfirmToast';
-import * as ferretshellDtos from '../../../bindings/docker-manager-go/src/ferretshell/dtos/models';
 import SftpSidebar from '../../features/ferretShell-module/sftp/components/SftpSidebar';
 import RenameModal from '../../features/ferretShell-module/sftp/components/RenameModal';
+import SftpLocalPanel from '../../features/ferretShell-module/sftp/components/SftpLocalPanel';
+import SftpRemotePanel from '../../features/ferretShell-module/sftp/components/SftpRemotePanel';
+import * as ferretshellDtos from '../../../bindings/docker-manager-go/src/ferretshell/dtos/models';
 import * as Ssh from '../../../bindings/docker-manager-go/src/ferretshell/handlers/sshhandlerstruct';
 import * as Sftp from '../../../bindings/docker-manager-go/src/ferretshell/handlers/sftphandlerstruct';
-import SftpLocalPanel from '../../features/ferretShell-module/sftp/components/SftpLocalPanel';
 import * as Local from '../../../bindings/docker-manager-go/src/ferretshell/handlers/localfilehandler';
 import * as ferretshellHandlers from '../../../bindings/docker-manager-go/src/ferretshell/handlers/models';
-import SftpRemotePanel from '../../features/ferretShell-module/sftp/components/SftpRemotePanel';
 import { bytesToBase64, normalizeKey } from '../../features/ferretShell-module/terminal/functions/TreatmentFunctions';
 
 const SftpPage: React.FC = () => {
@@ -26,6 +26,9 @@ const SftpPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [remotePath, setRemotePath] = useState<string>('/');
     const [sessionId, setSessionId] = useState<string | null>(null);
+    const [loadingRemoteFiles, setLoadingRemoteFiles] = useState(false);
+    const [connectingHost, setConnectingHost] = useState<string | null>(null);
+    const [connectingConnectionId, setConnectingConnectionId] = useState<number | null>(null);
 
     const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
     const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
@@ -68,11 +71,14 @@ const SftpPage: React.FC = () => {
     };
 
     const loadRemoteFiles = async (currentSessionId: string, path: string) => {
+        setLoadingRemoteFiles(true);
         try {
             const list = await Sftp.ListFiles(currentSessionId, path);
             setRemoteFiles(list.sort((first, second) => (first.isDir === second.isDir ? first.name.localeCompare(second.name) : first.isDir ? -1 : 1)));
         } catch (remoteError: any) {
             setError(remoteError.message);
+        } finally {
+            setLoadingRemoteFiles(false);
         }
     };
 
@@ -84,8 +90,10 @@ const SftpPage: React.FC = () => {
     };
 
     const handleConnect = async (sshDto: ferretshellDtos.SshDto) => {
-        if (activeConnectionId === sshDto.id) return;
+        if (connecting || (activeConnectionId === sshDto.id && sessionId)) return;
         setConnecting(true);
+        setConnectingConnectionId(sshDto.id);
+        setConnectingHost(`${sshDto.systemUser}@${sshDto.host}:${sshDto.port || 22}`);
         setError(null);
         setSelectedIndices([]);
         setSelectedLocalIndices([]);
@@ -108,7 +116,12 @@ const SftpPage: React.FC = () => {
                     placeholder: 'sua senha',
                     message: `Digite a senha para ${sshDto.systemUser}@${sshDto.host}`,
                 });
-                if (!password) { setConnecting(false); return; }
+                if (!password) {
+                    setConnecting(false);
+                    setConnectingConnectionId(null);
+                    setConnectingHost(null);
+                    return;
+                }
                 config.Password = password;
             }
             config.Timeout = 10 * Duration.Second;
@@ -124,6 +137,8 @@ const SftpPage: React.FC = () => {
             toast.error(connectError.message || 'Falha na conexão');
         } finally {
             setConnecting(false);
+            setConnectingConnectionId(null);
+            setConnectingHost(null);
         }
     };
 
@@ -281,18 +296,22 @@ const SftpPage: React.FC = () => {
     return (
         <div className="flex h-[calc(100vh-180px)] gap-4 p-4">
             <SftpSidebar
-                connections={savedConnections}
-                activeConnectionId={activeConnectionId}
                 connecting={connecting}
                 onConnect={handleConnect}
+                connections={savedConnections}
+                activeConnectionId={activeConnectionId}
+                connectingConnectionId={connectingConnectionId}
             />
 
             <SftpRemotePanel
+                error={error}
                 sessionId={sessionId}
                 remotePath={remotePath}
+                connecting={connecting}
                 remoteFiles={remoteFiles}
+                connectingHost={connectingHost}
+                loadingFiles={loadingRemoteFiles}
                 selectedIndices={selectedIndices}
-                error={error}
                 onUp={() => {
                     if (remotePath === '/') return;
                     const parts = remotePath.split('/').filter(Boolean);

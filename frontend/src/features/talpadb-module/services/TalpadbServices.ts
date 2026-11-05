@@ -2,25 +2,27 @@ import * as talpadbDtos from '../../../../bindings/docker-manager-go/src/talpadb
 import * as ConnectionsApi from '../../../../bindings/docker-manager-go/src/talpadb/handlers/talpadbhandlerstruct';
 import * as ClientApi from '../../../../bindings/docker-manager-go/src/talpadb/handlers/talpadbclienthandlerstruct';
 import type {
-  ColumnInfo,
   SqlFile,
-  TableChanges,
-  TableSaveResult,
-  DropObjectInput,
-  DatabaseOptions,
-  DatabaseDiagram,
-  SavedDiagramLayout,
-  CreateDatabaseInput,
+  SavedQuery,
+  ColumnInfo,
   SchemaInfo,
   DatabaseInfo,
+  TableChanges,
   TableDetails,
   QuerySession,
   SchemaObjects,
   QueryExecution,
+  SaveQueryInput,
+  TableSaveResult,
+  DropObjectInput,
+  DatabaseOptions,
+  DatabaseDiagram,
   ServerDashboard,
   ObjectReference,
   CompletionTable,
   TalpadbConnection,
+  SavedDiagramLayout,
+  CreateDatabaseInput,
   ConnectionTestResult,
   TalpadbConnectionInput,
 } from '../../../interfaces/TalpadbInterfaces';
@@ -178,6 +180,24 @@ export const TalpadbServices = {
     layout: SavedDiagramLayout
   ): Promise<void> {
     return ConnectionsApi.SaveDiagramLayout(token, connectionId, database, schema, JSON.stringify(layout));
+  },
+
+  async listSavedQueries(
+    token: string,
+    connectionId: number,
+    database: string
+  ): Promise<SavedQuery[]> {
+    const list = await ConnectionsApi.ListSavedQueries(token, connectionId, database);
+    return Array.isArray(list) ? (list as unknown as SavedQuery[]) : [];
+  },
+
+  async saveQuery(token: string, input: SaveQueryInput): Promise<SavedQuery> {
+    const payload = talpadbDtos.SaveQueryInputDto.createFrom(input);
+    return (await ConnectionsApi.SaveQuery(token, payload)) as unknown as SavedQuery;
+  },
+
+  async deleteSavedQuery(token: string, id: number): Promise<void> {
+    return ConnectionsApi.DeleteSavedQuery(token, id);
   },
 
   async countRows(

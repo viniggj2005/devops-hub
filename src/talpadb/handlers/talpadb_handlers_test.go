@@ -1,22 +1,23 @@
 package talpadbHandlers
 
 import (
+	"time"
 	"bytes"
-	"context"
-	authFunctions "docker-manager-go/src/auth/functions"
-	"docker-manager-go/src/models"
-	talpadbDtos "docker-manager-go/src/talpadb/dtos"
-	"docker-manager-go/src/types"
-	"encoding/hex"
 	"errors"
 	"strings"
 	"testing"
-	"time"
+	"context"
+	"encoding/hex"
 
+	"gorm.io/gorm"
 	"github.com/glebarez/sqlite"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/wailsapp/wails/v3/pkg/application"
-	"gorm.io/gorm"
+
+	"docker-manager-go/src/types"
+	"docker-manager-go/src/models"
+	talpadbDtos "docker-manager-go/src/talpadb/dtos"
+	authFunctions "docker-manager-go/src/auth/functions"
 )
 
 func setupTalpadbTestHandlers(test *testing.T) (*TalpadbHandlerStruct, *TalpadbClientHandlerStruct, string) {
@@ -32,6 +33,7 @@ func setupTalpadbTestHandlers(test *testing.T) (*TalpadbHandlerStruct, *TalpadbC
 	if err := dataBase.AutoMigrate(
 		&models.UserModel{},
 		&models.TalpadbConnectionModel{},
+		&models.TalpadbSavedQueryModel{},
 		&models.TalpadbDiagramLayoutModel{},
 	); err != nil {
 		test.Fatalf("unexpected error migrating models: %v", err)
@@ -150,6 +152,29 @@ func TestTalpadbConnectionsAndDiagramLayoutsCRUD(test *testing.T) {
 	loadedLayout, err := talpadbHandler.GetDiagramLayout(token, created.ID, "postgres", "public")
 	if err != nil || loadedLayout != updatedLayout {
 		test.Fatalf("unexpected loaded diagram layout: %q, err=%v", loadedLayout, err)
+	}
+
+	savedQuery, err := talpadbHandler.SaveQuery(token, talpadbDtos.SaveQueryInputDto{
+		ConnectionID: created.ID,
+		DatabaseName: "postgres",
+		Name:         "Users by status",
+		Sql:          "SELECT * FROM users WHERE status = $1 AND id = $2",
+		Variables: []talpadbDtos.QueryVariableDto{
+			{Index: 1, Value: "active", Type: "auto"},
+			{Index: 2, Value: "10", Type: "number"},
+		},
+	})
+	if err != nil || savedQuery == nil || len(savedQuery.Variables) != 2 {
+		test.Fatalf("unexpected error saving query: %+v, err=%v", savedQuery, err)
+	}
+
+	listedQueries, err := talpadbHandler.ListSavedQueries(token, created.ID, "postgres")
+	if err != nil || len(listedQueries) != 1 || listedQueries[0].Name != "Users by status" {
+		test.Fatalf("unexpected listed saved queries: %+v, err=%v", listedQueries, err)
+	}
+
+	if err := talpadbHandler.DeleteSavedQuery(token, savedQuery.ID); err != nil {
+		test.Fatalf("unexpected error deleting saved query: %v", err)
 	}
 
 	if err := clientHandler.DisconnectServer(context.Background(), token, created.ID); err != nil {
