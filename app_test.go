@@ -1,14 +1,14 @@
 package main
 
 import (
-	"encoding/base64"
 	"io"
-	"net/http"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"net/http"
+	"path/filepath"
+	"encoding/base64"
 )
 
 type roundTripFunc func(request *http.Request) (*http.Response, error)
@@ -129,17 +129,21 @@ func TestUpdaterFunctionsAndCheckForUpdates(test *testing.T) {
 	}
 
 	appInstance := NewApp()
-	message, err := appInstance.CheckForUpdates()
-	if err != nil || !strings.Contains(message, "9.9.9") {
-		test.Fatalf("unexpected CheckForUpdates message: %q, err=%v", message, err)
-	}
-
 	if pending := appInstance.GetAvailableUpdate(); pending != "" {
-		test.Fatalf("expected no pending update before auto check, got %q", pending)
+		test.Fatalf("expected no pending update before check, got %q", pending)
 	}
 	if err := appInstance.ApplyAvailableUpdate(); err == nil {
 		test.Fatalf("expected error applying update without pending release")
 	}
+
+	message, err := appInstance.CheckForUpdates()
+	if err != nil || !strings.Contains(message, "9.9.9") {
+		test.Fatalf("unexpected CheckForUpdates message: %q, err=%v", message, err)
+	}
+	if pending := appInstance.GetAvailableUpdate(); pending != "9.9.9" {
+		test.Fatalf("expected pending update 9.9.9 after CheckForUpdates, got %q", pending)
+	}
+
 	appInstance.AutoCheckForUpdates()
 	if pending := appInstance.GetAvailableUpdate(); pending != "9.9.9" {
 		test.Fatalf("expected pending update 9.9.9, got %q", pending)

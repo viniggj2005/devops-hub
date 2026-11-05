@@ -1,18 +1,18 @@
 package main
 
 import (
-	"context"
-	"encoding/base64"
-	"errors"
-	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
+	"fmt"
 	"sync"
-
-	"docker-manager-go/src/desktop"
+	"errors"
+	"context"
+	"strings"
+	"path/filepath"
+	"encoding/base64"
 
 	"github.com/blang/semver"
+
+	"docker-manager-go/src/desktop"
 )
 
 var AppVersion = "1.0.0"
@@ -141,6 +141,10 @@ func (app *App) CheckForUpdates() (string, error) {
 	if !found || latest.Version.LTE(currentVersion) {
 		return "Você já está na versão mais recente.", nil
 	}
+
+	app.updateMutex.Lock()
+	app.pendingUpdate = latest
+	app.updateMutex.Unlock()
 
 	return "Nova versão disponível: " + latest.Version.String(), nil
 }
