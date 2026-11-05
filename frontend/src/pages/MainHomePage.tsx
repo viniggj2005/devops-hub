@@ -4,12 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { Box, EyeOff, Settings } from 'lucide-react';
 import { useAppStore } from '../features/appFrame/AppStore';
 import { appModules } from '../features/shared/constants/AppModules';
+import { useAppVersion } from '../features/shared/hooks/useAppVersion';
 import { useGeneralConfigsStore } from '../features/settings/store/GeneralConfigsStore';
 import { moduleIconBackground } from '../features/settings/functions/ModuleIconBackground';
 
 const MainHomePage: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const appVersion = useAppVersion();
     const { openTab } = useAppStore();
     const configsLoaded = useGeneralConfigsStore(state => state.loaded);
     const modulesConfig = useGeneralConfigsStore(state => state.modules);
@@ -22,7 +24,12 @@ const MainHomePage: React.FC = () => {
 
             <header className="relative z-10 p-6 md:p-10 flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">DeployOps Console</h1>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-3xl font-bold tracking-tight">DeployOps Console</h1>
+                        <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">
+                            v{appVersion}
+                        </span>
+                    </div>
                     <p className="text-gray-500 dark:text-zinc-400 mt-1">Bem-vindo de volta, {user?.nome || 'Usuário'}</p>
                 </div>
                 <div className="flex items-center gap-4">
@@ -101,7 +108,8 @@ const MainHomePage: React.FC = () => {
                 </div>
             </main>
 
-            <footer className="p-10 text-center text-gray-400 dark:text-zinc-600 text-sm">
+            <footer className="p-8 text-center text-gray-400 dark:text-zinc-500 text-xs font-mono">
+                Devops Hub · Versão {appVersion}
             </footer>
         </div>
     );
