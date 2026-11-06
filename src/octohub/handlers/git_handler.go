@@ -23,17 +23,79 @@ type repositoryWorkspace struct {
 }
 
 type GitHandler struct {
-	mutex       sync.RWMutex
-	appContext  context.Context
-	initialPath string
-	workspaces  map[string]repositoryWorkspace
+	mutex        sync.RWMutex
+	appContext   context.Context
+	initialPath  string
+	undoneHeads  map[string]string
+	workspaces   map[string]repositoryWorkspace
+	localCommits map[string]map[string]bool
 }
 
 func NewGitHandler(initialPath string) *GitHandler {
 	return &GitHandler{
-		initialPath: initialPath,
-		workspaces:  make(map[string]repositoryWorkspace),
+		initialPath:  initialPath,
+		undoneHeads:  make(map[string]string),
+		workspaces:   make(map[string]repositoryWorkspace),
+		localCommits: make(map[string]map[string]bool),
 	}
+}
+
+func (handlerStruct *GitHandler) markCommitCreated(ctx context.Context, commitHash string) {
+	repoPath := handlerStruct.repositoryPath(ctx)
+	if repoPath == "" || commitHash == "" {
+		return
+	}
+	handlerStruct.mutex.Lock()
+	defer handlerStruct.mutex.Unlock()
+	if handlerStruct.localCommits[repoPath] == nil {
+		handlerStruct.localCommits[repoPath] = make(map[string]bool)
+	}
+	handlerStruct.localCommits[repoPath][commitHash] = true
+	delete(handlerStruct.undoneHeads, repoPath)
+}
+
+func (handlerStruct *GitHandler) markCommitUndone(ctx context.Context, undoneHash string, newHeadHash string) {
+	repoPath := handlerStruct.repositoryPath(ctx)
+	if repoPath == "" {
+		return
+	}
+	handlerStruct.mutex.Lock()
+	defer handlerStruct.mutex.Unlock()
+	if handlerStruct.localCommits[repoPath] != nil {
+		delete(handlerStruct.localCommits[repoPath], undoneHash)
+	}
+	handlerStruct.undoneHeads[repoPath] = newHeadHash
+}
+
+func (handlerStruct *GitHandler) clearLocalCommits(ctx context.Context) {
+	repoPath := handlerStruct.repositoryPath(ctx)
+	if repoPath == "" {
+		return
+	}
+	handlerStruct.mutex.Lock()
+	defer handlerStruct.mutex.Unlock()
+	delete(handlerStruct.localCommits, repoPath)
+	delete(handlerStruct.undoneHeads, repoPath)
+}
+
+func (handlerStruct *GitHandler) isUndoneHead(ctx context.Context, headHash string) bool {
+	repoPath := handlerStruct.repositoryPath(ctx)
+	if repoPath == "" || headHash == "" {
+		return false
+	}
+	handlerStruct.mutex.RLock()
+	defer handlerStruct.mutex.RUnlock()
+	return handlerStruct.undoneHeads[repoPath] == headHash
+}
+
+func (handlerStruct *GitHandler) isLocalCommit(ctx context.Context, headHash string) bool {
+	repoPath := handlerStruct.repositoryPath(ctx)
+	if repoPath == "" || headHash == "" {
+		return false
+	}
+	handlerStruct.mutex.RLock()
+	defer handlerStruct.mutex.RUnlock()
+	return handlerStruct.localCommits[repoPath] != nil && handlerStruct.localCommits[repoPath][headHash]
 }
 
 func (handlerStruct *GitHandler) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {

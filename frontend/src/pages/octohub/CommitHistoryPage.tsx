@@ -5,23 +5,23 @@ import { errorMessage } from '../../features/shared/functions/ErrorMessage';
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useConfirmToast } from '../../features/shared/components/toasts/ConfirmToast';
 import { DiffHunk, parseDiff } from '../../features/octohub-module/functions/diffParser';
-import * as octohubStructs from '../../../bindings/docker-manager-go/src/octohub/structs/models';
 import CommitBox from '../../features/octohub-module/components/commit-history/CommitBox';
 import StashChangesModal from '../../features/octohub-module/components/StashChangesModal';
 import DiffViewer from '../../features/octohub-module/components/commit-history/DiffViewer';
+import * as octohubStructs from '../../../bindings/docker-manager-go/src/octohub/structs/models';
 import CommitSidebar from '../../features/octohub-module/components/commit-history/CommitSidebar';
+import ContextMenu, { ContextMenuEntry } from '../../features/shared/components/menus/ContextMenu';
 import ChangesSidebar from '../../features/octohub-module/components/commit-history/ChangesSidebar';
 import OperationBanner from '../../features/octohub-module/components/commit-history/OperationBanner';
 import { useOctohubRepository } from '../../features/octohub-module/contexts/OctohubRepositoryContext';
 import ModifiedFileList from '../../features/octohub-module/components/commit-history/ModifiedFileList';
 import { getConflictingFiles, isConflictError } from '../../features/octohub-module/functions/gitStatus';
 import CommitDetailsHeader from '../../features/octohub-module/components/commit-history/CommitDetailsHeader';
-import ContextMenu, { ContextMenuEntry } from '../../features/shared/components/menus/ContextMenu';
 import CommitActionModal, { CommitAction } from '../../features/octohub-module/components/commit-history/CommitActionModals';
 import BranchCompareBar, { CompareDirection } from '../../features/octohub-module/components/commit-history/BranchCompareBar';
 import { ALL_SELECTED, FileSelection, NONE_SELECTED, selectedLineSet, setLines } from '../../features/octohub-module/functions/lineSelection';
-import { ListCommits, ListCompareCommits, GetCommitModifications, GetCommitedFileChanges, GetGitStatus, GetUncommitedFileChanges, Commit, DiscardChanges } from '../../../bindings/docker-manager-go/src/octohub/handlers/gitcommitshandler';
 import { GitCommit, FileCode, Clock, FolderGit2, FolderPlus, GitCommitHorizontal, ArrowUpDown, Undo2, GitBranchPlus, Tag, Cherry, Copy, EyeOff, ClipboardCopy, FolderSearch, ExternalLink, SquareCheck, Square } from 'lucide-react';
+import { ListCommits, ListCompareCommits, GetCommitModifications, GetCommitedFileChanges, GetGitStatus, GetUncommitedFileChanges, Commit, DiscardChanges, GetUndoableCommit, UndoLastCommit } from '../../../bindings/docker-manager-go/src/octohub/handlers/gitcommitshandler';
 import { GetStashedFileDiff, ListStashes, PopStash, DropStash, GetOperationState, ContinueOperation, AbortOperation, SkipRebaseCommit, CheckoutCommit, RevertCommit, HasUncommittedChanges, GetCurrentBranch, IgnoreFile, IgnoreExtension, RevealInExplorer, OpenWithDefaultProgram, OpenFileInEditor } from '../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 
 type DiffSource = 'working' | 'stash' | 'commit';
@@ -38,6 +38,7 @@ const CommitHistoryPage: React.FC = () => {
     const [summary, setSummary] = useState('');
     const [loading, setLoading] = useState(true);
     const [hasMore, setHasMore] = useState(true);
+    const [undoing, setUndoing] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [description, setDescription] = useState('');
     const [committing, setCommitting] = useState(false);
@@ -62,12 +63,14 @@ const CommitHistoryPage: React.FC = () => {
     const [checkoutTarget, setCheckoutTarget] = useState<octohubStructs.Commit | null>(null);
     const [selectedCommit, setSelectedCommit] = useState<octohubStructs.Commit | null>(null);
     const [modifications, setModifications] = useState<octohubStructs.FileModification[]>([]);
+    const [undoableCommit, setUndoableCommit] = useState<octohubStructs.UndoableCommit | null>(null);
     const [fileMenu, setFileMenu] = useState<{ x: number; y: number; file: octohubStructs.FilesStatus } | null>(null);
     const [commitMenu, setCommitMenu] = useState<{ x: number; y: number; commit: octohubStructs.Commit } | null>(null);
     const [commitAction, setCommitAction] = useState<{ action: CommitAction; commit: octohubStructs.Commit } | null>(null);
     const { loading: loadingRepository, repository, revision, currentBranch, notifyChange, addRepository, openConflicts } = useOctohubRepository();
 
     const diffRequest = useRef(0);
+    const statusRequest = useRef(0);
     const commitsRequest = useRef(0);
     const activeTabRef = useRef(activeTab);
     const diffSourceRef = useRef(diffSource);
@@ -184,17 +187,25 @@ const CommitHistoryPage: React.FC = () => {
     };
 
     const fetchGitStatus = async () => {
+        const requestId = ++statusRequest.current;
         try {
-            const files = (await GetGitStatus()) || [];
+            const [filesResult, stashesList, operationState, undoableState] = await Promise.all([
+                GetGitStatus().catch(() => []),
+                ListStashes().catch(() => []),
+                GetOperationState().catch(() => null),
+                GetUndoableCommit().catch(() => null),
+            ]);
+            if (requestId !== statusRequest.current) return false;
+
+            const files = filesResult || [];
             const changed = statusKey(files) !== statusKey(changedFilesRef.current);
             setChangedFiles(previous => statusKey(previous) === statusKey(files) ? previous : files);
             setSelections(previous => Object.fromEntries(
                 files.filter(file => previous[file.FileName]).map(file => [file.FileName, previous[file.FileName]])
             ));
-
-            const stashesList = await ListStashes();
             setStashes(stashesList || []);
-            setOperation(await GetOperationState().catch(() => null));
+            setOperation(operationState);
+            setUndoableCommit(undoableState);
             return changed;
         } catch (err: any) {
             console.error('Erro ao buscar status do git:', err);
@@ -407,7 +418,15 @@ const CommitHistoryPage: React.FC = () => {
     const commitMenuEntries = (commit: octohubStructs.Commit): ContextMenuEntry[] => {
         const blocked = Boolean(operation?.Kind);
         const hint = blocked ? 'Conclua ou aborte a operação em andamento antes' : undefined;
-        return [
+        const canCancelUnpushed = Boolean(undoableCommit && commit.Hash === undoableCommit.Hash);
+        const entries: ContextMenuEntry[] = [];
+        if (canCancelUnpushed) {
+            entries.push(
+                { label: 'Cancelar commit não enviado', icon: Undo2, disabled: blocked || undoing, hint, onClick: handleUndoCommit },
+                'separator',
+            );
+        }
+        entries.push(
             { label: 'Fazer checkout do commit', icon: GitCommitHorizontal, disabled: blocked, hint, onClick: () => checkoutCommit(commit) },
             { label: 'Reordenar commits...', icon: ArrowUpDown, disabled: blocked, hint, onClick: () => setCommitAction({ action: 'reorder', commit }) },
             { label: 'Reverter alterações do commit', icon: Undo2, disabled: blocked, hint, onClick: () => revertCommit(commit) },
@@ -417,7 +436,8 @@ const CommitHistoryPage: React.FC = () => {
             { label: 'Cherry-pick do commit...', icon: Cherry, disabled: blocked, hint, onClick: () => setCommitAction({ action: 'cherry-pick', commit }) },
             'separator',
             { label: 'Copiar SHA', icon: Copy, onClick: () => copySha(commit) },
-        ];
+        );
+        return entries;
     };
 
     const abortOperation = () => {
@@ -543,6 +563,7 @@ const CommitHistoryPage: React.FC = () => {
         setSelectedCommit(null);
         setOperation(null);
         setCompareBranch(null);
+        setUndoableCommit(null);
     }, [repository?.id]);
 
     const operationKey = operation?.Kind ? `${operation.Kind}\n${operation.Message}` : '';
@@ -690,11 +711,20 @@ const CommitHistoryPage: React.FC = () => {
 
     const handleCommit = async () => {
         const files = selectedRequests();
+        const committedSummary = summary.trim();
+        const committedDescription = description.trim();
 
         setCommitting(true);
         try {
             const hash = await Commit(octohubStructs.CommitRequest.createFrom({ Summary: summary, Description: description, Files: files }));
-            toast.success(`${hash ? `${hash}: ` : ''}${summary.trim()}`);
+            statusRequest.current++;
+            setUndoableCommit(octohubStructs.UndoableCommit.createFrom({
+                Hash: hash,
+                Summary: committedSummary,
+                ShortHash: hash.slice(0, 7),
+                Description: committedDescription,
+            }));
+            toast.success(`${hash ? `${hash}: ` : ''}${committedSummary}`);
             setSummary('');
             setDescription('');
             setSelections({});
@@ -703,6 +733,28 @@ const CommitHistoryPage: React.FC = () => {
             toast.error(`Erro ao fazer commit: ${errorMessage(err)}`);
         } finally {
             setCommitting(false);
+        }
+    };
+
+    const handleUndoCommit = async () => {
+        const previousUndoable = undoableCommit;
+        statusRequest.current++;
+        setUndoableCommit(null);
+        setUndoing(true);
+        try {
+            const undone = await UndoLastCommit();
+            if (undone) {
+                setSummary(previous => previous.trim() ? previous : undone.Summary);
+                setDescription(previous => previous.trim() ? previous : undone.Description);
+                toast.success(`Commit ${undone.ShortHash} cancelado.`);
+            }
+            setActiveTab('changes');
+            notifyChange();
+        } catch (err: any) {
+            setUndoableCommit(previousUndoable);
+            toast.error(`Erro ao cancelar commit: ${errorMessage(err)}`);
+        } finally {
+            setUndoing(false);
         }
     };
 
@@ -841,8 +893,11 @@ const CommitHistoryPage: React.FC = () => {
                                 <CommitBox
                                     mode={commitMode}
                                     summary={summary}
+                                    undoing={undoing}
                                     description={description}
                                     onSummaryChange={setSummary}
+                                    onUndoCommit={handleUndoCommit}
+                                    undoableCommit={undoableCommit}
                                     selectedCount={selectedFilesCount}
                                     onDescriptionChange={setDescription}
                                     committing={committing || operationBusy}

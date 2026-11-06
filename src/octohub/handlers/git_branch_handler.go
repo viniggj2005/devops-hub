@@ -31,6 +31,7 @@ func (handlerStruct *GitBranchHandler) PublishBranch(ctx context.Context, branch
 	if err != nil {
 		return err
 	}
+	handlerStruct.gitHandler.clearLocalCommits(ctx)
 	return nil
 }
 
@@ -141,6 +142,7 @@ func (handlerStruct *GitBranchHandler) DeleteBranch(ctx context.Context, branch 
 	if err != nil {
 		return err
 	}
+	handlerStruct.gitHandler.clearLocalCommits(ctx)
 	return nil
 }
 

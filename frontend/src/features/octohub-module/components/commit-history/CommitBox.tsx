@@ -1,17 +1,21 @@
 import React from 'react';
-import { GitCommitHorizontal } from 'lucide-react';
+import { Undo2, GitCommitHorizontal } from 'lucide-react';
+import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models.js';
 
 interface CommitBoxProps {
     summary: string;
+    undoing?: boolean;
     committing: boolean;
     description: string;
     onCommit: () => void;
     selectedCount: number;
     branch: string | null;
     disabledReason?: string;
+    onUndoCommit?: () => void;
     mode?: 'commit' | 'merge' | 'squash';
     onSummaryChange: (value: string) => void;
     onDescriptionChange: (value: string) => void;
+    undoableCommit?: octohubStructs.UndoableCommit | null;
 }
 
 const CommitBox: React.FC<CommitBoxProps> = ({
@@ -20,8 +24,11 @@ const CommitBox: React.FC<CommitBoxProps> = ({
     onCommit,
     committing,
     description,
+    onUndoCommit,
     selectedCount,
     disabledReason,
+    undoableCommit,
+    undoing = false,
     mode = 'commit',
     onSummaryChange,
     onDescriptionChange,
@@ -29,7 +36,7 @@ const CommitBox: React.FC<CommitBoxProps> = ({
     const reason = disabledReason
         || (mode === 'commit' && selectedCount === 0 ? 'Selecione ao menos uma alteração' : '')
         || (!summary.trim() ? 'Escreva um resumo para o commit' : '');
-    const canCommit = !reason && !committing;
+    const canCommit = !reason && !committing && !undoing;
 
     const onKeyDown = (event: React.KeyboardEvent) => {
         if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && canCommit) {
@@ -75,6 +82,35 @@ const CommitBox: React.FC<CommitBoxProps> = ({
                 </span>
             </button>
             {reason && <p className="text-[10px] text-center text-zinc-400">{reason}</p>}
+            {mode === 'commit' && undoableCommit && onUndoCommit && (
+                <div className="pt-2 mt-1 border-t border-zinc-200/80 dark:border-white/5 flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                        <p className="text-[10px] uppercase tracking-wider font-semibold text-zinc-400 dark:text-zinc-500">
+                            Commit não enviado · {undoableCommit.ShortHash}
+                        </p>
+                        <p
+                            title={undoableCommit.Summary}
+                            className="text-xs font-medium text-zinc-700 dark:text-zinc-200 truncate"
+                        >
+                            {undoableCommit.Summary}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onUndoCommit}
+                        disabled={undoing || committing}
+                        title="Cancelar último commit não enviado e devolver alterações para a árvore de trabalho"
+                        className="shrink-0 px-3 py-1.5 rounded-lg border border-red-500/20 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+                    >
+                        {undoing ? (
+                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <Undo2 className="w-3.5 h-3.5" />
+                        )}
+                        Cancelar
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
