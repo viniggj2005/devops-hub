@@ -117,3 +117,11 @@ type OperationState struct {
 	Message          string
 	ConflictingFiles []string
 }
+
+type UndoableCommit struct {
+	Hash        string
+	Summary     string
+	ShortHash   string
+	Description string
+}
+

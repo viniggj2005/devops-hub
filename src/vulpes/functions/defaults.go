@@ -17,11 +17,13 @@ const (
 	DefaultSocketIoVersion  = "v4"
 	DefaultRawBodyLanguage  = "json"
 	DefaultWebSocketMessage = "text"
+	DefaultMqttKeepAliveSec = 60
 )
 
 var supportedProtocols = map[string]bool{
 	vulpesDtos.ProtocolHttp:      true,
 	vulpesDtos.ProtocolGrpc:      true,
+	vulpesDtos.ProtocolMqtt:      true,
 	vulpesDtos.ProtocolSocketIo:  true,
 	vulpesDtos.ProtocolWebSocket: true,
 }
@@ -64,15 +66,17 @@ func NormalizeRequest(request *vulpesDtos.RequestDto) {
 	}
 	NormalizeAuth(&request.Auth, vulpesDtos.AuthInherit)
 
-	httpRequest, grpcRequest := request.Http, request.Grpc
+	httpRequest, grpcRequest, mqttRequest := request.Http, request.Grpc, request.Mqtt
 	socketIoRequest, webSocketRequest := request.SocketIo, request.WebSocket
-	request.Http, request.Grpc, request.SocketIo, request.WebSocket = nil, nil, nil, nil
+	request.Http, request.Grpc, request.Mqtt, request.SocketIo, request.WebSocket = nil, nil, nil, nil, nil
 
 	switch request.Protocol {
 	case vulpesDtos.ProtocolHttp:
 		request.Http = normalizeHttpRequest(httpRequest)
 	case vulpesDtos.ProtocolGrpc:
 		request.Grpc = normalizeGrpcRequest(grpcRequest)
+	case vulpesDtos.ProtocolMqtt:
+		request.Mqtt = normalizeMqttRequest(mqttRequest)
 	case vulpesDtos.ProtocolSocketIo:
 		request.SocketIo = normalizeSocketIoRequest(socketIoRequest)
 	case vulpesDtos.ProtocolWebSocket:
@@ -168,6 +172,38 @@ func normalizeSocketIoRequest(socketIoRequest *vulpesDtos.SocketIoRequestDto) *v
 	socketIoRequest.Headers = nonNilKeyValues(socketIoRequest.Headers)
 	socketIoRequest.Arguments = nonNilStrings(socketIoRequest.Arguments)
 	return socketIoRequest
+}
+
+func normalizeMqttQos(qos int) int {
+	if qos < 0 || qos > 2 {
+		return 0
+	}
+	return qos
+}
+
+func normalizeMqttRequest(mqttRequest *vulpesDtos.MqttRequestDto) *vulpesDtos.MqttRequestDto {
+	if mqttRequest == nil {
+		mqttRequest = &vulpesDtos.MqttRequestDto{
+			CleanSession:  true,
+			KeepAliveSec:  DefaultMqttKeepAliveSec,
+			Subscriptions: []vulpesDtos.MqttSubscriptionDto{},
+		}
+	}
+	mqttRequest.Qos = normalizeMqttQos(mqttRequest.Qos)
+	mqttRequest.WillQos = normalizeMqttQos(mqttRequest.WillQos)
+	if !supportedWebSocketMessageKinds[mqttRequest.MessageKind] {
+		mqttRequest.MessageKind = DefaultWebSocketMessage
+	}
+	if mqttRequest.KeepAliveSec <= 0 {
+		mqttRequest.KeepAliveSec = DefaultMqttKeepAliveSec
+	}
+	if mqttRequest.Subscriptions == nil {
+		mqttRequest.Subscriptions = []vulpesDtos.MqttSubscriptionDto{}
+	}
+	for index := range mqttRequest.Subscriptions {
+		mqttRequest.Subscriptions[index].Qos = normalizeMqttQos(mqttRequest.Subscriptions[index].Qos)
+	}
+	return mqttRequest
 }
 
 func NormalizeItem(item *vulpesDtos.CollectionItemDto) {

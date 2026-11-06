@@ -127,3 +127,11 @@ type SocketIoEmitInputDto struct {
 	WithAck   bool     `json:"withAck"`
 	Arguments []string `json:"arguments"`
 }
+
+type MqttPublishInputDto struct {
+	Qos    int    `json:"qos"`
+	Data   string `json:"data"`
+	Kind   string `json:"kind"`
+	Topic  string `json:"topic"`
+	Retain bool   `json:"retain"`
+}

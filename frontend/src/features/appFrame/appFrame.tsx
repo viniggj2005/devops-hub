@@ -115,10 +115,11 @@ export function AppFrame() {
         flex items-center
         px-1
         rounded-t-sm
-        bg-[#1e1e1e] dark:bg-[#0a0a0c]
-        text-gray-300
+        bg-gray-100 dark:bg-zinc-950
+        text-gray-700 dark:text-zinc-300
         select-none
-        border-b border-gray-800
+        border-b border-gray-200 dark:border-zinc-800/80
+        transition-colors duration-200
       "
       onDoubleClick={toggleMaximise}
     >
@@ -126,12 +127,12 @@ export function AppFrame() {
         <div className="flex items-center justify-center pl-2">
           <img
             src={appIcon}
-            className="w-7 h-7 opacity-80"
+            className="w-7 h-7 opacity-80 dark:invert"
             draggable={false}
           />
         </div>
         <div className="flex flex-col leading-tight">
-          <span className="text-xs uppercase tracking-[0.18em] font-medium text-gray-300">
+          <span className="text-xs uppercase tracking-[0.18em] font-medium text-gray-700 dark:text-zinc-300">
             Devops Hub
           </span>
         </div>
@@ -167,7 +168,7 @@ export function AppFrame() {
                 cursor-pointer transition-colors
                 ${isActive
                   ? 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-white/10 text-black dark:text-white z-10 before:absolute before:bottom-[-1px] before:left-0 before:right-0 before:h-[1px] before:bg-white dark:before:bg-zinc-900'
-                  : 'bg-transparent text-gray-500 hover:bg-white/5 hover:text-gray-300'
+                  : 'bg-transparent text-gray-600 dark:text-zinc-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-zinc-200'
                 }
                 ${hint && draggable ? 'cursor-grabbing' : ''}
               `}
@@ -244,7 +245,7 @@ export function AppFrame() {
             rounded-md px-2.5 py-1.5 text-xs font-medium shadow-lg
             border transition-colors
             ${hint.mode === 'idle'
-              ? 'bg-zinc-800 border-white/10 text-gray-300'
+              ? 'bg-white dark:bg-zinc-800 border-gray-200 dark:border-white/10 text-gray-700 dark:text-zinc-300'
               : 'bg-blue-600 border-blue-400 text-white'
             }
           `}

@@ -372,3 +372,119 @@ func TestRepositoryCommitsBranchesMergeAndStashWorkflow(test *testing.T) {
 		test.Fatalf("unexpected error removing repository: %v", err)
 	}
 }
+
+func TestUndoLastUnpushedCommit(test *testing.T) {
+	_, repositoryHandler, gitHandler, _, commitsHandler, token := setupOctohubIntegration(test)
+
+	parentDir := test.TempDir()
+	test.Cleanup(func() {
+		_ = filepath.Walk(parentDir, func(path string, info os.FileInfo, walkErr error) error {
+			if walkErr == nil && info != nil {
+				_ = os.Chmod(path, 0o666)
+			}
+			return nil
+		})
+	})
+	createdRepo, err := repositoryHandler.CreateRepository(context.Background(), token, parentDir, "undo-repo", false)
+	if err != nil {
+		test.Fatalf("unexpected error creating repository: %v", err)
+	}
+	repoPath := createdRepo.Path
+	configureGitUser(test, repoPath)
+
+	undoableInitial, err := commitsHandler.GetUndoableCommit(context.Background())
+	if err != nil || undoableInitial != nil {
+		test.Fatalf("expected nil undoable commit on empty repo, got %+v, err=%v", undoableInitial, err)
+	}
+
+	filePath := filepath.Join(repoPath, "notes.txt")
+	if err := os.WriteFile(filePath, []byte("initial notes\n"), 0o644); err != nil {
+		test.Fatalf("unexpected error writing notes.txt: %v", err)
+	}
+
+	if _, err := commitsHandler.Commit(context.Background(), octohubStructs.CommitRequest{
+		Summary:     "Initial notes commit",
+		Description: "Detailed description",
+		Files: []octohubStructs.CommitFileSelection{
+			{FileName: "notes.txt", Kind: octohubStructs.FileKindUntracked, All: true},
+		},
+	}); err != nil {
+		test.Fatalf("unexpected error creating initial commit: %v", err)
+	}
+
+	undoableRoot, err := commitsHandler.GetUndoableCommit(context.Background())
+	if err != nil || undoableRoot == nil || undoableRoot.Summary != "Initial notes commit" || undoableRoot.Description != "Detailed description" {
+		test.Fatalf("unexpected undoable root commit: %+v, err=%v", undoableRoot, err)
+	}
+
+	undoneRoot, err := commitsHandler.UndoLastCommit(context.Background())
+	if err != nil || undoneRoot == nil || undoneRoot.Summary != "Initial notes commit" {
+		test.Fatalf("unexpected error undoing root commit: %+v, err=%v", undoneRoot, err)
+	}
+
+	statusAfterRootUndo, err := commitsHandler.GetGitStatus(context.Background())
+	if err != nil || len(statusAfterRootUndo) != 1 || statusAfterRootUndo[0].FileName != "notes.txt" {
+		test.Fatalf("expected notes.txt back in working tree after root undo, got %+v, err=%v", statusAfterRootUndo, err)
+	}
+
+	if _, err := commitsHandler.Commit(context.Background(), octohubStructs.CommitRequest{
+		Summary: "Initial notes commit",
+		Files: []octohubStructs.CommitFileSelection{
+			{FileName: "notes.txt", Kind: statusAfterRootUndo[0].Kind, All: true},
+		},
+	}); err != nil {
+		test.Fatalf("unexpected error re-committing initial commit: %v", err)
+	}
+
+	if _, err := gitHandler.runGitCommand(context.Background(), []string{"update-ref", "refs/remotes/origin/main", "HEAD"}); err != nil {
+		test.Fatalf("unexpected error setting remote tracking ref: %v", err)
+	}
+	if _, err := gitHandler.runGitCommand(context.Background(), []string{"config", "branch.main.remote", "origin"}); err != nil {
+		test.Fatalf("unexpected error configuring branch.main.remote: %v", err)
+	}
+	if _, err := gitHandler.runGitCommand(context.Background(), []string{"config", "branch.main.merge", "refs/heads/main"}); err != nil {
+		test.Fatalf("unexpected error configuring branch.main.merge: %v", err)
+	}
+
+	undoableAfterPush, err := commitsHandler.GetUndoableCommit(context.Background())
+	if err != nil || undoableAfterPush != nil {
+		test.Fatalf("expected nil undoable commit after push, got %+v, err=%v", undoableAfterPush, err)
+	}
+	if _, err := commitsHandler.UndoLastCommit(context.Background()); err == nil {
+		test.Fatalf("expected error undoing already pushed commit")
+	}
+
+	if err := os.WriteFile(filePath, []byte("initial notes\nsecond line\n"), 0o644); err != nil {
+		test.Fatalf("unexpected error updating notes.txt: %v", err)
+	}
+	if _, err := commitsHandler.Commit(context.Background(), octohubStructs.CommitRequest{
+		Summary:     "Second local commit",
+		Description: "Added second line",
+		Files: []octohubStructs.CommitFileSelection{
+			{FileName: "notes.txt", Kind: octohubStructs.FileKindModified, All: true},
+		},
+	}); err != nil {
+		test.Fatalf("unexpected error creating second commit: %v", err)
+	}
+
+	undoableSecond, err := commitsHandler.GetUndoableCommit(context.Background())
+	if err != nil || undoableSecond == nil || undoableSecond.Summary != "Second local commit" {
+		test.Fatalf("expected second local commit to be undoable, got %+v, err=%v", undoableSecond, err)
+	}
+
+	undoneSecond, err := commitsHandler.UndoLastCommit(context.Background())
+	if err != nil || undoneSecond == nil || undoneSecond.Summary != "Second local commit" || undoneSecond.Description != "Added second line" {
+		test.Fatalf("unexpected error undoing second commit: %+v, err=%v", undoneSecond, err)
+	}
+
+	statusAfterSecondUndo, err := commitsHandler.GetGitStatus(context.Background())
+	if err != nil || len(statusAfterSecondUndo) != 1 || statusAfterSecondUndo[0].FileName != "notes.txt" {
+		test.Fatalf("expected notes.txt modified in status after undo, got %+v, err=%v", statusAfterSecondUndo, err)
+	}
+
+	undoableAfterUndo, err := commitsHandler.GetUndoableCommit(context.Background())
+	if err != nil || undoableAfterUndo != nil {
+		test.Fatalf("expected nil undoable commit after reverting back to upstream state, got %+v, err=%v", undoableAfterUndo, err)
+	}
+}
+

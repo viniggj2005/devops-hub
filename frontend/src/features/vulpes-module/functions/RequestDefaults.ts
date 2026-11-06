@@ -2,7 +2,7 @@ import type { Auth, AuthType, KeyValue, FormField, VulpesRequest, VulpesProtocol
 
 export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 
-export const PROTOCOLS: VulpesProtocol[] = ['http', 'grpc', 'websocket', 'socketio'];
+export const PROTOCOLS: VulpesProtocol[] = ['http', 'grpc', 'websocket', 'socketio', 'mqtt'];
 
 export const authLabels: Record<AuthType, string> = {
   apikey: 'API Key',
@@ -15,6 +15,7 @@ export const authLabels: Record<AuthType, string> = {
 export const protocolLabels: Record<VulpesProtocol, string> = {
   http: 'HTTP',
   grpc: 'gRPC',
+  mqtt: 'MQTT',
   socketio: 'Socket.IO',
   websocket: 'WebSocket',
 };
@@ -31,6 +32,7 @@ const methodColors: Record<string, string> = {
 const protocolBadgeColors: Record<Exclude<VulpesProtocol, 'http'>, { label: string; className: string }> = {
   grpc: { label: 'gRPC', className: 'text-teal-600 dark:text-teal-400' },
   websocket: { label: 'WS', className: 'text-sky-600 dark:text-sky-400' },
+  mqtt: { label: 'MQTT', className: 'text-violet-600 dark:text-violet-400' },
   socketio: { label: 'SIO', className: 'text-fuchsia-600 dark:text-fuchsia-400' },
 };
 
@@ -109,6 +111,30 @@ export const createRequest = (protocol: VulpesProtocol): VulpesRequest => {
           skipTlsVerify: false,
         },
       };
+    case 'mqtt':
+      return {
+        auth,
+        protocol,
+        mqtt: {
+          qos: 0,
+          url: '',
+          topic: '',
+          retain: false,
+          willQos: 0,
+          message: '',
+          clientId: '',
+          username: '',
+          password: '',
+          willTopic: '',
+          willRetain: false,
+          willMessage: '',
+          cleanSession: true,
+          keepAliveSec: 60,
+          skipTlsVerify: false,
+          messageKind: 'json',
+          subscriptions: [{ topic: '#', qos: 0, enabled: true }],
+        },
+      };
     default:
       return {
         auth,
@@ -138,6 +164,6 @@ export const createRequest = (protocol: VulpesProtocol): VulpesRequest => {
 export const cloneRequest = (request: VulpesRequest): VulpesRequest => structuredClone(request);
 
 export const requestUrl = (request?: VulpesRequest | null) =>
-  request?.http?.url ?? request?.grpc?.url ?? request?.webSocket?.url ?? request?.socketIo?.url ?? '';
+  request?.http?.url ?? request?.grpc?.url ?? request?.webSocket?.url ?? request?.socketIo?.url ?? request?.mqtt?.url ?? '';
 
 export const generateId = () => crypto.randomUUID();

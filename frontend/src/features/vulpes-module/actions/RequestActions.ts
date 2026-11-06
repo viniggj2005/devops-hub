@@ -6,7 +6,7 @@ import { VulpesServices } from '../services/VulpesServices';
 import { isRequestTab, useVulpesStore } from '../VulpesStore';
 import { CancelError, CancellablePromise } from '@wailsio/runtime';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
-import type { Cookie, GrpcMethod, RequestTab, CollectionItem, ExecutionInput } from '../../../interfaces/VulpesInterfaces';
+import type { Cookie, GrpcMethod, RequestTab, CollectionItem, ExecutionInput, MqttSubscription } from '../../../interfaces/VulpesInterfaces';
 
 const pendingCalls = new Map<string, CancellablePromise<unknown>>();
 
@@ -171,7 +171,9 @@ export const requestActions = {
       const result =
         tab.request.protocol === 'socketio'
           ? await VulpesServices.connectSocketIo(requireToken(), tabId, executionInput(tab))
-          : await VulpesServices.connectWebSocket(requireToken(), tabId, executionInput(tab));
+          : tab.request.protocol === 'mqtt'
+            ? await VulpesServices.connectMqtt(requireToken(), tabId, executionInput(tab))
+            : await VulpesServices.connectWebSocket(requireToken(), tabId, executionInput(tab));
       applyReceivedCookies(tab.collectionId, result?.collectionCookies);
     } catch (error) {
       failConnection(tabId, error);
@@ -202,6 +204,35 @@ export const requestActions = {
     if (!socketIo) return;
     try {
       await VulpesServices.emitSocketIo(requireToken(), tabId, socketIo.event, socketIo.arguments, socketIo.withAck);
+      store().patchRuntime(tabId, { error: null });
+    } catch (error) {
+      store().patchRuntime(tabId, { error: failureMessage(error) });
+    }
+  },
+
+  async publishMqtt(tabId: string) {
+    const mqtt = findTab(tabId)?.request.mqtt;
+    if (!mqtt) return;
+    try {
+      await VulpesServices.publishMqtt(requireToken(), tabId, mqtt.topic, mqtt.message, mqtt.messageKind, mqtt.qos, mqtt.retain);
+      store().patchRuntime(tabId, { error: null });
+    } catch (error) {
+      store().patchRuntime(tabId, { error: failureMessage(error) });
+    }
+  },
+
+  async subscribeMqtt(tabId: string, subscription: MqttSubscription) {
+    try {
+      await VulpesServices.subscribeMqtt(requireToken(), tabId, subscription);
+      store().patchRuntime(tabId, { error: null });
+    } catch (error) {
+      store().patchRuntime(tabId, { error: failureMessage(error) });
+    }
+  },
+
+  async unsubscribeMqtt(tabId: string, topic: string) {
+    try {
+      await VulpesServices.unsubscribeMqtt(requireToken(), tabId, topic);
       store().patchRuntime(tabId, { error: null });
     } catch (error) {
       store().patchRuntime(tabId, { error: failureMessage(error) });

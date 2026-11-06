@@ -4,6 +4,7 @@ import HttpRequestEditor from '../http/HttpRequestEditor';
 import GrpcRequestEditor from '../grpc/GrpcRequestEditor';
 import { buildVariableMap } from '../../functions/Variables';
 import { secondaryButtonClass } from '../editors/FormStyles';
+import MqttRequestEditor from '../realtime/MqttRequestEditor';
 import { emptyRuntime, useVulpesStore } from '../../VulpesStore';
 import SocketIoRequestEditor from '../realtime/SocketIoRequestEditor';
 import WebSocketRequestEditor from '../realtime/WebSocketRequestEditor';
@@ -17,6 +18,7 @@ const fallbackRuntime = emptyRuntime();
 const editors: Record<RequestTab['request']['protocol'], React.FC<ProtocolEditorProps>> = {
   http: HttpRequestEditor,
   grpc: GrpcRequestEditor,
+  mqtt: MqttRequestEditor,
   socketio: SocketIoRequestEditor,
   websocket: WebSocketRequestEditor,
 };

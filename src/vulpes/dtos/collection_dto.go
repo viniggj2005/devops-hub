@@ -3,6 +3,7 @@ package vulpesDtos
 const (
 	ProtocolHttp      = "http"
 	ProtocolGrpc      = "grpc"
+	ProtocolMqtt      = "mqtt"
 	ProtocolSocketIo  = "socketio"
 	ProtocolWebSocket = "websocket"
 )
@@ -136,10 +137,37 @@ type SocketIoRequestDto struct {
 	SkipTlsVerify bool          `json:"skipTlsVerify"`
 }
 
+type MqttSubscriptionDto struct {
+	Qos     int    `json:"qos"`
+	Topic   string `json:"topic"`
+	Enabled bool   `json:"enabled"`
+}
+
+type MqttRequestDto struct {
+	Qos           int                   `json:"qos"`
+	Url           string                `json:"url"`
+	Topic         string                `json:"topic"`
+	Retain        bool                  `json:"retain"`
+	WillQos       int                   `json:"willQos"`
+	Message       string                `json:"message"`
+	ClientID      string                `json:"clientId"`
+	Username      string                `json:"username"`
+	Password      string                `json:"password"`
+	WillTopic     string                `json:"willTopic"`
+	WillRetain    bool                  `json:"willRetain"`
+	MessageKind   string                `json:"messageKind"`
+	WillMessage   string                `json:"willMessage"`
+	CleanSession  bool                  `json:"cleanSession"`
+	KeepAliveSec  int                   `json:"keepAliveSec"`
+	SkipTlsVerify bool                  `json:"skipTlsVerify"`
+	Subscriptions []MqttSubscriptionDto `json:"subscriptions"`
+}
+
 type RequestDto struct {
 	Auth      AuthDto              `json:"auth"`
 	Http      *HttpRequestDto      `json:"http,omitempty"`
 	Grpc      *GrpcRequestDto      `json:"grpc,omitempty"`
+	Mqtt      *MqttRequestDto      `json:"mqtt,omitempty"`
 	Protocol  string               `json:"protocol"`
 	SocketIo  *SocketIoRequestDto  `json:"socketIo,omitempty"`
 	WebSocket *WebSocketRequestDto `json:"webSocket,omitempty"`

@@ -1,13 +1,14 @@
 package octohubHandler
 
 import (
-	"bufio"
-	"context"
-	octohubStructs "docker-manager-go/src/octohub/structs"
 	"fmt"
+	"bufio"
+	"errors"
 	"slices"
+	"context"
 	"strconv"
 	"strings"
+	octohubStructs "docker-manager-go/src/octohub/structs"
 )
 
 var diffFlags = []string{"--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/"}
@@ -251,12 +252,108 @@ func (handlerStruct *GitCommitsHandler) Commit(ctx context.Context, request octo
 		return "", fmt.Errorf("erro ao criar o commit: %w", err)
 	}
 
-	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--short", "HEAD"})
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "HEAD"})
 	if err != nil {
 		return "", nil
 	}
-	return strings.TrimSpace(string(out)), nil
+	fullHash := strings.TrimSpace(string(out))
+	handlerStruct.gitHandler.markCommitCreated(ctx, fullHash)
+	if len(fullHash) > 7 {
+		return fullHash[:7], nil
+	}
+	return fullHash, nil
 }
+
+func (handlerStruct *GitCommitsHandler) GetUndoableCommit(ctx context.Context) (*octohubStructs.UndoableCommit, error) {
+	branchHandler := NewGitBranchHandler(handlerStruct.gitHandler)
+	if state, stateErr := branchHandler.GetOperationState(ctx); stateErr != nil || state.Kind != "" {
+		return nil, nil
+	}
+
+	logOut, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{
+		"log",
+		"-n", "1",
+		"--no-show-signature",
+		"--format=%H%x1f%h%x1f%P%x1f%s%x1f%b",
+		"HEAD",
+	})
+	if err != nil {
+		return nil, nil
+	}
+
+	fields := strings.SplitN(strings.TrimLeft(string(logOut), "\r\n"), "\x1f", 5)
+	if len(fields) < 5 {
+		return nil, nil
+	}
+
+	fullHash := strings.TrimSpace(fields[0])
+	shortHash := strings.TrimSpace(fields[1])
+	parents := strings.TrimSpace(fields[2])
+	summary := strings.TrimSpace(fields[3])
+	description := strings.TrimSpace(fields[4])
+
+	if fullHash == "" || len(strings.Fields(parents)) > 1 {
+		return nil, nil
+	}
+	if handlerStruct.gitHandler.isUndoneHead(ctx, fullHash) {
+		return nil, nil
+	}
+
+	if _, upstreamErr := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--verify", "-q", "@{upstream}"}); upstreamErr == nil {
+		countOut, countErr := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-list", "--count", "@{upstream}..HEAD"})
+		if countErr != nil {
+			return nil, nil
+		}
+		aheadCount, convErr := strconv.Atoi(strings.TrimSpace(string(countOut)))
+		if convErr != nil || aheadCount <= 0 {
+			return nil, nil
+		}
+	} else {
+		remoteContainsOut, remoteErr := handlerStruct.gitHandler.runGitCommand(ctx, []string{"branch", "-r", "--contains", "HEAD"})
+		if remoteErr == nil && strings.TrimSpace(string(remoteContainsOut)) != "" {
+			return nil, nil
+		}
+	}
+
+	return &octohubStructs.UndoableCommit{
+		Hash:        fullHash,
+		ShortHash:   shortHash,
+		Summary:     summary,
+		Description: description,
+	}, nil
+}
+
+func (handlerStruct *GitCommitsHandler) UndoLastCommit(ctx context.Context) (*octohubStructs.UndoableCommit, error) {
+	branchHandler := NewGitBranchHandler(handlerStruct.gitHandler)
+	if err := branchHandler.ensureNoOperation(ctx); err != nil {
+		return nil, err
+	}
+
+	undoableCommit, err := handlerStruct.GetUndoableCommit(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if undoableCommit == nil {
+		return nil, errors.New("não há commit local pendente de envio para cancelar")
+	}
+
+	if parentOut, parentErr := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--verify", "-q", "HEAD^"}); parentErr == nil {
+		parentHash := strings.TrimSpace(string(parentOut))
+		if _, resetErr := handlerStruct.gitHandler.runGitCommand(ctx, []string{"reset", "--mixed", "HEAD^"}); resetErr != nil {
+			return nil, fmt.Errorf("erro ao cancelar o último commit: %w", resetErr)
+		}
+		handlerStruct.gitHandler.markCommitUndone(ctx, undoableCommit.Hash, parentHash)
+		return undoableCommit, nil
+	}
+
+	if _, refErr := handlerStruct.gitHandler.runGitCommand(ctx, []string{"update-ref", "-d", "HEAD"}); refErr != nil {
+		return nil, fmt.Errorf("erro ao cancelar o commit inicial: %w", refErr)
+	}
+	_, _ = handlerStruct.gitHandler.runGitCommand(ctx, []string{"rm", "-rf", "--cached", "--ignore-unmatch", "--", "."})
+	handlerStruct.gitHandler.markCommitUndone(ctx, undoableCommit.Hash, "")
+	return undoableCommit, nil
+}
+
 
 func (handlerStruct *GitCommitsHandler) ListCommits(ctx context.Context, page int) ([]octohubStructs.Commit, error) {
 	return handlerStruct.listCommits(ctx, page, "HEAD")

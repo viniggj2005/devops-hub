@@ -19,6 +19,7 @@ import type {
   CollectionInput,
   ConnectionResult,
   EnvironmentInput,
+  MqttSubscription,
   ItemMutationResult,
 } from '../../../interfaces/VulpesInterfaces';
 
@@ -151,6 +152,22 @@ export const VulpesServices = {
 
   emitSocketIo(token: string, sessionId: string, event: string, eventArguments: string[], withAck: boolean) {
     return ClientApi.EmitSocketIo(token, sessionId, { event, withAck, arguments: eventArguments });
+  },
+
+  connectMqtt(token: string, sessionId: string, input: ExecutionInput) {
+    return ClientApi.ConnectMqtt(token, sessionId, input) as Promise<ConnectionResult | null>;
+  },
+
+  publishMqtt(token: string, sessionId: string, topic: string, data: string, kind: string, qos: number, retain: boolean) {
+    return ClientApi.PublishMqtt(token, sessionId, { topic, data, kind, qos, retain });
+  },
+
+  subscribeMqtt(token: string, sessionId: string, subscription: MqttSubscription) {
+    return ClientApi.SubscribeMqtt(token, sessionId, subscription);
+  },
+
+  unsubscribeMqtt(token: string, sessionId: string, topic: string) {
+    return ClientApi.UnsubscribeMqtt(token, sessionId, topic);
   },
 
   closeSession(token: string, sessionId: string) {

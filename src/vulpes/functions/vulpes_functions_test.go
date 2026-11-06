@@ -710,3 +710,37 @@ func TestGrpcProtoFilesTargetsAndExamples(test *testing.T) {
 		test.Fatalf("expected unsupported scheme to fail")
 	}
 }
+
+func TestMqttEndpointAndWirePackets(test *testing.T) {
+	endpoint, err := ParseMqttEndpoint("broker.local")
+	if err != nil || endpoint.Transport != "tcp" || endpoint.Address != "broker.local:1883" {
+		test.Fatalf("unexpected default mqtt endpoint: %+v %v", endpoint, err)
+	}
+	tlsEndpoint, err := ParseMqttEndpoint("mqtts://broker.local")
+	if err != nil || tlsEndpoint.Transport != "tls" || tlsEndpoint.Address != "broker.local:8883" {
+		test.Fatalf("unexpected mqtts endpoint: %+v %v", tlsEndpoint, err)
+	}
+	wsEndpoint, err := ParseMqttEndpoint("wss://broker.local:8084")
+	if err != nil || wsEndpoint.Transport != "wss" || wsEndpoint.WsEndpoint != "wss://broker.local:8084/mqtt" {
+		test.Fatalf("unexpected wss endpoint: %+v %v", wsEndpoint, err)
+	}
+	if _, err := ParseMqttEndpoint("http://broker.local"); err == nil {
+		test.Fatalf("expected unsupported mqtt scheme to fail")
+	}
+
+	publishBytes, err := EncodeMqttPublish(7, "sensors/temp", []byte(`{"temp":24.5}`), 1, true)
+	if err != nil {
+		test.Fatalf("unexpected publish encode error: %v", err)
+	}
+	packetType, flags, body, err := ReadMqttPacket(strings.NewReader(string(publishBytes)))
+	if err != nil || packetType != MqttPublish {
+		test.Fatalf("unexpected packet read: %d %v", packetType, err)
+	}
+	parsedPublish, err := ParseMqttPublish(flags, body)
+	if err != nil || parsedPublish.Topic != "sensors/temp" || parsedPublish.Qos != 1 || !parsedPublish.Retain || parsedPublish.PacketID != 7 || string(parsedPublish.Payload) != `{"temp":24.5}` {
+		test.Fatalf("unexpected parsed publish: %+v %v", parsedPublish, err)
+	}
+	if _, err := EncodeMqttPublish(1, "sensors/#", []byte("x"), 0, false); err == nil {
+		test.Fatalf("publish topic with wildcard must be rejected")
+	}
+}
