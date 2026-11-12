@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import toast from 'react-hot-toast';
 import FormDataTable from './FormDataTable';
 import CodeEditor from '../editors/CodeEditor';
@@ -18,30 +19,30 @@ interface HttpBodyEditorProps {
   onChange: (body: HttpBody) => void;
 }
 
-const bodyModes: { mode: BodyMode; label: string }[] = [
-  { mode: 'none', label: 'Nenhum' },
-  { mode: 'formdata', label: 'form-data' },
-  { mode: 'urlencoded', label: 'x-www-form-urlencoded' },
-  { mode: 'raw', label: 'raw' },
-  { mode: 'binary', label: 'binário' },
-  { mode: 'graphql', label: 'GraphQL' },
-];
-
-const rawLanguages: { language: RawLanguage; label: string }[] = [
-  { language: 'json', label: 'JSON' },
-  { language: 'text', label: 'Texto' },
-  { language: 'xml', label: 'XML' },
-  { language: 'html', label: 'HTML' },
-  { language: 'javascript', label: 'JavaScript' },
-];
-
 const HttpBodyEditor: React.FC<HttpBodyEditorProps> = ({ body, onChange, onSend, onSave }) => {
   const update = (patch: Partial<HttpBody>) => onChange({ ...body, ...patch });
+  const { dictionary } = useTranslation();
+  const bodyTexts = dictionary.vulpes.body;
+  const bodyModes: { mode: BodyMode; label: string }[] = [
+    { mode: 'none', label: bodyTexts.none },
+    { mode: 'formdata', label: 'form-data' },
+    { mode: 'urlencoded', label: 'x-www-form-urlencoded' },
+    { mode: 'raw', label: 'raw' },
+    { mode: 'binary', label: bodyTexts.binary },
+    { mode: 'graphql', label: 'GraphQL' },
+  ];
+  const rawLanguages: { language: RawLanguage; label: string }[] = [
+    { language: 'json', label: 'JSON' },
+    { language: 'text', label: bodyTexts.text },
+    { language: 'xml', label: 'XML' },
+    { language: 'html', label: 'HTML' },
+    { language: 'javascript', label: 'JavaScript' },
+  ];
 
   const formatRaw = () => {
     const formatted = prettyJson(body.raw);
     if (formatted === null) {
-      toast.error('O corpo não é um JSON válido');
+      toast.error(bodyTexts.invalidJson);
       return;
     }
     update({ raw: formatted });
@@ -84,9 +85,9 @@ const HttpBodyEditor: React.FC<HttpBodyEditorProps> = ({ body, onChange, onSend,
               ))}
             </select>
             {body.language === 'json' && (
-              <button type="button" onClick={formatRaw} className={secondaryButtonClass} title="Formatar JSON">
+              <button type="button" onClick={formatRaw} className={secondaryButtonClass} title={bodyTexts.formatJson}>
                 <Sparkles className="w-3.5 h-3.5" />
-                Formatar
+                {dictionary.vulpes.request.format}
               </button>
             )}
           </div>
@@ -94,7 +95,7 @@ const HttpBodyEditor: React.FC<HttpBodyEditorProps> = ({ body, onChange, onSend,
       </div>
 
       {body.mode === 'none' && (
-        <p className="text-xs text-gray-500 dark:text-zinc-400 py-6 text-center">Esta requisição não envia corpo.</p>
+        <p className="text-xs text-gray-500 dark:text-zinc-400 py-6 text-center">{bodyTexts.noBody}</p>
       )}
 
       {body.mode === 'raw' && (
@@ -104,7 +105,7 @@ const HttpBodyEditor: React.FC<HttpBodyEditorProps> = ({ body, onChange, onSend,
             onRun={onSend}
             onSave={onSave}
             language={body.language}
-            placeholder="Corpo da requisição"
+            placeholder={bodyTexts.placeholder}
             onChange={(raw) => update({ raw })}
           />
         </div>
@@ -120,15 +121,15 @@ const HttpBodyEditor: React.FC<HttpBodyEditorProps> = ({ body, onChange, onSend,
         <div className="flex items-center gap-3 rounded-lg border border-dashed border-gray-300 dark:border-white/10 p-4">
           <button type="button" onClick={chooseBinary} className={secondaryButtonClass}>
             <FileUp className="w-4 h-4 text-amber-500" />
-            Selecionar arquivo
+            {bodyTexts.selectFile}
           </button>
           <span className="flex-1 min-w-0 truncate text-xs font-mono text-gray-600 dark:text-zinc-300">
-            {body.binaryPath || 'Nenhum arquivo selecionado'}
+            {body.binaryPath || bodyTexts.noFile}
           </span>
           {body.binaryPath && (
             <button
               type="button"
-              title="Remover arquivo"
+              title={bodyTexts.removeFile}
               onClick={() => update({ binaryPath: '' })}
               className="p-1 rounded text-gray-400 hover:text-rose-500"
             >
@@ -154,7 +155,7 @@ const HttpBodyEditor: React.FC<HttpBodyEditorProps> = ({ body, onChange, onSend,
             </div>
           </div>
           <div className="flex flex-col min-h-0">
-            <span className={fieldLabelClass}>Variáveis (JSON)</span>
+            <span className={fieldLabelClass}>{bodyTexts.variablesJson}</span>
             <div className="flex-1 min-h-[140px] rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden">
               <CodeEditor
                 value={body.graphqlVariables}

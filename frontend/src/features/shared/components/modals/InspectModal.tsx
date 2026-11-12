@@ -1,8 +1,10 @@
 import { Modal } from './Modal';
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { InspectProps } from '../../../../interfaces/SharedInterfaces';
 
 const InspectModal: React.FC<InspectProps> = ({ name, data, title, onClose }) => {
+  const { dictionary } = useTranslation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -37,7 +39,7 @@ const InspectModal: React.FC<InspectProps> = ({ name, data, title, onClose }) =>
     <Modal
       isOpen={true}
       onClose={onClose}
-      title={title || 'Detalhes'}
+      title={title || dictionary.app.common.details}
       description={name}
       icon={<span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />}
       size="lg"
@@ -47,7 +49,7 @@ const InspectModal: React.FC<InspectProps> = ({ name, data, title, onClose }) =>
         ref={scrollRef}
         className="h-full font-mono text-sm whitespace-pre-wrap dark:text-gray-300"
       >
-        {data ? <div>{highlightQuotedStrings(String(data))}</div> : 'Sem dados disponíveis'}
+        {data ? <div>{highlightQuotedStrings(String(data))}</div> : dictionary.app.common.noData}
       </div>
     </Modal>
   );

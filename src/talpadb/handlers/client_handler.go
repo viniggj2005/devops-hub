@@ -2,7 +2,6 @@ package talpadbHandlers
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/desktop"
 	"docker-manager-go/src/models"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
@@ -145,7 +145,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) getPoolForUser(windowName strin
 func (handlerStruct *TalpadbClientHandlerStruct) openPool(params talpadbFunctions.ConnectionParams) (*poolEntry, error) {
 	config, err := pgxpool.ParseConfig(talpadbFunctions.BuildConnectionString(params))
 	if err != nil {
-		return nil, fmt.Errorf("configuração de conexão inválida: %w", err)
+		return nil, appErrors.Wrap("talpadb.invalidConnectionConfig", "configuração de conexão inválida", err)
 	}
 	config.MaxConns = 4
 	config.MinConns = 0
@@ -272,7 +272,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) TestConnection(token string, co
 
 	config, err := pgconn.ParseConfig(talpadbFunctions.BuildConnectionString(connectionParams(connection, "")))
 	if err != nil {
-		return nil, fmt.Errorf("configuração de conexão inválida: %w", err)
+		return nil, appErrors.Wrap("talpadb.invalidConnectionConfig", "configuração de conexão inválida", err)
 	}
 
 	testContext, cancel := context.WithTimeout(handlerStruct.baseContext(), 20*time.Second)

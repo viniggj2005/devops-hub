@@ -1,4 +1,5 @@
 import * as generalConfigsDtos from '../../../../bindings/docker-manager-go/src/generalConfigs/dtos/models';
+import { currentDictionary } from '../../i18n/TranslateError';
 import { SaveGeneralConfigPayload } from '../../../interfaces/GeneralConfigsInterfaces';
 import {
   Save,
@@ -21,7 +22,7 @@ export async function findAllGeneralConfigsApi(token: string): Promise<generalCo
 
 export async function saveGeneralConfigApi(token: string, payload: SaveGeneralConfigPayload): Promise<generalConfigsDtos.GeneralConfigDto> {
   const savedConfig = await Save(token, toSaveInput(payload));
-  if (!savedConfig) throw new Error('a configuração não foi salva');
+  if (!savedConfig) throw new Error(currentDictionary().preferences.configErrors.configNotSaved);
   return savedConfig;
 }
 
@@ -39,7 +40,7 @@ export async function saveThemeProfileApi(token: string, profile: { id: number; 
     name: profile.name,
     config: JSON.stringify(profile.config),
   }));
-  if (!savedProfile) throw new Error('o perfil de tema não foi salvo');
+  if (!savedProfile) throw new Error(currentDictionary().preferences.configErrors.profileNotSaved);
   return savedProfile;
 }
 

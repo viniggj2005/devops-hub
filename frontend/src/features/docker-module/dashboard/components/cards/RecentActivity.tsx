@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { Server } from 'lucide-react';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
 import * as dockerDtos from '../../../../../../bindings/docker-manager-go/src/dockermanager/dtos/models';
@@ -9,6 +10,8 @@ interface RecentActivityProps {
 
 const RecentActivity: React.FC<RecentActivityProps> = ({ info }) => {
   const { connecting, dockerClientId } = useDockerClient();
+  const { dictionary } = useTranslation();
+  const homeTexts = dictionary.docker.home;
 
   const isConnected = Boolean(dockerClientId && info);
 
@@ -18,7 +21,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ info }) => {
         <div className="flex items-center gap-2">
           <Server className="w-4 h-4 text-blue-500" />
           <h2 className="text-sm font-bold text-gray-900 dark:text-white">
-            Telemetria do Daemon
+            {homeTexts.telemetry}
           </h2>
         </div>
 
@@ -36,7 +39,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ info }) => {
               connecting ? 'bg-amber-400 animate-pulse' : isConnected ? 'bg-emerald-500' : 'bg-zinc-500'
             }`}
           />
-          {connecting ? 'Conectando' : isConnected ? 'Daemon Ativo' : 'Desconectado'}
+          {connecting ? homeTexts.connecting : isConnected ? homeTexts.daemonActive : homeTexts.disconnected}
         </span>
       </div>
 
@@ -44,7 +47,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ info }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="p-3 rounded-xl bg-gray-50 dark:bg-zinc-950/60 border border-gray-100 dark:border-white/[0.05]">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-              Host Name
+              {homeTexts.hostName}
             </p>
             <p className="text-xs font-mono font-semibold text-gray-800 dark:text-zinc-200 mt-1 truncate" title={info.Name}>
               {info.Name || '—'}
@@ -53,7 +56,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ info }) => {
 
           <div className="p-3 rounded-xl bg-gray-50 dark:bg-zinc-950/60 border border-gray-100 dark:border-white/[0.05]">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-              Engine Version
+              {homeTexts.engineVersion}
             </p>
             <p className="text-xs font-mono font-semibold text-gray-800 dark:text-zinc-200 mt-1 truncate">
               {info.ServerVersion ? `v${info.ServerVersion}` : '—'}
@@ -62,7 +65,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ info }) => {
 
           <div className="p-3 rounded-xl bg-gray-50 dark:bg-zinc-950/60 border border-gray-100 dark:border-white/[0.05]">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-              Sistema Operacional
+              {homeTexts.operatingSystem}
             </p>
             <p className="text-xs font-mono font-semibold text-gray-800 dark:text-zinc-200 mt-1 truncate" title={info.OperatingSystem}>
               {info.OperatingSystem || '—'}
@@ -71,7 +74,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ info }) => {
 
           <div className="p-3 rounded-xl bg-gray-50 dark:bg-zinc-950/60 border border-gray-100 dark:border-white/[0.05]">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-              ID do Sistema
+              {homeTexts.systemId}
             </p>
             <p className="text-xs font-mono font-semibold text-gray-800 dark:text-zinc-200 mt-1 truncate" title={info.ID}>
               {info.ID || '—'}
@@ -81,8 +84,8 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ info }) => {
       ) : (
         <p className="text-xs text-gray-500 dark:text-zinc-400">
           {connecting
-            ? 'Aguardando resposta do servidor Docker...'
-            : 'Selecione uma credencial Docker ativa no topo da página para carregar os detalhes do daemon.'}
+            ? homeTexts.waitingServer
+            : homeTexts.selectCredentialHint}
         </p>
       )}
     </div>

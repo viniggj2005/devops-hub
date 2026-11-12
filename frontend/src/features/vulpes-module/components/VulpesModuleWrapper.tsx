@@ -1,4 +1,5 @@
 import toast from 'react-hot-toast';
+import { useTranslation } from '../../i18n/useTranslation';
 import VulpesNavbar from './VulpesNavbar';
 import { Events } from '@wailsio/runtime';
 import { PanelLeftOpen } from 'lucide-react';
@@ -39,12 +40,14 @@ const readSidebarLayout = (): SidebarLayout => {
 
 const VulpesModuleWrapper: React.FC = () => {
   const { token } = useAuth();
+  const { dictionary, formatMessage } = useTranslation();
+  const commonTexts = dictionary.vulpes.common;
   const [sidebar, setSidebar] = useState<SidebarLayout>(readSidebarLayout);
   const [environmentsOpen, setEnvironmentsOpen] = useState(false);
 
   useEffect(() => {
     if (!token) return;
-    collectionActions.reload().catch((error) => toast.error(`Erro ao carregar coleções: ${errorMessage(error)}`));
+    collectionActions.reload().catch((error) => toast.error(formatMessage(commonTexts.loadCollectionsFailed, { error: errorMessage(error) })));
   }, [token]);
 
   useEffect(
@@ -101,7 +104,7 @@ const VulpesModuleWrapper: React.FC = () => {
             <button
               type="button"
               onClick={toggleSidebar}
-              title="Mostrar coleções (Ctrl+B)"
+              title={commonTexts.showCollections}
               className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
             >
               <PanelLeftOpen className="w-4 h-4" />
@@ -118,7 +121,7 @@ const VulpesModuleWrapper: React.FC = () => {
             <div
               onMouseDown={startResize}
               onDoubleClick={toggleSidebar}
-              title="Arraste para redimensionar · duplo clique recolhe"
+              title={commonTexts.resizeHint}
               className="w-3 flex-shrink-0 cursor-col-resize group flex items-center justify-center"
             >
               <div className="h-10 w-1 rounded-full bg-gray-300/70 dark:bg-white/10 group-hover:bg-amber-500/60 transition-colors" />

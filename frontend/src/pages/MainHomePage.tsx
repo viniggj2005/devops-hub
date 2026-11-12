@@ -3,21 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Box, EyeOff, Settings } from 'lucide-react';
 import { useAppStore } from '../features/appFrame/AppStore';
+import { useTranslation } from '../features/i18n/useTranslation';
 import { appModules } from '../features/shared/constants/AppModules';
 import { useAppVersion } from '../features/shared/hooks/useAppVersion';
 import { useGeneralConfigsStore } from '../features/settings/store/GeneralConfigsStore';
 import { moduleIconBackground } from '../features/settings/functions/ModuleIconBackground';
+
+const statusBadgeClasses = {
+    beta: 'bg-amber-500/10 text-amber-500',
+    active: 'bg-green-500/10 text-green-500',
+    inactive: 'bg-red-500/10 text-red-500',
+};
 
 const MainHomePage: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const appVersion = useAppVersion();
     const { openTab } = useAppStore();
+    const { dictionary, formatMessage } = useTranslation();
     const configsLoaded = useGeneralConfigsStore(state => state.loaded);
     const modulesConfig = useGeneralConfigsStore(state => state.modules);
+    const homeTexts = dictionary.app.home;
 
     const visibleModules = appModules.filter(module => modulesConfig[module.configName].showOnHome);
-    const hasVisibleActiveModule = visibleModules.some(module => module.status === 'Ativo');
+    const hasVisibleActiveModule = visibleModules.some(module => module.status === 'active');
 
     return (
         <div className="h-full overflow-y-auto bg-gray-50 dark:bg-[#0a0a0c] text-gray-900 dark:text-white flex flex-col">
@@ -30,13 +39,15 @@ const MainHomePage: React.FC = () => {
                             v{appVersion}
                         </span>
                     </div>
-                    <p className="text-gray-500 dark:text-zinc-400 mt-1">Bem-vindo de volta, {user?.nome || 'Usuário'}</p>
+                    <p className="text-gray-500 dark:text-zinc-400 mt-1">
+                        {formatMessage(homeTexts.welcome, { name: user?.nome || homeTexts.defaultUserName })}
+                    </p>
                 </div>
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => openTab('settings')}
-                        aria-label="Configurações"
-                        title="Configurações"
+                        aria-label={homeTexts.settings}
+                        title={homeTexts.settings}
                         className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-white/5 transition-colors"
                     >
                         <Settings className="w-5 h-5 text-gray-500" />
@@ -49,67 +60,68 @@ const MainHomePage: React.FC = () => {
                 <div className="max-w-5xl w-full">
                     <div className="text-center mb-12">
                         <h2 className="text-4xl md:text-5xl font-extrabold py-1.5 leading-tight mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            O que vamos gerenciar hoje?
+                            {homeTexts.title}
                         </h2>
                         <p className="text-lg text-gray-500 dark:text-zinc-400">
-                            Selecione um módulo para começar a operar sua infraestrutura.
+                            {homeTexts.subtitle}
                         </p>
                     </div>
 
                     {configsLoaded && !hasVisibleActiveModule && (
                         <div className="flex flex-col items-center gap-4 rounded-3xl border border-dashed border-gray-300 dark:border-white/10 p-10 mb-6 text-center">
                             <EyeOff className="w-8 h-8 text-gray-400 dark:text-zinc-500" />
-                            <p className="text-gray-500 dark:text-zinc-400">Nenhum módulo ativo está visível na tela inicial.</p>
+                            <p className="text-gray-500 dark:text-zinc-400">{homeTexts.noVisibleModules}</p>
                             <button
                                 onClick={() => openTab('settings')}
                                 className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
                             >
-                                Escolher módulos
+                                {homeTexts.chooseModules}
                             </button>
                         </div>
                     )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {configsLoaded && visibleModules.map(module => (
-                            <div
-                                key={module.id}
-                                onClick={() => {
-                                    if (module.status !== 'Ativo') return;
-                                    openTab(module.id, module.title);
-                                    if (module.homePath) navigate(module.homePath);
-                                }}
-                                className={`group relative overflow-hidden rounded-3xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-white/5 p-8 ${module.status === 'Ativo' ? 'cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:shadow-blue-500/10' : 'opacity-70 cursor-not-allowed'} transition-all`}
-                            >
-                                <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${module.color} opacity-0 group-hover:opacity-10 blur-3xl transition-opacity`} />
+                        {configsLoaded && visibleModules.map(module => {
+                            const isActive = module.status === 'active';
+                            return (
+                                <div
+                                    key={module.id}
+                                    onClick={() => {
+                                        if (!isActive) return;
+                                        openTab(module.id, module.title);
+                                        if (module.homePath) navigate(module.homePath);
+                                    }}
+                                    className={`group relative overflow-hidden rounded-3xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-white/5 p-8 ${isActive ? 'cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:shadow-blue-500/10' : 'opacity-70 cursor-not-allowed'} transition-all`}
+                                >
+                                    <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${module.color} opacity-0 group-hover:opacity-10 blur-3xl transition-opacity`} />
 
-                                <div className="flex items-start justify-between mb-6">
-                                    <div style={moduleIconBackground(modulesConfig[module.configName])} className={`p-4 rounded-2xl bg-gradient-to-br ${module.color} text-white shadow-lg shadow-blue-500/20`}>
-                                        <img src={module.icon} alt={module.title} className="w-14 h-14 brightness-0 invert" />
+                                    <div className="flex items-start justify-between mb-6">
+                                        <div style={moduleIconBackground(modulesConfig[module.configName])} className={`p-4 rounded-2xl bg-gradient-to-br ${module.color} text-white shadow-lg shadow-blue-500/20`}>
+                                            <img src={module.icon} alt={module.title} className="w-14 h-14 brightness-0 invert" />
+                                        </div>
+                                        <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${statusBadgeClasses[module.status]}`}>
+                                            {dictionary.app.moduleStatus[module.status]}
+                                        </span>
                                     </div>
-                                    <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${module.status === 'Ativo' ? 'bg-green-500/10 text-green-500' :
-                                        module.status === 'Beta' ? 'bg-amber-500/10 text-amber-500' : module.status === 'Inativo' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
-                                        }`}>
-                                        {module.status}
-                                    </span>
-                                </div>
 
-                                <h3 className="text-2xl font-bold mb-2 group-hover:text-blue-500 transition-colors">{module.title}</h3>
-                                <p className="text-gray-500 dark:text-zinc-400 leading-relaxed">
-                                    {module.description}
-                                </p>
+                                    <h3 className="text-2xl font-bold mb-2 group-hover:text-blue-500 transition-colors">{module.title}</h3>
+                                    <p className="text-gray-500 dark:text-zinc-400 leading-relaxed">
+                                        {dictionary.app.modules[module.configName]}
+                                    </p>
 
-                                <div className="mt-8 flex items-center gap-2 text-sm font-bold text-blue-500 opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
-                                    Acessar Módulo
-                                    <Box className="w-4 h-4 rotate-[-45deg]" />
+                                    <div className="mt-8 flex items-center gap-2 text-sm font-bold text-blue-500 opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
+                                        {homeTexts.openModule}
+                                        <Box className="w-4 h-4 rotate-[-45deg]" />
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </main>
 
             <footer className="p-8 text-center text-gray-400 dark:text-zinc-500 text-xs font-mono">
-                Devops Hub · Versão {appVersion}
+                {formatMessage(homeTexts.footer, { version: appVersion })}
             </footer>
         </div>
     );

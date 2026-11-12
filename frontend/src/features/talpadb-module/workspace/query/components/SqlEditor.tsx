@@ -1,4 +1,5 @@
 import { basicSetup } from 'codemirror';
+import { currentDictionary } from '../../../../i18n/TranslateError';
 import { indentWithTab } from '@codemirror/commands';
 import { useTheme } from '../../../../../hooks/use-theme';
 import { sql, type SQLNamespace } from '@codemirror/lang-sql';
@@ -212,7 +213,7 @@ const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
           };
         },
         focus: () => viewRef.current?.focus(),
-        markError: (position: number | null, message = 'Erro') => {
+        markError: (position: number | null, message = currentDictionary().talpadb.messages.errorSeverity) => {
           const view = viewRef.current;
           if (!view) return;
           if (position === null) {

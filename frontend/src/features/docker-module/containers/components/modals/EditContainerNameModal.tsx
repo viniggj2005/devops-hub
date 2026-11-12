@@ -1,5 +1,6 @@
 import { Edit } from 'lucide-react';
 import React, { useState } from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { ModalButton } from '../../../../../features/shared/components/modals/ModalButton';
 import { EditContainerNameModalProps } from '../../../../../interfaces/ContainerInterfaces';
@@ -11,6 +12,8 @@ const EditContainerNameModal: React.FC<EditContainerNameModalProps> = ({
   setEditNameModal,
 }) => {
   const [newName, setNewName] = useState(name);
+  const { dictionary, formatMessage } = useTranslation();
+  const containerTexts = dictionary.docker.containers;
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (event?: React.FormEvent) => {
@@ -39,28 +42,28 @@ const EditContainerNameModal: React.FC<EditContainerNameModalProps> = ({
     <Modal
       isOpen={true}
       onClose={() => setEditNameModal(false)}
-      title="Renomear Container"
-      description={`Original: ${name}`}
+      title={containerTexts.renameTitle}
+      description={formatMessage(containerTexts.original, { name })}
       icon={<Edit className="w-5 h-5 text-blue-500" />}
       footer={
         <>
           <ModalButton variant="secondary" onClick={() => setEditNameModal(false)} disabled={isLoading}>
-            Cancelar
+            {dictionary.app.common.cancel}
           </ModalButton>
           <ModalButton variant="primary" onClick={() => handleSubmit()} isLoading={isLoading}>
-            Salvar
+            {dictionary.docker.common.save}
           </ModalButton>
         </>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <p className="text-xs text-gray-600 dark:text-zinc-400">
-          Informe o novo nome de identificação para o container.
+          {containerTexts.renameHint}
         </p>
         <div>
           <input
             type="text"
-            placeholder="Novo nome"
+            placeholder={containerTexts.newName}
             value={newName}
             onChange={(event) => setNewName(event.target.value)}
             className={inputClass}

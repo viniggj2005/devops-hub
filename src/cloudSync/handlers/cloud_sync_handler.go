@@ -3,13 +3,13 @@ package cloudSyncHandlers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"sync"
 	"time"
 
+	"docker-manager-go/src/appErrors"
 	auth "docker-manager-go/src/auth/functions"
 	cloudSyncDtos "docker-manager-go/src/cloudSync/dtos"
 	cloudSyncFunctions "docker-manager-go/src/cloudSync/functions"
@@ -48,7 +48,7 @@ func NewCloudSyncHandler(dataBase *gorm.DB, session *auth.ManagerStruct, dataBas
 func openInSystemBrowser(address string) error {
 	app := application.Get()
 	if app == nil {
-		return errors.New("navegador indisponível fora da aplicação")
+		return appErrors.New("cloudSync.browserUnavailable", "navegador indisponível fora da aplicação")
 	}
 	return app.Browser.OpenURL(address)
 }
@@ -61,7 +61,7 @@ func restartApplication() error {
 	command := exec.Command(executable, os.Args[1:]...)
 	command.Env = os.Environ()
 	if err := command.Start(); err != nil {
-		return fmt.Errorf("não foi possível reiniciar o app: %w", err)
+		return appErrors.Wrap("cloudSync.restartFailed", "não foi possível reiniciar o app", err)
 	}
 	if app := application.Get(); app != nil {
 		go app.Quit()
@@ -122,7 +122,7 @@ func (handlerStruct *CloudSyncHandlerStruct) RestoreAndRestart(ctx context.Conte
 		return err
 	}
 	if restore == nil {
-		return errors.New("não há uma versão mais nova na nuvem para restaurar")
+		return appErrors.New("cloudSync.nothingToRestore", "não há uma versão mais nova na nuvem para restaurar")
 	}
 
 	connection, err := handlerStruct.DataBase.DB()
@@ -131,7 +131,7 @@ func (handlerStruct *CloudSyncHandlerStruct) RestoreAndRestart(ctx context.Conte
 	}
 	if err != nil {
 		restore.Discard()
-		return fmt.Errorf("não foi possível fechar o banco local: %w", err)
+		return appErrors.Wrap("cloudSync.closeDatabaseFailed", "não foi possível fechar o banco local", err)
 	}
 
 	handlerStruct.skipShutdownUpload = true
@@ -144,7 +144,7 @@ func (handlerStruct *CloudSyncHandlerStruct) RestoreAndRestart(ctx context.Conte
 
 func (handlerStruct *CloudSyncHandlerStruct) connect(ctx context.Context) (cloudSyncDtos.CloudSyncStatusDto, error) {
 	if !cloudSyncFunctions.IsConfigured() {
-		return cloudSyncDtos.CloudSyncStatusDto{}, errors.New("o login com Google não está configurado nesta versão do app")
+		return cloudSyncDtos.CloudSyncStatusDto{}, appErrors.New("cloudSync.googleNotConfigured", "o login com Google não está configurado nesta versão do app")
 	}
 
 	loginContext, cancel := context.WithTimeout(ctx, loginTimeout)

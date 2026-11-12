@@ -1,4 +1,6 @@
-import { authLabels, requestUrl } from './RequestDefaults';
+import { requestUrl } from './RequestDefaults';
+import { formatMessage } from '../../i18n/Languages';
+import { currentDictionary } from '../../i18n/TranslateError';
 import type { Collection, CollectionItem } from '../../../interfaces/VulpesInterfaces';
 
 export interface FolderOption {
@@ -46,12 +48,13 @@ export const ancestorsOf = (items: CollectionItem[], itemId: string): Collection
 };
 
 export const describeInheritedAuth = (collection: Collection | null | undefined, itemId: string | null) => {
-  if (!collection) return 'Requisição fora de uma coleção: nenhuma autenticação será herdada.';
+  const authTexts = currentDictionary().vulpes.auth;
+  if (!collection) return authTexts.outsideCollection;
   const ancestors = itemId ? ancestorsOf(collection.items, itemId) ?? [] : [];
   const folder = [...ancestors].reverse().find((candidate) => candidate.auth && candidate.auth.type !== 'inherit');
-  if (folder?.auth) return `${authLabels[folder.auth.type]} herdado da pasta "${folder.name}".`;
-  if (collection.auth.type === 'none') return `A coleção "${collection.name}" não define autenticação.`;
-  return `${authLabels[collection.auth.type]} herdado da coleção "${collection.name}".`;
+  if (folder?.auth) return formatMessage(authTexts.inheritedFromFolder, { auth: authTexts.types[folder.auth.type], name: folder.name });
+  if (collection.auth.type === 'none') return formatMessage(authTexts.collectionWithoutAuth, { name: collection.name });
+  return formatMessage(authTexts.inheritedFromCollection, { auth: authTexts.types[collection.auth.type], name: collection.name });
 };
 
 export const containsItem = (item: CollectionItem, itemId: string): boolean =>

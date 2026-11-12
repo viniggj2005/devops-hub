@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as octohubDtos from '../../../../bindings/docker-manager-go/src/octohub/dtos/models';
 import { Modal } from '../../shared/components/modals/Modal';
+import { useTranslation } from '../../i18n/useTranslation';
 import { Check, Copy, ExternalLink, RotateCw } from 'lucide-react';
 import { Browser, Clipboard } from '@wailsio/runtime';
 
@@ -18,7 +19,9 @@ interface DeviceLoginModalProps {
 }
 
 const DeviceLoginModal: React.FC<DeviceLoginModalProps> = ({ state, onRetry, onClose }) => {
+    const { dictionary } = useTranslation();
     const [copied, setCopied] = useState(false);
+    const loginTexts = dictionary.octohub.deviceLogin;
     const { open, loading, error, deviceCode } = state;
 
     useEffect(() => setCopied(false), [deviceCode]);
@@ -35,13 +38,13 @@ const DeviceLoginModal: React.FC<DeviceLoginModalProps> = ({ state, onRetry, onC
             size="sm"
             isOpen={open}
             onClose={onClose}
-            title="Conectar conta do GitHub"
+            title={loginTexts.title}
             icon={<img src="/gitoctocat.svg" alt="" className="w-5 h-5 brightness-0 dark:invert" />}
         >
             {loading && (
                 <div className="flex flex-col items-center gap-4 py-6">
                     <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                    <p className="text-sm text-gray-500 dark:text-zinc-400">Solicitando código ao GitHub...</p>
+                    <p className="text-sm text-gray-500 dark:text-zinc-400">{loginTexts.requestingCode}</p>
                 </div>
             )}
 
@@ -53,7 +56,7 @@ const DeviceLoginModal: React.FC<DeviceLoginModalProps> = ({ state, onRetry, onC
                         className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl flex items-center gap-2 transition-colors"
                     >
                         <RotateCw className="w-4 h-4" />
-                        Tentar novamente
+                        {loginTexts.retry}
                     </button>
                 </div>
             )}
@@ -61,7 +64,7 @@ const DeviceLoginModal: React.FC<DeviceLoginModalProps> = ({ state, onRetry, onC
             {!loading && !error && deviceCode && (
                 <div className="flex flex-col items-center gap-5 text-center">
                     <p className="text-sm text-gray-600 dark:text-zinc-400">
-                        Digite este código no GitHub para autorizar o OctoHub:
+                        {loginTexts.enterCode}
                     </p>
                     <div className="px-6 py-3 rounded-2xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 font-mono text-3xl font-bold tracking-[0.3em] select-all">
                         {deviceCode.userCode}
@@ -71,16 +74,15 @@ const DeviceLoginModal: React.FC<DeviceLoginModalProps> = ({ state, onRetry, onC
                         className="w-full px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors"
                     >
                         {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                        Copiar código e abrir GitHub
+                        {loginTexts.copyAndOpen}
                         <ExternalLink className="w-4 h-4" />
                     </button>
                     <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-zinc-400">
                         <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                        Aguardando autorização...
+                        {loginTexts.waiting}
                     </div>
                     <p className="text-xs text-gray-400 dark:text-zinc-500">
-                        A conta conectada será a que estiver logada no navegador. Para adicionar outra conta,
-                        troque de conta no GitHub antes de colar o código.
+                        {loginTexts.accountHint}
                     </p>
                 </div>
             )}

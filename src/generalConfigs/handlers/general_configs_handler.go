@@ -8,6 +8,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/models"
 	auth "docker-manager-go/src/auth/functions"
 	generalConfigsDtos "docker-manager-go/src/generalConfigs/dtos"
@@ -50,14 +51,14 @@ func (handlerStruct *GeneralConfigsHandlerStruct) FindAll(token string) ([]gener
 
 func validateGeneralConfig(body generalConfigsDtos.SaveGeneralConfigInputDto) error {
 	if !models.ModuleName(body.ModuleName).IsValid() {
-		return errors.New("módulo inválido: " + body.ModuleName)
+		return appErrors.New("settings.invalidModule", "módulo inválido: {module}").With("module", body.ModuleName)
 	}
 	if !models.ConfigType(body.ConfigType).IsValid() {
-		return errors.New("tipo de configuração inválido: " + body.ConfigType)
+		return appErrors.New("settings.invalidConfigType", "tipo de configuração inválido: {configType}").With("configType", body.ConfigType)
 	}
 	var configObject map[string]any
 	if err := json.Unmarshal([]byte(body.Config), &configObject); err != nil {
-		return errors.New("a configuração precisa ser um objeto JSON válido")
+		return appErrors.New("settings.invalidConfigJson", "a configuração precisa ser um objeto JSON válido")
 	}
 	return nil
 }

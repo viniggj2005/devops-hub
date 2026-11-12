@@ -1,5 +1,6 @@
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
+import { errorMessage } from '../features/shared/functions/ErrorMessage';
 import { DockerCredentialService } from '../features/docker-module/dockerCredentials/services/DockerCredentialService';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { DockerClientContextValue, DockerCredentialSummary } from '../interfaces/DockerCredentialInterfaces';
@@ -38,7 +39,7 @@ export const DockerClientProvider: React.FC<React.PropsWithChildren> = ({ childr
         return credentialList.length > 0 ? credentialList[0].id : null;
       });
     } catch (refreshError) {
-      const message = refreshError instanceof Error ? refreshError.message : String(refreshError);
+      const message = errorMessage(refreshError);
       setError(message);
       toast.error(message);
       setCredentials([]);
@@ -88,7 +89,7 @@ export const DockerClientProvider: React.FC<React.PropsWithChildren> = ({ childr
       })
       .catch((connectError) => {
         if (cancelled) return;
-        const message = connectError instanceof Error ? connectError.message : String(connectError);
+        const message = errorMessage(connectError);
         setError(message);
         toast.error(message);
         setDockerClientId(null);

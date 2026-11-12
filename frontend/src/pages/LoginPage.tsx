@@ -5,12 +5,13 @@ import appIcon from '../assets/images/hub.svg';
 import LoginForm from '../features/login/LoginForm';
 import CloudRestorePanel from '../features/login/CloudRestorePanel';
 import { AuthWindowBar } from '../features/appFrame/WindowControls';
-import { appModules } from '../features/shared/constants/AppModules';
-
-const activeModules = appModules.filter((moduleItem) => moduleItem.status === 'Ativo');
+import { useTranslation } from '../features/i18n/useTranslation';
+import { activeAppModules } from '../features/shared/constants/AppModules';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const { dictionary } = useTranslation();
+  const authTexts = dictionary.app.auth;
 
   return (
     <div
@@ -43,14 +44,14 @@ const LoginPage: React.FC = () => {
               </div>
 
               <h2 className="text-lg font-semibold text-zinc-100 leading-snug mb-2">
-                Toda a sua operação em um único workspace.
+                {authTexts.loginHeadline}
               </h2>
               <p className="text-xs text-zinc-400 leading-relaxed mb-6">
-                Gerencie contêineres, terminais SSH, repositórios Git e bancos de dados sem alternar entre ferramentas.
+                {authTexts.loginPitch}
               </p>
 
               <div className="space-y-2.5">
-                {activeModules.map((moduleItem) => (
+                {activeAppModules.map((moduleItem) => (
                   <div
                     key={moduleItem.id}
                     className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.05]"
@@ -63,7 +64,7 @@ const LoginPage: React.FC = () => {
                         {moduleItem.title}
                       </p>
                       <p className="text-[11px] text-zinc-500 truncate">
-                        {moduleItem.description}
+                        {dictionary.app.modules[moduleItem.configName]}
                       </p>
                     </div>
                   </div>
@@ -73,7 +74,7 @@ const LoginPage: React.FC = () => {
 
             <div className="pt-6 mt-6 border-t border-white/[0.06] flex items-center gap-2 text-[11px] text-zinc-500">
               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Ambiente local seguro para suas credenciais</span>
+              <span>{dictionary.app.common.secureEnvironment}</span>
             </div>
           </div>
 
@@ -89,10 +90,10 @@ const LoginPage: React.FC = () => {
 
             <div className="mb-6">
               <h1 className="text-xl font-bold text-white tracking-tight">
-                Bem-vindo de volta
+                {authTexts.loginTitle}
               </h1>
               <p className="text-xs text-zinc-400 mt-1">
-                Informe suas credenciais para acessar seus ambientes.
+                {authTexts.loginSubtitle}
               </p>
             </div>
 
@@ -101,20 +102,20 @@ const LoginPage: React.FC = () => {
             <div className="flex items-center gap-3 my-6">
               <div className="h-px flex-1 bg-white/[0.08]" />
               <span className="text-[11px] uppercase tracking-wider text-zinc-500">
-                ou
+                {dictionary.app.common.or}
               </span>
               <div className="h-px flex-1 bg-white/[0.08]" />
             </div>
 
             <div className="text-center">
               <p className="text-xs text-zinc-400">
-                Ainda não possui uma conta?{' '}
+                {authTexts.noAccount}{' '}
                 <button
                   type="button"
                   onClick={() => navigate('/create-account')}
                   className="text-blue-400 hover:text-blue-300 font-medium transition-colors underline-offset-4 hover:underline cursor-pointer"
                 >
-                  Criar nova conta
+                  {authTexts.createAccountLink}
                 </button>
               </p>
             </div>

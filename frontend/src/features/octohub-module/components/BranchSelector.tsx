@@ -5,6 +5,7 @@ import StashChangesModal from './StashChangesModal';
 import { useDismiss } from '../../shared/hooks/useDismiss';
 import { useListNavigation } from '../hooks/useListNavigation';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
+import { useTranslation } from '../../i18n/useTranslation';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import { getConflictingFiles, isConflictError } from '../functions/gitStatus';
@@ -38,8 +39,10 @@ const localName = (branch: octohubStructs.BranchInfo) =>
     branch.IsRemote ? branch.Name.slice(branch.Name.indexOf('/') + 1) : branch.Name;
 
 const BranchSelector: React.FC = () => {
+    const { dictionary, formatMessage } = useTranslation();
     const [filter, setFilter] = useState('');
     const [isOpen, setIsOpen] = useState(false);
+    const selectorTexts = dictionary.octohub.branchSelector;
     const [loading, setLoading] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
     const [originUrl, setOriginUrl] = useState('');
@@ -121,9 +124,9 @@ const BranchSelector: React.FC = () => {
         setLoading(true);
         try {
             await ChangeBranch(branch.Name, branch.IsRemote, leaveChanges);
-            toast.success(`Agora em ${localName(branch)}.`);
+            toast.success(formatMessage(selectorTexts.nowOn, { branch: localName(branch) }));
         } catch (error) {
-            await showConflictsOrError(error, 'Erro ao trocar de branch');
+            await showConflictsOrError(error, selectorTexts.switchFailed);
         } finally {
             setLoading(false);
             notifyChange();
@@ -168,10 +171,10 @@ const BranchSelector: React.FC = () => {
         setLoading(true);
         try {
             await PublishBranch(currentBranch);
-            toast.success(`${currentBranch} enviada para o remoto.`);
+            toast.success(formatMessage(selectorTexts.pushed, { branch: currentBranch }));
             notifyChange();
         } catch (error) {
-            handleGitError(error, 'Erro ao enviar branch', handlePublish);
+            handleGitError(error, selectorTexts.pushFailed, handlePublish);
         } finally {
             setLoading(false);
         }
@@ -181,10 +184,10 @@ const BranchSelector: React.FC = () => {
         setFetching(true);
         try {
             await FetchRemotes();
-            toast.success('Remotos atualizados.');
+            toast.success(selectorTexts.remotesUpdated);
             notifyChange();
         } catch (error) {
-            handleGitError(error, 'Erro ao buscar do remoto', handleFetch);
+            handleGitError(error, dictionary.octohub.common.fetchFailed, handleFetch);
         } finally {
             setFetching(false);
         }
@@ -196,9 +199,9 @@ const BranchSelector: React.FC = () => {
             const state = await PullCurrentBranch();
             notifyChange();
             if (state.Kind) openConflicts();
-            else toast.success(`${currentBranch} atualizada com o remoto.`);
+            else toast.success(formatMessage(selectorTexts.pulled, { branch: currentBranch }));
         } catch (error) {
-            handleGitError(error, 'Erro ao trazer as alterações do remoto', handlePull);
+            handleGitError(error, selectorTexts.pullFailed, handlePull);
         } finally {
             setFetching(false);
         }
@@ -233,14 +236,14 @@ const BranchSelector: React.FC = () => {
                     <GitBranch className="w-4 h-4 text-emerald-500 shrink-0" />
                     <div className="flex flex-col items-start leading-none min-w-0">
                         <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">
-                            Branch
+                            {selectorTexts.branch}
                         </span>
                         <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate max-w-[140px]">
                             {!hasRepository
-                                ? 'Sem repositório'
+                                ? selectorTexts.noRepository
                                 : isDetached
-                                  ? 'HEAD destacado'
-                                  : currentBranch || 'Carregando...'}
+                                  ? dictionary.octohub.common.detachedHead
+                                  : currentBranch || dictionary.octohub.common.loading}
                         </span>
                     </div>
                     {loading ? (
@@ -261,10 +264,10 @@ const BranchSelector: React.FC = () => {
                     disabled={!hasRepository || !originUrl || loading || fetching}
                     title={
                         !originUrl
-                            ? 'Repositório sem remoto'
+                            ? selectorTexts.noRemote
                             : canPull
-                              ? `Trazer ${current?.Behind} commit(s) de ${current?.Upstream} (git pull)`
-                              : 'Buscar atualizações de todos os remotos (git fetch --all --prune)'
+                              ? formatMessage(selectorTexts.pullHint, { count: current?.Behind ?? 0, upstream: current?.Upstream ?? '' })
+                              : selectorTexts.fetchHint
                     }
                     className="px-2.5 py-1.5 hover:bg-zinc-200/70 dark:hover:bg-white/10 rounded-lg transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
@@ -291,20 +294,20 @@ const BranchSelector: React.FC = () => {
                         disabled={loading}
                         title={
                             !originUrl
-                                ? 'Criar o repositório no GitHub e enviar'
+                                ? selectorTexts.createOnGithubHint
                                 : current?.Upstream
-                                  ? `Enviar commits para ${current.Upstream}`
-                                  : 'Publicar a branch em origin'
+                                  ? formatMessage(selectorTexts.pushHint, { upstream: current.Upstream })
+                                  : selectorTexts.publishHint
                         }
                         className="ml-0.5 px-2.5 py-1.5 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 rounded-lg transition-all flex items-center gap-1.5 disabled:opacity-50"
                     >
                         <CloudUpload className="w-3.5 h-3.5" />
                         <span className="text-xs font-bold">
                             {!originUrl
-                                ? 'Publicar'
+                                ? selectorTexts.publish
                                 : current?.Upstream
-                                  ? `Enviar ↑${current.Ahead}`
-                                  : 'Publicar'}
+                                  ? formatMessage(selectorTexts.push, { count: current.Ahead })
+                                  : selectorTexts.publish}
                         </span>
                     </button>
                 )}
@@ -323,7 +326,7 @@ const BranchSelector: React.FC = () => {
                                 autoFocus
                                 value={filter}
                                 onKeyDown={onKeyDown}
-                                placeholder="Filtrar ou criar branch..."
+                                placeholder={selectorTexts.filterPlaceholder}
                                 onChange={(event) => {
                                     setFilter(event.target.value);
                                     setActiveIndex(0);
@@ -336,7 +339,7 @@ const BranchSelector: React.FC = () => {
                     <div ref={listRef} className="max-h-72 overflow-y-auto p-1">
                         {items.length === 0 && (
                             <p className="px-3 py-4 text-center text-xs text-zinc-500 italic">
-                                Digite um nome para criar uma branch.
+                                {selectorTexts.typeToCreate}
                             </p>
                         )}
                         {items.map((item, index) => {
@@ -347,8 +350,8 @@ const BranchSelector: React.FC = () => {
                                 (previous?.type !== 'branch' ||
                                     previous.branch.IsRemote !== item.branch.IsRemote)
                                     ? item.branch.IsRemote
-                                        ? 'Remotas'
-                                        : 'Locais'
+                                        ? selectorTexts.remote
+                                        : selectorTexts.local
                                     : null;
 
                             if (item.type === 'create') {
@@ -365,10 +368,10 @@ const BranchSelector: React.FC = () => {
                                         <GitBranchPlus className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                                         <div className="min-w-0">
                                             <div className="text-xs font-bold truncate">
-                                                Criar branch “{newBranchName}”
+                                                {formatMessage(selectorTexts.createNamed, { name: newBranchName })}
                                             </div>
                                             <div className="text-[10px] text-zinc-500">
-                                                Escolher a branch de origem...
+                                                {selectorTexts.chooseSource}
                                             </div>
                                         </div>
                                     </div>
@@ -414,12 +417,12 @@ const BranchSelector: React.FC = () => {
                                         </div>
                                         <div className="flex items-center gap-1.5 shrink-0 text-[10px] font-mono text-zinc-400">
                                             {branch.Ahead > 0 && (
-                                                <span title={`${branch.Ahead} commit(s) para enviar`}>
+                                                <span title={formatMessage(selectorTexts.aheadHint, { count: branch.Ahead })}>
                                                     ↑{branch.Ahead}
                                                 </span>
                                             )}
                                             {branch.Behind > 0 && (
-                                                <span title={`${branch.Behind} commit(s) no remoto`}>
+                                                <span title={formatMessage(selectorTexts.behindHint, { count: branch.Behind })}>
                                                     ↓{branch.Behind}
                                                 </span>
                                             )}
@@ -439,7 +442,7 @@ const BranchSelector: React.FC = () => {
                             className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/5 transition-colors"
                         >
                             <GitBranchPlus className="w-4 h-4" />
-                            Nova branch...
+                            {selectorTexts.newBranch}
                         </button>
                         <button
                             onClick={() => {
@@ -450,13 +453,13 @@ const BranchSelector: React.FC = () => {
                         >
                             <GitMerge className="w-4 h-4" />
                             <span className="truncate">
-                                Mesclar outra branch em {isDetached ? 'HEAD' : currentBranch}...
+                                {formatMessage(selectorTexts.mergeInto, { branch: isDetached ? 'HEAD' : currentBranch })}
                             </span>
                         </button>
                     </div>
 
                     <div className="px-3 py-2 border-t border-zinc-100 dark:border-white/5 text-[10px] text-zinc-400">
-                        ↑↓ para navegar · Enter para trocar · Esc para fechar
+                        {selectorTexts.keyboardHint}
                     </div>
                 </div>
             )}

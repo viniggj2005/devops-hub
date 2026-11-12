@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { Cookie as CookieIcon, Loader2 } from 'lucide-react';
 import Select from '../../../shared/components/forms/Select';
 import { Modal } from '../../../shared/components/modals/Modal';
@@ -13,23 +14,24 @@ interface CookieEditorModalProps {
   onSave: (cookie: Cookie) => Promise<void>;
 }
 
-const sameSiteOptions: { value: CookieSameSite; label: string }[] = [
-  { value: '', label: 'Não informado' },
-  { value: 'Lax', label: 'Lax' },
-  { value: 'Strict', label: 'Strict' },
-  { value: 'None', label: 'None' },
-];
-
-const flagOptions: { key: 'hostOnly' | 'httpOnly' | 'secure'; label: string; hint: string }[] = [
-  { key: 'hostOnly', label: 'Somente este host', hint: 'Não envia para subdomínios' },
-  { key: 'secure', label: 'Secure', hint: 'Enviado só em HTTPS/WSS' },
-  { key: 'httpOnly', label: 'HttpOnly', hint: 'Informativo; o Vulpes sempre envia' },
-];
-
 const CookieEditorModal: React.FC<CookieEditorModalProps> = ({ cookie, creating, onClose, onSave }) => {
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<Cookie | null>(cookie);
   const [error, setError] = useState<string | null>(null);
+  const { dictionary } = useTranslation();
+  const commonTexts = dictionary.vulpes.common;
+  const cookieTexts = dictionary.vulpes.cookies;
+  const sameSiteOptions: { value: CookieSameSite; label: string }[] = [
+    { value: '', label: cookieTexts.notInformed },
+    { value: 'Lax', label: 'Lax' },
+    { value: 'Strict', label: 'Strict' },
+    { value: 'None', label: 'None' },
+  ];
+  const flagOptions: { key: 'hostOnly' | 'httpOnly' | 'secure'; label: string; hint: string }[] = [
+    { key: 'hostOnly', label: cookieTexts.hostOnly, hint: cookieTexts.hostOnlyHint },
+    { key: 'secure', label: 'Secure', hint: cookieTexts.secureHint },
+    { key: 'httpOnly', label: 'HttpOnly', hint: cookieTexts.httpOnlyHint },
+  ];
 
   useEffect(() => {
     setDraft(cookie);
@@ -59,17 +61,17 @@ const CookieEditorModal: React.FC<CookieEditorModalProps> = ({ cookie, creating,
       size="md"
       isOpen
       onClose={onClose}
-      title={creating ? 'Novo cookie' : 'Editar cookie'}
-      description={creating ? 'Enviado nas requisições desta coleção que combinarem com domínio e path' : `${cookie?.name} · ${cookie?.domain}`}
+      title={creating ? cookieTexts.newCookie : cookieTexts.editCookie}
+      description={creating ? cookieTexts.createDescription : `${cookie?.name} · ${cookie?.domain}`}
       icon={<CookieIcon className="w-4 h-4 text-amber-500" />}
       footer={
         <>
           <button type="button" onClick={onClose} className={secondaryButtonClass}>
-            Cancelar
+            {dictionary.app.common.cancel}
           </button>
           <button type="button" onClick={save} disabled={saving} className={primaryButtonClass}>
             {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            Salvar cookie
+            {cookieTexts.saveCookie}
           </button>
         </>
       }
@@ -83,16 +85,16 @@ const CookieEditorModal: React.FC<CookieEditorModalProps> = ({ cookie, creating,
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className={fieldLabelClass}>Nome</label>
+            <label className={fieldLabelClass}>{commonTexts.name}</label>
             <input autoFocus spellCheck={false} value={draft.name} placeholder="session" onChange={(event) => update({ name: event.target.value })} className={`${fieldInputClass} font-mono`} />
           </div>
           <div>
-            <label className={fieldLabelClass}>Domínio</label>
+            <label className={fieldLabelClass}>{cookieTexts.domain}</label>
             <input spellCheck={false} value={draft.domain} placeholder="api.exemplo.com" onChange={(event) => update({ domain: event.target.value })} className={`${fieldInputClass} font-mono`} />
           </div>
         </div>
         <div>
-          <label className={fieldLabelClass}>Valor</label>
+          <label className={fieldLabelClass}>{commonTexts.value}</label>
           <textarea
             rows={3}
             spellCheck={false}
@@ -107,14 +109,14 @@ const CookieEditorModal: React.FC<CookieEditorModalProps> = ({ cookie, creating,
             <input spellCheck={false} value={draft.path} placeholder="/" onChange={(event) => update({ path: event.target.value })} className={`${fieldInputClass} font-mono`} />
           </div>
           <div>
-            <label className={fieldLabelClass}>Expira em</label>
+            <label className={fieldLabelClass}>{cookieTexts.expiresAt}</label>
             <input
               type="datetime-local"
               value={toDateTimeLocal(draft.expires)}
               onChange={(event) => update({ expires: fromDateTimeLocal(event.target.value) })}
               className={fieldInputClass}
             />
-            <p className="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">Vazio = cookie de sessão (não expira)</p>
+            <p className="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">{cookieTexts.sessionHint}</p>
           </div>
           <div>
             <label className={fieldLabelClass}>SameSite</label>

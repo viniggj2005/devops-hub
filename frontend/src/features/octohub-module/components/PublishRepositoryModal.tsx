@@ -2,13 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { CloudUpload, Globe, Lock } from 'lucide-react';
 import { Modal } from '../../shared/components/modals/Modal';
+import RichMessage from '../../i18n/RichMessage';
+import { useTranslation } from '../../i18n/useTranslation';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import { ListGithubOwners } from '../../../../bindings/docker-manager-go/src/octohub/handlers/repositoryhandler';
 
 const PublishRepositoryModal: React.FC = () => {
     const { token } = useAuth();
+    const { dictionary } = useTranslation();
     const [name, setName] = useState('');
+    const publishTexts = dictionary.octohub.publish;
     const [owner, setOwner] = useState('');
     const [owners, setOwners] = useState<string[]>([]);
     const [isPrivate, setIsPrivate] = useState(true);
@@ -57,7 +61,7 @@ const PublishRepositoryModal: React.FC = () => {
             size="md"
             onClose={close}
             isOpen={publishModalOpen}
-            title="Publicar repositório no GitHub"
+            title={publishTexts.title}
             description={githubAccount ? `@${githubAccount.login}` : undefined}
             icon={<CloudUpload className="w-5 h-5 text-emerald-500" />}
             footer={
@@ -67,7 +71,7 @@ const PublishRepositoryModal: React.FC = () => {
                         disabled={publishing}
                         className="px-4 py-2 rounded-lg text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 disabled:opacity-50"
                     >
-                        Cancelar
+                        {dictionary.app.common.cancel}
                     </button>
                     <button
                         onClick={handlePublish}
@@ -79,18 +83,18 @@ const PublishRepositoryModal: React.FC = () => {
                         ) : (
                             <CloudUpload className="w-4 h-4" />
                         )}
-                        {publishing ? 'Publicando...' : 'Publicar'}
+                        {publishing ? publishTexts.publishing : publishTexts.publish}
                     </button>
                 </>
             }
         >
             {!githubAccount ? (
-                <p className="text-xs text-zinc-500">Conecte uma conta do GitHub para publicar este repositório.</p>
+                <p className="text-xs text-zinc-500">{publishTexts.needsAccount}</p>
             ) : (
                 <div className="space-y-5">
                     <div className="flex gap-2">
                         <div className="w-2/5 space-y-2">
-                            <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Dono</label>
+                            <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{publishTexts.owner}</label>
                             <select
                                 value={owner}
                                 disabled={publishing}
@@ -103,7 +107,7 @@ const PublishRepositoryModal: React.FC = () => {
                             </select>
                         </div>
                         <div className="flex-1 space-y-2">
-                            <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Nome</label>
+                            <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{dictionary.octohub.common.name}</label>
                             <input
                                 autoFocus
                                 type="text"
@@ -118,7 +122,7 @@ const PublishRepositoryModal: React.FC = () => {
                     {ownersError && <p className="text-[11px] text-rose-500">{ownersError}</p>}
 
                     <div className="space-y-2">
-                        <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Descrição (opcional)</label>
+                        <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{publishTexts.descriptionOptional}</label>
                         <input
                             type="text"
                             value={description}
@@ -131,16 +135,16 @@ const PublishRepositoryModal: React.FC = () => {
                     <div className="flex gap-1 p-1 bg-zinc-100 dark:bg-white/5 rounded-xl">
                         <button className={visibilityClass(isPrivate)} disabled={publishing} onClick={() => setIsPrivate(true)}>
                             <Lock className="w-3.5 h-3.5" />
-                            Privado
+                            {publishTexts.private}
                         </button>
                         <button className={visibilityClass(!isPrivate)} disabled={publishing} onClick={() => setIsPrivate(false)}>
                             <Globe className="w-3.5 h-3.5" />
-                            Público
+                            {publishTexts.public}
                         </button>
                     </div>
 
                     <p className="text-[11px] text-zinc-500">
-                        Cria <span className="font-mono text-zinc-700 dark:text-zinc-300">{owner}/{repositoryName || '...'}</span> no GitHub, adiciona como origin e envia a branch atual.
+                        <RichMessage template={publishTexts.summary} values={{ repository: <span className="font-mono text-zinc-700 dark:text-zinc-300">{owner}/{repositoryName || '...'}</span> }} />
                     </p>
                 </div>
             )}

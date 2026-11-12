@@ -1,5 +1,6 @@
 import React from 'react';
 import { copyToClipboard } from '../../../shared/functions/clipboard';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { Copy, Monitor, Pencil, SquareTerminal, Trash2 } from 'lucide-react';
 import { SshConnectionCardProps } from '../../../../interfaces/TerminalInterfaces';
 
@@ -12,6 +13,8 @@ const SshConnectionCard: React.FC<SshConnectionCardProps> = ({
     handleRemove,
     handleConnect,
 }) => {
+    const { dictionary, formatMessage } = useTranslation();
+    const connectionTexts = dictionary.ferretShell.connections;
     const port = connection.port || 22;
     const isCustomPort = port !== 22;
     const address = `${connection.systemUser}@${connection.host}:${port}`;
@@ -51,7 +54,7 @@ const SshConnectionCard: React.FC<SshConnectionCardProps> = ({
 
             <div className="flex items-center gap-1 shrink-0">
                 <button
-                    title="Conectar ao terminal"
+                    title={connectionTexts.connect}
                     onClick={(event) => {
                         event.stopPropagation();
                         handleConnect(connection.id);
@@ -62,10 +65,10 @@ const SshConnectionCard: React.FC<SshConnectionCardProps> = ({
                 </button>
 
                 <button
-                    title={`Copiar comando (${sshCommand})`}
+                    title={formatMessage(connectionTexts.copyCommand, { command: sshCommand })}
                     onClick={(event) => {
                         event.stopPropagation();
-                        copyToClipboard(sshCommand, 'Comando SSH copiado');
+                        copyToClipboard(sshCommand, connectionTexts.commandCopied);
                     }}
                     className={`${actionButtonClass} hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white`}
                 >
@@ -73,7 +76,7 @@ const SshConnectionCard: React.FC<SshConnectionCardProps> = ({
                 </button>
 
                 <button
-                    title="Editar conexão"
+                    title={connectionTexts.edit}
                     onClick={(event) => {
                         event.stopPropagation();
                         handleEdit(connection);
@@ -84,7 +87,7 @@ const SshConnectionCard: React.FC<SshConnectionCardProps> = ({
                 </button>
 
                 <button
-                    title="Excluir conexão"
+                    title={connectionTexts.delete}
                     onClick={(event) => {
                         event.stopPropagation();
                         handleRemove(connection.id, displayName);

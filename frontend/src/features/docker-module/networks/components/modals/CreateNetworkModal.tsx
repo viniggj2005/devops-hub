@@ -1,6 +1,7 @@
 import toast from 'react-hot-toast';
 import { Network } from 'lucide-react';
 import React, { useState } from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { NetworkService } from '../../services/NetworkService';
 import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { ModalProps } from '../../../../../interfaces/TerminalInterfaces';
@@ -9,6 +10,8 @@ import { ModalButton } from '../../../../../features/shared/components/modals/Mo
 import * as network from '../../../../../../bindings/github.com/docker/docker/api/types/network/models';
 
 const CreateNetworkModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) => {
+  const { dictionary } = useTranslation();
+  const networkTexts = dictionary.docker.networks;
   const { selectedCredentialId } = useDockerClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -22,7 +25,7 @@ const CreateNetworkModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) 
     event?.preventDefault();
     if (!selectedCredentialId || isSubmitting) return;
     if (!formData.name.trim()) {
-      toast.error('Informe o nome da rede.');
+      toast.error(networkTexts.nameRequired);
       return;
     }
 
@@ -41,7 +44,7 @@ const CreateNetworkModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) 
 
       await NetworkService.createNetwork(selectedCredentialId, formData.name.trim(), options);
 
-      toast.success('A rede Docker foi criada.');
+      toast.success(networkTexts.createdToast);
 
       onClose();
       onCreated?.();
@@ -53,7 +56,7 @@ const CreateNetworkModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) 
       });
     } catch (createError) {
       console.error(createError);
-      toast.error('Erro ao criar rede Docker.');
+      toast.error(networkTexts.createFailed);
     } finally {
       setIsSubmitting(false);
     }
@@ -69,13 +72,13 @@ const CreateNetworkModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) 
     <Modal
       isOpen={open}
       onClose={onClose}
-      title="Nova Rede Docker"
-      description="Configuração de topologia de rede"
+      title={networkTexts.createTitle}
+      description={networkTexts.createDescription}
       icon={<Network className="w-5 h-5 text-blue-500" />}
       footer={
         <>
           <ModalButton variant="secondary" onClick={onClose} disabled={isSubmitting}>
-            Cancelar
+            {dictionary.app.common.cancel}
           </ModalButton>
           <ModalButton
             variant="primary"
@@ -83,7 +86,7 @@ const CreateNetworkModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) 
             disabled={isSubmitting}
             isLoading={isSubmitting}
           >
-            Criar Rede
+            {networkTexts.create}
           </ModalButton>
         </>
       }
@@ -91,11 +94,11 @@ const CreateNetworkModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className={labelClass}>
-            Nome <span className="text-red-400">*</span>
+            {dictionary.docker.volumes.name} <span className="text-red-400">*</span>
           </label>
           <input
             type="text"
-            placeholder="ex: minha-rede"
+            placeholder={networkTexts.namePlaceholder}
             value={formData.name}
             onChange={(event) => setFormData({ ...formData, name: event.target.value })}
             className={inputClass}
@@ -133,7 +136,7 @@ const CreateNetworkModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) 
                 Internal
               </span>
               <p className="text-[11px] text-gray-500 dark:text-zinc-400">
-                Restringir acesso externo à rede
+                {networkTexts.internalHint}
               </p>
             </div>
           </label>
@@ -150,7 +153,7 @@ const CreateNetworkModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) 
                 Attachable
               </span>
               <p className="text-[11px] text-gray-500 dark:text-zinc-400">
-                Permitir que containers standalone se conectem manualmente
+                {networkTexts.attachableHint}
               </p>
             </div>
           </label>

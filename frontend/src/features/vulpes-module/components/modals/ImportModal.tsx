@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import RichMessage from '../../../i18n/RichMessage';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { useVulpesStore } from '../../VulpesStore';
 import { runWithToast } from '../../actions/ActionHelpers';
 import { Modal } from '../../../shared/components/modals/Modal';
@@ -15,6 +17,8 @@ interface ImportModalProps {
 
 const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => {
   const [text, setText] = useState('');
+  const { dictionary } = useTranslation();
+  const importTexts = dictionary.vulpes.importer;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -50,18 +54,18 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => {
       size="lg"
       isOpen={isOpen}
       onClose={close}
-      title="Importar do Postman ou do Insomnia"
-      description="Postman v2.0/v2.1 (coleções, ambientes e globals) e Insomnia v4/v5 (JSON ou YAML)"
+      title={importTexts.title}
+      description={importTexts.description}
       icon={<Upload className="w-4 h-4 text-amber-500" />}
       footer={
         result ? (
           <button type="button" onClick={close} className={primaryButtonClass}>
-            Concluir
+            {importTexts.done}
           </button>
         ) : (
           <>
             <button type="button" onClick={close} className={secondaryButtonClass}>
-              Cancelar
+              {dictionary.app.common.cancel}
             </button>
             <button
               type="button"
@@ -70,7 +74,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => {
               className={primaryButtonClass}
             >
               {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ClipboardPaste className="w-3.5 h-3.5" />}
-              Importar conteúdo colado
+              {importTexts.importPasted}
             </button>
           </>
         )
@@ -81,15 +85,18 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => {
           <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
             <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
             <div className="text-sm text-emerald-800 dark:text-emerald-200 space-y-1">
-              <p className="font-bold">Importação concluída</p>
+              <p className="font-bold">{importTexts.finished}</p>
               {result.collections.map((collection) => (
                 <p key={`collection-${collection.id}`} className="text-xs">
-                  Coleção <strong>{collection.name}</strong>
+                  <RichMessage template={importTexts.collection} values={{ name: <strong>{collection.name}</strong> }} />
                 </p>
               ))}
               {result.environments.map((environment) => (
                 <p key={`environment-${environment.id}`} className="text-xs">
-                  Ambiente <strong>{environment.name}</strong> ({environment.variables.length} variáveis)
+                  <RichMessage
+                    template={importTexts.environment}
+                    values={{ name: <strong>{environment.name}</strong>, count: environment.variables.length }}
+                  />
                 </p>
               ))}
             </div>
@@ -98,7 +105,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => {
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 space-y-1.5">
               <p className="flex items-center gap-2 text-sm font-bold text-amber-800 dark:text-amber-200">
                 <AlertTriangle className="w-4 h-4" />
-                Avisos
+                {importTexts.warnings}
               </p>
               <ul className="list-disc pl-5 space-y-1 text-xs text-amber-900 dark:text-amber-100">
                 {result.warnings.map((warning) => (
@@ -120,17 +127,23 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => {
               {busy ? <Loader2 className="w-5 h-5 animate-spin text-amber-500" /> : <FileJson className="w-5 h-5 text-amber-500" />}
             </div>
             <div>
-              <p className="text-sm font-bold text-gray-900 dark:text-white">Selecionar arquivos</p>
+              <p className="text-sm font-bold text-gray-900 dark:text-white">{importTexts.selectFiles}</p>
               <p className="text-xs text-gray-500 dark:text-zinc-400">
-                Escolha um ou mais arquivos exportados pelo Postman (<span className="font-mono">.postman_collection.json</span>,{' '}
-                <span className="font-mono">.postman_environment.json</span>) ou pelo Insomnia (<span className="font-mono">.json</span>,{' '}
-                <span className="font-mono">.yaml</span>).
+                <RichMessage
+                  template={importTexts.filesHint}
+                  values={{
+                    insomniaJson: <span className="font-mono">.json</span>,
+                    insomniaYaml: <span className="font-mono">.yaml</span>,
+                    postmanCollection: <span className="font-mono">.postman_collection.json</span>,
+                    postmanEnvironment: <span className="font-mono">.postman_environment.json</span>,
+                  }}
+                />
               </p>
             </div>
           </button>
 
           <div>
-            <label className={fieldLabelClass}>Ou cole o conteúdo exportado (JSON ou YAML)</label>
+            <label className={fieldLabelClass}>{importTexts.pasteLabel}</label>
             <textarea
               value={text}
               spellCheck={false}
@@ -147,8 +160,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => {
             </p>
           )}
           <p className="text-[11px] text-gray-400 dark:text-zinc-500">
-            Scripts de pré-requisição e testes são preservados, mas não executados. Exemplos de resposta salvos não são importados. Cookies do
-            Insomnia vão para a coleção importada; ambientes base viram variáveis da coleção e sub-ambientes viram ambientes.
+            {importTexts.notes}
           </p>
         </div>
       )}

@@ -3,9 +3,10 @@ package authFunctions
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"sync"
 	"time"
+
+	"docker-manager-go/src/appErrors"
 )
 
 type SessionStruct struct {
@@ -55,12 +56,12 @@ func (manager *ManagerStruct) Validate(token string) (*SessionStruct, error) {
 	session, ok := manager.sessions[token]
 	if !ok {
 		manager.mutex.Unlock()
-		return nil, errors.New("token inválido")
+		return nil, appErrors.New("auth.invalidToken", "token inválido")
 	}
 	if now.After(session.ExpiresAt) {
 		delete(manager.sessions, token)
 		manager.mutex.Unlock()
-		return nil, errors.New("sessão expirada")
+		return nil, appErrors.New("auth.sessionExpired", "sessão expirada")
 	}
 	if manager.timeToLive > 0 {
 		session.ExpiresAt = now.Add(manager.timeToLive)
@@ -91,7 +92,7 @@ func (manager *ManagerStruct) ClaimForWindow(windowName string) (string, *Sessio
 	delete(manager.windowOffers, windowName)
 	manager.mutex.Unlock()
 	if !offered {
-		return "", nil, errors.New("nenhuma sessão disponível para esta janela")
+		return "", nil, appErrors.New("auth.noWindowSession", "nenhuma sessão disponível para esta janela")
 	}
 
 	originSession, err := manager.Validate(originToken)

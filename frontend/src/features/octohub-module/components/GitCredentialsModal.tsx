@@ -1,9 +1,9 @@
 import toast from 'react-hot-toast';
 import { useAuth } from '../../../contexts/AuthContext';
 import React, { useEffect, useRef, useState } from 'react';
-import { gitErrorMessage } from '../functions/gitStatus';
 import { Modal } from '../../shared/components/modals/Modal';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
+import { useTranslation } from '../../i18n/useTranslation';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import { useConfirmToast } from '../../shared/components/toasts/ConfirmToast';
 import * as octohubDtos from '../../../../bindings/docker-manager-go/src/octohub/dtos/models';
@@ -19,7 +19,9 @@ const inputClass = 'w-full px-3 py-2 bg-zinc-50 dark:bg-black/20 border border-z
 const GitCredentialsModal: React.FC = () => {
     const { token } = useAuth();
     const confirmToast = useConfirmToast();
+    const { dictionary, formatMessage } = useTranslation();
     const [form, setForm] = useState(emptyForm);
+    const credentialTexts = dictionary.octohub.credentials;
     const [saving, setSaving] = useState(false);
     const fileInput = useRef<HTMLInputElement>(null);
     const [tab, setTab] = useState<CredentialTab>('password');
@@ -80,7 +82,7 @@ const GitCredentialsModal: React.FC = () => {
                 privateKey: usesPassword ? '' : form.privateKey,
                 passphrase: usesPassword ? '' : form.passphrase,
             });
-            toast.success(`Login de ${saved?.host ?? form.host} salvo.`);
+            toast.success(formatMessage(credentialTexts.saved, { host: saved?.host ?? form.host }));
             notifyCredentialsChange();
             const retry = credentialsTarget?.retry;
             if (retry) {
@@ -91,7 +93,7 @@ const GitCredentialsModal: React.FC = () => {
             await load();
             setMode('list');
         } catch (error) {
-            toast.error(gitErrorMessage(error));
+            toast.error(errorMessage(error));
         } finally {
             setSaving(false);
         }
@@ -101,8 +103,8 @@ const GitCredentialsModal: React.FC = () => {
         if (!token) return;
         confirmToast({
             id: `git-credential-${credential.id}`,
-            title: `Remover login de ${credential.host}?`,
-            message: `Remover o login de ${credential.host} do OctoHub?`,
+            title: formatMessage(credentialTexts.removeTitle, { host: credential.host }),
+            message: formatMessage(credentialTexts.removeMessage, { host: credential.host }),
             onConfirm: async () => {
                 await RemoveGitCredential(token, credential.id);
                 notifyCredentialsChange();
@@ -128,38 +130,37 @@ const GitCredentialsModal: React.FC = () => {
             size="md"
             isOpen={open}
             onClose={() => !saving && closeCredentials()}
-            title="Credenciais Git"
-            description={mode === 'form' ? form.host || 'novo servidor' : undefined}
+            title={credentialTexts.title}
+            description={mode === 'form' ? form.host || credentialTexts.newServer : undefined}
             icon={<KeyRound className="w-5 h-5 text-emerald-500" />}
             footer={
                 mode === 'form' ? (
                     <>
                         <button onClick={() => setMode('list')} disabled={saving} className={`mr-auto ${buttonClass}`}>
-                            Ver todos os logins
+                            {credentialTexts.viewAll}
                         </button>
-                        <button onClick={closeCredentials} disabled={saving} className={buttonClass}>Cancelar</button>
+                        <button onClick={closeCredentials} disabled={saving} className={buttonClass}>{dictionary.app.common.cancel}</button>
                         <button
                             onClick={save}
                             disabled={!canSave || saving}
                             className="px-5 py-2 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 dark:disabled:bg-white/10 disabled:text-zinc-500 flex items-center gap-2"
                         >
                             {saving && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                            {credentialsTarget?.retry ? 'Salvar e tentar de novo' : 'Salvar'}
+                            {credentialsTarget?.retry ? credentialTexts.saveAndRetry : credentialTexts.save}
                         </button>
                     </>
                 ) : (
-                    <button onClick={closeCredentials} className={buttonClass}>Fechar</button>
+                    <button onClick={closeCredentials} className={buttonClass}>{dictionary.app.common.close}</button>
                 )
             }
         >
             {mode === 'list' ? (
                 <div className="space-y-4">
                     <p className="text-xs text-zinc-500">
-                        Logins para servidores Git que não são o GitHub, como gitlab.com, o GitLab da empresa ou o Bitbucket.
-                        O GitHub usa a conta conectada no OctoHub.
+                        {credentialTexts.intro}
                     </p>
                     {credentials.length === 0 ? (
-                        <p className="py-4 text-center text-xs text-zinc-500 italic">Nenhum login salvo ainda.</p>
+                        <p className="py-4 text-center text-xs text-zinc-500 italic">{credentialTexts.empty}</p>
                     ) : (
                         <div className="space-y-2">
                             {credentials.map((credential) => (
@@ -168,13 +169,13 @@ const GitCredentialsModal: React.FC = () => {
                                     <div className="flex-1 min-w-0">
                                         <div className="text-sm font-semibold font-mono truncate">{credential.host}</div>
                                         <div className="text-[11px] text-zinc-500 truncate">
-                                            {[credential.username, credential.hasPassword && 'senha/token', credential.hasKey && 'chave SSH'].filter(Boolean).join(' · ')}
+                                            {[credential.username, credential.hasPassword && credentialTexts.passwordOrToken, credential.hasKey && credentialTexts.sshKey].filter(Boolean).join(' · ')}
                                         </div>
                                     </div>
-                                    <button onClick={() => startForm(credential, credential.host)} title="Editar" className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-200 dark:hover:bg-white/10">
+                                    <button onClick={() => startForm(credential, credential.host)} title={credentialTexts.edit} className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-200 dark:hover:bg-white/10">
                                         <Pencil className="w-4 h-4" />
                                     </button>
-                                    <button onClick={() => remove(credential)} title="Remover" className="p-2 rounded-lg text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10">
+                                    <button onClick={() => remove(credential)} title={credentialTexts.remove} className="p-2 rounded-lg text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10">
                                         <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
@@ -186,18 +187,18 @@ const GitCredentialsModal: React.FC = () => {
                         className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10 rounded-xl border border-dashed border-emerald-500/30"
                     >
                         <Plus className="w-4 h-4" />
-                        Adicionar login
+                        {credentialTexts.add}
                     </button>
                 </div>
             ) : (
                 <div className="space-y-4">
                     <div className="space-y-1">
-                        <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Servidor</label>
+                        <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{credentialTexts.server}</label>
                         <input
                             value={form.host}
                             disabled={Boolean(editing)}
                             onChange={update('host')}
-                            placeholder="gitlab.com ou gitlab.suaempresa.com.br"
+                            placeholder={credentialTexts.serverPlaceholder}
                             className={inputClass}
                         />
                     </div>
@@ -205,47 +206,45 @@ const GitCredentialsModal: React.FC = () => {
                     <div className="grid grid-cols-2 gap-1 p-1 bg-zinc-100 dark:bg-white/5 rounded-xl">
                         <button className={tabClass('password')} onClick={() => setTab('password')}>
                             <LockKeyhole className="w-3.5 h-3.5" />
-                            Usuário e senha/token
+                            {credentialTexts.passwordTab}
                         </button>
                         <button className={tabClass('ssh')} onClick={() => setTab('ssh')}>
                             <KeyRound className="w-3.5 h-3.5" />
-                            Chave SSH
+                            {credentialTexts.sshTab}
                         </button>
                     </div>
 
                     {tab === 'password' ? (
                         <div className="space-y-3">
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Usuário</label>
+                                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{credentialTexts.user}</label>
                                 <input value={form.username} onChange={update('username')} className={inputClass} autoFocus />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Senha ou token</label>
+                                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{credentialTexts.password}</label>
                                 <input
                                     type="password"
                                     value={form.password}
                                     onChange={update('password')}
-                                    placeholder={editing?.hasPassword ? 'Deixe em branco para manter a atual' : ''}
+                                    placeholder={editing?.hasPassword ? credentialTexts.keepPassword : ''}
                                     className={inputClass}
                                 />
                             </div>
                             <p className="text-[11px] text-zinc-500">
-                                Vale para remotos HTTPS (https://...). No GitLab, use um Personal Access Token no lugar da senha
-                                (Preferences → Access Tokens) com as permissões read_api (para listar os projetos na hora de clonar),
-                                read_repository e write_repository.
+                                {credentialTexts.passwordHint}
                             </p>
                         </div>
                     ) : (
                         <div className="space-y-3">
                             <div className="space-y-1">
                                 <div className="flex items-center justify-between">
-                                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Chave privada</label>
+                                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{credentialTexts.privateKey}</label>
                                     <button
                                         onClick={() => fileInput.current?.click()}
                                         className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
                                     >
                                         <Upload className="w-3.5 h-3.5" />
-                                        Carregar arquivo
+                                        {credentialTexts.loadFile}
                                     </button>
                                     <input ref={fileInput} type="file" className="hidden" onChange={loadKeyFile} />
                                 </div>
@@ -253,17 +252,16 @@ const GitCredentialsModal: React.FC = () => {
                                     rows={6}
                                     value={form.privateKey}
                                     onChange={update('privateKey')}
-                                    placeholder={editing?.hasKey ? 'Deixe em branco para manter a chave atual' : '-----BEGIN OPENSSH PRIVATE KEY-----'}
+                                    placeholder={editing?.hasKey ? credentialTexts.keepKey : '-----BEGIN OPENSSH PRIVATE KEY-----'}
                                     className={`${inputClass} font-mono text-[10px] resize-none`}
                                 />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Senha da chave (se tiver)</label>
+                                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{credentialTexts.passphrase}</label>
                                 <input type="password" value={form.passphrase} onChange={update('passphrase')} className={inputClass} />
                             </div>
                             <p className="text-[11px] text-zinc-500">
-                                Vale para remotos SSH (git@servidor:grupo/projeto.git). A chave pública correspondente precisa estar
-                                cadastrada no servidor (no GitLab: Preferences → SSH Keys).
+                                {credentialTexts.sshHint}
                             </p>
                         </div>
                     )}

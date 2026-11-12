@@ -3,13 +3,13 @@ package vulpesHandlers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"gorm.io/gorm"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/desktop"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 	vulpesFunctions "docker-manager-go/src/vulpes/functions"
@@ -24,7 +24,7 @@ var (
 	invalidFileChars  = strings.NewReplacer("<", "_", ">", "_", ":", "_", `"`, "_", "/", "_", `\`, "_", "|", "_", "?", "_", "*", "_")
 )
 
-var errUnknownExportFormat = errors.New("formato de exportação desconhecido; use postman ou insomnia")
+var errUnknownExportFormat = appErrors.New("vulpes.unknownExportFormat", "formato de exportação desconhecido; use postman ou insomnia")
 
 func (handlerStruct *VulpesHandlerStruct) ImportFromFiles(callContext context.Context, token string) (*vulpesDtos.ImportResultDto, error) {
 	userID, err := handlerStruct.authenticate(token)
@@ -44,16 +44,21 @@ func (handlerStruct *VulpesHandlerStruct) ImportFromFiles(callContext context.Co
 
 	combined := &vulpesFunctions.ImportedData{}
 	failures := []string{}
+	failureErrors := []error{}
 	for _, path := range paths {
 		imported, err := readImportFile(path)
 		if err != nil {
 			failures = append(failures, err.Error())
+			failureErrors = append(failureErrors, err)
 			continue
 		}
 		mergeImport(combined, imported, filepath.Base(path), len(paths) > 1)
 	}
 	if len(combined.Collections) == 0 && len(combined.Environments) == 0 {
-		return nil, errors.New(strings.Join(failures, "\n"))
+		if len(failureErrors) == 1 {
+			return nil, failureErrors[0]
+		}
+		return nil, errors.Join(failureErrors...)
 	}
 	combined.Warnings = append(failures, combined.Warnings...)
 	return handlerStruct.persistImport(userID, combined)
@@ -65,10 +70,10 @@ func (handlerStruct *VulpesHandlerStruct) ImportFromText(token string, content s
 		return nil, err
 	}
 	if strings.TrimSpace(content) == "" {
-		return nil, errors.New("cole o conteúdo exportado do Postman ou do Insomnia (JSON ou YAML)")
+		return nil, appErrors.New("vulpes.importContentRequired", "cole o conteúdo exportado do Postman ou do Insomnia (JSON ou YAML)")
 	}
 	if len(content) > maxImportFileBytes {
-		return nil, fmt.Errorf("o conteúdo ultrapassa o limite de %d MB", maxImportFileBytes>>20)
+		return nil, appErrors.New("vulpes.importContentTooLarge", "o conteúdo ultrapassa o limite de {megabytes} MB").With("megabytes", maxImportFileBytes>>20)
 	}
 	imported, err := vulpesFunctions.ParseImportFile([]byte(content), "O conteúdo colado")
 	if err != nil {
@@ -81,14 +86,14 @@ func readImportFile(path string) (*vulpesFunctions.ImportedData, error) {
 	name := filepath.Base(path)
 	info, err := os.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", name, err)
+		return nil, appErrors.Wrap("vulpes.namedFailure", "{name}", err).With("name", name)
 	}
 	if info.Size() > maxImportFileBytes {
-		return nil, fmt.Errorf("%s ultrapassa o limite de %d MB", name, maxImportFileBytes>>20)
+		return nil, appErrors.New("vulpes.importFileTooLarge", "{name} ultrapassa o limite de {megabytes} MB").With("name", name).With("megabytes", maxImportFileBytes>>20)
 	}
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", name, err)
+		return nil, appErrors.Wrap("vulpes.namedFailure", "{name}", err).With("name", name)
 	}
 	return vulpesFunctions.ParseImportFile(content, name)
 }
@@ -118,7 +123,7 @@ func (handlerStruct *VulpesHandlerStruct) persistImport(userID uint, imported *v
 
 	err := handlerStruct.database().Transaction(func(transaction *gorm.DB) error {
 		for _, collection := range imported.Collections {
-			name, err := validateName(collection.Name, "coleção")
+			name, err := validateName(collection.Name, collectionNameRules)
 			if err != nil {
 				return err
 			}

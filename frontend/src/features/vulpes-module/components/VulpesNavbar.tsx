@@ -1,3 +1,4 @@
+import { useTranslation } from '../../i18n/useTranslation';
 import React from 'react';
 import { useVulpesStore } from '../VulpesStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -21,6 +22,8 @@ const openRunnerForActiveTab = () => {
 
 const VulpesNavbar: React.FC<{ onManageEnvironments: () => void }> = ({ onManageEnvironments }) => {
   const setActiveTab = useAppStore((state) => state.setActiveTab);
+  const { dictionary } = useTranslation();
+  const navbarTexts = dictionary.vulpes.navbar;
   const { environments, activeEnvironmentId, setActiveEnvironment } = useVulpesStore(
     useShallow((state) => ({
       environments: state.environments,
@@ -30,7 +33,7 @@ const VulpesNavbar: React.FC<{ onManageEnvironments: () => void }> = ({ onManage
   );
 
   const environmentOptions = [
-    { value: '', label: 'Sem ambiente' },
+    { value: '', label: navbarTexts.noEnvironment },
     ...environments.map((environment) => ({ value: String(environment.id), label: environment.name })),
   ];
 
@@ -53,14 +56,14 @@ const VulpesNavbar: React.FC<{ onManageEnvironments: () => void }> = ({ onManage
           <Globe2 className="w-4 h-4 text-amber-500" />
           <Select
             variant="navbar"
-            aria-label="Ambiente ativo"
+            aria-label={navbarTexts.activeEnvironment}
             options={environmentOptions}
             value={activeEnvironmentId ? String(activeEnvironmentId) : ''}
             onChange={(value) => setActiveEnvironment(value ? Number(value) : null)}
           />
           <button
             type="button"
-            title="Gerenciar ambientes"
+            title={navbarTexts.manageEnvironments}
             onClick={onManageEnvironments}
             className="p-2 rounded-xl text-gray-500 hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
           >
@@ -69,7 +72,7 @@ const VulpesNavbar: React.FC<{ onManageEnvironments: () => void }> = ({ onManage
         </div>
         <button
           type="button"
-          title="Executar coleção ou pasta em lote (Runner)"
+          title={navbarTexts.runnerHint}
           onClick={openRunnerForActiveTab}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-500 hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
         >
@@ -78,7 +81,7 @@ const VulpesNavbar: React.FC<{ onManageEnvironments: () => void }> = ({ onManage
         </button>
         <button
           type="button"
-          title="Gerenciar cookies da coleção"
+          title={navbarTexts.manageCookies}
           onClick={openCookiesForActiveTab}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-500 hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
         >
@@ -89,10 +92,10 @@ const VulpesNavbar: React.FC<{ onManageEnvironments: () => void }> = ({ onManage
         <button
           onClick={() => setActiveTab('home')}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 transition-all group"
-          title="Voltar ao Console"
+          title={navbarTexts.backToConsole}
         >
           <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span className="hidden xl:inline">Voltar</span>
+          <span className="hidden xl:inline">{navbarTexts.back}</span>
         </button>
       </div>
     </nav>

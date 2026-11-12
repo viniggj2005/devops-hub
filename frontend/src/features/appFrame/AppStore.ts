@@ -34,16 +34,14 @@ interface AppState {
 }
 
 const moduleTitles: Partial<Record<ModuleType, string>> = {
-  home: 'Início',
   octohub: 'OctoHub',
   docker: 'Docker Manager',
-  settings: 'Configurações',
   ferretshell: 'FerretShell',
   vulpes: VULPES_MODULE.name,
   talpadb: TALPADB_MODULE.name,
 };
 
-const homeTab: AppTab = { id: 'home', type: 'home', title: 'Início' };
+const homeTab: AppTab = { id: 'home', type: 'home', title: 'home' };
 
 const createTab = (type: ModuleType, title?: string): AppTab => ({
   type,

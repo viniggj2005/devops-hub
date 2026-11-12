@@ -46,7 +46,8 @@ const outwardBySide: Record<DiagramAnchorSide, Point> = {
 export type RelationEndKind = 'one' | 'zeroOrOne' | 'zeroOrMany';
 
 export interface RelationCardinality {
-  label: string;
+  oneToOne: boolean;
+  optionalTarget: boolean;
   source: RelationEndKind;
   target: RelationEndKind;
 }
@@ -60,11 +61,11 @@ export function relationCardinality(relation: DiagramRelation, sourceTable: Diag
   const wholePrimaryKey = columns.length > 0 && columns.every((column) => column.isPrimaryKey) && primaryKeyCount === columns.length;
   const uniqueSource = singleUnique || wholePrimaryKey;
   const optionalTarget = columns.some((column) => !column.notNull);
-  const kindLabel = uniqueSource ? 'Um para um (1:1)' : 'Muitos para um (N:1)';
   return {
+    optionalTarget,
+    oneToOne: uniqueSource,
     source: uniqueSource ? 'zeroOrOne' : 'zeroOrMany',
     target: optionalTarget ? 'zeroOrOne' : 'one',
-    label: optionalTarget ? `${kindLabel} · chave estrangeira opcional` : kindLabel,
   };
 }
 

@@ -1,4 +1,6 @@
 import toast from 'react-hot-toast';
+import RichMessage from '../../../i18n/RichMessage';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { requireToken } from '../../actions/ActionHelpers';
 import GrpcResponseViewer from '../grpc/GrpcResponseViewer';
 import HttpResponseViewer from '../http/HttpResponseViewer';
@@ -66,6 +68,8 @@ const sleepInterruptible = (milliseconds: number, onCancelRef: React.MutableRefO
 
 const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
   const tabs = useVulpesStore((state) => state.tabs);
+  const { dictionary, formatMessage } = useTranslation();
+  const runnerTexts = dictionary.vulpes.runner;
   const openItem = useVulpesStore((state) => state.openItem);
   const collections = useVulpesStore((state) => state.collections);
   const environments = useVulpesStore((state) => state.environments);
@@ -298,9 +302,9 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
         durationMs: Math.max(0, performance.now() - startedAt),
         sizeBytes: 0,
         statusCode: null,
-        statusText: isCancelled ? 'Cancelada' : 'Erro',
+        statusText: isCancelled ? runnerTexts.cancelled : runnerTexts.error,
         status: isCancelled ? 'cancelled' : 'error',
-        error: isCancelled ? 'Requisição cancelada' : errorMessage(error),
+        error: isCancelled ? dictionary.vulpes.common.requestCancelled : errorMessage(error),
         protocol: entry.protocol,
         httpResponse: null,
         grpcResponse: null,
@@ -311,7 +315,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
   const startRun = async () => {
     if (!collection || running) return;
     if (selectedEntries.length === 0) {
-      toast.error('Selecione pelo menos uma requisição para executar');
+      toast.error(runnerTexts.selectAtLeastOne);
       return;
     }
 
@@ -339,8 +343,8 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
 
         setProgressText(
           iterations > 1
-            ? `Iteração ${iteration}/${iterations} · ${index + 1}/${selectedEntries.length} (${entry.name})`
-            : `${index + 1}/${selectedEntries.length} · ${entry.name}`
+            ? formatMessage(runnerTexts.iterationProgress, { iteration, iterations, current: index + 1, total: selectedEntries.length, name: entry.name })
+            : formatMessage(runnerTexts.progress, { current: index + 1, total: selectedEntries.length, name: entry.name })
         );
 
         const placeholder: RunnerStepResult = {
@@ -354,7 +358,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
           durationMs: 0,
           sizeBytes: 0,
           statusCode: null,
-          statusText: 'Executando…',
+          statusText: runnerTexts.running,
           status: 'running',
           error: null,
           protocol: entry.protocol,
@@ -388,7 +392,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
 
         const hasMoreSteps = index < selectedEntries.length - 1 || iteration < iterations;
         if (hasMoreSteps && delayMs > 0 && !cancelledRef.current) {
-          setProgressText(`Aguardando intervalo de ${delayMs} ms…`);
+          setProgressText(formatMessage(runnerTexts.waitingDelay, { delay: delayMs }));
           await sleepInterruptible(delayMs, cancelDelayRef);
         }
       }
@@ -441,7 +445,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
   }));
 
   const scopeOptions = [
-    { value: '', label: 'Toda a coleção' },
+    { value: '', label: runnerTexts.wholeCollection },
     ...folders.map((folder) => ({
       value: folder.id,
       label: `${'  '.repeat(folder.depth)}📁 ${folder.name}`,
@@ -460,11 +464,11 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
         <div className="w-48">
           <Select
             variant="navbar"
-            aria-label="Coleção do Runner"
+            aria-label={runnerTexts.collectionLabel}
             options={collectionOptions}
             value={collection ? String(collection.id) : ''}
-            placeholder="Selecione uma coleção"
-            noOptionsMessage="Nenhuma coleção criada"
+            placeholder={dictionary.vulpes.cookies.selectCollection}
+            noOptionsMessage={dictionary.vulpes.cookies.noCollections}
             onChange={(value) => {
               setCustomOrderIds([]);
               setRemovedIds(new Set());
@@ -476,10 +480,10 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
         <div className="w-56">
           <Select
             variant="navbar"
-            aria-label="Pasta ou escopo do Runner"
+            aria-label={runnerTexts.scopeLabel}
             options={scopeOptions}
             value={tab.folderId ?? ''}
-            placeholder="Toda a coleção"
+            placeholder={runnerTexts.wholeCollection}
             onChange={(value) => {
               setCustomOrderIds([]);
               setRemovedIds(new Set());
@@ -489,7 +493,10 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
           />
         </div>
         <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-zinc-400">
-          Ambiente: <strong className="text-gray-900 dark:text-zinc-200">{activeEnvironment?.name ?? 'Sem ambiente'}</strong>
+          <RichMessage
+            template={runnerTexts.environment}
+            values={{ name: <strong className="text-gray-900 dark:text-zinc-200">{activeEnvironment?.name ?? dictionary.vulpes.navbar.noEnvironment}</strong> }}
+          />
         </span>
         {paneControls && <div className="ml-auto flex items-center">{paneControls}</div>}
       </div>
@@ -500,7 +507,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
             <div className="grid grid-cols-2 gap-2">
               <label className="space-y-1">
                 <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
-                  Iterações
+                  {runnerTexts.iterations}
                 </span>
                 <input
                   min={1}
@@ -516,7 +523,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
               </label>
               <label className="space-y-1">
                 <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
-                  Delay (ms)
+                  {runnerTexts.delay}
                 </span>
                 <input
                   min={0}
@@ -541,10 +548,10 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                   onChange={(event) => setConfig((current) => ({ ...current, stopOnError: event.target.checked }))}
                   className="rounded border-gray-300 text-amber-500 focus:ring-amber-500"
                 />
-                Parar se houver falha
+                {runnerTexts.stopOnFailure}
               </label>
               <label
-                title="Atualiza cookies e respostas para que variáveis {{$response}} usem o retorno das requisições anteriores"
+                title={runnerTexts.chainHint}
                 className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-zinc-300 cursor-pointer select-none"
               >
                 <input
@@ -554,7 +561,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                   onChange={(event) => setConfig((current) => ({ ...current, persistResponses: event.target.checked }))}
                   className="rounded border-gray-300 text-amber-500 focus:ring-amber-500"
                 />
-                Encadear cookies e {'{{$response}}'}
+                {runnerTexts.chain}
               </label>
             </div>
           </div>
@@ -564,7 +571,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
               type="button"
               disabled={running || orderedEntries.length === 0}
               onClick={toggleSelectAll}
-              title={allSelected ? 'Desmarcar todas' : 'Selecionar todas'}
+              title={allSelected ? runnerTexts.deselectAll : runnerTexts.selectAll}
               className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 dark:text-zinc-300 hover:text-amber-500 disabled:opacity-40"
             >
               {allSelected ? (
@@ -580,7 +587,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 value={search}
-                placeholder="Filtrar fila de execução"
+                placeholder={runnerTexts.filterQueue}
                 onChange={(event) => setSearch(event.target.value)}
                 className="w-full rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/10 pl-8 pr-2 py-1 text-xs focus:outline-none focus:border-amber-500"
               />
@@ -592,8 +599,8 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                 onClick={resetQueue}
                 title={
                   removedIds.size > 0
-                    ? `Restaurar ${removedIds.size} requisição(ões) removida(s) e ordem original`
-                    : 'Restaurar ordem original da coleção'
+                    ? formatMessage(runnerTexts.restoreRemoved, { count: removedIds.size })
+                    : runnerTexts.restoreOrder
                 }
                 className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 disabled:opacity-40"
               >
@@ -608,8 +615,8 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
               <div className="py-10 px-4 text-center space-y-2">
                 <p className="text-xs font-semibold text-gray-700 dark:text-zinc-300">
                   {removedIds.size > 0
-                    ? 'Todas as requisições foram removidas da fila'
-                    : 'Nenhuma requisição HTTP ou gRPC neste escopo'}
+                    ? runnerTexts.allRemoved
+                    : runnerTexts.noRequests}
                 </p>
                 {removedIds.size > 0 ? (
                   <button
@@ -618,18 +625,18 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    Restaurar requisições ({removedIds.size})
+                    {formatMessage(runnerTexts.restoreRequests, { count: removedIds.size })}
                   </button>
                 ) : (
                   <p className="text-[11px] text-gray-500 dark:text-zinc-400">
-                    Adicione requisições na coleção ou escolha outra pasta acima.
+                    {runnerTexts.noRequestsHint}
                   </p>
                 )}
               </div>
             )}
             {orderedEntries.length > 0 && visibleQueueEntries.length === 0 && (
               <p className="py-8 text-center text-xs text-gray-500 dark:text-zinc-400">
-                Nenhuma requisição corresponde à busca.
+                {runnerTexts.noSearchMatch}
               </p>
             )}
             {visibleQueueEntries.map((entry) => {
@@ -705,7 +712,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                       <>
                         <button
                           type="button"
-                          title="Subir na ordem de execução"
+                          title={runnerTexts.moveUp}
                           disabled={running || queueIndex <= 0}
                           onClick={() => moveEntry(queueIndex, queueIndex - 1)}
                           className="p-1 rounded text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-30"
@@ -714,7 +721,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                         </button>
                         <button
                           type="button"
-                          title="Descer na ordem de execução"
+                          title={runnerTexts.moveDown}
                           disabled={running || queueIndex >= orderedEntries.length - 1}
                           onClick={() => moveEntry(queueIndex, queueIndex + 1)}
                           className="p-1 rounded text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-30"
@@ -725,7 +732,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                     )}
                     <button
                       type="button"
-                      title="Abrir requisição"
+                      title={runnerTexts.openRequest}
                       onClick={() => openEntryInTab(entry.itemId)}
                       className="p-1 rounded text-gray-400 hover:text-amber-500 hover:bg-amber-500/10"
                     >
@@ -734,7 +741,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                     <button
                       type="button"
                       disabled={running}
-                      title="Remover da lista"
+                      title={runnerTexts.removeFromList}
                       onClick={() => removeEntryFromQueue(entry.itemId)}
                       className="p-1 rounded text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 disabled:opacity-30"
                     >
@@ -760,7 +767,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white shadow-sm transition-colors"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
-                Parar execução
+                {runnerTexts.stopRun}
               </button>
             ) : (
               <button
@@ -770,7 +777,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                 className={`${primaryButtonClass} w-full justify-center py-2`}
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
-                Executar {selectedEntries.length} requisição(ões)
+                {formatMessage(runnerTexts.runCount, { count: selectedEntries.length })}
                 {config.iterations > 1 ? ` × ${config.iterations}` : ''}
               </button>
             )}
@@ -785,13 +792,16 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
               </div>
               <div className="space-y-1 max-w-md">
                 <p className="text-sm font-bold text-gray-800 dark:text-zinc-200">
-                  Pronto para executar em sequência
+                  {runnerTexts.readyTitle}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-zinc-400">
-                  Ordene as requisições ao lado (arrastando ou usando as setas), desmarque ou remova da lista as que não quiser rodar e clique em{' '}
-                  <strong>Executar</strong>. Variáveis de ambiente, cookies e referências{' '}
-                  <code className="px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 font-mono text-[11px]">{'{{$response}}'}</code>{' '}
-                  são encadeadas automaticamente.
+                  <RichMessage
+                    template={runnerTexts.readyHint}
+                    values={{
+                      run: <strong>{runnerTexts.run}</strong>,
+                      reference: <code className="px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 font-mono text-[11px]">{'{{$response}}'}</code>,
+                    }}
+                  />
                 </p>
               </div>
             </div>
@@ -799,7 +809,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
             <>
               <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-white/[0.02] flex-shrink-0">
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/10 text-xs">
-                  <span className="text-gray-500 dark:text-zinc-400">Total:</span>
+                  <span className="text-gray-500 dark:text-zinc-400">{runnerTexts.total}</span>
                   <span className="font-bold text-gray-900 dark:text-white">{summary.total}</span>
                 </div>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
@@ -811,13 +821,13 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                   <span>{summary.failed} falha(s)</span>
                 </div>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/10 text-xs">
-                  <span className="text-gray-500 dark:text-zinc-400">Tempo:</span>
+                  <span className="text-gray-500 dark:text-zinc-400">{runnerTexts.time}</span>
                   <span className="font-mono font-semibold text-gray-800 dark:text-zinc-200">
                     {formatDuration(summary.totalDurationMs)}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/10 text-xs">
-                  <span className="text-gray-500 dark:text-zinc-400">Média:</span>
+                  <span className="text-gray-500 dark:text-zinc-400">{runnerTexts.average}</span>
                   <span className="font-mono font-semibold text-gray-800 dark:text-zinc-200">
                     {formatDuration(summary.averageDurationMs)}
                   </span>
@@ -827,9 +837,9 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                   <div className="flex items-center rounded-lg bg-gray-100 dark:bg-white/5 p-0.5 text-[11px]">
                     {(
                       [
-                        ['all', 'Todas'],
-                        ['passed', 'Sucesso'],
-                        ['failed', 'Falhas'],
+                        ['all', runnerTexts.all],
+                        ['passed', runnerTexts.passed],
+                        ['failed', runnerTexts.failed],
                       ] as const
                     ).map(([key, label]) => (
                       <button
@@ -855,7 +865,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                       }}
                       className={secondaryButtonClass}
                     >
-                      Limpar
+                      {runnerTexts.clear}
                     </button>
                   )}
                 </div>
@@ -864,7 +874,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
               {executedIterations.length > 1 && (
                 <div className="flex items-center gap-1 px-4 py-1.5 border-b border-gray-200 dark:border-white/5 overflow-x-auto flex-shrink-0">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500 mr-1">
-                    Iteração:
+                    {runnerTexts.iteration}
                   </span>
                   <button
                     type="button"
@@ -875,7 +885,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                         : 'text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-white/5'
                     }`}
                   >
-                    Todas ({results.length})
+                    {formatMessage(runnerTexts.allCount, { count: results.length })}
                   </button>
                   {executedIterations.map((iteration) => (
                     <button
@@ -902,7 +912,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                 >
                   {filteredResults.length === 0 && (
                     <p className="py-8 text-center text-xs text-gray-500 dark:text-zinc-400">
-                      Nenhum resultado corresponde ao filtro selecionado.
+                      {runnerTexts.noResultMatch}
                     </p>
                   )}
                   {filteredResults.map((step) => {
@@ -984,7 +994,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                               </span>
                               <button
                                 type="button"
-                                title="Remover da lista de resultados"
+                                title={runnerTexts.removeResult}
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   removeResultFromList(step.id);
@@ -1009,7 +1019,7 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                       </span>
                       {executedIterations.length > 1 && (
                         <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-bold">
-                          Iteração #{selectedResult.iteration}
+                          {formatMessage(runnerTexts.iterationNumber, { number: selectedResult.iteration })}
                         </span>
                       )}
                       <span className="text-[11px] font-mono text-gray-400 dark:text-zinc-500 truncate flex-1">
@@ -1021,11 +1031,11 @@ const RunnerView: React.FC<RunnerViewProps> = ({ tab, paneControls }) => {
                         className={secondaryButtonClass}
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
-                        Abrir requisição
+                        {runnerTexts.openRequest}
                       </button>
                       <button
                         type="button"
-                        title="Fechar inspeção"
+                        title={runnerTexts.closeInspection}
                         onClick={() => setSelectedResultId(null)}
                         className={iconButtonClass}
                       >

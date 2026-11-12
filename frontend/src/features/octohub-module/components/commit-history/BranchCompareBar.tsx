@@ -1,5 +1,6 @@
 import toast from 'react-hot-toast';
 import MergeBranchModal from '../MergeBranchModal';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { useDismiss } from '../../../shared/hooks/useDismiss';
 import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -27,14 +28,16 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
     onBranchChange,
     onDirectionChange,
 }) => {
+    const { dictionary, formatMessage } = useTranslation();
     const [filter, setFilter] = useState('');
+    const compareTexts = dictionary.octohub.compare;
     const pickerRef = useRef<HTMLDivElement>(null);
     const [mergeOpen, setMergeOpen] = useState(false);
     const [pickerOpen, setPickerOpen] = useState(false);
     const [branches, setBranches] = useState<octohubStructs.BranchInfo[]>([]);
     const [comparison, setComparison] = useState<octohubStructs.BranchComparison | null>(null);
 
-    const currentLabel = currentBranch === 'HEAD' ? 'HEAD destacado' : currentBranch || '';
+    const currentLabel = currentBranch === 'HEAD' ? dictionary.octohub.common.detachedHead : currentBranch || '';
 
     useDismiss(pickerRef, pickerOpen, () => setPickerOpen(false));
 
@@ -56,7 +59,7 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
             .then((result) => !cancelled && setComparison(result))
             .catch((error) => {
                 if (cancelled) return;
-                toast.error(`Não foi possível comparar com ${branch}: ${errorMessage(error)}`);
+                toast.error(formatMessage(compareTexts.compareFailed, { branch, error: errorMessage(error) }));
                 onBranchChange(null);
             });
         return () => {
@@ -89,7 +92,7 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
                     className="w-full flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 rounded-lg text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
                 >
                     <GitCompare className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">Comparar com outra branch...</span>
+                    <span className="truncate">{compareTexts.compareWith}</span>
                 </button>
                 {pickerOpen && (
                     <div className="absolute left-0 right-0 mt-1 z-40 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-lg shadow-xl overflow-hidden">
@@ -99,7 +102,7 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
                                 autoFocus
                                 type="text"
                                 value={filter}
-                                placeholder="Filtrar branches..."
+                                placeholder={dictionary.octohub.common.filterBranches}
                                 onChange={(event) => setFilter(event.target.value)}
                                 onKeyDown={(event) => {
                                     if (event.key === 'Escape') setPickerOpen(false);
@@ -121,7 +124,7 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
                                     <span className="truncate">{item.Name}</span>
                                 </button>
                             )) : (
-                                <div className="px-3 py-4 text-center text-xs italic text-zinc-400">Nenhuma branch encontrada.</div>
+                                <div className="px-3 py-4 text-center text-xs italic text-zinc-400">{dictionary.octohub.common.noBranchFound}</div>
                             )}
                         </div>
                     </div>
@@ -138,7 +141,7 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
                     <span className="font-bold">{branch}</span>
                 </span>
                 <button
-                    title="Parar de comparar"
+                    title={compareTexts.stopComparing}
                     onClick={() => onBranchChange(null)}
                     className="p-0.5 rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-white/10 transition-colors"
                 >
@@ -149,16 +152,16 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
                 <button
                     className={tabClass('behind')}
                     onClick={() => onDirectionChange('behind')}
-                    title={`Commits de ${branch} que ainda não estão em ${currentLabel}`}
+                    title={formatMessage(compareTexts.behindHint, { branch, current: currentLabel })}
                 >
-                    Atrás ({comparison?.Behind ?? '…'})
+                    {formatMessage(compareTexts.behind, { count: comparison?.Behind ?? '…' })}
                 </button>
                 <button
                     className={tabClass('ahead')}
                     onClick={() => onDirectionChange('ahead')}
-                    title={`Commits de ${currentLabel} que não estão em ${branch}`}
+                    title={formatMessage(compareTexts.aheadHint, { branch, current: currentLabel })}
                 >
-                    À frente ({comparison?.Ahead ?? '…'})
+                    {formatMessage(compareTexts.ahead, { count: comparison?.Ahead ?? '…' })}
                 </button>
             </div>
             {direction === 'behind' && (comparison?.Behind ?? 0) > 0 && currentBranch !== 'HEAD' && (
@@ -167,7 +170,7 @@ const BranchCompareBar: React.FC<BranchCompareBarProps> = ({
                     className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg transition-colors"
                 >
                     <GitMerge className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">Merge de {branch} em {currentLabel}</span>
+                    <span className="truncate">{formatMessage(compareTexts.mergeInto, { branch, current: currentLabel })}</span>
                 </button>
             )}
             <MergeBranchModal open={mergeOpen} initialBranch={branch} onClose={() => setMergeOpen(false)} />

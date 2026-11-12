@@ -1,3 +1,5 @@
+import { formatMessage } from '../../i18n/Languages';
+import { currentDictionary } from '../../i18n/TranslateError';
 import type { HttpResponse } from '../../../interfaces/VulpesInterfaces';
 
 export type ResponseFieldKind = 'url' | 'raw' | 'body' | 'header';
@@ -27,19 +29,9 @@ const validFields = new Set<ResponseFieldKind>(['url', 'raw', 'body', 'header'])
 const validTriggers = new Set<ResponseTriggerKind>(['never', 'always', 'no-history', 'when-expired']);
 const simpleIdentifierPattern = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
-export const responseFieldOptions: { value: ResponseFieldKind; label: string; description: string }[] = [
-  { value: 'url', label: 'URL final', description: 'Usa a URL final da resposta (após redirecionamentos)' },
-  { value: 'raw', label: 'Corpo inteiro', description: 'Usa o texto completo do corpo da resposta sem filtro' },
-  { value: 'header', label: 'Header', description: 'Extrai o valor de um cabeçalho HTTP da resposta (ex: Authorization)' },
-  { value: 'body', label: 'Corpo (JSONPath)', description: 'Extrai um campo do JSON da resposta usando JSONPath (ex: $.data.token)' },
-];
+export const responseFieldKinds: ResponseFieldKind[] = ['url', 'raw', 'header', 'body'];
 
-export const responseTriggerOptions: { value: ResponseTriggerKind; label: string; description: string }[] = [
-  { value: 'no-history', label: 'Apenas se não houver histórico', description: 'Envia a requisição de origem somente na primeira vez' },
-  { value: 'always', label: 'Sempre reenviar antes', description: 'Executa a requisição de origem toda vez antes de enviar esta requisição' },
-  { value: 'when-expired', label: 'Reenviar quando expirar', description: 'Reenvia a requisição de origem automaticamente se a resposta tiver mais de X segundos' },
-  { value: 'never', label: 'Usar última resposta (enviar se não houver)', description: 'Reutiliza a resposta em memória; envia a requisição de origem apenas se ainda não houver resposta' },
-];
+export const responseTriggerKinds: ResponseTriggerKind[] = ['no-history', 'always', 'when-expired', 'never'];
 
 const decodeBase64Utf8 = (encoded: string): string | null => {
   try {
@@ -123,23 +115,24 @@ export const parseResponseTag = (expression: string): ParsedResponseTag => {
   const trigger: ResponseTriggerKind = validTriggers.has(rawTrigger as ResponseTriggerKind) ? (rawTrigger as ResponseTriggerKind) : 'never';
   const maxAgeSeconds = Number.isFinite(parsedMaxAge) && parsedMaxAge >= 0 ? parsedMaxAge : 60;
 
+  const errorTexts = currentDictionary().vulpes.responseErrors;
   if (!requestReference) {
-    return { field, filter, trigger, maxAgeSeconds, requestReference, valid: false, error: 'Informe a requisição de origem' };
+    return { field, filter, trigger, maxAgeSeconds, requestReference, valid: false, error: errorTexts.requestRequired };
   }
   if (!validFields.has(rawField as ResponseFieldKind)) {
-    return { field, filter, trigger, maxAgeSeconds, requestReference, valid: false, error: `Atributo "${rawField}" inválido (use body, header, raw ou url)` };
+    return { field, filter, trigger, maxAgeSeconds, requestReference, valid: false, error: formatMessage(errorTexts.invalidField, { field: rawField }) };
   }
   if (!validTriggers.has(rawTrigger as ResponseTriggerKind)) {
-    return { field, filter, trigger, maxAgeSeconds, requestReference, valid: false, error: `Reenvio "${rawTrigger}" inválido` };
+    return { field, filter, trigger, maxAgeSeconds, requestReference, valid: false, error: formatMessage(errorTexts.invalidTrigger, { trigger: rawTrigger }) };
   }
   if (field === 'header' && !filter.trim()) {
-    return { field, filter, trigger, maxAgeSeconds, requestReference, valid: false, error: 'Informe o nome do header da resposta' };
+    return { field, filter, trigger, maxAgeSeconds, requestReference, valid: false, error: errorTexts.headerRequired };
   }
   if (field === 'body' && filter.trim() && !filter.trim().startsWith('$')) {
-    return { field, filter, trigger, maxAgeSeconds, requestReference, valid: false, error: 'O filtro do body deve ser um JSONPath começando com $ (ex: $.token)' };
+    return { field, filter, trigger, maxAgeSeconds, requestReference, valid: false, error: errorTexts.bodyFilter };
   }
   if (argumentAt(4, '') !== '' && (!Number.isFinite(parsedMaxAge) || parsedMaxAge < 0)) {
-    return { field, filter, trigger, maxAgeSeconds, requestReference, valid: false, error: 'A validade em segundos deve ser um número positivo' };
+    return { field, filter, trigger, maxAgeSeconds, requestReference, valid: false, error: errorTexts.maxAge };
   }
 
   return { field, filter, trigger, maxAgeSeconds, requestReference, valid: true };
@@ -364,11 +357,11 @@ export const evaluateJsonPath = (rawBody: string, pathExpression: string): { ok:
   try {
     root = JSON.parse(rawBody);
   } catch {
-    return { ok: false, value: 'O corpo da resposta não é um JSON válido' };
+    return { ok: false, value: currentDictionary().vulpes.responseErrors.invalidJson };
   }
 
   const steps = parseJsonPathSteps(pathExpression);
-  if (!steps) return { ok: false, value: 'JSONPath inválido (ex: $.data.token)' };
+  if (!steps) return { ok: false, value: currentDictionary().vulpes.responseErrors.invalidJsonPath };
 
   let candidates: unknown[] = [root];
   for (const step of steps) {
@@ -393,7 +386,7 @@ export const evaluateJsonPath = (rawBody: string, pathExpression: string): { ok:
   }
 
   if (candidates.length === 0 || candidates[0] === undefined || candidates[0] === null) {
-    return { ok: false, value: `Nenhum valor encontrado em ${pathExpression}` };
+    return { ok: false, value: formatMessage(currentDictionary().vulpes.responseErrors.noValue, { path: pathExpression }) };
   }
 
   return { ok: true, value: stringifyScalar(candidates[0]) };
@@ -417,9 +410,9 @@ export const extractResponsePreview = (
   if (parsed.field === 'url') return { ok: true, value: response.url };
   if (parsed.field === 'raw') return { ok: true, value: bodyText };
   if (parsed.field === 'header') {
-    if (!filter) return { ok: false, value: 'Informe o nome do header' };
+    if (!filter) return { ok: false, value: currentDictionary().vulpes.responseErrors.headerNameRequired };
     const matched = response.headers.find((header) => header.key.toLowerCase() === filter.toLowerCase());
-    if (!matched) return { ok: false, value: `Header "${filter}" não encontrado na última resposta` };
+    if (!matched) return { ok: false, value: formatMessage(currentDictionary().vulpes.responseErrors.headerNotFound, { name: filter }) };
     return { ok: true, value: matched.value };
   }
 

@@ -3,11 +3,11 @@ package octohubHandler
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"docker-manager-go/src/appErrors"
 	octohubStructs "docker-manager-go/src/octohub/structs"
 )
 
@@ -131,7 +131,7 @@ func (handlerStruct *GitBranchHandler) ResolveConflict(ctx context.Context, file
 		return err
 	}
 	if _, found := kinds[file]; !found {
-		return fmt.Errorf("%s não está mais em conflito", file)
+		return appErrors.New("octohub.fileNoLongerConflicted", "{file} não está mais em conflito").With("file", file)
 	}
 
 	run := func(args ...string) error {
@@ -149,5 +149,5 @@ func (handlerStruct *GitBranchHandler) ResolveConflict(ctx context.Context, file
 	case "delete":
 		return run("rm", "-q")
 	}
-	return fmt.Errorf("resolução desconhecida: %s", resolution)
+	return appErrors.New("octohub.unknownResolution", "resolução desconhecida: {resolution}").With("resolution", resolution)
 }

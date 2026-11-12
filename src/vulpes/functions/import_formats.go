@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"docker-manager-go/src/appErrors"
 )
 
 var utf8ByteOrderMark = []byte("\xef\xbb\xbf")
@@ -25,7 +27,7 @@ func ParseImportFile(content []byte, sourceName string) (*ImportedData, error) {
 	}
 	var probe map[string]json.RawMessage
 	if err := json.Unmarshal(document, &probe); err != nil {
-		return nil, fmt.Errorf("%s não é uma coleção nem um ambiente do Postman ou do Insomnia", sourceName)
+		return nil, appErrors.New("vulpes.unrecognizedImport", "{source} não é uma coleção nem um ambiente do Postman ou do Insomnia").With("source", sourceName)
 	}
 	if isInsomniaDocument(probe) {
 		return ParseInsomniaFile(document, sourceName)
@@ -38,17 +40,17 @@ func importDocumentAsJson(content []byte, sourceName string) ([]byte, error) {
 	if len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[') {
 		var probe any
 		if err := json.Unmarshal(trimmed, &probe); err != nil {
-			return nil, fmt.Errorf("%s não é um JSON válido: %w", sourceName, err)
+			return nil, appErrors.Wrap("vulpes.invalidImportJson", "{source} não é um JSON válido", err).With("source", sourceName)
 		}
 		return trimmed, nil
 	}
 	var document any
 	if err := yaml.Unmarshal(trimmed, &document); err != nil {
-		return nil, fmt.Errorf("%s não é um JSON nem um YAML válido: %w", sourceName, err)
+		return nil, appErrors.Wrap("vulpes.invalidImportContent", "{source} não é um JSON nem um YAML válido", err).With("source", sourceName)
 	}
 	converted, err := json.Marshal(jsonCompatible(document))
 	if err != nil {
-		return nil, fmt.Errorf("não foi possível converter o YAML de %s: %w", sourceName, err)
+		return nil, appErrors.Wrap("vulpes.convertYamlFailed", "não foi possível converter o YAML de {source}", err).With("source", sourceName)
 	}
 	return converted, nil
 }

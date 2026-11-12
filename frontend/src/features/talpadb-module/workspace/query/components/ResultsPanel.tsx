@@ -1,4 +1,5 @@
 import HistoryPanel from './HistoryPanel';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import MessagesPanel from './MessagesPanel';
 import VariablesPanel from './VariablesPanel';
 import CellViewerModal from './CellViewerModal';
@@ -75,6 +76,8 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
 }) => {
   const [saving, setSaving] = useState(false);
   const gridRef = useRef<ResultGridHandle>(null);
+  const { dictionary, formatMessage } = useTranslation();
+  const resultTexts = dictionary.talpadb.results;
   const [cellEdit, setCellEdit] = useState<CellEditTarget | null>(null);
   const [cell, setCell] = useState<{ value: QueryCell; column: QueryColumn } | null>(null);
   const [gridSelection, setGridSelection] = useState<{ rowRefs: number[]; column: number | null }>({
@@ -110,7 +113,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
       value: editing.valueAt(rowRef, columnIndex),
       modified: editing.isModified(rowRef, columnIndex),
       original: isNewRow ? undefined : current.rows[rowRef][columnIndex],
-      rowLabel: isNewRow ? 'linha nova' : keyLabel || `linha ${rowRef + 1}`,
+      rowLabel: isNewRow ? resultTexts.newRow : keyLabel || formatMessage(resultTexts.rowNumber, { number: rowRef + 1 }),
     });
   };
 
@@ -150,12 +153,12 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
   const tabs: { id: ResultsPanelTab; label: string; badge?: React.ReactNode }[] = [
     {
       id: 'results',
-      label: 'Resultado',
+      label: resultTexts.tabs.results,
       badge: current ? formatNumber(current.rowCount) : undefined,
     },
     {
       id: 'messages',
-      label: 'Mensagens',
+      label: resultTexts.tabs.messages,
       badge: hasError ? (
         <span className="h-2 w-2 rounded-full bg-rose-500" />
       ) : hasNotices ? (
@@ -164,7 +167,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
     },
     {
       id: 'variables',
-      label: 'Variáveis',
+      label: dictionary.talpadb.toolbar.variables,
       badge: variables.length ? (
         <span className="px-1.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-mono tabular-nums">
           {variables.length}
@@ -173,10 +176,10 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
     },
     {
       id: 'saved',
-      label: 'Salvas',
+      label: dictionary.talpadb.toolbar.saved,
       badge: savedQueries.length ? savedQueries.length : undefined,
     },
-    { id: 'history', label: 'Histórico', badge: history.length ? history.length : undefined },
+    { id: 'history', label: resultTexts.tabs.history, badge: history.length ? history.length : undefined },
   ];
 
   const toolButton =
@@ -219,7 +222,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
               >
                 {gridSets.map((resultSet, index) => (
                   <option key={index} value={index}>
-                    Resultado {index + 1} — {resultSet.commandTag}
+                    {formatMessage(resultTexts.resultOption, { number: index + 1, tag: resultSet.commandTag })}
                   </option>
                 ))}
               </select>
@@ -228,15 +231,20 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
               className={`text-[11px] truncate ${current.truncated ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400'}`}
             >
               {current.truncated
-                ? `Exibindo ${formatNumber(current.rows.length)} de ${formatNumber(current.rowCount)} linhas`
-                : `${formatNumber(current.rowCount)} ${current.rowCount === 1 ? 'linha' : 'linhas'}`}
+                ? formatMessage(resultTexts.showing, {
+                    shown: formatNumber(current.rows.length),
+                    total: formatNumber(current.rowCount),
+                  })
+                : formatMessage(current.rowCount === 1 ? resultTexts.rowsOne : resultTexts.rowsOther, {
+                    count: formatNumber(current.rowCount),
+                  })}
               {selectedColumn === null && selectedRefs.length > 1 && (
-                <span className="text-cyan-600 dark:text-cyan-400"> · {formatNumber(selectedRefs.length)} selecionadas</span>
+                <span className="text-cyan-600 dark:text-cyan-400">{formatMessage(resultTexts.selectedCount, { count: formatNumber(selectedRefs.length) })}</span>
               )}
             </span>
             <button
               className={toolButton}
-              title="Exportar CSV"
+              title={resultTexts.exportCsv}
               onClick={() => onExport('csv', resultIndex)}
             >
               <Download className="w-3.5 h-3.5" />
@@ -244,7 +252,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
             </button>
             <button
               className={toolButton}
-              title="Exportar JSON"
+              title={resultTexts.exportJson}
               onClick={() => onExport('json', resultIndex)}
             >
               <Braces className="w-3.5 h-3.5" />
@@ -252,11 +260,11 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
             </button>
             <button
               className={toolButton}
-              title="Copiar tudo (separado por tabulação, pronto para planilhas)"
-              onClick={() => copyToClipboard(rowsToTsv(current, current.rows), 'Resultado copiado')}
+              title={resultTexts.copyAllHint}
+              onClick={() => copyToClipboard(rowsToTsv(current, current.rows), resultTexts.resultCopied)}
             >
               <Copy className="w-3.5 h-3.5" />
-              Copiar
+              {dictionary.talpadb.common.copy}
             </button>
           </div>
         )}
@@ -265,50 +273,50 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
       {panel === 'results' && editable && (
         <div className="flex items-center gap-1 h-9 px-2 border-b border-gray-200 dark:border-white/5 flex-shrink-0">
           <span
-            title="As alterações viram UPDATE/INSERT/DELETE pela chave primária. Sem transação aberta, são confirmadas ao salvar; dentro de um BEGIN, ficam na transação."
+            title={resultTexts.editableHint}
             className="flex items-center gap-1.5 px-2 text-[11px] text-gray-500 dark:text-zinc-400 truncate"
           >
             <Pencil className="w-3.5 h-3.5 text-cyan-500 flex-shrink-0" />
-            Editável · <span className="font-mono">{editable.schema}.{editable.name}</span>
+            {resultTexts.editable} · <span className="font-mono">{editable.schema}.{editable.name}</span>
           </span>
           <div className="ml-auto flex items-center gap-1">
-            <button className={toolButton} onClick={insertRow} disabled={saving} title="Adicionar uma linha nova">
+            <button className={toolButton} onClick={insertRow} disabled={saving} title={resultTexts.addRowHint}>
               <Plus className="w-3.5 h-3.5" />
-              Linha
+              {resultTexts.row}
             </button>
             <button
               className={`${toolButton} disabled:opacity-40`}
               disabled={!selectedRefs.length || saving}
               onClick={() => toggleRowsDeletion(selectedRefs)}
-              title="Marcar/desmarcar as linhas selecionadas para exclusão (Delete com as linhas selecionadas)"
+              title={resultTexts.markDeleteHint}
             >
               <Trash2 className="w-3.5 h-3.5" />
-              {allSelectedDeleted ? 'Restaurar' : 'Excluir'}
+              {allSelectedDeleted ? resultTexts.restore : resultTexts.delete}
               {selectedRefs.length > 1 && ` (${formatNumber(selectedRefs.length)})`}
             </button>
             <button
               className={`${toolButton} disabled:opacity-40`}
               disabled={!canSetNull || saving}
               onClick={() => selectedCellRow !== null && selectedColumn !== null && editing.setCell(selectedCellRow, selectedColumn, null)}
-              title="Definir a célula selecionada como NULL (Delete)"
+              title={resultTexts.setNullHint}
             >
               <Ban className="w-3.5 h-3.5" />
               NULL
             </button>
             {pendingCount > 0 && (
               <>
-                <button className={toolButton} onClick={discard} disabled={saving} title="Descartar as alterações pendentes">
+                <button className={toolButton} onClick={discard} disabled={saving} title={resultTexts.discardHint}>
                   <Undo2 className="w-3.5 h-3.5" />
-                  Descartar
+                  {resultTexts.discard}
                 </button>
                 <button
                   onClick={saveChanges}
                   disabled={saving}
-                  title="Salvar alterações (Ctrl+S)"
+                  title={resultTexts.saveChangesHint}
                   className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-bold text-white bg-cyan-600 hover:bg-cyan-700 disabled:opacity-60 transition-colors"
                 >
                   {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                  Salvar ({pendingCount})
+                  {formatMessage(resultTexts.saveCount, { count: pendingCount })}
                 </button>
               </>
             )}
@@ -347,10 +355,10 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
           ) : (
             <div className="h-full flex items-center justify-center text-sm text-gray-400 dark:text-zinc-500 px-4 text-center">
               {execution
-                ? 'A consulta não retornou um conjunto de linhas — veja a aba Mensagens.'
+                ? resultTexts.noRowSet
                 : running
-                  ? 'Executando…'
-                  : 'Execute uma consulta (Ctrl+Enter ou F5) para ver o resultado.'}
+                  ? resultTexts.running
+                  : resultTexts.runPrompt}
             </div>
           ))}
         {panel === 'messages' && (

@@ -1,20 +1,22 @@
 import React from 'react';
 import { FileCode2 } from 'lucide-react';
 import { useTalpadbStore } from '../../TalpadbStore';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { TalpadbModuleIcon, TALPADB_MODULE } from '../../moduleInfo';
 import { connectionLabel } from '../../functions/TreatmentFunctions';
 
-const shortcuts = [
-  ['F5 / Ctrl+Enter', 'Executar (ou só a seleção)'],
-  ['F7 / Shift+F7', 'Explain / Explain Analyze'],
-  ['Ctrl+Espaço', 'Autocompletar tabelas e colunas'],
-  ['Ctrl+S', 'Salvar a query em arquivo'],
-  ['Duplo clique', 'Ver dados de tabelas e views'],
-  ['Botão direito', 'Ações do objeto no explorador'],
-];
-
 const EmptyWorkspace: React.FC = () => {
   const { connections, openQueryTab } = useTalpadbStore();
+  const { dictionary, formatMessage } = useTranslation();
+  const workspaceTexts = dictionary.talpadb.workspace;
+  const shortcuts = [
+    ['F5 / Ctrl+Enter', workspaceTexts.shortcuts.run],
+    ['F7 / Shift+F7', workspaceTexts.shortcuts.explain],
+    [workspaceTexts.shortcutKeys.space, workspaceTexts.shortcuts.autocomplete],
+    ['Ctrl+S', workspaceTexts.shortcuts.saveFile],
+    [workspaceTexts.shortcutKeys.doubleClick, workspaceTexts.shortcuts.viewData],
+    [workspaceTexts.shortcutKeys.rightClick, workspaceTexts.shortcuts.objectActions],
+  ];
 
   return (
     <div className="absolute inset-0 overflow-auto flex items-center justify-center p-8">
@@ -25,10 +27,9 @@ const EmptyWorkspace: React.FC = () => {
           <TalpadbModuleIcon className="w-8 h-8 text-white" />
         </div>
         <div className="space-y-2">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Nenhuma aba aberta</h3>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">{workspaceTexts.emptyTitle}</h3>
           <p className="text-sm text-gray-500 dark:text-zinc-400">
-            Expanda um servidor no explorador e use o botão direito nos objetos para ver dados,
-            propriedades e scripts — ou abra uma query direto:
+            {workspaceTexts.emptyDescription}
           </p>
         </div>
 
@@ -41,7 +42,7 @@ const EmptyWorkspace: React.FC = () => {
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 text-sm font-semibold hover:bg-cyan-500/20 transition-colors"
               >
                 <FileCode2 className="w-4 h-4" />
-                Nova query em {connectionLabel(connection)}
+                {formatMessage(workspaceTexts.newQueryIn, { name: connectionLabel(connection) })}
               </button>
             ))}
           </div>

@@ -1,4 +1,5 @@
 import type { SplitLayout } from './SplitInterfaces';
+import type { LocalizedPayload } from '../features/i18n/TranslateError';
 
 export type ItemKind = 'folder' | 'request';
 
@@ -326,6 +327,7 @@ export interface RealtimeEvent {
   event: string;
   hasAck: boolean;
   kind: RealtimeKind;
+  message?: LocalizedPayload | null;
   sizeBytes: number;
   timestamp: number;
   encoding: BodyEncoding;

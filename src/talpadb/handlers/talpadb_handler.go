@@ -1,7 +1,6 @@
 package talpadbHandlers
 
 import (
-	"fmt"
 	"errors"
 	"context"
 	"strings"
@@ -9,6 +8,7 @@ import (
 	"gorm.io/gorm"
 	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/models"
 	auth "docker-manager-go/src/auth/functions"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
@@ -52,7 +52,7 @@ func (handlerStruct *TalpadbHandlerStruct) findConnection(userID uint, id uint) 
 		Where("id = ? AND user_id = ?", id, userID).
 		First(&connection).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("conexão não encontrada")
+			return nil, appErrors.New("talpadb.connectionNotFound", "conexão não encontrada")
 		}
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func resolvePort(port *int64, fallback int64) (int64, error) {
 		resolved = *port
 	}
 	if resolved < 1 || resolved > 65535 {
-		return 0, fmt.Errorf("porta inválida: %d", resolved)
+		return 0, appErrors.New("talpadb.invalidPort", "porta inválida: {port}").With("port", resolved)
 	}
 	return resolved, nil
 }
@@ -86,13 +86,13 @@ func applyConnectionInput(connection *models.TalpadbConnectionModel, body talpad
 	host := strings.TrimSpace(body.Host)
 	if host == "" {
 		if engine == talpadbFunctions.EngineSqlite {
-			return errors.New("informe o caminho do arquivo SQLite")
+			return appErrors.New("talpadb.sqlitePathRequired", "informe o caminho do arquivo SQLite")
 		}
-		return errors.New("o campo 'host' é obrigatório")
+		return appErrors.New("talpadb.hostRequired", "o campo 'host' é obrigatório")
 	}
 	username := strings.TrimSpace(body.Username)
 	if username == "" && engine != talpadbFunctions.EngineSqlite {
-		return errors.New("o campo 'usuário' é obrigatório")
+		return appErrors.New("talpadb.userRequired", "o campo 'usuário' é obrigatório")
 	}
 
 	var port int64
@@ -120,7 +120,7 @@ func applyConnectionInput(connection *models.TalpadbConnectionModel, body talpad
 		}
 		database = trimmedOrDefault(body.Database, "")
 		if database == "" {
-			return errors.New("informe o service name do Oracle")
+			return appErrors.New("talpadb.oracleServiceRequired", "informe o service name do Oracle")
 		}
 		if sslMode, err = talpadbFunctions.NormalizeOracleSslMode(trimmedOrDefault(body.SslMode, "")); err != nil {
 			return err
@@ -190,7 +190,7 @@ func (handlerStruct *TalpadbHandlerStruct) CreateConnection(token string, body t
 	}
 
 	if err := handlerStruct.DataBase.WithContext(handlerStruct.databaseContext()).Create(&connection).Error; err != nil {
-		return nil, fmt.Errorf("erro ao criar conexão: %w", err)
+		return nil, appErrors.Wrap("talpadb.createConnectionFailed", "erro ao criar conexão", err)
 	}
 
 	dto := talpadbDtos.ToConnectionDto(&connection)
@@ -213,7 +213,7 @@ func (handlerStruct *TalpadbHandlerStruct) UpdateConnection(token string, id uin
 	}
 
 	if err := handlerStruct.DataBase.WithContext(handlerStruct.databaseContext()).Save(connection).Error; err != nil {
-		return nil, fmt.Errorf("erro ao atualizar conexão: %w", err)
+		return nil, appErrors.Wrap("talpadb.updateConnectionFailed", "erro ao atualizar conexão", err)
 	}
 
 	if handlerStruct.client != nil {
@@ -234,16 +234,16 @@ func (handlerStruct *TalpadbHandlerStruct) DeleteConnection(token string, id uin
 		Where("id = ? AND user_id = ?", id, userID).
 		Delete(&models.TalpadbConnectionModel{})
 	if result.Error != nil {
-		return fmt.Errorf("erro ao deletar conexão: %w", result.Error)
+		return appErrors.Wrap("talpadb.deleteConnectionFailed", "erro ao deletar conexão", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return errors.New("conexão não encontrada")
+		return appErrors.New("talpadb.connectionNotFound", "conexão não encontrada")
 	}
 	if err := handlerStruct.deleteDiagramLayouts(userID, id); err != nil {
-		return fmt.Errorf("conexão excluída, mas os layouts de diagrama não foram removidos: %w", err)
+		return appErrors.Wrap("talpadb.diagramLayoutsNotRemoved", "conexão excluída, mas os layouts de diagrama não foram removidos", err)
 	}
 	if err := handlerStruct.deleteSavedQueries(userID, id); err != nil {
-		return fmt.Errorf("conexão excluída, mas as queries salvas não foram removidas: %w", err)
+		return appErrors.Wrap("talpadb.savedQueriesNotRemoved", "conexão excluída, mas as queries salvas não foram removidas", err)
 	}
 
 	if handlerStruct.client != nil {

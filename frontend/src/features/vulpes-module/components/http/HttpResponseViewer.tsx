@@ -1,4 +1,5 @@
 import toast from 'react-hot-toast';
+import { useTranslation } from '../../../i18n/useTranslation';
 import SearchBar from '../editors/SearchBar';
 import SectionTabs from '../editors/SectionTabs';
 import { useVulpesStore } from '../../VulpesStore';
@@ -28,12 +29,12 @@ interface HttpResponseViewerProps {
   collectionId: number | null;
 }
 
-const timingRows = (response: HttpResponse) => [
+const timingRows = (response: HttpResponse, timingTexts: { tcp: string; tls: string; wait: string; download: string }) => [
   ['DNS', response.timings.dnsMs],
-  ['Conexão TCP', response.timings.connectMs],
-  ['Handshake TLS', response.timings.tlsMs],
-  ['Espera (TTFB)', response.timings.waitMs],
-  ['Download', response.timings.downloadMs],
+  [timingTexts.tcp, response.timings.connectMs],
+  [timingTexts.tls, response.timings.tlsMs],
+  [timingTexts.wait, response.timings.waitMs],
+  [timingTexts.download, response.timings.downloadMs],
 ] as const;
 
 interface ResponseBodyProps {
@@ -44,6 +45,8 @@ interface ResponseBodyProps {
 
 const ResponseBody: React.FC<ResponseBodyProps> = ({ searchTerm, response, onSearchTermChange }) => {
   const [view, setView] = useState<BodyView>('pretty');
+  const { dictionary, formatMessage } = useTranslation();
+  const responseTexts = dictionary.vulpes.response;
   const [wrapLines, setWrapLines] = useState(true);
   const [searchSummary, setSearchSummary] = useState(emptySearchSummary);
   const editorRef = useRef<CodeEditorHandle>(null);
@@ -58,16 +61,16 @@ const ResponseBody: React.FC<ResponseBodyProps> = ({ searchTerm, response, onSea
   if (isBinary && !isImage) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center p-6">
-        <p className="text-sm font-semibold text-gray-700 dark:text-zinc-200">Conteúdo binário ({formatBytes(response.sizeBytes)})</p>
-        <p className="text-xs text-gray-500 dark:text-zinc-400">{response.contentType || 'Tipo de conteúdo não informado'} · use o botão de download para salvar.</p>
+        <p className="text-sm font-semibold text-gray-700 dark:text-zinc-200">{formatMessage(responseTexts.binaryContent, { size: formatBytes(response.sizeBytes) })}</p>
+        <p className="text-xs text-gray-500 dark:text-zinc-400">{formatMessage(responseTexts.downloadHint, { type: response.contentType || responseTexts.unknownContentType })}</p>
       </div>
     );
   }
 
   const views: { key: BodyView; label: string; hidden?: boolean }[] = [
-    { key: 'pretty', label: 'Formatado', hidden: isImage },
-    { key: 'raw', label: 'Bruto', hidden: isImage },
-    { key: 'preview', label: 'Visualizar', hidden: !isHtml && !isImage },
+    { key: 'pretty', label: responseTexts.pretty, hidden: isImage },
+    { key: 'raw', label: responseTexts.raw, hidden: isImage },
+    { key: 'preview', label: responseTexts.preview, hidden: !isHtml && !isImage },
   ];
   const activeView = isImage ? 'preview' : view;
   const showsEditor = activeView !== 'preview';
@@ -107,13 +110,13 @@ const ResponseBody: React.FC<ResponseBodyProps> = ({ searchTerm, response, onSea
               inputRef={searchInputRef}
               summary={searchSummary}
               onChange={onSearchTermChange}
-              placeholder="Buscar na resposta"
+              placeholder={responseTexts.searchPlaceholder}
               onNext={() => editorRef.current?.selectMatch('next')}
               onPrevious={() => editorRef.current?.selectMatch('previous')}
             />
             <button
               type="button"
-              title="Quebrar linhas"
+              title={responseTexts.wrapLines}
               onClick={() => setWrapLines((current) => !current)}
               className={`${iconButtonClass} ${wrapLines ? 'text-amber-500' : ''}`}
             >
@@ -125,11 +128,11 @@ const ResponseBody: React.FC<ResponseBodyProps> = ({ searchTerm, response, onSea
       <div className="flex-1 min-h-0 border-t border-gray-100 dark:border-white/5">
         {activeView === 'preview' && isImage && (
           <div className="h-full overflow-auto flex items-center justify-center p-4 bg-[repeating-conic-gradient(#8881_0%_25%,transparent_0%_50%)] bg-[length:16px_16px]">
-            <img alt="Pré-visualização da resposta" className="max-w-full max-h-full object-contain" src={`data:${mediaType};base64,${response.body}`} />
+            <img alt={responseTexts.imagePreview} className="max-w-full max-h-full object-contain" src={`data:${mediaType};base64,${response.body}`} />
           </div>
         )}
         {activeView === 'preview' && isHtml && (
-          <iframe title="Pré-visualização HTML" sandbox="" srcDoc={response.body} className="w-full h-full bg-white" />
+          <iframe title={responseTexts.htmlPreview} sandbox="" srcDoc={response.body} className="w-full h-full bg-white" />
         )}
         {showsEditor && (
           <CodeEditor
@@ -151,19 +154,21 @@ const ResponseBody: React.FC<ResponseBodyProps> = ({ searchTerm, response, onSea
 
 const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCancel, itemId, collectionId }) => {
   const [section, setSection] = useState<ResponseSection>('body');
+  const { dictionary: viewerDictionary, formatMessage: formatViewerMessage } = useTranslation();
+  const viewerTexts = viewerDictionary.vulpes.response;
   const [searchTerm, setSearchTerm] = useState('');
   const openCookies = useVulpesStore((state) => state.openCookies);
   const { openResponseBuilder } = useVariableScope();
   const response = runtime.httpResponse;
 
-  if (runtime.running) return <ResponseLoading label="Enviando requisição…" onCancel={onCancel} />;
+  if (runtime.running) return <ResponseLoading label={viewerTexts.sending} onCancel={onCancel} />;
   if (runtime.error) return <ResponseError message={runtime.error} />;
-  if (!response) return <ResponseEmpty hint="Envie a requisição (Ctrl+Enter) para ver a resposta aqui." />;
+  if (!response) return <ResponseEmpty hint={viewerTexts.emptyHint} />;
 
   const saveBody = async () => {
     try {
       const path = await VulpesServices.saveResponseBody(requireToken(), responseFileName(response), response.body, response.bodyEncoding);
-      if (path) toast.success(`Resposta salva em ${path}`);
+      if (path) toast.success(formatViewerMessage(viewerTexts.savedTo, { path }));
     } catch (error) {
       toast.error(errorMessage(error));
     }
@@ -171,7 +176,7 @@ const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCanc
 
   const handleUseInAnotherRequest = () => {
     if (!collectionId || !itemId) {
-      toast('Salve esta requisição em uma coleção (Ctrl+S) para usar a resposta dela em outras requisições.', {
+      toast(viewerTexts.saveFirst, {
         icon: '💡',
       });
       return;
@@ -186,14 +191,14 @@ const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCanc
         <span className="relative group text-[11px] font-semibold text-gray-500 dark:text-zinc-400 cursor-default">
           {formatDuration(response.timings.totalMs)}
           <span className="hidden group-hover:block absolute left-0 top-full mt-1 z-30 w-52 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900 shadow-2xl p-3 space-y-1">
-            {timingRows(response).map(([label, value]) => (
+            {timingRows(response, viewerTexts.timings).map(([label, value]) => (
               <span key={label} className="flex justify-between text-[11px]">
                 <span className="text-gray-500 dark:text-zinc-400">{label}</span>
                 <span className="font-mono text-gray-800 dark:text-zinc-200">{formatDuration(value)}</span>
               </span>
             ))}
             <span className="flex justify-between text-[11px] pt-1 border-t border-gray-100 dark:border-white/10 font-bold text-gray-800 dark:text-zinc-100">
-              <span>Total</span>
+              <span>{viewerTexts.timings.total}</span>
               <span className="font-mono">{formatDuration(response.timings.totalMs)}</span>
             </span>
           </span>
@@ -204,18 +209,18 @@ const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCanc
           <button
             type="button"
             onClick={handleUseInAnotherRequest}
-            title="Extrair um campo desta resposta para usar como variável em outra requisição"
+            title={viewerTexts.useInAnotherRequestHint}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-violet-500/15 text-violet-700 dark:text-violet-300 hover:bg-violet-500/25 transition-colors"
           >
             <Link2 className="w-3.5 h-3.5" />
-            Usar em outra requisição
+            {viewerTexts.useInAnotherRequest}
           </button>
           {response.bodyEncoding === 'text' && (
-            <button type="button" title="Copiar corpo" onClick={() => copyToClipboard(response.body)} className={iconButtonClass}>
+            <button type="button" title={viewerTexts.copyBody} onClick={() => copyToClipboard(response.body)} className={iconButtonClass}>
               <Copy className="w-3.5 h-3.5" />
             </button>
           )}
-          <button type="button" title="Salvar corpo em arquivo" onClick={saveBody} className={iconButtonClass}>
+          <button type="button" title={viewerTexts.saveBody} onClick={saveBody} className={iconButtonClass}>
             <Download className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -224,16 +229,16 @@ const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCanc
         active={section}
         onChange={setSection}
         tabs={[
-          { key: 'body', label: 'Corpo' },
+          { key: 'body', label: viewerDictionary.vulpes.request.body },
           { key: 'headers', label: 'Headers', count: response.headers.length },
           { key: 'cookies', label: 'Cookies', count: response.cookies.length },
-          { key: 'request', label: 'Requisição enviada' },
+          { key: 'request', label: viewerTexts.sentRequest },
         ]}
       />
       {response.truncated && (
         <div className="flex items-center gap-2 px-4 py-1.5 text-[11px] bg-amber-500/10 text-amber-700 dark:text-amber-300">
           <AlertTriangle className="w-3.5 h-3.5" />
-          A resposta foi truncada em 64 MB.
+          {viewerTexts.truncated}
         </div>
       )}
       {section === 'body' && (
@@ -246,7 +251,7 @@ const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCanc
       )}
       {section === 'headers' && (
         <div className="flex-1 overflow-auto">
-          <HeadersTable headers={response.headers} emptyLabel="A resposta não possui headers." />
+          <HeadersTable headers={response.headers} emptyLabel={viewerTexts.noHeaders} />
         </div>
       )}
       {section === 'cookies' && (
@@ -255,8 +260,8 @@ const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCanc
             <CookieIcon className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
             <span className="flex-1 min-w-0">
               {collectionId
-                ? 'Cookies recebidos são salvos na coleção e enviados nas próximas requisições para o mesmo domínio.'
-                : 'Salve a requisição em uma coleção para guardar os cookies recebidos.'}
+                ? viewerTexts.cookiesSaved
+                : viewerTexts.cookiesNotSaved}
             </span>
             {collectionId && (
               <button
@@ -264,17 +269,24 @@ const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCanc
                 onClick={() => openCookies(collectionId)}
                 className="flex-shrink-0 px-2 py-0.5 rounded-md font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
               >
-                Gerenciar cookies
+                {viewerTexts.manageCookies}
               </button>
             )}
           </div>
           {response.cookies.length === 0 ? (
-            <p className="p-4 text-xs text-gray-500 dark:text-zinc-400">Nenhum cookie definido pela resposta.</p>
+            <p className="p-4 text-xs text-gray-500 dark:text-zinc-400">{viewerTexts.noCookies}</p>
           ) : (
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-left text-[10px] uppercase tracking-wider text-gray-500 dark:text-zinc-500 border-b border-gray-100 dark:border-white/5">
-                  {['Nome', 'Valor', 'Domínio', 'Path', 'Expira', 'Flags'].map((column) => (
+                  {[
+                    viewerDictionary.vulpes.common.name,
+                    viewerDictionary.vulpes.common.value,
+                    viewerDictionary.vulpes.cookies.domain,
+                    viewerDictionary.vulpes.cookies.path,
+                    viewerDictionary.vulpes.cookies.expires,
+                    viewerDictionary.vulpes.cookies.flags,
+                  ].map((column) => (
                     <th key={column} className="px-3 py-1.5 font-bold">
                       {column}
                     </th>
@@ -304,7 +316,7 @@ const HttpResponseViewer: React.FC<HttpResponseViewerProps> = ({ runtime, onCanc
             {response.url}
             <span className="ml-2 text-gray-400">{response.protocol}</span>
           </p>
-          <HeadersTable headers={response.requestHeaders} emptyLabel="Nenhum header enviado." />
+          <HeadersTable headers={response.requestHeaders} emptyLabel={viewerTexts.noRequestHeaders} />
         </div>
       )}
     </div>

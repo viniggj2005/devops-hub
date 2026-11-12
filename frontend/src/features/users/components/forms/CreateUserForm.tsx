@@ -2,6 +2,8 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import React, { useEffect, useState } from 'react';
 import { createUserApi } from '../../services/UserService';
+import { useTranslation } from '../../../i18n/useTranslation';
+import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import { CreateUserPayload } from '../../../../interfaces/UsersInterface';
 import { AlertCircle, ArrowRight, Check, Eye, EyeClosed, Loader2, Lock, Mail, User } from 'lucide-react';
 
@@ -15,6 +17,8 @@ interface PasswordStrengthState {
 
 const CreateUserForm: React.FC = () => {
   const navigate = useNavigate();
+  const { dictionary } = useTranslation();
+  const authTexts = dictionary.app.auth;
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
@@ -44,12 +48,12 @@ const CreateUserForm: React.FC = () => {
     if (loading) return;
 
     if (!fullName.trim() || !email.trim() || !password) {
-      toast.error('Preencha todos os campos obrigatórios.');
+      toast.error(authTexts.requiredFields);
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error('As senhas informadas não conferem.');
+      toast.error(authTexts.passwordsDoNotMatch);
       return;
     }
 
@@ -57,7 +61,7 @@ const CreateUserForm: React.FC = () => {
     setPasswordStrength(strength);
 
     if (!strength || strength.strength < 4) {
-      toast.error('A senha deve ter pelo menos 8 caracteres, incluindo letras maiúsculas, números e caracteres especiais.');
+      toast.error(authTexts.weakPassword);
       return;
     }
 
@@ -70,10 +74,10 @@ const CreateUserForm: React.FC = () => {
     try {
       setLoading(true);
       await createUserApi(payload);
-      toast.success('Conta criada com sucesso!');
+      toast.success(authTexts.accountCreated);
       navigate('/login');
-    } catch (createError: any) {
-      toast.error(createError.message || 'Não foi possível criar a conta.');
+    } catch (createError) {
+      toast.error(errorMessage(createError));
     } finally {
       setLoading(false);
     }
@@ -84,10 +88,10 @@ const CreateUserForm: React.FC = () => {
 
   const requirements = passwordStrength
     ? [
-        { label: '8+ caracteres', met: passwordStrength.hasLength },
-        { label: 'Letra maiúscula', met: passwordStrength.hasUpperCase },
-        { label: 'Número', met: passwordStrength.hasNumber },
-        { label: 'Caractere especial', met: passwordStrength.hasSpecial },
+        { label: authTexts.requirementLength, met: passwordStrength.hasLength },
+        { label: authTexts.requirementUppercase, met: passwordStrength.hasUpperCase },
+        { label: authTexts.requirementNumber, met: passwordStrength.hasNumber },
+        { label: authTexts.requirementSpecial, met: passwordStrength.hasSpecial },
       ]
     : [];
 
@@ -95,7 +99,7 @@ const CreateUserForm: React.FC = () => {
     <form onSubmit={handleSubmit} className="space-y-3.5">
       <div className="space-y-1.5">
         <label htmlFor="register-name" className="block text-xs font-medium text-zinc-300">
-          Nome completo
+          {authTexts.fullName}
         </label>
         <div className="relative group">
           <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-blue-400 transition-colors pointer-events-none" />
@@ -103,7 +107,7 @@ const CreateUserForm: React.FC = () => {
             id="register-name"
             type="text"
             autoComplete="name"
-            placeholder="Seu nome"
+            placeholder={authTexts.namePlaceholder}
             value={fullName}
             onChange={(event) => setFullName(event.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-zinc-950/70 border border-white/10 rounded-xl text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20 transition-all"
@@ -114,7 +118,7 @@ const CreateUserForm: React.FC = () => {
 
       <div className="space-y-1.5">
         <label htmlFor="register-email" className="block text-xs font-medium text-zinc-300">
-          E-mail
+          {dictionary.login.email}
         </label>
         <div className="relative group">
           <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-blue-400 transition-colors pointer-events-none" />
@@ -122,7 +126,7 @@ const CreateUserForm: React.FC = () => {
             id="register-email"
             type="email"
             autoComplete="email"
-            placeholder="voce@empresa.com"
+            placeholder={dictionary.login.emailPlaceholder}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-zinc-950/70 border border-white/10 rounded-xl text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20 transition-all"
@@ -134,7 +138,7 @@ const CreateUserForm: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <label htmlFor="register-password" className="block text-xs font-medium text-zinc-300">
-            Senha
+            {dictionary.login.password}
           </label>
           <div className="relative group">
             <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-blue-400 transition-colors pointer-events-none" />
@@ -151,7 +155,7 @@ const CreateUserForm: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+              aria-label={showPassword ? dictionary.login.hidePassword : dictionary.login.showPassword}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition-colors cursor-pointer"
             >
               {showPassword ? <EyeClosed className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -161,7 +165,7 @@ const CreateUserForm: React.FC = () => {
 
         <div className="space-y-1.5">
           <label htmlFor="register-confirm-password" className="block text-xs font-medium text-zinc-300">
-            Confirmar senha
+            {authTexts.confirmPassword}
           </label>
           <div className="relative group">
             <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-blue-400 transition-colors pointer-events-none" />
@@ -184,7 +188,7 @@ const CreateUserForm: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              aria-label={showConfirmPassword ? 'Ocultar confirmação de senha' : 'Mostrar confirmação de senha'}
+              aria-label={showConfirmPassword ? authTexts.hideConfirmPassword : authTexts.showConfirmPassword}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition-colors cursor-pointer"
             >
               {showConfirmPassword ? <EyeClosed className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -196,7 +200,7 @@ const CreateUserForm: React.FC = () => {
       {passwordsMismatch && (
         <div className="flex items-center gap-1.5 text-xs text-red-400">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-          <span>As senhas informadas não coincidem.</span>
+          <span>{authTexts.passwordsMismatchHint}</span>
         </div>
       )}
 
@@ -248,11 +252,11 @@ const CreateUserForm: React.FC = () => {
         {loading ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Criando conta...</span>
+            <span>{authTexts.creatingAccount}</span>
           </>
         ) : (
           <>
-            <span>Criar conta</span>
+            <span>{authTexts.createAccount}</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           </>
         )}

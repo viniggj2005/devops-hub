@@ -9,6 +9,7 @@ import (
 
 	_ "github.com/sijms/go-ora/v2"
 
+	"docker-manager-go/src/appErrors"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 	talpadbFunctions "docker-manager-go/src/talpadb/functions"
 )
@@ -365,7 +366,7 @@ func (engine *OracleEngine) ListColumns(ctx context.Context, db Querier, schema 
 		return nil, err
 	}
 	if len(columns) == 0 {
-		return nil, fmt.Errorf("objeto %s.%s não encontrado", schema, relation)
+		return nil, appErrors.New("talpadb.objectNotFound", "objeto {object} não encontrado").With("object", schema+"."+relation)
 	}
 
 	if identityRows, err := db.QueryContext(ctx, "SELECT column_name, generation_type FROM all_tab_identity_cols WHERE owner = :1 AND table_name = :2", schema, relation); err == nil {
@@ -432,7 +433,7 @@ func (engine *OracleEngine) objectKind(ctx context.Context, db Querier, schema s
 		}
 	}
 	if kind == "" {
-		return "", fmt.Errorf("objeto %s.%s não encontrado", schema, name)
+		return "", appErrors.New("talpadb.objectNotFound", "objeto {object} não encontrado").With("object", schema+"."+name)
 	}
 	return kind, nil
 }
@@ -711,7 +712,7 @@ func (engine *OracleEngine) sequenceDdl(ctx context.Context, db Querier, schema 
        TO_CHAR(last_number), cycle_flag, order_flag
 FROM all_sequences WHERE sequence_owner = :1 AND sequence_name = :2`, schema, name).Scan(&minValue, &maxValue, &increment, &cache, &lastNumber, &cycle, &order)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", fmt.Errorf("sequência %s.%s não encontrada", schema, name)
+		return "", appErrors.New("talpadb.sequenceNotFound", "sequência {sequence} não encontrada").With("sequence", schema+"."+name)
 	}
 	if err != nil {
 		return "", err
@@ -731,7 +732,7 @@ func (engine *OracleEngine) programDdl(ctx context.Context, db Querier, objectID
 	var owner, name, objectType string
 	err := db.QueryRowContext(ctx, "SELECT owner, object_name, object_type FROM all_objects WHERE object_id = :1", int64(objectID)).Scan(&owner, &name, &objectType)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", errors.New("função não encontrada")
+		return "", appErrors.New("talpadb.functionNotFound", "função não encontrada")
 	}
 	if err != nil {
 		return "", err
@@ -778,7 +779,7 @@ func (engine *OracleEngine) ObjectDdl(ctx context.Context, db Querier, object ta
 		name := engine.displayName(object.Name)
 		return fmt.Sprintf("-- SCHEMA (usuário): %s\n\n-- DROP USER %s CASCADE;\n\nCREATE USER %s IDENTIFIED BY \"<senha>\";\n", name, name, name), nil
 	}
-	return "", fmt.Errorf("tipo de objeto não suportado no Oracle: %s", object.Kind)
+	return "", appErrors.New("talpadb.unsupportedObjectKindIn", "tipo de objeto não suportado no {engine}: {kind}").With("engine", "Oracle").With("kind", object.Kind)
 }
 
 func (engine *OracleEngine) CompletionSchema(ctx context.Context, db Querier) ([]talpadbDtos.CompletionTableDto, error) {
@@ -957,7 +958,7 @@ ORDER BY c.column_id`, schema, table)
 
 func (engine *OracleEngine) DropStatement(ctx context.Context, db Querier, input talpadbDtos.DropObjectInputDto) (string, error) {
 	if input.Kind != "relation" {
-		return "", fmt.Errorf("%w: excluir %s no Oracle", ErrUnsupported, input.Kind)
+		return "", appErrors.Wrap("talpadb.dropUnsupported", "não é possível excluir {kind} no {engine}", ErrUnsupported).With("kind", input.Kind).With("engine", "Oracle")
 	}
 	kind, err := engine.objectKind(ctx, db, input.Schema, input.Name)
 	if err != nil {

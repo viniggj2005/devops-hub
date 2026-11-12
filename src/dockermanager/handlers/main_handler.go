@@ -3,12 +3,12 @@ package dockerHandlers
 import (
 	"context"
 
+	"docker-manager-go/src/appErrors"
 	auth "docker-manager-go/src/auth/functions"
 	dockerDtos "docker-manager-go/src/dockermanager/dtos"
 	"docker-manager-go/src/models"
 	"docker-manager-go/src/types"
 	"encoding/base64"
-	"fmt"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
@@ -40,11 +40,11 @@ func (handlerStruct *DockerHandlerStruct) ConnectDockerCredential(token string, 
 	}
 
 	if handlerStruct.dockerSdk == nil {
-		return fmt.Errorf("docker sdk handler não configurado")
+		return appErrors.New("docker.sdkNotConfigured", "docker sdk handler não configurado")
 	}
 
 	if err := handlerStruct.dockerSdk.AddDockerClient(credentialID); err != nil {
-		return fmt.Errorf("erro ao conectar credencial docker: %w", err)
+		return appErrors.Wrap("docker.connectFailed", "erro ao conectar credencial docker", err)
 	}
 
 	return nil
@@ -57,17 +57,17 @@ func (handlerStruct *DockerHandlerStruct) CreateDockerConnection(token string, b
 
 	keyBytes, err := base64.StdEncoding.DecodeString(body.Key)
 	if err != nil {
-		return fmt.Errorf("erro ao decodificar Key: %w", err)
+		return appErrors.Wrap("docker.decodeKeyFailed", "erro ao decodificar Key", err)
 	}
 
 	caBytes, err := base64.StdEncoding.DecodeString(body.Ca)
 	if err != nil {
-		return fmt.Errorf("erro ao decodificar Ca: %w", err)
+		return appErrors.Wrap("docker.decodeCaFailed", "erro ao decodificar Ca", err)
 	}
 
 	certBytes, err := base64.StdEncoding.DecodeString(body.Cert)
 	if err != nil {
-		return fmt.Errorf("erro ao decodificar cert: %w", err)
+		return appErrors.Wrap("docker.decodeCertFailed", "erro ao decodificar cert", err)
 	}
 
 	connection := models.DockerCredentialsModel{
@@ -81,11 +81,11 @@ func (handlerStruct *DockerHandlerStruct) CreateDockerConnection(token string, b
 	}
 
 	if connection.Url.Plaintext == "" {
-		return fmt.Errorf("erro: host está vazio antes do insert")
+		return appErrors.New("docker.emptyHost", "erro: host está vazio antes do insert")
 	}
 
 	if err := handlerStruct.DataBase.WithContext(handlerStruct.context).Create(&connection).Error; err != nil {
-		return fmt.Errorf("erro ao criar conexão: %w", err)
+		return appErrors.Wrap("docker.createConnectionFailed", "erro ao criar conexão", err)
 	}
 
 	return nil
@@ -130,7 +130,7 @@ func (handlerStruct *DockerHandlerStruct) DeleteDockerConnection(token string, i
 	}
 
 	if err := handlerStruct.DataBase.Delete(&models.DockerCredentialsModel{}, id).Error; err != nil {
-		return fmt.Errorf("erro ao deletar conexão: %w", err)
+		return appErrors.Wrap("docker.deleteConnectionFailed", "erro ao deletar conexão", err)
 	}
 
 	return nil

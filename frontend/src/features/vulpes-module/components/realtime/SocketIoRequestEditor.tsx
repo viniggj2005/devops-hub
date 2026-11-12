@@ -1,3 +1,5 @@
+import RichMessage from '../../../i18n/RichMessage';
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useState } from 'react';
 import SplitPane from '../editors/SplitPane';
 import CodeEditor from '../editors/CodeEditor';
@@ -27,6 +29,8 @@ const versions: { version: SocketIoVersion; label: string }[] = [
 const SocketIoRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variables, inheritedHint, onSave }) => {
   const socketIo = tab.request.socketIo as SocketIoRequest;
   const [section, setSection] = useState<SocketIoSection>('message');
+  const { dictionary, formatMessage } = useTranslation();
+  const socketTexts = dictionary.vulpes.socketIo;
   const updateRequest = useVulpesStore((state) => state.updateRequest);
   const clearRealtimeEvents = useVulpesStore((state) => state.clearRealtimeEvents);
   const connected = runtime.connection === 'connected';
@@ -56,7 +60,7 @@ const SocketIoRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, va
             value={socketIo.url}
             variables={variables}
             onEnter={connected ? undefined : connect}
-            placeholder="http://localhost:3000 ou https://api.exemplo.com/namespace"
+            placeholder={socketTexts.urlPlaceholder}
             onChange={(url) => updateSocketIo((current) => ({ ...current, url, params: paramsFromUrl(url, current.params) }))}
           />
         </div>
@@ -72,12 +76,12 @@ const SocketIoRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, va
               active={section}
               onChange={setSection}
               tabs={[
-                { key: 'message', label: 'Evento' },
+                { key: 'message', label: socketTexts.event },
                 { key: 'params', label: 'Params', count: socketIo.params.filter((param) => param.enabled && param.key).length },
                 { key: 'headers', label: 'Headers', count: socketIo.headers.filter((header) => header.enabled && header.key).length },
-                { key: 'auth', label: 'Autorização' },
+                { key: 'auth', label: dictionary.vulpes.request.authorization },
                 { key: 'handshake', label: 'Handshake' },
-                { key: 'settings', label: 'Configurações' },
+                { key: 'settings', label: dictionary.vulpes.request.settings },
               ]}
             />
             <div className="flex-1 min-h-0 overflow-auto p-4">
@@ -85,7 +89,7 @@ const SocketIoRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, va
                 <div className="space-y-3">
                   <div className="flex items-end gap-3">
                     <div className="flex-1 min-w-0">
-                      <label className={fieldLabelClass}>Evento</label>
+                      <label className={fieldLabelClass}>{socketTexts.event}</label>
                       <input
                         spellCheck={false}
                         value={socketIo.event}
@@ -102,28 +106,28 @@ const SocketIoRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, va
                         className="accent-amber-500"
                         onChange={(event) => updateSocketIo((current) => ({ ...current, withAck: event.target.checked }))}
                       />
-                      Aguardar ack
+                      {socketTexts.waitAck}
                     </label>
                     <button
                       type="button"
                       onClick={emit}
                       disabled={!connected}
-                      title={connected ? 'Emitir (Ctrl+Enter)' : 'Conecte-se para emitir eventos'}
+                      title={connected ? socketTexts.emitHint : socketTexts.connectToEmit}
                       className={primaryButtonClass}
                     >
                       <Send className="w-3.5 h-3.5" />
-                      Emitir
+                      {socketTexts.emit}
                     </button>
                   </div>
                   {runtime.error && <p className="text-[11px] text-rose-600 dark:text-rose-400">{runtime.error}</p>}
                   {eventArguments.map((argument, argumentIndex) => (
                     <div key={argumentIndex}>
                       <div className="flex items-center justify-between">
-                        <span className={fieldLabelClass}>Argumento {argumentIndex + 1} · JSON ou texto</span>
+                        <span className={fieldLabelClass}>{formatMessage(socketTexts.argumentLabel, { number: argumentIndex + 1 })}</span>
                         {eventArguments.length > 1 && (
                           <button
                             type="button"
-                            title="Remover argumento"
+                            title={socketTexts.removeArgument}
                             className={iconButtonClass}
                             onClick={() =>
                               updateSocketIo((current) => ({ ...current, arguments: current.arguments.filter((_, index) => index !== argumentIndex) }))
@@ -139,7 +143,7 @@ const SocketIoRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, va
                           onSave={onSave}
                           value={argument}
                           language="json"
-                          placeholder='{"mensagem": "olá"}'
+                          placeholder={socketTexts.argumentPlaceholder}
                           onChange={(value) => updateArgument(argumentIndex, value)}
                         />
                       </div>
@@ -151,7 +155,7 @@ const SocketIoRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, va
                     onClick={() => updateSocketIo((current) => ({ ...current, arguments: [...eventArguments, ''] }))}
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Adicionar argumento
+                    {socketTexts.addArgument}
                   </button>
                 </div>
               )}
@@ -174,8 +178,7 @@ const SocketIoRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, va
               {section === 'handshake' && (
                 <div className="max-w-2xl space-y-2">
                   <p className="text-xs text-gray-500 dark:text-zinc-400">
-                    Objeto JSON enviado no pacote CONNECT (<span className="font-mono">socket.handshake.auth</span>). Disponível nas versões v3 e v4; na v2 use
-                    query params.
+                    <RichMessage template={socketTexts.handshakeHint} values={{ field: <span className="font-mono">socket.handshake.auth</span> }} />
                   </p>
                   <div className="h-44 rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden">
                     <CodeEditor
@@ -190,7 +193,7 @@ const SocketIoRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, va
               )}
               {section === 'settings' && (
                 <SettingsSection>
-                  <SettingRow title="Versão do cliente" description="Compatível com servidores Socket.IO 2, 3 e 4.">
+                  <SettingRow title={socketTexts.clientVersion} description={socketTexts.versionHint}>
                     <select
                       value={socketIo.version}
                       onChange={(event) => updateSocketIo((current) => ({ ...current, version: event.target.value as SocketIoVersion }))}
@@ -203,7 +206,7 @@ const SocketIoRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, va
                       ))}
                     </select>
                   </SettingRow>
-                  <SettingRow title="Caminho" description="Rota do servidor Engine.IO (padrão /socket.io/).">
+                  <SettingRow title={socketTexts.path} description={socketTexts.pathHint}>
                     <input
                       spellCheck={false}
                       value={socketIo.path}
@@ -212,7 +215,7 @@ const SocketIoRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, va
                       className={`${fieldInputClass} w-48 font-mono`}
                     />
                   </SettingRow>
-                  <SettingRow title="Namespace" description="Vazio usa o caminho da URL ou o namespace raiz /.">
+                  <SettingRow title="Namespace" description={socketTexts.namespaceHint}>
                     <input
                       spellCheck={false}
                       placeholder="/admin"
@@ -235,7 +238,7 @@ const SocketIoRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, va
             showEventNames
             events={runtime.events}
             onClear={() => clearRealtimeEvents(tab.id)}
-            emptyHint="Conecte-se para acompanhar os eventos emitidos e recebidos."
+            emptyHint={socketTexts.emptyHint}
           />
         }
       />

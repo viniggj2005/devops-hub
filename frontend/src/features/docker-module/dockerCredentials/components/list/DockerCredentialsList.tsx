@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { CheckCircle2, Key, Trash2 } from 'lucide-react';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
@@ -8,6 +9,8 @@ import { useConfirmToast } from '../../../../../features/shared/components/toast
 const DockerCredentialsList: React.FC = () => {
   const { token } = useAuth();
   const confirmToast = useConfirmToast();
+  const { dictionary, formatMessage, language } = useTranslation();
+  const credentialTexts = dictionary.docker.credentials;
   const {
     refresh,
     credentials,
@@ -24,8 +27,8 @@ const DockerCredentialsList: React.FC = () => {
     if (!token) return;
     confirmToast({
       id: `${id}`,
-      title: 'Remover credencial?',
-      message: `Deseja realmente excluir a conexão "${name}"?`,
+      title: credentialTexts.deleteTitle,
+      message: formatMessage(credentialTexts.deleteMessage, { name }),
       onConfirm: async () => {
         await DockerCredentialService.delete(token, id);
         await refresh();
@@ -38,10 +41,10 @@ const DockerCredentialsList: React.FC = () => {
       <div className="rounded-2xl border border-dashed border-gray-300 dark:border-white/10 bg-white/50 dark:bg-zinc-900/40 p-10 text-center space-y-2">
         <Key className="w-8 h-8 text-gray-400 dark:text-zinc-500 mx-auto" />
         <p className="text-sm font-semibold text-gray-800 dark:text-zinc-200">
-          Nenhuma credencial cadastrada
+          {credentialTexts.empty}
         </p>
         <p className="text-xs text-gray-500 dark:text-zinc-400">
-          Clique em "Nova Conexão" para cadastrar certificados TLS de acesso ao seu daemon Docker.
+          {credentialTexts.emptyHint}
         </p>
       </div>
     );
@@ -73,19 +76,19 @@ const DockerCredentialsList: React.FC = () => {
                   {isSelected && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                       <CheckCircle2 className="w-3 h-3" />
-                      Ativa
+                      {credentialTexts.active}
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-zinc-400 truncate">
                   <span className="truncate">
-                    {credential.description ? credential.description : 'Sem descrição'}
+                    {credential.description ? credential.description : credentialTexts.noDescription}
                   </span>
                   {credential.createdAt && (
                     <>
                       <span className="text-gray-300 dark:text-zinc-700">•</span>
                       <span className="shrink-0">
-                        {new Date(credential.createdAt).toLocaleDateString('pt-BR')}
+                        {new Date(credential.createdAt).toLocaleDateString(language)}
                       </span>
                     </>
                   )}
@@ -100,7 +103,7 @@ const DockerCredentialsList: React.FC = () => {
                   event.stopPropagation();
                   handleDelete(credential.id, credential.alias);
                 }}
-                title="Excluir conexão"
+                title={credentialTexts.delete}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 cursor-pointer"
               >
                 <Trash2 className="h-4 w-4" />

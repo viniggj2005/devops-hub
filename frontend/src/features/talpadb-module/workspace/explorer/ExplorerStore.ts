@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { currentDictionary } from '../../../i18n/TranslateError';
 import { useTalpadbStore } from '../../TalpadbStore';
 import { TalpadbServices } from '../../services/TalpadbServices';
 import { engineInfo, engineOf, fileName } from '../../functions/DatabaseEngines';
@@ -26,8 +27,9 @@ const segment = (prefix: string, value: string | number) =>
 export const serverNodeId = (connectionId: number) => segment('s', connectionId);
 
 const relationDetail = (relation: RelationInfo) => {
-  if (relation.kind === 'p') return 'particionada';
-  if (relation.kind === 'f') return 'estrangeira';
+  const explorerTexts = currentDictionary().talpadb.explorer;
+  if (relation.kind === 'p') return explorerTexts.partitioned;
+  if (relation.kind === 'f') return explorerTexts.foreign;
   return undefined;
 };
 
@@ -99,24 +101,25 @@ async function loadChildren(token: string, node: ExplorerNode): Promise<LoadResu
         node.database as string,
         node.schema as string
       );
+      const groupTexts = currentDictionary().talpadb.explorer.groups;
       const groups: {
         kind: ExplorerGroupKind;
         label: string;
         itemKind: ExplorerNodeKind;
         relations?: RelationInfo[];
       }[] = [
-        { kind: 'tables', label: 'Tabelas', itemKind: 'table', relations: objects.tables },
-        { kind: 'views', label: 'Views', itemKind: 'view', relations: objects.views },
+        { kind: 'tables', label: groupTexts.tables, itemKind: 'table', relations: objects.tables },
+        { kind: 'views', label: groupTexts.views, itemKind: 'view', relations: objects.views },
         {
           kind: 'matviews',
-          label: 'Views materializadas',
+          label: groupTexts.matviews,
           itemKind: 'matview',
           relations: objects.materializedViews,
         },
-        { kind: 'functions', label: engine === 'oracle' ? 'Funções e pacotes' : 'Funções', itemKind: 'function' },
+        { kind: 'functions', label: engine === 'oracle' ? groupTexts.functionsAndPackages : groupTexts.functions, itemKind: 'function' },
         {
           kind: 'sequences',
-          label: 'Sequências',
+          label: groupTexts.sequences,
           itemKind: 'sequence',
           relations: objects.sequences,
         },

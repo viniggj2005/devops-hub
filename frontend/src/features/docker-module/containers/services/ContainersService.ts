@@ -1,4 +1,5 @@
 import toast from 'react-hot-toast';
+import { currentDictionary } from '../../../i18n/TranslateError';
 import {
   ContainerStop,
   ContainerExec,
@@ -57,7 +58,7 @@ export const startContainer = async (
 ): Promise<void> => {
   try {
     await ContainerStart(clientId, id);
-    toast.success('Container iniciado com sucesso');
+    toast.success(currentDictionary().docker.containers.started);
   } catch (error: any) {
     toast.error(errorMessage(error));
     throw error;
@@ -70,7 +71,7 @@ export const stopContainer = async (
 ): Promise<void> => {
   try {
     await ContainerStop(clientId, id);
-    toast.success('Container parado com sucesso');
+    toast.success(currentDictionary().docker.containers.stoppedToast);
   } catch (error: any) {
     toast.error(errorMessage(error));
     throw error;

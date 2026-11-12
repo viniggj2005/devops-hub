@@ -5,6 +5,7 @@ import { getToken } from '../../../contexts/AuthContext';
 import { isHexColor } from '../functions/CustomThemePalette';
 import { windowInstanceId } from '../../appFrame/WindowContext';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
+import { currentDictionary } from '../../i18n/TranslateError';
 import { readStoredGlobalTheme } from '../functions/StoredGlobalTheme';
 import { defaultOctohubColors } from '../constants/OctohubColorDefaults';
 import { appModules, defaultCustomTheme } from '../../shared/constants/AppModules';
@@ -179,6 +180,8 @@ const stableStringify = (value: unknown): string => {
 export const isSameThemeConfig = (first: ThemeProfileConfig, second: ThemeProfileConfig) =>
   stableStringify(first) === stableStringify(second);
 
+const configErrors = () => currentDictionary().preferences.configErrors;
+
 const showError = (message: string, error: unknown) => {
   toast.error(`${message}: ${errorMessage(error)}`);
 };
@@ -198,7 +201,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
       notifyConfigsChanged();
     } catch (error) {
       set(state => ({ modules: { ...state.modules, [moduleName]: previousConfig } }));
-      showError('Falha ao salvar a configuração', error);
+      showError(configErrors().saveConfig, error);
     }
   };
 
@@ -214,7 +217,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
       notifyConfigsChanged();
     } catch (error) {
       set({ [stateKey]: previousValue } as Pick<GeneralConfigsState, Key>);
-      showError('Falha ao salvar as cores', error);
+      showError(configErrors().saveColors, error);
     }
   };
 
@@ -298,7 +301,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
         set({ modules, terminalTheme, sqlEditorTheme, octohubColors, themeProfiles, loaded: true });
       } catch (error) {
         set({ loaded: true });
-        showError('Falha ao carregar as configurações', error);
+        showError(configErrors().loadConfigs, error);
       }
     },
 
@@ -322,7 +325,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
         await saveProfile({ id: 0, name, config: buildThemeSnapshot(globalTheme) });
         return true;
       } catch (error) {
-        showError('Falha ao salvar o perfil de tema', error);
+        showError(configErrors().saveProfile, error);
         return false;
       }
     },
@@ -332,7 +335,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
         await saveProfile({ ...profile, name });
         return true;
       } catch (error) {
-        showError('Falha ao renomear o perfil de tema', error);
+        showError(configErrors().renameProfile, error);
         return false;
       }
     },
@@ -341,7 +344,7 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
       try {
         await saveProfile({ ...profile, config: buildThemeSnapshot(globalTheme) });
       } catch (error) {
-        showError('Falha ao atualizar o perfil de tema', error);
+        showError(configErrors().updateProfile, error);
       }
     },
 
@@ -351,15 +354,15 @@ export const useGeneralConfigsStore = create<GeneralConfigsState>((set, get) => 
         set(state => ({ themeProfiles: state.themeProfiles.filter(item => item.id !== profile.id) }));
         notifyConfigsChanged();
       } catch (error) {
-        showError('Falha ao excluir o perfil de tema', error);
+        showError(configErrors().deleteProfile, error);
       }
     },
 
-    applyThemeProfile: profile => applyThemeConfig(profile.config, 'Falha ao aplicar o perfil de tema'),
+    applyThemeProfile: profile => applyThemeConfig(profile.config, configErrors().applyProfile),
 
     restoreDefaultThemes: async () => {
       const defaultConfig = buildDefaultThemeConfig();
-      const restored = await applyThemeConfig(defaultConfig, 'Falha ao restaurar os temas');
+      const restored = await applyThemeConfig(defaultConfig, configErrors().restoreThemes);
       return restored ? defaultConfig.globalTheme : null;
     },
   };

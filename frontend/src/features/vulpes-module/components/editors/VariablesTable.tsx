@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useState } from 'react';
 import VariableInput from './VariableInput';
 import { cellInputClass } from './KeyValueTable';
@@ -13,6 +14,8 @@ const emptyVariable = (): Variable => ({ key: '', value: '', secret: false, enab
 
 const VariablesTable: React.FC<VariablesTableProps> = ({ variables, onChange }) => {
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
+  const { dictionary } = useTranslation();
+  const editorTexts = dictionary.vulpes.editors;
   const displayRows = [...variables, emptyVariable()];
 
   const updateRow = (rowIndex: number, patch: Partial<Variable>) => {
@@ -35,8 +38,8 @@ const VariablesTable: React.FC<VariablesTableProps> = ({ variables, onChange }) 
     <div className="rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden">
       <div className="grid grid-cols-[28px_1fr_1.6fr_64px] bg-gray-50 dark:bg-white/5 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-500">
         <span />
-        <span className="px-2 py-1.5">Variável</span>
-        <span className="px-2 py-1.5 border-l border-gray-200 dark:border-white/10">Valor</span>
+        <span className="px-2 py-1.5">{editorTexts.variable}</span>
+        <span className="px-2 py-1.5 border-l border-gray-200 dark:border-white/10">{dictionary.vulpes.common.value}</span>
         <span />
       </div>
       {displayRows.map((variable, rowIndex) => {
@@ -60,7 +63,7 @@ const VariablesTable: React.FC<VariablesTableProps> = ({ variables, onChange }) 
             <input
               value={variable.key}
               spellCheck={false}
-              placeholder="nomeDaVariavel"
+              placeholder={editorTexts.variablePlaceholder}
               onChange={(event) => updateRow(rowIndex, { key: event.target.value })}
               className={cellInputClass}
             />
@@ -70,7 +73,7 @@ const VariablesTable: React.FC<VariablesTableProps> = ({ variables, onChange }) 
                 masked={masked}
                 className="flex-1"
                 value={variable.value}
-                placeholder="valor ou {{$response ...}}"
+                placeholder={editorTexts.valuePlaceholder}
                 inputClassName="focus:bg-amber-500/5"
                 onChange={(value) => updateRow(rowIndex, { value })}
               />
@@ -78,7 +81,7 @@ const VariablesTable: React.FC<VariablesTableProps> = ({ variables, onChange }) 
                 <button
                   type="button"
                   onClick={() => toggleReveal(rowIndex)}
-                  title={masked ? 'Mostrar valor' : 'Ocultar valor'}
+                  title={masked ? editorTexts.showValue : editorTexts.hideValue}
                   className="p-1 mr-1 rounded text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200"
                 >
                   {masked ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -91,14 +94,14 @@ const VariablesTable: React.FC<VariablesTableProps> = ({ variables, onChange }) 
                   <button
                     type="button"
                     onClick={() => updateRow(rowIndex, { secret: !variable.secret })}
-                    title={variable.secret ? 'Valor secreto (oculto na tela)' : 'Marcar como secreto'}
+                    title={variable.secret ? editorTexts.secretValue : editorTexts.markSecret}
                     className={`p-1 rounded transition-colors ${variable.secret ? 'text-amber-500' : 'text-gray-400 hover:text-amber-500'}`}
                   >
                     {variable.secret ? <Lock className="w-3.5 h-3.5" /> : <LockOpen className="w-3.5 h-3.5" />}
                   </button>
                   <button
                     type="button"
-                    title="Remover"
+                    title={dictionary.vulpes.common.remove}
                     onClick={() => onChange(variables.filter((_, index) => index !== rowIndex))}
                     className="p-1 rounded text-gray-400 opacity-0 group-hover:opacity-100 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
                   >

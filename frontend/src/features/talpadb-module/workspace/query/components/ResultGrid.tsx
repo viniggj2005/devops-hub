@@ -1,4 +1,5 @@
 import type { GridEditing } from '../hooks/useGridEdits';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { startDrag } from '../../../../shared/functions/DragFunctions';
 import { ArrowDown, ArrowUp, KeyRound, ListChecks } from 'lucide-react';
 import { copyToClipboard } from '../../../../shared/functions/clipboard';
@@ -45,6 +46,8 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
   ({ editing, resultSet, onOpenCell, onEditCell, onDeleteRows, onSelectionChange }, ref) => {
     const anchorRowRef = useRef(0);
+    const { dictionary, formatMessage } = useTranslation();
+    const gridTexts = dictionary.talpadb.grid;
     const containerRef = useRef<HTMLDivElement>(null);
     const [scrollTop, setScrollTop] = useState(0);
     const [viewportHeight, setViewportHeight] = useState(400);
@@ -220,7 +223,7 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
       if (!selection) return;
       if (selection.column !== null) {
         const rowRef = rowRefs[selection.row];
-        if (rowRef !== undefined) copyToClipboard(currentValues(rowRef)[selection.column] ?? '', 'Valor copiado');
+        if (rowRef !== undefined) copyToClipboard(currentValues(rowRef)[selection.column] ?? '', dictionary.talpadb.common.valueCopied);
         return;
       }
       const refs = orderedSelection(selectedRows);
@@ -228,7 +231,7 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
       const multiple = refs.length > 1;
       copyToClipboard(
         rowsToTsv(resultSet, refs.map(currentValues), multiple),
-        multiple ? `${refs.length} linhas copiadas` : 'Linha copiada'
+        multiple ? formatMessage(gridTexts.rowsCopied, { count: refs.length }) : gridTexts.rowCopied
       );
     };
 
@@ -333,7 +336,7 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
             <tr style={{ height: HEADER_HEIGHT }}>
               <th
                 onClick={toggleAll}
-                title={allSelected ? "Desmarcar todas as linhas" : "Selecionar todas as linhas (Ctrl+A)"}
+                title={allSelected ? gridTexts.deselectAll : gridTexts.selectAll}
                 className={`sticky top-0 left-0 z-30 border-b border-r border-gray-200 dark:border-white/10 cursor-pointer transition-colors ${
                   allSelected
                     ? 'bg-cyan-500/20 dark:bg-cyan-500/25'
@@ -346,7 +349,10 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
                 <th
                   key={index}
                   onClick={() => toggleSort(index)}
-                  title={`${column.name} (${column.dataType})${editing && !editing.canEditColumn(index) ? ' — somente leitura' : ''} — clique para ordenar`}
+                  title={formatMessage(editing && !editing.canEditColumn(index) ? gridTexts.columnReadOnlyHint : gridTexts.columnHint, {
+                    name: column.name,
+                    type: column.dataType,
+                  })}
                   className="sticky top-0 z-20 bg-gray-100 dark:bg-zinc-800 border-b border-r border-gray-200 dark:border-white/10 px-2 text-left font-semibold cursor-pointer select-none"
                 >
                   <div className="flex items-center gap-1 min-w-0">
@@ -383,7 +389,7 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
                 <tr key={rowRef} style={{ height: ROW_HEIGHT }} className={rowClassName(rowRef, rowSelected)}>
                   <td
                     onClick={(event) => handleRowHeaderClick(event, rowIndex)}
-                    title="Clique para marcar ou desmarcar a linha · Shift+clique seleciona um intervalo · Esc limpa a seleção"
+                    title={gridTexts.rowHeaderHint}
                     className={`sticky left-0 z-10 border-b border-r border-gray-200 dark:border-white/10 px-2 text-right text-[11px] cursor-pointer tabular-nums select-none ${
                       rowSelected ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300' : 'bg-gray-50 dark:bg-zinc-900 text-gray-400'
                     }`}
@@ -420,7 +426,7 @@ const ResultGrid = forwardRef<ResultGridHandle, ResultGridProps>(
           </tbody>
         </table>
         {total === 0 && (
-          <div className="px-4 py-6 text-sm text-gray-400 dark:text-zinc-500">A consulta não retornou linhas.</div>
+          <div className="px-4 py-6 text-sm text-gray-400 dark:text-zinc-500">{gridTexts.noRows}</div>
         )}
       </div>
     );

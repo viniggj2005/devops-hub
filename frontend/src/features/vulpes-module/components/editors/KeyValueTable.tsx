@@ -1,3 +1,5 @@
+import VariableShortcutHint from './VariableShortcutHint';
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useState } from 'react';
 import VariableInput from './VariableInput';
 import { ListPlus, Table2, Trash2 } from 'lucide-react';
@@ -37,11 +39,16 @@ const KeyValueTable: React.FC<KeyValueTableProps> = ({
   rows,
   onChange,
   fixedKeys = false,
-  keyPlaceholder = 'Chave',
-  valuePlaceholder = 'Valor',
+  keyPlaceholder,
+  valuePlaceholder,
   showDescription = true,
 }) => {
   const [bulkText, setBulkText] = useState<string | null>(null);
+  const { dictionary } = useTranslation();
+  const commonTexts = dictionary.vulpes.common;
+  const editorTexts = dictionary.vulpes.editors;
+  const keyLabel = keyPlaceholder ?? commonTexts.key;
+  const valueLabel = valuePlaceholder ?? commonTexts.value;
   const displayRows = fixedKeys ? rows : [...rows, emptyKeyValue()];
   const gridColumns = showDescription ? 'grid-cols-[28px_1fr_1.4fr_1fr_28px]' : 'grid-cols-[28px_1fr_1.6fr_28px]';
 
@@ -69,7 +76,7 @@ const KeyValueTable: React.FC<KeyValueTableProps> = ({
       {!fixedKeys && (
         <div className="flex items-center justify-between gap-2">
           <span className="text-[11px] text-gray-400 dark:text-zinc-500">
-            Digite <code className="font-mono">{'{{'}</code> ou pressione <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 font-mono text-[10px]">Ctrl+Espaço</kbd> / <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 font-mono text-[10px]">Ctrl+/</kbd> para inserir variáveis
+            <VariableShortcutHint template={commonTexts.variableInsertHint} />
           </span>
           <button
             type="button"
@@ -77,7 +84,7 @@ const KeyValueTable: React.FC<KeyValueTableProps> = ({
             className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-semibold text-gray-500 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
           >
             {bulkText === null ? <ListPlus className="w-3.5 h-3.5" /> : <Table2 className="w-3.5 h-3.5" />}
-            {bulkText === null ? 'Edição em massa' : 'Edição em tabela'}
+            {bulkText === null ? editorTexts.bulkEdit : editorTexts.tableEdit}
           </button>
         </div>
       )}
@@ -88,16 +95,16 @@ const KeyValueTable: React.FC<KeyValueTableProps> = ({
           spellCheck={false}
           onChange={(event) => setBulkText(event.target.value)}
           onBlur={() => onChange(fromBulkText(bulkText, rows))}
-          placeholder={'chave:valor\n//desabilitada:valor'}
+          placeholder={editorTexts.bulkPlaceholder}
           className="w-full min-h-[180px] rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-zinc-950 p-3 text-xs font-mono text-gray-800 dark:text-zinc-200 focus:outline-none focus:border-amber-500"
         />
       ) : (
         <div className="rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden">
           <div className={`grid ${gridColumns} bg-gray-50 dark:bg-white/5 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-500`}>
             <span />
-            <span className="px-2 py-1.5">{keyPlaceholder}</span>
-            <span className="px-2 py-1.5 border-l border-gray-200 dark:border-white/10">{valuePlaceholder}</span>
-            {showDescription && <span className="px-2 py-1.5 border-l border-gray-200 dark:border-white/10">Descrição</span>}
+            <span className="px-2 py-1.5">{keyLabel}</span>
+            <span className="px-2 py-1.5 border-l border-gray-200 dark:border-white/10">{valueLabel}</span>
+            {showDescription && <span className="px-2 py-1.5 border-l border-gray-200 dark:border-white/10">{commonTexts.description}</span>}
             <span />
           </div>
           {displayRows.map((row, rowIndex) => {
@@ -121,14 +128,14 @@ const KeyValueTable: React.FC<KeyValueTableProps> = ({
                   compact
                   value={row.key}
                   disabled={fixedKeys}
-                  placeholder={keyPlaceholder}
+                  placeholder={keyLabel}
                   inputClassName="focus:bg-amber-500/5"
                   onChange={(key) => updateRow(rowIndex, { key })}
                 />
                 <VariableInput
                   compact
                   value={row.value}
-                  placeholder={valuePlaceholder}
+                  placeholder={valueLabel}
                   inputClassName="focus:bg-amber-500/5"
                   onChange={(value) => updateRow(rowIndex, { value })}
                   className="border-l border-gray-200 dark:border-white/10"
@@ -136,7 +143,7 @@ const KeyValueTable: React.FC<KeyValueTableProps> = ({
                 {showDescription && (
                   <input
                     value={row.description}
-                    placeholder="Descrição"
+                    placeholder={commonTexts.description}
                     onChange={(event) => updateRow(rowIndex, { description: event.target.value })}
                     className={`${cellInputClass} border-l border-gray-200 dark:border-white/10 font-sans`}
                   />
@@ -145,7 +152,7 @@ const KeyValueTable: React.FC<KeyValueTableProps> = ({
                   {!isGhost && !fixedKeys && (
                     <button
                       type="button"
-                      title="Remover"
+                      title={commonTexts.remove}
                       onClick={() => removeRow(rowIndex)}
                       className="p-1 rounded text-gray-400 opacity-0 group-hover:opacity-100 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
                     >

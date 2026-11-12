@@ -1,4 +1,5 @@
 import { requireToken } from './ActionHelpers';
+import { currentDictionary } from '../../i18n/TranslateError';
 import { findItem } from '../functions/CollectionTree';
 import { getToken } from '../../../contexts/AuthContext';
 import { generateId } from '../functions/RequestDefaults';
@@ -32,7 +33,7 @@ const executionInput = (tab: RequestTab): ExecutionInput => ({
   },
 });
 
-const failureMessage = (error: unknown) => (error instanceof CancelError ? 'Requisição cancelada' : errorMessage(error));
+const failureMessage = (error: unknown) => (error instanceof CancelError ? currentDictionary().vulpes.common.requestCancelled : errorMessage(error));
 
 const trackCall = async <Result>(tabId: string, call: CancellablePromise<Result>) => {
   pendingCalls.set(tabId, call);
@@ -116,7 +117,7 @@ export const requestActions = {
     if (!findGrpcMethod(tabId) && !(await requestActions.loadGrpcServices(tabId))) return;
     const method = findGrpcMethod(tabId);
     if (!method) {
-      store().patchRuntime(tabId, { error: 'Selecione um método disponível no servidor' });
+      store().patchRuntime(tabId, { error: currentDictionary().vulpes.common.selectAvailableMethod });
       return;
     }
     if (method.clientStreaming || method.serverStreaming) {

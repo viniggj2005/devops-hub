@@ -1,5 +1,6 @@
 import TerminalInstance from './TerminalInstance';
 import { useTerminalStore } from '../TerminalStore';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { SquareArrowOutUpRight, X } from 'lucide-react';
 import React, { useState, useRef, useEffect } from 'react';
 import { useGeneralConfigsStore } from '../../../settings/store/GeneralConfigsStore';
@@ -30,7 +31,9 @@ const ResizeHandle: React.FC<ResizeHandleProps> = ({ orientation, onStart }) => 
 };
 
 const SplitLayout: React.FC<SplitLayoutProps> = ({ tab }) => {
+  const { dictionary, formatMessage } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
+  const terminalTexts = dictionary.ferretShell.terminal;
   const [columnSplit, setColumnSplit] = useState(50);
   const [firstRowSplit, setFirstRowSplit] = useState(50);
   const [secondRowSplit, setSecondRowSplit] = useState(50);
@@ -80,8 +83,8 @@ const SplitLayout: React.FC<SplitLayoutProps> = ({ tab }) => {
           <span className="flex-1 truncate font-medium">{instance.title}</span>
           <button
             type="button"
-            title="Separar em uma nova aba"
-            aria-label={`Separar ${instance.title} em uma nova aba`}
+            title={terminalTexts.detach}
+            aria-label={formatMessage(terminalTexts.detachNamed, { title: instance.title })}
             onClick={() => detachInstance(tab.id, instance.id)}
             className="rounded p-1 hover:bg-white/10 hover:text-white"
           >
@@ -89,8 +92,8 @@ const SplitLayout: React.FC<SplitLayoutProps> = ({ tab }) => {
           </button>
           <button
             type="button"
-            title="Fechar este terminal"
-            aria-label={`Fechar ${instance.title}`}
+            title={terminalTexts.close}
+            aria-label={formatMessage(terminalTexts.closeNamed, { title: instance.title })}
             onClick={() => removeInstance(tab.id, instance.id)}
             className="rounded p-1 hover:bg-red-500/20 hover:text-red-300"
           >

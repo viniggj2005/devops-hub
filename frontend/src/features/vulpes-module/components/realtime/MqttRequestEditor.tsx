@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import RichMessage from '../../../i18n/RichMessage';
+import { useTranslation } from '../../../i18n/useTranslation';
 import SplitPane from '../editors/SplitPane';
 import CodeEditor from '../editors/CodeEditor';
 import AuthEditor from '../editors/AuthEditor';
@@ -16,21 +18,21 @@ import { fieldInputClass, fieldLabelClass, iconButtonClass, primaryButtonClass, 
 
 type MqttSection = 'publish' | 'subscriptions' | 'auth' | 'will' | 'settings';
 
-const qosOptions: { qos: MqttQos; label: string }[] = [
-  { qos: 0, label: 'QoS 0 · No máximo uma vez' },
-  { qos: 1, label: 'QoS 1 · Pelo menos uma vez' },
-  { qos: 2, label: 'QoS 2 · Exatamente uma vez' },
-];
-
-const messageKinds: { kind: WebSocketMessageKind; label: string }[] = [
-  { kind: 'json', label: 'JSON' },
-  { kind: 'text', label: 'Texto' },
-  { kind: 'binary', label: 'Binário (base64)' },
-];
-
 const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variables, inheritedHint, onSave }) => {
   const mqtt = tab.request.mqtt as MqttRequest;
   const [section, setSection] = useState<MqttSection>('publish');
+  const { dictionary } = useTranslation();
+  const mqttTexts = dictionary.vulpes.mqtt;
+  const qosOptions: { qos: MqttQos; label: string }[] = [
+    { qos: 0, label: mqttTexts.qosAtMostOnce },
+    { qos: 1, label: mqttTexts.qosAtLeastOnce },
+    { qos: 2, label: mqttTexts.qosExactlyOnce },
+  ];
+  const messageKinds: { kind: WebSocketMessageKind; label: string }[] = [
+    { kind: 'json', label: 'JSON' },
+    { kind: 'text', label: dictionary.vulpes.realtime.textKind },
+    { kind: 'binary', label: dictionary.vulpes.realtime.binaryKind },
+  ];
   const updateRequest = useVulpesStore((state) => state.updateRequest);
   const clearRealtimeEvents = useVulpesStore((state) => state.clearRealtimeEvents);
   const connected = runtime.connection === 'connected';
@@ -58,7 +60,7 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
             value={mqtt.url}
             variables={variables}
             onEnter={connected ? undefined : connect}
-            placeholder="mqtt://localhost:1883, mqtts://broker.exemplo.com:8883 ou wss://broker.exemplo.com:8084/mqtt"
+            placeholder={mqttTexts.urlPlaceholder}
             onChange={(url) => updateMqtt((current) => ({ ...current, url }))}
           />
         </div>
@@ -74,15 +76,15 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
               active={section}
               onChange={setSection}
               tabs={[
-                { key: 'publish', label: 'Publicar' },
+                { key: 'publish', label: mqttTexts.publish },
                 {
                   key: 'subscriptions',
-                  label: 'Tópicos',
+                  label: mqttTexts.topics,
                   count: mqtt.subscriptions.filter((subscription) => subscription.enabled && subscription.topic.trim()).length,
                 },
-                { key: 'auth', label: 'Autorização' },
+                { key: 'auth', label: dictionary.vulpes.request.authorization },
                 { key: 'will', label: 'Last Will' },
-                { key: 'settings', label: 'Configurações' },
+                { key: 'settings', label: dictionary.vulpes.request.settings },
               ]}
             />
             <div className="flex-1 min-h-0 overflow-auto p-4">
@@ -90,7 +92,7 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                 <div className="h-full flex flex-col gap-3 min-h-0">
                   <div className="flex flex-wrap items-end gap-2.5">
                     <div className="flex-1 min-w-[200px]">
-                      <label className={fieldLabelClass}>Tópico</label>
+                      <label className={fieldLabelClass}>{mqttTexts.topic}</label>
                       <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-950 focus-within:border-amber-500">
                         <VariableInput
                           value={mqtt.topic}
@@ -116,7 +118,7 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                       </select>
                     </div>
                     <div>
-                      <label className={fieldLabelClass}>Formato</label>
+                      <label className={fieldLabelClass}>{mqttTexts.format}</label>
                       <select
                         value={mqtt.messageKind}
                         onChange={(event) => updateMqtt((current) => ({ ...current, messageKind: event.target.value as WebSocketMessageKind }))}
@@ -142,11 +144,11 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                       type="button"
                       onClick={publish}
                       disabled={!connected}
-                      title={connected ? 'Publicar (Ctrl+Enter)' : 'Conecte-se ao broker para publicar'}
+                      title={connected ? mqttTexts.publishHint : mqttTexts.connectToPublish}
                       className={primaryButtonClass}
                     >
                       <Send className="w-3.5 h-3.5" />
-                      Publicar
+                      {mqttTexts.publish}
                     </button>
                   </div>
                   {runtime.error && <p className="text-[11px] text-rose-600 dark:text-rose-400">{runtime.error}</p>}
@@ -166,8 +168,10 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
               {section === 'subscriptions' && (
                 <div className="space-y-3 max-w-3xl">
                   <p className="text-xs text-gray-500 dark:text-zinc-400">
-                    Tópicos marcados são assinados automaticamente ao conectar no broker. Suporta curingas MQTT (<span className="font-mono">+</span> e{' '}
-                    <span className="font-mono">#</span>).
+                    <RichMessage
+                      template={mqttTexts.subscriptionsHint}
+                      values={{ plus: <span className="font-mono">+</span>, hash: <span className="font-mono">#</span> }}
+                    />
                   </p>
                   {runtime.error && <p className="text-[11px] text-rose-600 dark:text-rose-400">{runtime.error}</p>}
                   <div className="space-y-2">
@@ -186,7 +190,7 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                           className="flex-1"
                           variables={variables}
                           value={subscription.topic}
-                          placeholder="sensors/+/telemetry ou #"
+                          placeholder={mqttTexts.topicPatternPlaceholder}
                           onChange={(topic) => updateSubscription(subscriptionIndex, { topic })}
                         />
                         <select
@@ -202,17 +206,17 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                           <>
                             <button
                               type="button"
-                              title="Assinar este tópico agora"
+                              title={mqttTexts.subscribeHint}
                               disabled={!subscription.topic.trim()}
                               onClick={() => requestActions.subscribeMqtt(tab.id, { ...subscription, enabled: true })}
                               className={`${secondaryButtonClass} !px-2 !py-1`}
                             >
                               <Radio className="w-3.5 h-3.5 text-emerald-500" />
-                              Assinar
+                              {mqttTexts.subscribe}
                             </button>
                             <button
                               type="button"
-                              title="Cancelar inscrição deste tópico no broker"
+                              title={mqttTexts.unsubscribeHint}
                               disabled={!subscription.topic.trim()}
                               onClick={() => requestActions.unsubscribeMqtt(tab.id, subscription.topic)}
                               className={iconButtonClass}
@@ -223,7 +227,7 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                         )}
                         <button
                           type="button"
-                          title="Remover tópico"
+                          title={mqttTexts.removeTopic}
                           onClick={() =>
                             updateMqtt((current) => ({
                               ...current,
@@ -248,7 +252,7 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                     }
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Adicionar tópico
+                    {mqttTexts.addTopic}
                   </button>
                 </div>
               )}
@@ -257,7 +261,7 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                 <div className="space-y-5 max-w-2xl">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className={fieldLabelClass}>Usuário do Broker (opcional)</label>
+                      <label className={fieldLabelClass}>{mqttTexts.brokerUser}</label>
                       <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-950 focus-within:border-amber-500">
                         <VariableInput
                           value={mqtt.username}
@@ -268,7 +272,7 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                       </div>
                     </div>
                     <div>
-                      <label className={fieldLabelClass}>Senha do Broker (opcional)</label>
+                      <label className={fieldLabelClass}>{mqttTexts.brokerPassword}</label>
                       <input
                         type="password"
                         value={mqtt.password}
@@ -291,7 +295,7 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
               {section === 'will' && (
                 <div className="space-y-3 max-w-2xl">
                   <p className="text-xs text-gray-500 dark:text-zinc-400">
-                    Mensagem Last Will and Testament (LWT) publicada automaticamente pelo broker caso a conexão caia inesperadamente.
+                    {mqttTexts.willHint}
                   </p>
                   <div className="flex flex-wrap items-end gap-3">
                     <div className="flex-1 min-w-[200px]">
@@ -341,7 +345,7 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
 
               {section === 'settings' && (
                 <SettingsSection>
-                  <SettingRow title="Client ID" description="Identificador único no broker. Vazio gera um ID automático ao conectar.">
+                  <SettingRow title="Client ID" description={mqttTexts.clientIdHint}>
                     <input
                       spellCheck={false}
                       value={mqtt.clientId}
@@ -350,7 +354,7 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                       className={`${fieldInputClass} w-52 font-mono`}
                     />
                   </SettingRow>
-                  <SettingRow title="Clean Session" description="Inicia uma sessão limpa sem estado anterior armazenado no broker.">
+                  <SettingRow title="Clean Session" description={mqttTexts.cleanSessionHint}>
                     <input
                       type="checkbox"
                       checked={mqtt.cleanSession}
@@ -358,7 +362,7 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                       onChange={(event) => updateMqtt((current) => ({ ...current, cleanSession: event.target.checked }))}
                     />
                   </SettingRow>
-                  <SettingRow title="Keep Alive (segundos)" description="Intervalo de ping para manter a conexão ativa com o broker.">
+                  <SettingRow title={mqttTexts.keepAlive} description={mqttTexts.keepAliveHint}>
                     <input
                       min={5}
                       max={3600}
@@ -382,7 +386,7 @@ const MqttRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
             showEventNames
             events={runtime.events}
             onClear={() => clearRealtimeEvents(tab.id)}
-            emptyHint="Conecte-se ao broker MQTT para acompanhar as mensagens publicadas e recebidas nos tópicos."
+            emptyHint={mqttTexts.emptyHint}
           />
         }
       />

@@ -2,9 +2,7 @@ package main
 
 import (
 	"os"
-	"fmt"
 	"sync"
-	"errors"
 	"context"
 	"strings"
 	"path/filepath"
@@ -12,6 +10,7 @@ import (
 
 	"github.com/blang/semver"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/desktop"
 )
 
@@ -19,6 +18,12 @@ var AppVersion = "1.0.0"
 
 const RepoSlug = "viniggj2005/devops-hub"
 const UpdateAvailableEvent = "app:update-available"
+
+const (
+	UpdateStatusUpToDate  = "up-to-date"
+	UpdateStatusInstalled = "installed"
+	UpdateStatusAvailable = "available"
+)
 
 type App struct {
 	updateMutex     sync.Mutex
@@ -110,10 +115,10 @@ func (app *App) ApplyAvailableUpdate() error {
 	app.updateMutex.Lock()
 	defer app.updateMutex.Unlock()
 	if app.pendingUpdate == nil {
-		return errors.New("nenhuma atualização pendente")
+		return appErrors.New("update.noPendingUpdate", "nenhuma atualização pendente")
 	}
 	if err := applyUpdate(app.pendingUpdate.AssetURL); err != nil {
-		return fmt.Errorf("não foi possível atualizar: %w", err)
+		return appErrors.Wrap("update.applyFailed", "não foi possível atualizar", err)
 	}
 	app.pendingUpdate = nil
 	app.updateInstalled = true
@@ -125,12 +130,12 @@ func (app *App) CheckForUpdates() (string, error) {
 	installed := app.updateInstalled
 	app.updateMutex.Unlock()
 	if installed {
-		return "Atualização já instalada. Reinicie o aplicativo para usar a nova versão.", nil
+		return UpdateStatusInstalled, nil
 	}
 
 	currentVersion, err := semver.ParseTolerant(AppVersion)
 	if err != nil {
-		return "", fmt.Errorf("versão do aplicativo inválida %q: %w", AppVersion, err)
+		return "", appErrors.Wrap("update.invalidAppVersion", "versão do aplicativo inválida {version}", err).With("version", AppVersion)
 	}
 
 	latest, found, err := detectLatestRelease(RepoSlug)
@@ -139,12 +144,12 @@ func (app *App) CheckForUpdates() (string, error) {
 	}
 
 	if !found || latest.Version.LTE(currentVersion) {
-		return "Você já está na versão mais recente.", nil
+		return UpdateStatusUpToDate, nil
 	}
 
 	app.updateMutex.Lock()
 	app.pendingUpdate = latest
 	app.updateMutex.Unlock()
 
-	return "Nova versão disponível: " + latest.Version.String(), nil
+	return UpdateStatusAvailable, nil
 }

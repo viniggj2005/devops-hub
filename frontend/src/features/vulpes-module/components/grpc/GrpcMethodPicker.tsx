@@ -1,3 +1,5 @@
+import { currentDictionary } from '../../../i18n/TranslateError';
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useMemo, useRef, useState } from 'react';
 import { useDismiss } from '../../../shared/hooks/useDismiss';
 import { ChevronDown, Loader2, RefreshCw, Search } from 'lucide-react';
@@ -12,10 +14,11 @@ interface GrpcMethodPickerProps {
 }
 
 export const streamingLabel = (method: GrpcMethod) => {
-  if (method.clientStreaming && method.serverStreaming) return 'bidirecional';
-  if (method.clientStreaming) return 'client stream';
-  if (method.serverStreaming) return 'server stream';
-  return 'unário';
+  const streamingTexts = currentDictionary().vulpes.grpc.streaming;
+  if (method.clientStreaming && method.serverStreaming) return streamingTexts.bidirectional;
+  if (method.clientStreaming) return streamingTexts.client;
+  if (method.serverStreaming) return streamingTexts.server;
+  return streamingTexts.unary;
 };
 
 const shortMethodName = (fullName: string) => {
@@ -25,6 +28,8 @@ const shortMethodName = (fullName: string) => {
 
 const GrpcMethodPicker: React.FC<GrpcMethodPickerProps> = ({ services, selected, loading, onSelect, onReload }) => {
   const [open, setOpen] = useState(false);
+  const { dictionary } = useTranslation();
+  const grpcTexts = dictionary.vulpes.grpc;
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   useDismiss(containerRef, open, () => setOpen(false));
@@ -49,11 +54,11 @@ const GrpcMethodPicker: React.FC<GrpcMethodPickerProps> = ({ services, selected,
       <button
         type="button"
         onClick={toggle}
-        title={selected || 'Selecionar método'}
+        title={selected || grpcTexts.selectMethod}
         className="h-full w-full flex items-center gap-2 px-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-950 text-xs hover:border-amber-500/60 transition-colors"
       >
         <span className={`flex-1 min-w-0 truncate text-left font-mono ${selected ? 'text-gray-800 dark:text-zinc-100' : 'text-gray-400'}`}>
-          {selected ? shortMethodName(selected) : 'Selecionar método'}
+          {selected ? shortMethodName(selected) : grpcTexts.selectMethod}
         </span>
         {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
       </button>
@@ -65,7 +70,7 @@ const GrpcMethodPicker: React.FC<GrpcMethodPickerProps> = ({ services, selected,
               <input
                 autoFocus
                 value={search}
-                placeholder="Buscar método"
+                placeholder={grpcTexts.searchMethod}
                 onChange={(event) => setSearch(event.target.value)}
                 className="w-full rounded-md bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-white/10 pl-7 pr-2 py-1.5 text-xs focus:outline-none focus:border-amber-500"
               />
@@ -74,16 +79,16 @@ const GrpcMethodPicker: React.FC<GrpcMethodPickerProps> = ({ services, selected,
               type="button"
               onClick={onReload}
               disabled={loading}
-              title="Recarregar serviços"
+              title={grpcTexts.reloadServices}
               className="p-1.5 rounded-md text-gray-500 hover:text-amber-500 hover:bg-amber-500/10 disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
           <div className="flex-1 overflow-auto py-1">
-            {services === null && <p className="p-4 text-xs text-gray-500 dark:text-zinc-400">{loading ? 'Carregando serviços…' : 'Clique em recarregar para buscar os serviços.'}</p>}
+            {services === null && <p className="p-4 text-xs text-gray-500 dark:text-zinc-400">{loading ? grpcTexts.loadingServices : grpcTexts.clickReload}</p>}
             {services !== null && filteredServices.length === 0 && (
-              <p className="p-4 text-xs text-gray-500 dark:text-zinc-400">Nenhum método encontrado.</p>
+              <p className="p-4 text-xs text-gray-500 dark:text-zinc-400">{grpcTexts.noMethods}</p>
             )}
             {filteredServices.map((service) => (
               <div key={service.name}>

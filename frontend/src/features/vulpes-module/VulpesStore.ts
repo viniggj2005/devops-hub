@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { currentDictionary } from '../i18n/TranslateError';
 import type { SplitDropZone } from '../../interfaces/SplitInterfaces';
 import { cloneRequest, createRequest, generateId } from './functions/RequestDefaults';
 import { maxSplitPanes, splitDropZoneLayouts } from '../shared/constants/SplitDropZones';
@@ -237,7 +238,7 @@ export const useVulpesStore = create<VulpesState>((set, get) => ({
     const tab: RequestTab = {
       id: generateId(),
       kind: 'request',
-      name: 'Nova requisição',
+      name: currentDictionary().vulpes.common.newRequest,
       dirty: false,
       itemId: null,
       request: createRequest(protocol),

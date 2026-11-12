@@ -2,11 +2,11 @@ package vulpesFunctions
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"docker-manager-go/src/appErrors"
 )
 
 const (
@@ -45,22 +45,22 @@ type EngineOpenPayload struct {
 
 func ParseSocketIoPacket(text string) (SocketIoPacket, error) {
 	if text == "" {
-		return SocketIoPacket{}, errors.New("pacote Socket.IO vazio")
+		return SocketIoPacket{}, appErrors.New("vulpes.socketIoEmptyPacket", "pacote Socket.IO vazio")
 	}
 	packet := SocketIoPacket{Type: int(text[0]) - '0', Namespace: "/"}
 	if packet.Type < SocketConnect || packet.Type > SocketBinaryAck {
-		return SocketIoPacket{}, fmt.Errorf("tipo de pacote Socket.IO desconhecido: %q", text[0])
+		return SocketIoPacket{}, appErrors.New("vulpes.socketIoUnknownPacket", "tipo de pacote Socket.IO desconhecido: {type}").With("type", string(text[0]))
 	}
 
 	position := 1
 	if packet.Type == SocketBinaryEvent || packet.Type == SocketBinaryAck {
 		separator := strings.IndexByte(text[position:], '-')
 		if separator < 0 {
-			return SocketIoPacket{}, errors.New("pacote binário Socket.IO sem contagem de anexos")
+			return SocketIoPacket{}, appErrors.New("vulpes.socketIoMissingAttachments", "pacote binário Socket.IO sem contagem de anexos")
 		}
 		attachments, err := strconv.Atoi(text[position : position+separator])
 		if err != nil {
-			return SocketIoPacket{}, fmt.Errorf("contagem de anexos inválida: %w", err)
+			return SocketIoPacket{}, appErrors.Wrap("vulpes.socketIoInvalidAttachments", "contagem de anexos inválida", err)
 		}
 		packet.Attachments = attachments
 		position += separator + 1
@@ -84,7 +84,7 @@ func ParseSocketIoPacket(text string) (SocketIoPacket, error) {
 	if position > digitsStart {
 		ackID, err := strconv.ParseInt(text[digitsStart:position], 10, 64)
 		if err != nil {
-			return SocketIoPacket{}, fmt.Errorf("id de ack inválido: %w", err)
+			return SocketIoPacket{}, appErrors.Wrap("vulpes.socketIoInvalidAck", "id de ack inválido", err)
 		}
 		packet.AckID, packet.HasAckID = ackID, true
 	}
@@ -92,7 +92,7 @@ func ParseSocketIoPacket(text string) (SocketIoPacket, error) {
 	if position < len(text) {
 		payload := json.RawMessage(text[position:])
 		if !json.Valid(payload) {
-			return SocketIoPacket{}, errors.New("pacote Socket.IO com JSON inválido")
+			return SocketIoPacket{}, appErrors.New("vulpes.socketIoInvalidJson", "pacote Socket.IO com JSON inválido")
 		}
 		packet.Data = payload
 	}
@@ -134,7 +134,7 @@ func SocketIoArguments(arguments []string) []json.RawMessage {
 
 func SocketIoEventPayload(event string, arguments []json.RawMessage) (json.RawMessage, error) {
 	if strings.TrimSpace(event) == "" {
-		return nil, errors.New("informe o nome do evento")
+		return nil, appErrors.New("vulpes.socketIoEventRequired", "informe o nome do evento")
 	}
 	payload := append([]json.RawMessage{}, mustMarshal(event))
 	payload = append(payload, arguments...)
@@ -179,7 +179,7 @@ func SocketIoEndpoint(rawUrl string, path string, namespace string, version stri
 	case "https", "wss":
 		parsed.Scheme = "wss"
 	default:
-		return "", "", fmt.Errorf("protocolo %q não suportado pelo Socket.IO", parsed.Scheme)
+		return "", "", appErrors.New("vulpes.unsupportedSocketIoScheme", "protocolo \"{scheme}\" não suportado pelo Socket.IO").With("scheme", parsed.Scheme)
 	}
 
 	resolvedNamespace := strings.TrimSpace(namespace)

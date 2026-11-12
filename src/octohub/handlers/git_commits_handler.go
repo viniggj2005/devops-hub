@@ -3,11 +3,11 @@ package octohubHandler
 import (
 	"fmt"
 	"bufio"
-	"errors"
 	"slices"
 	"context"
 	"strconv"
 	"strings"
+	"docker-manager-go/src/appErrors"
 	octohubStructs "docker-manager-go/src/octohub/structs"
 )
 
@@ -69,7 +69,7 @@ func (handlerStruct *GitCommitsHandler) GetCommitedFileChanges(ctx context.Conte
 	out, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		if handlerStruct.gitHandler.appContext.Err() == context.DeadlineExceeded {
-			return "", fmt.Errorf("o comando git expirou")
+			return "", appErrors.New("octohub.gitTimeout", "o comando git expirou")
 		}
 		return "", err
 	}
@@ -180,17 +180,17 @@ func (handlerStruct *GitCommitsHandler) GetUncommitedFileChanges(ctx context.Con
 func (handlerStruct *GitCommitsHandler) Commit(ctx context.Context, request octohubStructs.CommitRequest) (string, error) {
 	summary := strings.TrimSpace(request.Summary)
 	if summary == "" {
-		return "", fmt.Errorf("informe um resumo para o commit")
+		return "", appErrors.New("octohub.commitSummaryRequired", "informe um resumo para o commit")
 	}
 	if len(request.Files) == 0 {
-		return "", fmt.Errorf("selecione ao menos uma alteração para o commit")
+		return "", appErrors.New("octohub.commitChangesRequired", "selecione ao menos uma alteração para o commit")
 	}
 
 	var fullPaths []string
 	var patches []string
 	for _, file := range request.Files {
 		if file.Kind == octohubStructs.FileKindConflicted {
-			return "", fmt.Errorf("resolva o conflito em %s antes de fazer o commit", file.FileName)
+			return "", appErrors.New("octohub.resolveConflictBeforeCommit", "resolva o conflito em {file} antes de fazer o commit").With("file", file.FileName)
 		}
 		if file.All {
 			fullPaths = append(fullPaths, file.FileName)
@@ -209,11 +209,11 @@ func (handlerStruct *GitCommitsHandler) Commit(ctx context.Context, request octo
 			return "", err
 		}
 		if hashDiff(diff) != file.DiffHash {
-			return "", fmt.Errorf("o arquivo %s mudou depois que as linhas foram selecionadas, revise a seleção", file.FileName)
+			return "", appErrors.New("octohub.selectionOutdated", "o arquivo {file} mudou depois que as linhas foram selecionadas, revise a seleção").With("file", file.FileName)
 		}
 		patch, err := buildPartialPatch(diff, file.Lines)
 		if err != nil {
-			return "", fmt.Errorf("erro ao montar as linhas de %s: %w", file.FileName, err)
+			return "", appErrors.Wrap("octohub.buildLinesFailed", "erro ao montar as linhas de {file}", err).With("file", file.FileName)
 		}
 		if patch != "" {
 			patches = append(patches, patch)
@@ -224,14 +224,14 @@ func (handlerStruct *GitCommitsHandler) Commit(ctx context.Context, request octo
 		handlerStruct.gitHandler.runGitCommand(ctx, []string{"reset", "-q", "--", "."})
 	}
 	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"reset", "-q", "--", "."}); err != nil {
-		return "", fmt.Errorf("erro ao preparar o commit: %w", err)
+		return "", appErrors.Wrap("octohub.prepareCommitFailed", "erro ao preparar o commit", err)
 	}
 
 	for _, patch := range patches {
 		args := []string{"apply", "--cached", "--unidiff-zero", "--whitespace=nowarn", "-"}
 		if _, err := handlerStruct.gitHandler.runGitCommandWithInput(ctx, args, patch); err != nil {
 			resetIndex()
-			return "", fmt.Errorf("erro ao aplicar as linhas selecionadas: %w", err)
+			return "", appErrors.Wrap("octohub.applyLinesFailed", "erro ao aplicar as linhas selecionadas", err)
 		}
 	}
 
@@ -239,7 +239,7 @@ func (handlerStruct *GitCommitsHandler) Commit(ctx context.Context, request octo
 		args := []string{"--literal-pathspecs", "add", "-A", "--force", "--pathspec-from-file=-", "--pathspec-file-nul"}
 		if _, err := handlerStruct.gitHandler.runGitCommandWithInput(ctx, args, strings.Join(fullPaths, "\x00")); err != nil {
 			resetIndex()
-			return "", fmt.Errorf("erro ao adicionar arquivos ao commit: %w", err)
+			return "", appErrors.Wrap("octohub.stageFilesFailed", "erro ao adicionar arquivos ao commit", err)
 		}
 	}
 
@@ -249,7 +249,7 @@ func (handlerStruct *GitCommitsHandler) Commit(ctx context.Context, request octo
 	}
 	if _, err := handlerStruct.gitHandler.runGitCommandWithInput(ctx, []string{"commit", "-F", "-"}, message); err != nil {
 		resetIndex()
-		return "", fmt.Errorf("erro ao criar o commit: %w", err)
+		return "", appErrors.Wrap("octohub.createCommitFailed", "erro ao criar o commit", err)
 	}
 
 	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "HEAD"})
@@ -334,20 +334,20 @@ func (handlerStruct *GitCommitsHandler) UndoLastCommit(ctx context.Context) (*oc
 		return nil, err
 	}
 	if undoableCommit == nil {
-		return nil, errors.New("não há commit local pendente de envio para cancelar")
+		return nil, appErrors.New("octohub.noLocalCommitToUndo", "não há commit local pendente de envio para cancelar")
 	}
 
 	if parentOut, parentErr := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--verify", "-q", "HEAD^"}); parentErr == nil {
 		parentHash := strings.TrimSpace(string(parentOut))
 		if _, resetErr := handlerStruct.gitHandler.runGitCommand(ctx, []string{"reset", "--mixed", "HEAD^"}); resetErr != nil {
-			return nil, fmt.Errorf("erro ao cancelar o último commit: %w", resetErr)
+			return nil, appErrors.Wrap("octohub.undoCommitFailed", "erro ao cancelar o último commit", resetErr)
 		}
 		handlerStruct.gitHandler.markCommitUndone(ctx, undoableCommit.Hash, parentHash)
 		return undoableCommit, nil
 	}
 
 	if _, refErr := handlerStruct.gitHandler.runGitCommand(ctx, []string{"update-ref", "-d", "HEAD"}); refErr != nil {
-		return nil, fmt.Errorf("erro ao cancelar o commit inicial: %w", refErr)
+		return nil, appErrors.Wrap("octohub.undoInitialCommitFailed", "erro ao cancelar o commit inicial", refErr)
 	}
 	_, _ = handlerStruct.gitHandler.runGitCommand(ctx, []string{"rm", "-rf", "--cached", "--ignore-unmatch", "--", "."})
 	handlerStruct.gitHandler.markCommitUndone(ctx, undoableCommit.Hash, "")
@@ -361,7 +361,7 @@ func (handlerStruct *GitCommitsHandler) ListCommits(ctx context.Context, page in
 
 func validateCompareBranch(branch string) error {
 	if strings.TrimSpace(branch) == "" || strings.HasPrefix(branch, "-") || strings.Contains(branch, "..") {
-		return fmt.Errorf("branch inválida para comparação: %q", branch)
+		return appErrors.New("octohub.invalidCompareBranch", "branch inválida para comparação: \"{branch}\"").With("branch", branch)
 	}
 	return nil
 }
@@ -390,7 +390,7 @@ func (handlerStruct *GitCommitsHandler) CompareBranch(ctx context.Context, branc
 	}
 	counts := strings.Fields(string(out))
 	if len(counts) != 2 {
-		return comparison, fmt.Errorf("resposta inesperada do git ao comparar com %s", branch)
+		return comparison, appErrors.New("octohub.unexpectedCompareOutput", "resposta inesperada do git ao comparar com {branch}").With("branch", branch)
 	}
 	comparison.Ahead, _ = strconv.Atoi(counts[0])
 	comparison.Behind, _ = strconv.Atoi(counts[1])

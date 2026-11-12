@@ -2,6 +2,7 @@ package dockerHandlers
 
 import (
 	"context"
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/desktop"
 	dockerDtos "docker-manager-go/src/dockermanager/dtos"
 	dockerFunctions "docker-manager-go/src/dockermanager/functions"
@@ -270,12 +271,12 @@ func (handlerStruct *DockerSdkHandlerStruct) TerminalWrite(ctx context.Context, 
 	handlerStruct.mutex.Unlock()
 
 	if !ok {
-		return fmt.Errorf("conexão terminal não encontrada para container %s", containerId)
+		return appErrors.New("docker.terminalNotFound", "conexão terminal não encontrada para container {container}").With("container", containerId)
 	}
 
 	_, err := connection.Write([]byte(data))
 	if err != nil {
-		return fmt.Errorf("erro ao escrever terminal: %w", err)
+		return appErrors.Wrap("docker.terminalWriteFailed", "erro ao escrever terminal", err)
 	}
 	return nil
 }
@@ -288,7 +289,7 @@ func (handlerStruct *DockerSdkHandlerStruct) TerminalResize(ctx context.Context,
 	handlerStruct.mutex.Unlock()
 
 	if !ok {
-		return fmt.Errorf("exec ID não encontrado para container %s", containerId)
+		return appErrors.New("docker.execNotFound", "exec ID não encontrado para container {container}").With("container", containerId)
 	}
 
 	dockerClient, clientContext, err := handlerStruct.catchClient(clientId)

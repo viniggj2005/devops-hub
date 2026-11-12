@@ -4,6 +4,7 @@ import { VsCodeIcon } from '../../shared/Icons';
 import { useNavigate } from 'react-router-dom';
 import { copyToClipboard } from '../../shared/functions/clipboard';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
+import { useTranslation } from '../../i18n/useTranslation';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import type { ContextMenuEntry } from '../../shared/components/menus/ContextMenu';
 import * as octohubDtos from '../../../../bindings/docker-manager-go/src/octohub/dtos/models';
@@ -28,7 +29,10 @@ export interface RepositoryMenuState {
 
 export function useRepositoryContextMenu(onBeforeAction?: () => void) {
     const navigate = useNavigate();
+    const { dictionary } = useTranslation();
     const { selectRepository, removeRepository } = useOctohubRepository();
+    const menuTexts = dictionary.octohub.repositoryMenu;
+    const commonTexts = dictionary.octohub.common;
     const [menu, setMenu] = useState<RepositoryMenuState | null>(null);
 
     const openMenu = (event: React.MouseEvent, repository: octohubDtos.RepositoryDto) => {
@@ -61,7 +65,7 @@ export function useRepositoryContextMenu(onBeforeAction?: () => void) {
             {
                 disabled: !exists,
                 icon: GitCommitHorizontal,
-                label: 'Abrir alterações',
+                label: menuTexts.openChanges,
                 onClick: () =>
                     withSelectedRepository(targetRepository, async () => {
                         navigate('/octohub/history');
@@ -69,7 +73,7 @@ export function useRepositoryContextMenu(onBeforeAction?: () => void) {
             },
             {
                 icon: Check,
-                label: 'Selecionar como atual',
+                label: menuTexts.selectAsCurrent,
                 disabled: !exists || targetRepository.isCurrent,
                 onClick: () => {
                     onBeforeAction?.();
@@ -80,38 +84,38 @@ export function useRepositoryContextMenu(onBeforeAction?: () => void) {
             {
                 disabled: !exists,
                 icon: VsCodeIcon,
-                label: 'Abrir no VS Code',
+                label: commonTexts.openInVsCode,
                 onClick: () =>
                     withSelectedRepository(targetRepository, () => OpenRepositoryInEditor()),
             },
             {
                 disabled: !exists,
                 icon: FolderSearch,
-                label: 'Mostrar no Explorer',
+                label: commonTexts.showInExplorer,
                 onClick: () =>
                     withSelectedRepository(targetRepository, () => RevealInExplorer('.')),
             },
             'separator',
             {
                 icon: ClipboardCopy,
-                label: 'Copiar caminho da pasta',
+                label: menuTexts.copyFolderPath,
                 onClick: () => {
                     onBeforeAction?.();
-                    copyToClipboard(targetRepository.path, 'Caminho copiado.');
+                    copyToClipboard(targetRepository.path, commonTexts.pathCopied);
                 },
             },
             {
                 icon: Copy,
-                label: 'Copiar nome do repositório',
+                label: menuTexts.copyName,
                 onClick: () => {
                     onBeforeAction?.();
-                    copyToClipboard(targetRepository.name, 'Nome copiado.');
+                    copyToClipboard(targetRepository.name, menuTexts.nameCopied);
                 },
             },
             'separator',
             {
                 icon: Trash2,
-                label: 'Remover da lista',
+                label: commonTexts.removeFromList,
                 onClick: () => {
                     onBeforeAction?.();
                     removeRepository(targetRepository);

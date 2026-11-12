@@ -2,6 +2,8 @@ import toast from 'react-hot-toast';
 import AuthEditor from '../editors/AuthEditor';
 import SectionTabs from '../editors/SectionTabs';
 import { Loader2, Settings2 } from 'lucide-react';
+import VariableShortcutHint from '../editors/VariableShortcutHint';
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useEffect, useState } from 'react';
 import ScriptsPanel from '../request/ScriptsPanel';
 import VariablesTable from '../editors/VariablesTable';
@@ -24,6 +26,8 @@ interface CollectionSettingsModalProps {
 
 const CollectionSettingsModal: React.FC<CollectionSettingsModalProps> = ({ target, onClose }) => {
   const [saving, setSaving] = useState(false);
+  const { dictionary } = useTranslation();
+  const settingsTexts = dictionary.vulpes.collectionSettings;
   const [description, setDescription] = useState('');
   const [variables, setVariables] = useState<Variable[]>([]);
   const [auth, setAuth] = useState<Auth>(emptyAuth('none'));
@@ -46,7 +50,7 @@ const CollectionSettingsModal: React.FC<CollectionSettingsModalProps> = ({ targe
     try {
       if (target.item) await collectionActions.saveItem(target.collection.id, { ...target.item, auth, description });
       else await collectionActions.updateCollection(target.collection, { auth, variables, description });
-      toast.success('Configurações salvas');
+      toast.success(settingsTexts.saved);
       onClose();
     } catch (error) {
       toast.error(errorMessage(error));
@@ -61,16 +65,16 @@ const CollectionSettingsModal: React.FC<CollectionSettingsModalProps> = ({ targe
       onClose={onClose}
       isOpen={Boolean(target)}
       description={folder?.name ?? target?.collection.name}
-      title={folder ? 'Configurações da pasta' : 'Configurações da coleção'}
+      title={folder ? settingsTexts.folderTitle : settingsTexts.collectionTitle}
       icon={<Settings2 className="w-4 h-4 text-amber-500" />}
       footer={
         <>
           <button type="button" onClick={onClose} className={secondaryButtonClass}>
-            Cancelar
+            {dictionary.app.common.cancel}
           </button>
           <button type="button" onClick={save} disabled={saving} className={primaryButtonClass}>
             {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            Salvar
+            {dictionary.vulpes.common.save}
           </button>
         </>
       }
@@ -84,9 +88,9 @@ const CollectionSettingsModal: React.FC<CollectionSettingsModalProps> = ({ targe
             active={section}
             onChange={setSection}
             tabs={[
-              { key: 'variables', label: 'Variáveis', hidden: Boolean(folder), count: variables.length },
-              { key: 'auth', label: 'Autorização' },
-              { key: 'description', label: 'Descrição' },
+              { key: 'variables', label: settingsTexts.variables, hidden: Boolean(folder), count: variables.length },
+              { key: 'auth', label: dictionary.vulpes.request.authorization },
+              { key: 'description', label: dictionary.vulpes.common.description },
               { key: 'scripts', label: 'Scripts', hidden: scripts.length === 0 },
             ]}
           />
@@ -95,7 +99,7 @@ const CollectionSettingsModal: React.FC<CollectionSettingsModalProps> = ({ targe
           <div className="space-y-2">
             <VariablesTable variables={variables} onChange={setVariables} />
             <p className="text-[11px] text-gray-400 dark:text-zinc-500">
-              Use como {'{{nome}}'} em qualquer requisição da coleção. Você também pode pressionar <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 font-mono text-[10px]">Ctrl+Espaço</kbd> ou <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 font-mono text-[10px]">Ctrl+/</kbd> no valor para vincular o resultado de outra requisição.
+              <VariableShortcutHint template={settingsTexts.variablesHint} />
             </p>
           </div>
         )}
@@ -109,7 +113,7 @@ const CollectionSettingsModal: React.FC<CollectionSettingsModalProps> = ({ targe
         )}
         {section === 'description' && (
           <div>
-            <label className={fieldLabelClass}>Descrição (Markdown)</label>
+            <label className={fieldLabelClass}>{settingsTexts.markdownDescription}</label>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}

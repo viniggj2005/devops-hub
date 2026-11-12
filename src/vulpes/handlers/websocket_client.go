@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/coder/websocket"
 
+	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 	vulpesFunctions "docker-manager-go/src/vulpes/functions"
 )
@@ -44,7 +44,7 @@ func (handlerStruct *VulpesClientHandlerStruct) dialRealtime(callContext context
 	})
 	if err != nil {
 		if response != nil && response.StatusCode != http.StatusSwitchingProtocols {
-			return nil, fmt.Errorf("o servidor recusou a conexão com %s", response.Status)
+			return nil, appErrors.New("vulpes.websocketRefused", "o servidor recusou a conexão com {status}").With("status", response.Status)
 		}
 		return nil, describeRequestError(err, dialContext)
 	}
@@ -64,7 +64,7 @@ func realtimeEndpoint(rawUrl string, defaultScheme string, authQuery []vulpesDto
 	case "wss", "https":
 		endpoint = "wss://" + rest
 	default:
-		return "", fmt.Errorf("protocolo %q não suportado; use ws:// ou wss://", scheme)
+		return "", appErrors.New("vulpes.unsupportedWebsocketScheme", "protocolo \"{scheme}\" não suportado; use ws:// ou wss://").With("scheme", scheme)
 	}
 	return vulpesFunctions.AppendQuery(endpoint, authQuery), nil
 }
@@ -85,7 +85,7 @@ func (handlerStruct *VulpesClientHandlerStruct) ConnectWebSocket(callContext con
 		return nil, err
 	}
 	if plan.request.WebSocket == nil {
-		return nil, errors.New("a requisição não é WebSocket")
+		return nil, appErrors.New("vulpes.requestNotWebsocket", "a requisição não é WebSocket")
 	}
 	webSocketRequest := plan.resolver.ResolveWebSocketRequest(*plan.request.WebSocket)
 	if err := plan.resolver.TakeError(); err != nil {
@@ -140,12 +140,12 @@ func (handlerStruct *VulpesClientHandlerStruct) SendWebSocketMessage(callContext
 	switch input.Kind {
 	case "json":
 		if !json.Valid(payload) {
-			return errors.New("a mensagem não é um JSON válido")
+			return appErrors.New("vulpes.messageInvalidJson", "a mensagem não é um JSON válido")
 		}
 	case "binary":
 		decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(data))
 		if err != nil {
-			return errors.New("mensagens binárias precisam estar em base64")
+			return appErrors.New("vulpes.binaryMessageNotBase64", "mensagens binárias precisam estar em base64")
 		}
 		messageType, payload, encoding = websocket.MessageBinary, decoded, vulpesDtos.EncodingBase64
 	}
@@ -153,7 +153,7 @@ func (handlerStruct *VulpesClientHandlerStruct) SendWebSocketMessage(callContext
 	writeContext, cancel := context.WithTimeout(callContext, writeTimeout)
 	defer cancel()
 	if err := session.connection.Write(writeContext, messageType, payload); err != nil {
-		return fmt.Errorf("não foi possível enviar a mensagem: %w", err)
+		return appErrors.Wrap("vulpes.websocketSendFailed", "não foi possível enviar a mensagem", err)
 	}
 	session.emit(vulpesDtos.RealtimeEventDto{
 		Kind:      vulpesDtos.RealtimeMessage,
@@ -202,18 +202,18 @@ func (session *webSocketSession) close() {
 
 func emitRealtimeClosure(emit func(vulpesDtos.RealtimeEventDto), err error, closedByClient bool) {
 	if closedByClient {
-		emit(vulpesDtos.RealtimeEventDto{Kind: vulpesDtos.RealtimeClosed, Data: "Desconectado", Direction: vulpesDtos.DirectionSystem})
+		emit(systemEvent(vulpesDtos.RealtimeClosed, appErrors.New("vulpes.realtimeDisconnected", "Desconectado")))
 		return
 	}
 	var closeError websocket.CloseError
 	if errors.As(err, &closeError) {
-		message := fmt.Sprintf("Conexão encerrada pelo servidor (código %d)", closeError.Code)
+		closedMessage := appErrors.New("vulpes.realtimeClosedWithCode", "Conexão encerrada pelo servidor (código {code})").With("code", int(closeError.Code))
 		if closeError.Reason != "" {
-			message += ": " + closeError.Reason
+			closedMessage = appErrors.Wrap(closedMessage.Code, closedMessage.Message, errors.New(closeError.Reason)).With("code", int(closeError.Code))
 		}
-		emit(vulpesDtos.RealtimeEventDto{Kind: vulpesDtos.RealtimeClosed, Data: message, Direction: vulpesDtos.DirectionSystem})
+		emit(systemEvent(vulpesDtos.RealtimeClosed, closedMessage))
 		return
 	}
-	emit(vulpesDtos.RealtimeEventDto{Kind: vulpesDtos.RealtimeError, Data: err.Error(), Direction: vulpesDtos.DirectionSystem})
-	emit(vulpesDtos.RealtimeEventDto{Kind: vulpesDtos.RealtimeClosed, Data: "Conexão perdida", Direction: vulpesDtos.DirectionSystem})
+	emit(errorEvent(err))
+	emit(systemEvent(vulpesDtos.RealtimeClosed, appErrors.New("vulpes.realtimeConnectionLost", "Conexão perdida")))
 }

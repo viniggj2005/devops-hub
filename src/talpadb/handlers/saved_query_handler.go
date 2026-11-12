@@ -1,7 +1,6 @@
 package talpadbHandlers
 
 import (
-	"fmt"
 	"time"
 	"errors"
 	"strings"
@@ -9,6 +8,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/models"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 )
@@ -60,7 +60,7 @@ func (handlerStruct *TalpadbHandlerStruct) ListSavedQueries(token string, connec
 	}
 
 	if err := query.Order("updated_at DESC, name ASC, id DESC").Find(&records).Error; err != nil {
-		return nil, fmt.Errorf("erro ao listar queries salvas: %w", err)
+		return nil, appErrors.Wrap("talpadb.listSavedQueriesFailed", "erro ao listar queries salvas", err)
 	}
 
 	results := make([]talpadbDtos.SavedQueryDto, len(records))
@@ -81,10 +81,10 @@ func (handlerStruct *TalpadbHandlerStruct) SaveQuery(token string, input talpadb
 
 	trimmedName := strings.TrimSpace(input.Name)
 	if trimmedName == "" {
-		return nil, errors.New("informe um nome para salvar a query")
+		return nil, appErrors.New("talpadb.savedQueryNameRequired", "informe um nome para salvar a query")
 	}
 	if len(input.Sql) > maxSavedQueryBytes {
-		return nil, errors.New("a query SQL é grande demais para ser salva")
+		return nil, appErrors.New("talpadb.savedQueryTooLarge", "a query SQL é grande demais para ser salva")
 	}
 
 	variablesSlice := input.Variables
@@ -93,10 +93,10 @@ func (handlerStruct *TalpadbHandlerStruct) SaveQuery(token string, input talpadb
 	}
 	encodedVariables, err := json.Marshal(variablesSlice)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao serializar variáveis da query: %w", err)
+		return nil, appErrors.Wrap("talpadb.serializeVariablesFailed", "erro ao serializar variáveis da query", err)
 	}
 	if len(encodedVariables) > maxSavedQueryBytes {
-		return nil, errors.New("as variáveis da query são grandes demais para serem salvas")
+		return nil, appErrors.New("talpadb.savedQueryVariablesTooLarge", "as variáveis da query são grandes demais para serem salvas")
 	}
 
 	trimmedDatabase := strings.TrimSpace(input.DatabaseName)
@@ -112,7 +112,7 @@ func (handlerStruct *TalpadbHandlerStruct) SaveQuery(token string, input talpadb
 		if lookupError == nil {
 			foundExisting = true
 		} else if !errors.Is(lookupError, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("erro ao buscar query salva: %w", lookupError)
+			return nil, appErrors.Wrap("talpadb.findSavedQueryFailed", "erro ao buscar query salva", lookupError)
 		}
 	}
 
@@ -123,7 +123,7 @@ func (handlerStruct *TalpadbHandlerStruct) SaveQuery(token string, input talpadb
 		if lookupByNameError == nil {
 			foundExisting = true
 		} else if !errors.Is(lookupByNameError, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("erro ao verificar nome da query salva: %w", lookupByNameError)
+			return nil, appErrors.Wrap("talpadb.checkSavedQueryNameFailed", "erro ao verificar nome da query salva", lookupByNameError)
 		}
 	}
 
@@ -135,7 +135,7 @@ func (handlerStruct *TalpadbHandlerStruct) SaveQuery(token string, input talpadb
 		existingRecord.Variables = string(encodedVariables)
 
 		if err := databaseSession.Save(&existingRecord).Error; err != nil {
-			return nil, fmt.Errorf("erro ao atualizar query salva: %w", err)
+			return nil, appErrors.Wrap("talpadb.updateSavedQueryFailed", "erro ao atualizar query salva", err)
 		}
 		dto := toSavedQueryDto(existingRecord)
 		return &dto, nil
@@ -150,7 +150,7 @@ func (handlerStruct *TalpadbHandlerStruct) SaveQuery(token string, input talpadb
 		Variables:    string(encodedVariables),
 	}
 	if err := databaseSession.Create(&newRecord).Error; err != nil {
-		return nil, fmt.Errorf("erro ao salvar query: %w", err)
+		return nil, appErrors.Wrap("talpadb.saveQueryFailed", "erro ao salvar query", err)
 	}
 
 	dto := toSavedQueryDto(newRecord)
@@ -167,10 +167,10 @@ func (handlerStruct *TalpadbHandlerStruct) DeleteSavedQuery(token string, id uin
 		Where("id = ? AND user_id = ?", id, userID).
 		Delete(&models.TalpadbSavedQueryModel{})
 	if result.Error != nil {
-		return fmt.Errorf("erro ao excluir query salva: %w", result.Error)
+		return appErrors.Wrap("talpadb.deleteSavedQueryFailed", "erro ao excluir query salva", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return errors.New("query salva não encontrada")
+		return appErrors.New("talpadb.savedQueryNotFound", "query salva não encontrada")
 	}
 	return nil
 }

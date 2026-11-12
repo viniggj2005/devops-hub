@@ -3,6 +3,7 @@ import DiagramTab from './diagram/DiagramTab';
 import { tabIcons } from './constants/TabIcons';
 import { useTalpadbStore } from '../TalpadbStore';
 import { useAppStore } from '../../appFrame/AppStore';
+import { useTranslation } from '../../i18n/useTranslation';
 import ObjectExplorer from './explorer/ObjectExplorer';
 import EmptyWorkspace from './components/EmptyWorkspace';
 import WorkspaceTabBar from './components/WorkspaceTabBar';
@@ -53,6 +54,8 @@ const renderTab = (tab: WorkspaceTab, focused: boolean, visible: boolean) => {
 
 const WorkspacePage: React.FC = () => {
   const { closePane } = useCloseWorkspaceTabs();
+  const { dictionary } = useTranslation();
+  const workspaceTexts = dictionary.talpadb.workspace;
   const contentRef = useRef<HTMLDivElement>(null);
   const [explorer, setExplorer] = useState<ExplorerLayout>(readExplorerLayout);
   const [groupRatios, setGroupRatios] = useState<Record<string, { signature: string; ratios: SplitRatios }>>({});
@@ -142,7 +145,7 @@ const WorkspacePage: React.FC = () => {
         </span>
         <button
           type="button"
-          title="Separar em uma nova aba"
+          title={workspaceTexts.detachPane}
           onClick={() => detachPane(tab.id)}
           className="rounded p-1 hover:bg-black/5 dark:hover:bg-white/10 hover:text-gray-800 dark:hover:text-white"
         >
@@ -150,7 +153,7 @@ const WorkspacePage: React.FC = () => {
         </button>
         <button
           type="button"
-          title="Fechar este painel"
+          title={workspaceTexts.closePane}
           onClick={() => closePane(tab)}
           className="rounded p-1 hover:bg-rose-500/15 hover:text-rose-500"
         >
@@ -166,7 +169,7 @@ const WorkspacePage: React.FC = () => {
         <aside className="w-11 flex-shrink-0 flex flex-col items-center py-2 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-white/5 shadow-lg">
           <button
             onClick={toggleExplorer}
-            title="Mostrar explorador (Ctrl+B)"
+            title={workspaceTexts.showExplorer}
             className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
           >
             <PanelLeftOpen className="w-4 h-4" />
@@ -183,7 +186,7 @@ const WorkspacePage: React.FC = () => {
           <div
             onMouseDown={startExplorerResize}
             onDoubleClick={toggleExplorer}
-            title="Arraste para redimensionar · duplo clique recolhe"
+            title={workspaceTexts.resizeHint}
             className="w-3 flex-shrink-0 cursor-col-resize group flex items-center justify-center"
           >
             <div className="h-10 w-1 rounded-full bg-gray-300/70 dark:bg-white/10 group-hover:bg-cyan-500/60 transition-colors" />
@@ -246,7 +249,7 @@ const WorkspacePage: React.FC = () => {
           {isDraggingOtherGroup && activeGroup && draggedGroup && (
             <SnapOverlay
               accent="cyan"
-              itemNoun="painéis"
+              itemNoun={workspaceTexts.panesNoun}
               resultingCount={resultingCount}
               onCancel={() => setDraggingGroup(null)}
               canDrop={resultingCount <= maxSplitPanes}

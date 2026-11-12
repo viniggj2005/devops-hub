@@ -1,3 +1,4 @@
+import type { Dictionary } from '../../i18n/Languages';
 import { MySQL, PLSQL, PostgreSQL, SQLite, type SQLDialect } from '@codemirror/lang-sql';
 import type {
   RunMode,
@@ -10,7 +11,7 @@ export interface EngineInfo {
   label: string;
   dialect: SQLDialect;
   badgeClass: string;
-  sslModes: { value: string; label: string }[];
+  sslModes: { value: string; descriptionKey: keyof Dictionary['talpadb']['sslModes'] }[];
   columnTypes: string[];
   defaultPort: number;
   defaultSslMode: string;
@@ -34,10 +35,10 @@ export const DATABASE_ENGINES: Record<DatabaseEngine, EngineInfo> = {
     dialect: PostgreSQL,
     badgeClass: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
     sslModes: [
-      { value: 'disable', label: 'disable — sem SSL' },
-      { value: 'prefer', label: 'prefer — usa SSL se disponível' },
-      { value: 'require', label: 'require — exige SSL' },
-      { value: 'verify-full', label: 'verify-full — SSL + validação do certificado' },
+      { value: 'disable', descriptionKey: 'disable' },
+      { value: 'prefer', descriptionKey: 'prefer' },
+      { value: 'require', descriptionKey: 'require' },
+      { value: 'verify-full', descriptionKey: 'verifyFull' },
     ],
     columnTypes: [
       'text', 'uuid', 'date', 'json', 'jsonb', 'bytea', 'serial', 'bigint', 'integer', 'boolean', 'smallint',
@@ -63,10 +64,10 @@ export const DATABASE_ENGINES: Record<DatabaseEngine, EngineInfo> = {
     dialect: MySQL,
     badgeClass: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
     sslModes: [
-      { value: 'disable', label: 'disable — sem SSL' },
-      { value: 'prefer', label: 'prefer — usa SSL se disponível' },
-      { value: 'require', label: 'require — exige SSL (sem validar certificado)' },
-      { value: 'verify-full', label: 'verify-full — SSL + validação do certificado' },
+      { value: 'disable', descriptionKey: 'disable' },
+      { value: 'prefer', descriptionKey: 'prefer' },
+      { value: 'require', descriptionKey: 'requireNoVerify' },
+      { value: 'verify-full', descriptionKey: 'verifyFull' },
     ],
     columnTypes: [
       'VARCHAR(255)', 'TEXT', 'INT', 'BIGINT', 'SMALLINT', 'TINYINT(1)', 'DECIMAL(12,2)',
@@ -113,9 +114,9 @@ export const DATABASE_ENGINES: Record<DatabaseEngine, EngineInfo> = {
     dialect: PLSQL,
     badgeClass: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
     sslModes: [
-      { value: 'disable', label: 'disable — sem SSL' },
-      { value: 'require', label: 'require — exige SSL (sem validar certificado)' },
-      { value: 'verify-full', label: 'verify-full — SSL + validação do certificado' },
+      { value: 'disable', descriptionKey: 'disable' },
+      { value: 'require', descriptionKey: 'requireNoVerify' },
+      { value: 'verify-full', descriptionKey: 'verifyFull' },
     ],
     columnTypes: [
       'VARCHAR2(255)', 'NVARCHAR2(255)', 'CHAR(1)', 'NUMBER', 'NUMBER(10)', 'NUMBER(12,2)', 'INTEGER', 'DATE',

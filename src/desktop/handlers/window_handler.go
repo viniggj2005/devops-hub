@@ -2,10 +2,9 @@ package desktopHandlers
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"sync"
 
+	"docker-manager-go/src/appErrors"
 	auth "docker-manager-go/src/auth/functions"
 	"docker-manager-go/src/desktop"
 	desktopDtos "docker-manager-go/src/desktop/dtos"
@@ -63,7 +62,7 @@ func (handlerStruct *WindowHandlerStruct) DetachModule(ctx context.Context, toke
 		return err
 	}
 	if handlerStruct.openWindow == nil {
-		return errors.New("abertura de janelas indisponível")
+		return appErrors.New("window.unavailable", "abertura de janelas indisponível")
 	}
 
 	windowName := moduleWindowPrefix + uuid.NewString()
@@ -137,7 +136,7 @@ func (handlerStruct *WindowHandlerStruct) MoveModuleToMainWindow(ctx context.Con
 			return nil
 		}
 	}
-	return errors.New("a janela principal não está aberta")
+	return appErrors.New("window.mainNotOpen", "a janela principal não está aberta")
 }
 
 func (handlerStruct *WindowHandlerStruct) ClaimModuleHandoff(ctx context.Context) string {
@@ -201,7 +200,7 @@ func (handlerStruct *WindowHandlerStruct) setHoveredWindow(windowName string) {
 
 func validateModule(module string) error {
 	if !detachableModules[module] {
-		return fmt.Errorf("o módulo %q não pode ser aberto em outra janela", module)
+		return appErrors.New("window.moduleNotDetachable", "o módulo {module} não pode ser aberto em outra janela").With("module", module)
 	}
 	return nil
 }

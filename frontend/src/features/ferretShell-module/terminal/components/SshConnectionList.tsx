@@ -9,6 +9,7 @@ import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { TerminalServices, toSshConn } from '../services/TerminalServices';
 import { useConfirmToast } from '../../../shared/components/toasts/ConfirmToast';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface SshConnectionListProps {
   token: string;
@@ -23,6 +24,8 @@ const SshConnectionList: React.FC<SshConnectionListProps> = ({
 }) => {
   const { user } = useAuth();
   const confirmToast = useConfirmToast();
+  const { dictionary, formatMessage } = useTranslation();
+  const connectionTexts = dictionary.ferretShell.connections;
   const { createTab } = useTerminalStore();
   const [loading, setLoading] = useState(true);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -45,15 +48,15 @@ const SshConnectionList: React.FC<SshConnectionListProps> = ({
     (id: number, alias: string) => {
       confirmToast({
         id: String(id),
-        title: `Deletar conexão ${alias}?`,
-        message: `Deseja deletar a conexão: ${alias}?`,
+        title: formatMessage(connectionTexts.deleteTitle, { alias }),
+        message: formatMessage(connectionTexts.deleteMessage, { alias }),
         onConfirm: async () => {
           await TerminalServices.deleteConnection(token, id);
           await loadConnections();
         },
       });
     },
-    [token, confirmToast]
+    [token, confirmToast, connectionTexts, formatMessage]
   );
 
   const handleEdit = (connection: SshDto) => {
@@ -78,7 +81,7 @@ const SshConnectionList: React.FC<SshConnectionListProps> = ({
       if (hasKey || hasPassword) {
         createTab({ title: connection.alias || `${ssh.User}@${ssh.Host}`, config: ssh });
       } else {
-        toast.error('Nenhum método de autenticação encontrado para esta conexão.');
+        toast.error(connectionTexts.noAuthMethod);
       }
     } catch (error) {
       toast.error(errorMessage(error));
@@ -104,7 +107,7 @@ const SshConnectionList: React.FC<SshConnectionListProps> = ({
   if (loading) {
     return (
       <p className="py-6 text-sm text-gray-500 dark:text-zinc-400">
-        Carregando servidores SSH...
+        {connectionTexts.loading}
       </p>
     );
   }
@@ -114,7 +117,7 @@ const SshConnectionList: React.FC<SshConnectionListProps> = ({
       <div className="flex flex-col items-center text-center gap-3 py-10 rounded-2xl border border-dashed border-gray-300 dark:border-white/10">
         <Server className="w-9 h-9 text-gray-300 dark:text-zinc-600" />
         <p className="text-sm text-gray-500 dark:text-zinc-400">
-          Nenhum servidor SSH cadastrado ainda.
+          {connectionTexts.empty}
         </p>
         {onCreateClick && (
           <button
@@ -122,7 +125,7 @@ const SshConnectionList: React.FC<SshConnectionListProps> = ({
             className="mt-1 px-4 py-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-colors flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            Cadastrar primeiro servidor
+            {connectionTexts.createFirst}
           </button>
         )}
       </div>
@@ -133,7 +136,7 @@ const SshConnectionList: React.FC<SshConnectionListProps> = ({
     <>
       {filteredConnections.length === 0 ? (
         <p className="py-8 text-center text-xs text-gray-400">
-          Nenhum servidor corresponde à busca.
+          {connectionTexts.noMatch}
         </p>
       ) : (
         <div>

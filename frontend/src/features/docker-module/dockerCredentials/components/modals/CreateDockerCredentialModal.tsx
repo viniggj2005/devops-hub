@@ -1,6 +1,7 @@
 import { Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import React, { useState } from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { FileUploader } from 'react-drag-drop-files';
 import { errorMessage } from '../../../../shared/functions/ErrorMessage';
 import { Modal } from '../../../../../features/shared/components/modals/Modal';
@@ -17,6 +18,8 @@ export const CreateDockerCredentialModal: React.FC<CreateDockerCredentialModalPr
 }) => {
   const fileTypes = ['PEM', 'TXT'];
   const [ca, setCa] = useState<string>('');
+  const { dictionary } = useTranslation();
+  const credentialTexts = dictionary.docker.credentials;
   const [url, setUrl] = useState<string>('');
   const [key, setKey] = useState<string>('');
   const [cert, setCert] = useState<string>('');
@@ -38,7 +41,7 @@ export const CreateDockerCredentialModal: React.FC<CreateDockerCredentialModalPr
     if (submitting) return;
 
     if (!alias.trim() || !url.trim() || !ca.trim() || !cert.trim() || !key.trim()) {
-      toast.error('Preencha todos os campos obrigatórios e os certificados TLS.');
+      toast.error(credentialTexts.fillRequired);
       return;
     }
 
@@ -54,7 +57,7 @@ export const CreateDockerCredentialModal: React.FC<CreateDockerCredentialModalPr
         description: description.trim(),
       });
 
-      toast.success('Credencial criada com sucesso!');
+      toast.success(credentialTexts.created);
 
       onClose();
       refresh();
@@ -93,7 +96,7 @@ export const CreateDockerCredentialModal: React.FC<CreateDockerCredentialModalPr
             name="file"
           >
             <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer transition-colors">
-              Importar arquivo
+              {credentialTexts.importFile}
             </span>
           </FileUploader>
         </div>
@@ -112,13 +115,13 @@ export const CreateDockerCredentialModal: React.FC<CreateDockerCredentialModalPr
     <Modal
       isOpen={open}
       onClose={onClose}
-      title="Nova Credencial Docker"
-      description="Configuração de acesso seguro via TLS"
+      title={credentialTexts.createTitle}
+      description={credentialTexts.createDescription}
       icon={<Shield className="w-5 h-5 text-blue-500" />}
       footer={
         <>
           <ModalButton variant="secondary" onClick={onClose} disabled={submitting}>
-            Cancelar
+            {dictionary.app.common.cancel}
           </ModalButton>
           <ModalButton
             variant="primary"
@@ -126,7 +129,7 @@ export const CreateDockerCredentialModal: React.FC<CreateDockerCredentialModalPr
             disabled={submitting}
             isLoading={submitting}
           >
-            Salvar
+            {dictionary.docker.common.save}
           </ModalButton>
         </>
       }
@@ -140,24 +143,24 @@ export const CreateDockerCredentialModal: React.FC<CreateDockerCredentialModalPr
               value={alias}
               onChange={(event) => setAlias(event.target.value)}
               className={inputClass}
-              placeholder="ex: Produção AWS"
+              placeholder={credentialTexts.aliasPlaceholder}
               required
             />
           </div>
           <div>
-            <label className={labelClass}>Descrição</label>
+            <label className={labelClass}>{credentialTexts.descriptionLabel}</label>
             <input
               type="text"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               className={inputClass}
-              placeholder="ex: Cluster principal"
+              placeholder={credentialTexts.descriptionPlaceholder}
               required
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className={labelClass}>URL do Host</label>
+            <label className={labelClass}>{credentialTexts.hostUrl}</label>
             <input
               type="text"
               value={url}
@@ -171,7 +174,7 @@ export const CreateDockerCredentialModal: React.FC<CreateDockerCredentialModalPr
 
         <div className="space-y-4 pt-3 border-t border-gray-100 dark:border-white/10">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
-            Certificados TLS
+            {credentialTexts.certificates}
           </h3>
 
           {renderFileField('ca.pem', ca, setCa, '-----BEGIN CERTIFICATE-----\n...')}

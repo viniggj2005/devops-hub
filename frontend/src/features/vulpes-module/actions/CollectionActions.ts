@@ -1,4 +1,5 @@
 import { requireToken } from './ActionHelpers';
+import { currentDictionary } from '../../i18n/TranslateError';
 import { useVulpesStore } from '../VulpesStore';
 import { requestActions } from './RequestActions';
 import { findItem } from '../functions/CollectionTree';
@@ -74,7 +75,7 @@ export const collectionActions = {
     const item: CollectionItem = {
       id: generateId(),
       kind: 'request',
-      name: 'Nova requisição',
+      name: currentDictionary().vulpes.common.newRequest,
       scripts: [],
       children: [],
       description: '',
@@ -90,7 +91,7 @@ export const collectionActions = {
     const folder: CollectionItem = {
       id: generateId(),
       kind: 'folder',
-      name: 'Nova pasta',
+      name: currentDictionary().vulpes.common.newFolder,
       scripts: [],
       children: [],
       description: '',

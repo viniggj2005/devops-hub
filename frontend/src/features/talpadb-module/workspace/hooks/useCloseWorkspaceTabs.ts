@@ -1,4 +1,5 @@
 import { useTalpadbStore } from '../../TalpadbStore';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { useConfirmToast } from '../../../shared/components/toasts/ConfirmToast';
 import type { WorkspaceGroup, WorkspaceTab } from '../../../../interfaces/TalpadbInterfaces';
 
@@ -6,6 +7,8 @@ const hasOpenTransaction = (status: string | undefined) => status === 'transacti
 
 export function useCloseWorkspaceTabs() {
   const confirmToast = useConfirmToast();
+  const { dictionary, formatMessage } = useTranslation();
+  const workspaceTexts = dictionary.talpadb.workspace;
   const tabs = useTalpadbStore((state) => state.tabs);
   const closeTab = useTalpadbStore((state) => state.closeTab);
   const closeGroup = useTalpadbStore((state) => state.closeGroup);
@@ -18,8 +21,8 @@ export function useCloseWorkspaceTabs() {
     }
     confirmToast({
       id: `close-${tab.id}`,
-      title: `Aba ${tab.title} fechada`,
-      message: `"${tab.title}" tem uma transação aberta. Fechar a aba descarta (ROLLBACK) as alterações não confirmadas. Fechar mesmo assim?`,
+      title: formatMessage(workspaceTexts.tabClosed, { title: tab.title }),
+      message: formatMessage(workspaceTexts.openTransactionMessage, { title: tab.title }),
       onConfirm: () => closeTab(tab.id),
     });
   };
@@ -32,8 +35,11 @@ export function useCloseWorkspaceTabs() {
     }
     confirmToast({
       id: `close-group-${group.id}`,
-      title: 'Abas fechadas',
-      message: `${pending.map((tab) => `"${tab.title}"`).join(', ')} ${pending.length === 1 ? 'tem uma transação aberta' : 'têm transações abertas'}. Fechar descarta (ROLLBACK) as alterações não confirmadas. Fechar mesmo assim?`,
+      title: workspaceTexts.tabsClosed,
+      message: formatMessage(
+        pending.length === 1 ? workspaceTexts.groupTransactionOne : workspaceTexts.groupTransactionOther,
+        { titles: pending.map((tab) => `"${tab.title}"`).join(', ') }
+      ),
       onConfirm: () => closeGroup(group.id),
     });
   };

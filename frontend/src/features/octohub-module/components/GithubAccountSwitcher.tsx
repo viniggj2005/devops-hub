@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useDismiss } from '../../shared/hooks/useDismiss';
+import { useTranslation } from '../../i18n/useTranslation';
 import * as octohubDtos from '../../../../bindings/docker-manager-go/src/octohub/dtos/models';
 import { Check, ChevronDown, Plus, Trash2, User } from 'lucide-react';
 
@@ -20,7 +21,9 @@ const Avatar: React.FC<{ account: octohubDtos.GithubAccountDto; size: string }> 
     );
 
 const GithubAccountSwitcher: React.FC<GithubAccountSwitcherProps> = ({ accounts, onAdd, onSwitch, onRemove }) => {
+    const { dictionary } = useTranslation();
     const [open, setOpen] = useState(false);
+    const accountTexts = dictionary.octohub.accounts;
     const containerRef = useRef<HTMLDivElement>(null);
     const activeAccount = accounts.find((account) => account.isActive);
 
@@ -33,14 +36,14 @@ const GithubAccountSwitcher: React.FC<GithubAccountSwitcherProps> = ({ accounts,
                 className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-sm font-medium hover:bg-emerald-500/20 transition-colors"
             >
                 {activeAccount ? <Avatar account={activeAccount} size="w-6 h-6" /> : <User className="w-4 h-4" />}
-                <span className="max-w-[140px] truncate">{activeAccount ? `@${activeAccount.login}` : 'Selecionar conta'}</span>
+                <span className="max-w-[140px] truncate">{activeAccount ? `@${activeAccount.login}` : accountTexts.selectAccount}</span>
                 <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
 
             {open && (
                 <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden z-30">
                     <div className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-                        Contas do GitHub
+                        {accountTexts.githubAccounts}
                     </div>
                     <div className="max-h-72 overflow-y-auto">
                         {accounts.map((account) => (
@@ -59,7 +62,7 @@ const GithubAccountSwitcher: React.FC<GithubAccountSwitcherProps> = ({ accounts,
                                 </div>
                                 {account.isActive && <Check className="w-4 h-4 text-emerald-500" />}
                                 <button
-                                    title="Remover conta"
+                                    title={accountTexts.removeAccount}
                                     onClick={(event) => {
                                         event.stopPropagation();
                                         setOpen(false);
@@ -80,7 +83,7 @@ const GithubAccountSwitcher: React.FC<GithubAccountSwitcherProps> = ({ accounts,
                         className="w-full flex items-center gap-3 px-4 py-3 border-t border-gray-100 dark:border-white/5 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/5"
                     >
                         <Plus className="w-4 h-4" />
-                        Adicionar outra conta
+                        {accountTexts.addAnother}
                     </button>
                 </div>
             )}

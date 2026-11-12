@@ -1,5 +1,6 @@
 import React from 'react';
 import TagBadge from './TagBadge';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { Search, RotateCcw, GitCommit } from 'lucide-react';
 import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 
@@ -28,15 +29,17 @@ const CommitSidebar: React.FC<CommitSidebarProps> = ({
     onCommitContextMenu,
     lastCommitElementRef,
 }) => {
+    const { language, dictionary } = useTranslation();
+    const sidebarTexts = dictionary.octohub.commitSidebar;
     return (
         <div className="w-full flex-1 min-h-0 flex flex-col bg-zinc-50 dark:bg-[#0c0c0e]">
             <div className="p-4 border-b border-zinc-200 dark:border-white/5 space-y-3">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">Histórico</h2>
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">{sidebarTexts.history}</h2>
                     <button
                         onClick={onRefresh}
                         className="p-1.5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-lg transition-colors"
-                        title="Atualizar"
+                        title={dictionary.octohub.common.refresh}
                     >
                         <RotateCcw className="w-3.5 h-3.5 text-zinc-500" />
                     </button>
@@ -45,7 +48,7 @@ const CommitSidebar: React.FC<CommitSidebarProps> = ({
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                     <input
                         type="text"
-                        placeholder="Filtrar commits..."
+                        placeholder={sidebarTexts.filterPlaceholder}
                         className="w-full pl-9 pr-4 py-1.5 bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all text-zinc-900 dark:text-white"
                         value={searchTerm}
                         onChange={(event) => onSearchTermChange(event.target.value)}
@@ -89,7 +92,7 @@ const CommitSidebar: React.FC<CommitSidebarProps> = ({
                                             <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
                                                 <span className="font-medium text-zinc-600 dark:text-zinc-400 truncate max-w-[80px]">{commit.Author}</span>
                                             </div>
-                                            <span className="text-[9px] text-zinc-400 whitespace-nowrap">{new Date(commit.Date.replace('Date:', '').trim()).toLocaleDateString(undefined, {
+                                            <span className="text-[9px] text-zinc-400 whitespace-nowrap">{new Date(commit.Date.replace('Date:', '').trim()).toLocaleDateString(language, {
                                                 day: '2-digit',
                                                 month: 'short',
                                                 year: 'numeric',
@@ -109,7 +112,7 @@ const CommitSidebar: React.FC<CommitSidebarProps> = ({
                     </>
                 ) : (
                     <div className="p-8 text-center text-zinc-500 italic text-xs">
-                        Nenhum commit encontrado.
+                        {sidebarTexts.empty}
                     </div>
                 )}
             </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../../i18n/useTranslation';
 import React, { memo } from 'react';
 import type { DiagramPalette } from '../constants/DiagramPalette';
 import {
@@ -6,7 +7,6 @@ import {
   columnBadges,
   DIAGRAM_BADGE_GAP,
   DIAGRAM_PADDING_X,
-  diagramBadgeLabels,
   DIAGRAM_ROW_HEIGHT,
   DIAGRAM_BADGE_WIDTH,
   DIAGRAM_HEADER_FONT,
@@ -35,9 +35,10 @@ const DiagramTableNode: React.FC<DiagramTableNodeProps> = ({
   onOpen,
   onDragStart,
 }) => {
+  const { dictionary } = useTranslation();
   const radius = 8;
   const headerColor = node.table.kind === 'p' ? palette.partitionedHeader : palette.header;
-  const tooltip = [node.title, node.table.kind === 'p' ? 'tabela particionada' : '', node.table.comment ?? '']
+  const tooltip = [node.title, node.table.kind === 'p' ? dictionary.talpadb.table.kinds.p : '', node.table.comment ?? '']
     .filter(Boolean)
     .join('\n');
 
@@ -76,7 +77,7 @@ const DiagramTableNode: React.FC<DiagramTableNodeProps> = ({
       {node.columns.map((column, index) => {
         const badges = columnBadges(column);
         const rowTop = DIAGRAM_HEADER_HEIGHT + index * DIAGRAM_ROW_HEIGHT + 3;
-        const description = [column.name, column.dataType, ...badges.map((badge) => diagramBadgeLabels[badge])].join(' · ');
+        const description = [column.name, column.dataType, ...badges.map((badge) => dictionary.talpadb.diagram.badges[badge])].join(' · ');
         return (
           <g key={column.name}>
             <title>{description}</title>

@@ -1,6 +1,8 @@
 import toast from 'react-hot-toast';
 import { useExplorerStore } from './ExplorerStore';
 import React, { useEffect, useState } from 'react';
+import RichMessage from '../../../i18n/RichMessage';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { useTalpadbStore } from '../../TalpadbStore';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { fieldClass } from '../table/constants/TableStyles';
@@ -21,14 +23,6 @@ export interface DropTarget {
   type: DropObjectType;
   parentNodeId: string | null;
 }
-
-const typeLabels: Record<DropObjectType, string> = {
-  view: 'view',
-  table: 'tabela',
-  schema: 'schema',
-  database: 'banco de dados',
-  matview: 'view materializada',
-};
 
 const dropKinds: Record<DropObjectType, DropObjectKind> = {
   schema: 'schema',
@@ -54,6 +48,8 @@ interface DropObjectModalProps {
 const DropObjectModal: React.FC<DropObjectModalProps> = ({ target, onClose }) => {
   const { token } = useAuth();
   const [force, setForce] = useState(false);
+  const { dictionary, formatMessage } = useTranslation();
+  const dropTexts = dictionary.talpadb.dropObject;
   const [preview, setPreview] = useState('');
   const [cascade, setCascade] = useState(false);
   const [dropping, setDropping] = useState(false);
@@ -98,7 +94,7 @@ const DropObjectModal: React.FC<DropObjectModalProps> = ({ target, onClose }) =>
 
   if (!target) return null;
 
-  const typeLabel = typeLabels[target.type];
+  const typeLabel = dropTexts.typeLabels[target.type];
   const showCascade = engine === 'postgres' || (engine === 'oracle' && target.type !== 'matview');
   const displayName = target.type === 'database' || target.type === 'schema' ? target.name : `${target.schema}.${target.name}`;
   const affectedTabs = tabs.filter(affectedTab(target)).length;
@@ -120,10 +116,10 @@ const DropObjectModal: React.FC<DropObjectModalProps> = ({ target, onClose }) =>
       });
       closeMatchingTabs(affectedTab(target));
       if (target.parentNodeId) useExplorerStore.getState().refresh(token, target.parentNodeId);
-      toast.success(`${typeLabel[0].toUpperCase()}${typeLabel.slice(1)} excluído: ${displayName}`);
+      toast.success(formatMessage(dropTexts.deleted[target.type], { name: displayName }));
       onClose();
     } catch (error) {
-      toast.error(`Nada foi excluído: ${errorMessage(error)}`);
+      toast.error(formatMessage(dropTexts.nothingDeleted, { error: errorMessage(error) }));
     } finally {
       setDropping(false);
     }
@@ -134,7 +130,7 @@ const DropObjectModal: React.FC<DropObjectModalProps> = ({ target, onClose }) =>
       size="md"
       isOpen
       onClose={close}
-      title={`Excluir ${typeLabel}`}
+      title={formatMessage(dropTexts.title, { type: typeLabel })}
       description={displayName}
       icon={<Trash2 className="w-5 h-5 text-rose-500" />}
       footer={
@@ -144,7 +140,7 @@ const DropObjectModal: React.FC<DropObjectModalProps> = ({ target, onClose }) =>
             disabled={dropping}
             className="px-4 py-2 rounded-lg text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 disabled:opacity-50"
           >
-            Cancelar
+            {dictionary.app.common.cancel}
           </button>
           <button
             onClick={drop}
@@ -152,7 +148,7 @@ const DropObjectModal: React.FC<DropObjectModalProps> = ({ target, onClose }) =>
             className="px-5 py-2 rounded-lg text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {dropping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            {dropping ? 'Excluindo...' : 'Excluir'}
+            {dropping ? dropTexts.deleting : dropTexts.drop}
           </button>
         </>
       }
@@ -162,12 +158,15 @@ const DropObjectModal: React.FC<DropObjectModalProps> = ({ target, onClose }) =>
           <TriangleAlert className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
             <p>
-              Esta ação <strong>não pode ser desfeita</strong>. {target.type === 'database' ? 'O banco e todos os dados dele' : target.type === 'schema' ? 'O schema' : `A ${typeLabel}`}{' '}
-              <span className="font-mono font-semibold">{displayName}</span> {target.type === 'database' ? 'serão apagados' : 'será apagado'}.
+              <RichMessage template={dropTexts.cannotUndo} values={{ emphasis: <strong>{dropTexts.cannotUndoEmphasis}</strong> }} />{' '}
+              <RichMessage
+                template={dropTexts.warnings[target.type]}
+                values={{ name: <span className="font-mono font-semibold">{displayName}</span> }}
+              />
             </p>
             {affectedTabs > 0 && (
               <p className="text-xs">
-                {affectedTabs} {affectedTabs === 1 ? 'aba aberta será fechada' : 'abas abertas serão fechadas'}.
+                {formatMessage(affectedTabs === 1 ? dropTexts.tabsClosedOne : dropTexts.tabsClosedOther, { count: affectedTabs })}
               </p>
             )}
           </div>
@@ -182,8 +181,8 @@ const DropObjectModal: React.FC<DropObjectModalProps> = ({ target, onClose }) =>
               onChange={(event) => setForce(event.target.checked)}
             />
             <span>
-              <span className="font-mono font-semibold">FORCE</span> — desconecta as outras sessões abertas neste banco
-              <span className="block text-xs text-gray-400">PostgreSQL 13 ou superior. Sem isso, a exclusão falha se alguém estiver conectado.</span>
+              <span className="font-mono font-semibold">FORCE</span> — {dropTexts.forceDescription}
+              <span className="block text-xs text-gray-400">{dropTexts.forceHint}</span>
             </span>
           </label>
         ) : !showCascade ? null : (
@@ -195,11 +194,11 @@ const DropObjectModal: React.FC<DropObjectModalProps> = ({ target, onClose }) =>
               onChange={(event) => setCascade(event.target.checked)}
             />
             <span>
-              <span className="font-mono font-semibold">{engine === 'oracle' ? 'CASCADE CONSTRAINTS' : 'CASCADE'}</span> — {engine === 'oracle' ? 'remove as chaves estrangeiras que apontam para ela' : `exclui também o que depende ${target.type === 'schema' ? 'dele' : 'dela'}`}
+              <span className="font-mono font-semibold">{engine === 'oracle' ? 'CASCADE CONSTRAINTS' : 'CASCADE'}</span> — {engine === 'oracle' ? dropTexts.cascadeOracle : target.type === 'schema' ? dropTexts.cascadeSchema : dropTexts.cascadeObject}
               <span className="block text-xs text-gray-400">
                 {target.type === 'schema'
-                  ? 'Necessário se o schema tiver tabelas, views, funções etc.'
-                  : 'Views que a usam e chaves estrangeiras que apontam para ela.'}
+                  ? dropTexts.cascadeSchemaHint
+                  : dropTexts.cascadeObjectHint}
               </span>
             </span>
           </label>
@@ -207,7 +206,10 @@ const DropObjectModal: React.FC<DropObjectModalProps> = ({ target, onClose }) =>
 
         <div>
           <label className="block text-xs font-semibold text-gray-600 dark:text-zinc-300 mb-1.5">
-            Digite <span className="font-mono text-rose-600 dark:text-rose-400">{target.name}</span> para confirmar
+            <RichMessage
+              template={dropTexts.typeToConfirm}
+              values={{ name: <span className="font-mono text-rose-600 dark:text-rose-400">{target.name}</span> }}
+            />
           </label>
           <input
             autoFocus

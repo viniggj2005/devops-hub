@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { Plus, Trash2, Undo2, X } from 'lucide-react';
 import { FormatBytes } from '../../../../shared/functions/TreatmentFunction';
 import { generateId } from '../../../functions/TreatmentFunctions';
@@ -26,6 +27,9 @@ const IndexesEditor: React.FC<IndexesEditorProps> = ({
   onNewIndexesChange,
   onDroppedIndexesChange,
 }) => {
+  const { dictionary, formatMessage } = useTranslation();
+  const commonTexts = dictionary.talpadb.common;
+  const editorTexts = dictionary.talpadb.tableEditors;
   const toggleDropped = (quotedName: string) =>
     onDroppedIndexesChange(
       droppedIndexes.includes(quotedName)
@@ -44,10 +48,10 @@ const IndexesEditor: React.FC<IndexesEditorProps> = ({
       <table className="w-full text-sm">
         <thead className={tableHead}>
           <tr>
-            <th className={headerCell}>Nome</th>
-            <th className={headerCell}>Definição</th>
-            <th className={headerCell}>Tipo</th>
-            <th className={headerCell}>Tamanho</th>
+            <th className={headerCell}>{commonTexts.name}</th>
+            <th className={headerCell}>{commonTexts.definition}</th>
+            <th className={headerCell}>{commonTexts.type}</th>
+            <th className={headerCell}>{editorTexts.size}</th>
             {!readOnly && <th className="w-10" />}
           </tr>
         </thead>
@@ -68,10 +72,10 @@ const IndexesEditor: React.FC<IndexesEditorProps> = ({
                     onClick={() => toggleDropped(index.quotedName)}
                     title={
                       index.constraintBacked
-                        ? 'Índice criado por uma constraint: exclua a constraint'
+                        ? editorTexts.constraintBackedIndex
                         : dropped
-                          ? 'Manter índice'
-                          : 'Excluir índice'
+                          ? editorTexts.keepIndex
+                          : editorTexts.dropIndex
                     }
                     className={`${iconButton} ${dropped ? 'hover:text-cyan-600' : 'hover:text-rose-500'}`}
                   >
@@ -86,7 +90,7 @@ const IndexesEditor: React.FC<IndexesEditorProps> = ({
               <td className={editCell}>
                 <input
                   value={index.name}
-                  placeholder="automático"
+                  placeholder={editorTexts.automatic}
                   onChange={(event) => updateNew(index.id, { name: event.target.value })}
                   className={fieldClass}
                 />
@@ -95,7 +99,7 @@ const IndexesEditor: React.FC<IndexesEditorProps> = ({
                 <input
                   autoFocus
                   value={index.columns}
-                  placeholder="coluna, lower(email), ..."
+                  placeholder={editorTexts.indexColumnsPlaceholder}
                   onChange={(event) => updateNew(index.id, { columns: event.target.value })}
                   className={`${fieldClass} font-mono`}
                 />
@@ -122,14 +126,14 @@ const IndexesEditor: React.FC<IndexesEditorProps> = ({
                       className="accent-cyan-600"
                       onChange={(event) => updateNew(index.id, { unique: event.target.checked })}
                     />
-                    único
+                    {editorTexts.unique}
                   </label>
                 </div>
               </td>
               <td className={editCell} />
               <td className={editCell}>
                 <button
-                  title="Remover índice novo"
+                  title={editorTexts.removeNewIndex}
                   onClick={() => onNewIndexesChange(newIndexes.filter((item) => item.id !== index.id))}
                   className={`${iconButton} hover:text-rose-500`}
                 >
@@ -141,11 +145,11 @@ const IndexesEditor: React.FC<IndexesEditorProps> = ({
         </tbody>
       </table>
       {indexes.length === 0 && newIndexes.length === 0 && (
-        <p className="px-4 py-6 text-sm text-gray-400">Nada cadastrado.</p>
+        <p className="px-4 py-6 text-sm text-gray-400">{commonTexts.nothingRegistered}</p>
       )}
       {!readOnly && (
         <button onClick={addIndex} className={addButton}>
-          <Plus className="w-4 h-4" /> Adicionar índice
+          <Plus className="w-4 h-4" /> {editorTexts.addIndex}
         </button>
       )}
     </>

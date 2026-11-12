@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -13,6 +11,7 @@ import (
 
 	"github.com/coder/websocket"
 
+	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 	vulpesFunctions "docker-manager-go/src/vulpes/functions"
 )
@@ -43,7 +42,7 @@ func (handlerStruct *VulpesClientHandlerStruct) ConnectSocketIo(callContext cont
 		return nil, err
 	}
 	if plan.request.SocketIo == nil {
-		return nil, errors.New("a requisição não é Socket.IO")
+		return nil, appErrors.New("vulpes.requestNotSocketIo", "a requisição não é Socket.IO")
 	}
 	socketRequest := plan.resolver.ResolveSocketIoRequest(*plan.request.SocketIo)
 	if err := plan.resolver.TakeError(); err != nil {
@@ -86,12 +85,12 @@ func (handlerStruct *VulpesClientHandlerStruct) ConnectSocketIo(callContext cont
 	}
 
 	handlerStruct.registerSession(key, session)
-	emit(vulpesDtos.RealtimeEventDto{
+	connectedMessage := appErrors.New("vulpes.realtimeNamespaceConnected", "Namespace {namespace} conectado").With("namespace", namespace)
+	emit(localizedEvent(connectedMessage, vulpesDtos.RealtimeEventDto{
 		Kind:      vulpesDtos.RealtimeConnected,
-		Data:      fmt.Sprintf("Namespace %s conectado", namespace),
 		Event:     open.Sid,
 		Direction: vulpesDtos.DirectionSystem,
-	})
+	}))
 	go session.read(sessionContext, func() { handlerStruct.forgetSession(key, session) })
 	if session.version == legacySocketIoVersion && open.PingInterval > 0 {
 		go session.ping(sessionContext, time.Duration(open.PingInterval)*time.Millisecond)
@@ -126,7 +125,7 @@ func (handlerStruct *VulpesClientHandlerStruct) EmitSocketIo(callContext context
 	writeContext, cancel := context.WithTimeout(callContext, writeTimeout)
 	defer cancel()
 	if err := session.writePacket(writeContext, packet); err != nil {
-		return fmt.Errorf("não foi possível emitir o evento: %w", err)
+		return appErrors.Wrap("vulpes.socketIoEmitFailed", "não foi possível emitir o evento", err)
 	}
 	session.emit(vulpesDtos.RealtimeEventDto{
 		Kind:      vulpesDtos.RealtimeMessage,
@@ -153,11 +152,11 @@ func (session *socketIoSession) handshake(ctx context.Context, handshakeAuth str
 	for !opened {
 		text, err := session.readText(ctx)
 		if err != nil {
-			return open, fmt.Errorf("o servidor não iniciou a sessão Socket.IO: %w", err)
+			return open, appErrors.Wrap("vulpes.socketIoSessionFailed", "o servidor não iniciou a sessão Socket.IO", err)
 		}
 		if text != "" && text[0] == vulpesFunctions.EngineOpen {
 			if err := json.Unmarshal([]byte(text[1:]), &open); err != nil {
-				return open, fmt.Errorf("handshake Engine.IO inválido: %w", err)
+				return open, appErrors.Wrap("vulpes.engineIoInvalidHandshake", "handshake Engine.IO inválido", err)
 			}
 			opened = true
 		}
@@ -167,7 +166,7 @@ func (session *socketIoSession) handshake(ctx context.Context, handshakeAuth str
 	if session.version != legacySocketIoVersion {
 		if handshakeAuth = strings.TrimSpace(handshakeAuth); handshakeAuth != "" {
 			if !strings.HasPrefix(handshakeAuth, "{") || !json.Valid([]byte(handshakeAuth)) {
-				return open, errors.New("o auth do handshake precisa ser um objeto JSON")
+				return open, appErrors.New("vulpes.socketIoAuthNotObject", "o auth do handshake precisa ser um objeto JSON")
 			}
 			connectPacket.Data = json.RawMessage(handshakeAuth)
 		}
@@ -181,7 +180,7 @@ func (session *socketIoSession) handshake(ctx context.Context, handshakeAuth str
 	for {
 		text, err := session.readText(ctx)
 		if err != nil {
-			return open, fmt.Errorf("o servidor não confirmou a conexão do namespace %s: %w", session.namespace, err)
+			return open, appErrors.Wrap("vulpes.socketIoNamespaceFailed", "o servidor não confirmou a conexão do namespace {namespace}", err).With("namespace", session.namespace)
 		}
 		if text == "" {
 			continue
@@ -192,7 +191,7 @@ func (session *socketIoSession) handshake(ctx context.Context, handshakeAuth str
 				return open, err
 			}
 		case vulpesFunctions.EngineClose:
-			return open, errors.New("o servidor encerrou a conexão durante o handshake")
+			return open, appErrors.New("vulpes.socketIoClosedDuringHandshake", "o servidor encerrou a conexão durante o handshake")
 		case vulpesFunctions.EngineMessage:
 			packet, err := vulpesFunctions.ParseSocketIoPacket(text[1:])
 			if err != nil || packet.Namespace != session.namespace {
@@ -202,7 +201,7 @@ func (session *socketIoSession) handshake(ctx context.Context, handshakeAuth str
 			case vulpesFunctions.SocketConnect:
 				return open, nil
 			case vulpesFunctions.SocketConnectError:
-				return open, fmt.Errorf("o servidor recusou a conexão: %s", connectErrorMessage(packet.Data))
+				return open, appErrors.New("vulpes.socketIoConnectionRefused", "o servidor recusou a conexão: {reason}").With("reason", connectErrorMessage(packet.Data))
 			}
 		}
 	}
@@ -269,7 +268,7 @@ func (session *socketIoSession) handleEnginePacket(ctx context.Context, text str
 		defer cancel()
 		_ = session.writeText(writeContext, string(vulpesFunctions.EnginePong)+text[1:])
 	case vulpesFunctions.EngineClose:
-		session.emit(vulpesDtos.RealtimeEventDto{Kind: vulpesDtos.RealtimeClosed, Data: "O servidor encerrou a conexão", Direction: vulpesDtos.DirectionSystem})
+		session.emit(systemEvent(vulpesDtos.RealtimeClosed, appErrors.New("vulpes.realtimeClosedByServer", "O servidor encerrou a conexão")))
 		return true
 	case vulpesFunctions.EngineMessage:
 		return session.handleSocketPacket(text[1:])
@@ -280,7 +279,7 @@ func (session *socketIoSession) handleEnginePacket(ctx context.Context, text str
 func (session *socketIoSession) handleSocketPacket(text string) bool {
 	packet, err := vulpesFunctions.ParseSocketIoPacket(text)
 	if err != nil {
-		session.emit(vulpesDtos.RealtimeEventDto{Kind: vulpesDtos.RealtimeError, Data: err.Error(), Direction: vulpesDtos.DirectionSystem})
+		session.emit(errorEvent(err))
 		return false
 	}
 	if packet.Namespace != session.namespace {
@@ -335,7 +334,7 @@ func (session *socketIoSession) dispatch(packet vulpesFunctions.SocketIoPacket) 
 	case vulpesFunctions.SocketConnectError:
 		session.emit(vulpesDtos.RealtimeEventDto{Kind: vulpesDtos.RealtimeError, Data: connectErrorMessage(packet.Data), Direction: vulpesDtos.DirectionSystem})
 	case vulpesFunctions.SocketDisconnect:
-		session.emit(vulpesDtos.RealtimeEventDto{Kind: vulpesDtos.RealtimeClosed, Data: "O servidor desconectou o namespace", Direction: vulpesDtos.DirectionSystem})
+		session.emit(systemEvent(vulpesDtos.RealtimeClosed, appErrors.New("vulpes.realtimeNamespaceDisconnected", "O servidor desconectou o namespace")))
 		return true
 	}
 	return false

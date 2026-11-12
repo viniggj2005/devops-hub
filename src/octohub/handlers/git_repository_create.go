@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/models"
 	"docker-manager-go/src/processes"
 	octohubDtos "docker-manager-go/src/octohub/dtos"
@@ -60,17 +61,17 @@ func (handlerStruct *RepositoryHandler) CreateRepository(ctx context.Context, to
 
 	name = strings.TrimSpace(name)
 	if !validRepositoryName(name) {
-		return nil, fmt.Errorf("nome inválido: use apenas letras, números, '-', '_' e '.'")
+		return nil, appErrors.New("octohub.invalidRepositoryName", "nome inválido: use apenas letras, números, '-', '_' e '.'")
 	}
 	if strings.TrimSpace(parentFolder) == "" {
-		return nil, fmt.Errorf("escolha a pasta de destino")
+		return nil, appErrors.New("octohub.destinationRequired", "escolha a pasta de destino")
 	}
 	destination := filepath.Join(parentFolder, name)
 	if entries, err := os.ReadDir(destination); err == nil && len(entries) > 0 {
-		return nil, fmt.Errorf("a pasta %s já existe e não está vazia", destination)
+		return nil, appErrors.New("octohub.destinationNotEmpty", "a pasta {folder} já existe e não está vazia").With("folder", destination)
 	}
 	if err := os.MkdirAll(destination, 0o755); err != nil {
-		return nil, fmt.Errorf("erro ao criar a pasta %s: %w", destination, err)
+		return nil, appErrors.Wrap("octohub.createFolderFailed", "erro ao criar a pasta {folder}", err).With("folder", destination)
 	}
 	if err := runGitIn(destination, "init", "-b", "main"); err != nil {
 		return nil, err
@@ -96,7 +97,7 @@ func (handlerStruct *RepositoryHandler) CreateRepository(ctx context.Context, to
 		return nil, err
 	}
 	if commitErr != nil {
-		return nil, fmt.Errorf("repositório criado, mas o commit inicial falhou (configure user.name e user.email do git): %w", commitErr)
+		return nil, appErrors.Wrap("octohub.initialCommitFailed", "repositório criado, mas o commit inicial falhou (configure user.name e user.email do git)", commitErr)
 	}
 	return repository, nil
 }
@@ -111,7 +112,7 @@ func (handlerStruct *RepositoryHandler) ListGithubOwners(token string) ([]string
 		return nil, err
 	}
 	if account == nil {
-		return nil, fmt.Errorf("conecte uma conta do GitHub para publicar o repositório")
+		return nil, appErrors.New("octohub.publishNeedsGithub", "conecte uma conta do GitHub para publicar o repositório")
 	}
 
 	var organizations []githubOrganization
@@ -135,27 +136,27 @@ func (handlerStruct *RepositoryHandler) PublishRepository(ctx context.Context, t
 		return nil, err
 	}
 	if account == nil {
-		return nil, fmt.Errorf("conecte uma conta do GitHub para publicar o repositório")
+		return nil, appErrors.New("octohub.publishNeedsGithub", "conecte uma conta do GitHub para publicar o repositório")
 	}
 
 	name = strings.TrimSpace(name)
 	if !validRepositoryName(name) {
-		return nil, fmt.Errorf("nome inválido: use apenas letras, números, '-', '_' e '.'")
+		return nil, appErrors.New("octohub.invalidRepositoryName", "nome inválido: use apenas letras, números, '-', '_' e '.'")
 	}
 	repoPath := handlerStruct.gitHandler.repositoryPath(ctx)
 	if repoPath == "" {
 		return nil, errNoRepository
 	}
 	if originURL(repoPath) != "" {
-		return nil, fmt.Errorf("este repositório já tem um remoto origin")
+		return nil, appErrors.New("octohub.originAlreadyExists", "este repositório já tem um remoto origin")
 	}
 	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--verify", "HEAD"}); err != nil {
-		return nil, fmt.Errorf("faça o primeiro commit antes de publicar o repositório")
+		return nil, appErrors.New("octohub.publishNeedsFirstCommit", "faça o primeiro commit antes de publicar o repositório")
 	}
 
 	var repository models.OctohubModel
 	if err := handlerStruct.DataBase.Where("user_id = ? AND github_id = ? AND local_path = ?", userID, githubID, repoPath).First(&repository).Error; err != nil {
-		return nil, fmt.Errorf("repositório não encontrado")
+		return nil, appErrors.New("octohub.repositoryNotFound", "repositório não encontrado")
 	}
 
 	endpoint := "https://api.github.com/user/repos"
@@ -176,7 +177,7 @@ func (handlerStruct *RepositoryHandler) PublishRepository(ctx context.Context, t
 		return nil, err
 	}
 	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"push", "-u", "origin", "HEAD"}); err != nil {
-		return nil, fmt.Errorf("repositório %s criado no GitHub, mas o envio falhou: %w", created.FullName, err)
+		return nil, appErrors.Wrap("octohub.publishPushFailed", "repositório {repository} criado no GitHub, mas o envio falhou", err).With("repository", created.FullName)
 	}
 	return published, nil
 }
@@ -204,7 +205,7 @@ func postGithubAPI(endpoint, accessToken string, body, out any) error {
 	case http.StatusOK, http.StatusCreated:
 		return json.NewDecoder(response.Body).Decode(out)
 	case http.StatusUnauthorized:
-		return fmt.Errorf("token do GitHub inválido ou revogado, reconecte a conta")
+		return appErrors.New("octohub.githubTokenInvalid", "token do GitHub inválido ou revogado, reconecte a conta")
 	}
 
 	var apiError githubAPIError
@@ -221,5 +222,5 @@ func postGithubAPI(endpoint, accessToken string, body, out any) error {
 	if apiError.Message != "" {
 		return fmt.Errorf("github: %s", apiError.Message)
 	}
-	return fmt.Errorf("erro ao consultar o GitHub: status %d", response.StatusCode)
+	return appErrors.New("octohub.githubStatus", "erro ao consultar o GitHub: status {status}").With("status", response.StatusCode)
 }

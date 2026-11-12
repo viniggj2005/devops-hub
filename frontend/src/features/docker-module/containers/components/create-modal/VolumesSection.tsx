@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { HardDrive, Plus, Trash2 } from 'lucide-react';
 import { CreateContainerVolumeMapping } from '../../../../../interfaces/ContainerInterfaces';
 
@@ -9,12 +10,14 @@ interface VolumesSectionProps {
 }
 
 export const VolumesSection: React.FC<VolumesSectionProps> = ({ volumes, setVolumes, availableVolumes }) => {
+    const { dictionary } = useTranslation();
+    const createTexts = dictionary.docker.createContainer;
     const addVolume = () => setVolumes([...volumes, { hostPath: '', containerPath: '' }]);
-    const removeVolume = (index: number) => setVolumes(volumes.filter((_, i) => i !== index));
+    const removeVolume = (index: number) => setVolumes(volumes.filter((_, currentIndex) => currentIndex !== index));
     const updateVolume = (index: number, field: keyof CreateContainerVolumeMapping, value: string) => {
-        const newVol = [...volumes];
-        newVol[index][field] = value;
-        setVolumes(newVol);
+        const nextVolumes = [...volumes];
+        nextVolumes[index][field] = value;
+        setVolumes(nextVolumes);
     };
 
     return (
@@ -22,42 +25,42 @@ export const VolumesSection: React.FC<VolumesSectionProps> = ({ volumes, setVolu
             <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold flex items-center gap-2 text-gray-800 dark:text-gray-200">
                     <HardDrive className="w-4 h-4 text-orange-500" />
-                    Volumes
+                    {createTexts.volumes}
                 </h3>
                 <button
                     onClick={addVolume}
                     className="text-xs flex items-center gap-1 text-orange-500 hover:text-orange-400 font-medium transition-colors"
                 >
-                    <Plus className="w-3 h-3" /> Adicionar Volume
+                    <Plus className="w-3 h-3" /> {createTexts.addVolume}
                 </button>
             </div>
 
             <div className="space-y-2">
-                {volumes.map((vol, idx) => (
-                    <div key={idx} className="flex items-center gap-3">
+                {volumes.map((volume, rowIndex) => (
+                    <div key={rowIndex} className="flex items-center gap-3">
                         <input
                             type="text"
                             list="volume-list"
-                            placeholder="Host Path (ex: ./data)"
-                            value={vol.hostPath}
-                            onChange={(e) => updateVolume(idx, 'hostPath', e.target.value)}
+                            placeholder={createTexts.hostPath}
+                            value={volume.hostPath}
+                            onChange={(event) => updateVolume(rowIndex, 'hostPath', event.target.value)}
                             className="flex-1 px-3 py-2 text-sm bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-500/50 text-gray-900 dark:text-white"
                         />
                         <datalist id="volume-list">
-                            {availableVolumes.map((v) => (
-                                <option key={v.Name} value={v.Name} />
+                            {availableVolumes.map((volumeOption) => (
+                                <option key={volumeOption.Name} value={volumeOption.Name} />
                             ))}
                         </datalist>
                         <span className="text-gray-400">:</span>
                         <input
                             type="text"
-                            placeholder="Container Path (ex: /app/data)"
-                            value={vol.containerPath}
-                            onChange={(e) => updateVolume(idx, 'containerPath', e.target.value)}
+                            placeholder={createTexts.containerPath}
+                            value={volume.containerPath}
+                            onChange={(event) => updateVolume(rowIndex, 'containerPath', event.target.value)}
                             className="flex-1 px-3 py-2 text-sm bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-500/50 text-gray-900 dark:text-white"
                         />
                         <button
-                            onClick={() => removeVolume(idx)}
+                            onClick={() => removeVolume(rowIndex)}
                             className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                         >
                             <Trash2 className="w-4 h-4" />
@@ -65,7 +68,7 @@ export const VolumesSection: React.FC<VolumesSectionProps> = ({ volumes, setVolu
                     </div>
                 ))}
                 {volumes.length === 0 && (
-                    <p className="text-xs text-gray-500 dark:text-gray-500 italic">Nenhum volume montado.</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 italic">{createTexts.noVolumes}</p>
                 )}
             </div>
         </div>

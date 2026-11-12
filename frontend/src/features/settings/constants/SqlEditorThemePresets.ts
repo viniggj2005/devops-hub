@@ -139,31 +139,9 @@ export const sqlEditorThemePresets: SqlEditorThemePreset[] = [
   },
 ];
 
-export const sqlEditorColorGroups: { title: string; keys: { key: SqlEditorColorKey; label: string }[] }[] = [
-  {
-    title: 'Editor',
-    keys: [
-      { key: 'background', label: 'Fundo' },
-      { key: 'foreground', label: 'Texto' },
-      { key: 'lineNumbers', label: 'Números de linha' },
-      { key: 'cursor', label: 'Cursor' },
-      { key: 'selection', label: 'Seleção' },
-      { key: 'activeLine', label: 'Linha atual' },
-    ],
-  },
-  {
-    title: 'Sintaxe',
-    keys: [
-      { key: 'keyword', label: 'Palavras-chave' },
-      { key: 'type', label: 'Tipos' },
-      { key: 'string', label: 'Textos' },
-      { key: 'number', label: 'Números e booleanos' },
-      { key: 'comment', label: 'Comentários' },
-      { key: 'operator', label: 'Operadores' },
-      { key: 'identifier', label: 'Tabelas e colunas' },
-      { key: 'function', label: 'Funções' },
-    ],
-  },
+export const sqlEditorColorGroups: { id: 'editor' | 'syntax'; keys: SqlEditorColorKey[] }[] = [
+  { id: 'editor', keys: ['background', 'foreground', 'lineNumbers', 'cursor', 'selection', 'activeLine'] },
+  { id: 'syntax', keys: ['keyword', 'type', 'string', 'number', 'comment', 'operator', 'identifier', 'function'] },
 ];
 
 export const defaultSqlEditorTheme = (): SqlEditorThemeConfig => ({

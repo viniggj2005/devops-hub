@@ -1,4 +1,6 @@
 import React, { useCallback, useState } from 'react';
+import { currentDictionary } from '../../../../i18n/TranslateError';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { VolumeService } from '../../services/VolumeService';
 import { Copy, HardDrive, Info, Trash2 } from 'lucide-react';
 import { VolumeItem } from '../../../../../interfaces/VolumeInterfaces';
@@ -23,6 +25,8 @@ const VolumeCard: React.FC<VolumeCardProps> = ({
   Mountpoint,
 }) => {
   const confirmToast = useConfirmToast();
+  const { dictionary, formatMessage, language } = useTranslation();
+  const volumeTexts = dictionary.docker.volumes;
   const [isInspectOpen, setIsInspectOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [isInspectLoading, setIsInspectLoading] = useState(false);
@@ -37,7 +41,7 @@ const VolumeCard: React.FC<VolumeCardProps> = ({
       setIsInspectOpen(true);
     } catch (error) {
       console.error(error);
-      setInspectData('Erro ao buscar dados de inspeção.');
+      setInspectData(currentDictionary().docker.volumes.inspectFailed);
       setIsInspectOpen(true);
     } finally {
       setIsInspectLoading(false);
@@ -51,8 +55,8 @@ const VolumeCard: React.FC<VolumeCardProps> = ({
   const handleDelete = useCallback(async () => {
     confirmToast({
       id: `delete-volume-${Name}`,
-      title: 'Remover volume?',
-      message: `Tem certeza que deseja remover o volume "${Name}"?\nEsta ação não pode ser desfeita.`,
+      title: currentDictionary().docker.volumes.deleteTitle,
+      message: formatMessage(currentDictionary().docker.volumes.deleteMessage, { name: Name }),
       onConfirm: async () => {
         setDeleteLoading(true);
         try {
@@ -66,7 +70,7 @@ const VolumeCard: React.FC<VolumeCardProps> = ({
   }, [clientId, Name, onDeleted, confirmToast]);
 
   const createdDate = CreatedAt ? new Date(CreatedAt) : null;
-  const createdLabel = createdDate ? createdDate.toLocaleString('pt-BR') : '—';
+  const createdLabel = createdDate ? createdDate.toLocaleString(language) : '—';
 
   return (
     <>
@@ -97,16 +101,16 @@ const VolumeCard: React.FC<VolumeCardProps> = ({
               onClick={handleOpenInspect}
               disabled={isInspectLoading}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer"
-              title="Inspecionar volume"
+              title={volumeTexts.inspect}
             >
               <Info className="h-4 w-4" />
             </button>
             {Mountpoint && (
               <button
                 type="button"
-                onClick={() => copyToClipboard(Mountpoint, 'Ponto de montagem copiado')}
+                onClick={() => copyToClipboard(Mountpoint, volumeTexts.mountpointCopied)}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer"
-                title="Copiar ponto de montagem"
+                title={volumeTexts.copyMountpoint}
               >
                 <Copy className="h-4 w-4" />
               </button>
@@ -116,7 +120,7 @@ const VolumeCard: React.FC<VolumeCardProps> = ({
               onClick={handleDelete}
               disabled={deleteLoading}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 cursor-pointer"
-              title="Excluir volume"
+              title={volumeTexts.delete}
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -126,20 +130,20 @@ const VolumeCard: React.FC<VolumeCardProps> = ({
         <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-3 dark:border-white/[0.05]">
           <div className="space-y-0.5">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-              Tamanho
+              {volumeTexts.size}
             </p>
             <p className="text-xs font-semibold text-gray-700 dark:text-zinc-300">
               {UsageData?.Size ? FormatBytes(UsageData.Size) : '—'}
               {UsageData?.RefCount !== undefined && (
                 <span className="ml-1 text-[11px] text-gray-400 dark:text-zinc-500 font-normal">
-                  • {UsageData.RefCount} refs
+                  {formatMessage(volumeTexts.references, { count: UsageData.RefCount })}
                 </span>
               )}
             </p>
           </div>
           <div className="space-y-0.5">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-              Criado em
+              {volumeTexts.createdAt}
             </p>
             <p className="text-xs font-semibold text-gray-700 dark:text-zinc-300">
               {createdLabel}
@@ -149,7 +153,7 @@ const VolumeCard: React.FC<VolumeCardProps> = ({
 
         <div className="space-y-1 rounded-xl bg-gray-50 dark:bg-zinc-950/60 border border-gray-100 dark:border-white/[0.05] p-3">
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-            Ponto de Montagem
+            {volumeTexts.mountpoint}
           </p>
           <p className="break-all font-mono text-[11px] text-gray-600 dark:text-zinc-400">
             {Mountpoint ?? '—'}

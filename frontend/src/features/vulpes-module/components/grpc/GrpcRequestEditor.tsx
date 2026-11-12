@@ -2,6 +2,7 @@ import toast from 'react-hot-toast';
 import SplitPane from '../editors/SplitPane';
 import CodeEditor from '../editors/CodeEditor';
 import AuthEditor from '../editors/AuthEditor';
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useMemo, useState } from 'react';
 import SectionTabs from '../editors/SectionTabs';
 import { useVulpesStore } from '../../VulpesStore';
@@ -38,38 +39,45 @@ interface PathListProps {
   onRemove: (path: string) => void;
 }
 
-const PathList: React.FC<PathListProps> = ({ title, paths, emptyLabel, addLabel, icon, onAdd, onRemove }) => (
-  <div>
-    <div className="flex items-center justify-between mb-1.5">
-      <h4 className={fieldLabelClass}>{title}</h4>
-      <button type="button" onClick={onAdd} className={secondaryButtonClass}>
-        {icon}
-        {addLabel}
-      </button>
+const PathList: React.FC<PathListProps> = ({ title, paths, emptyLabel, addLabel, icon, onAdd, onRemove }) => {
+  const { dictionary } = useTranslation();
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <h4 className={fieldLabelClass}>{title}</h4>
+        <button type="button" onClick={onAdd} className={secondaryButtonClass}>
+          {icon}
+          {addLabel}
+        </button>
+      </div>
+      <div className="rounded-lg border border-gray-200 dark:border-white/10 divide-y divide-gray-100 dark:divide-white/5">
+        {paths.length === 0 && <p className="px-3 py-2 text-xs text-gray-500 dark:text-zinc-400">{emptyLabel}</p>}
+        {paths.map((path) => (
+          <div key={path} className="flex items-center gap-2 px-3 py-1.5 group">
+            <span className="flex-1 min-w-0 truncate text-xs font-mono text-gray-700 dark:text-zinc-300" title={path}>
+              {path}
+            </span>
+            <button
+              type="button"
+              title={dictionary.vulpes.common.remove}
+              onClick={() => onRemove(path)}
+              className="p-1 rounded text-gray-400 opacity-0 group-hover:opacity-100 hover:text-rose-500"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
-    <div className="rounded-lg border border-gray-200 dark:border-white/10 divide-y divide-gray-100 dark:divide-white/5">
-      {paths.length === 0 && <p className="px-3 py-2 text-xs text-gray-500 dark:text-zinc-400">{emptyLabel}</p>}
-      {paths.map((path) => (
-        <div key={path} className="flex items-center gap-2 px-3 py-1.5 group">
-          <span className="flex-1 min-w-0 truncate text-xs font-mono text-gray-700 dark:text-zinc-300" title={path}>
-            {path}
-          </span>
-          <button
-            type="button"
-            title="Remover"
-            onClick={() => onRemove(path)}
-            className="p-1 rounded text-gray-400 opacity-0 group-hover:opacity-100 hover:text-rose-500"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ))}
-    </div>
-  </div>
-);
+  );
+};
 
 const GrpcRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variables, inheritedHint, onSave }) => {
   const grpc = tab.request.grpc as GrpcRequest;
+  const { dictionary } = useTranslation();
+  const grpcTexts = dictionary.vulpes.grpc;
+  const requestTexts = dictionary.vulpes.request;
   const [section, setSection] = useState<GrpcSection>('message');
   const patchRuntime = useVulpesStore((state) => state.patchRuntime);
   const updateRequest = useVulpesStore((state) => state.updateRequest);
@@ -100,9 +108,9 @@ const GrpcRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
       message: isBlankMessage(current.message) ? method.exampleMessage : current.message,
     }));
 
-  const formatMessage = () => {
+  const formatGrpcMessage = () => {
     const formatted = prettyJson(grpc.message);
-    if (formatted === null) toast.error('A mensagem não é um JSON válido');
+    if (formatted === null) toast.error(grpcTexts.invalidJson);
     else updateGrpc((current) => ({ ...current, message: formatted }));
   };
 
@@ -115,7 +123,7 @@ const GrpcRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
     }
   };
 
-  const runLabel = selectedMethod?.clientStreaming || selectedMethod?.serverStreaming ? 'Iniciar stream' : 'Invocar';
+  const runLabel = selectedMethod?.clientStreaming || selectedMethod?.serverStreaming ? grpcTexts.startStream : grpcTexts.invoke;
 
   return (
     <div className="h-full flex flex-col min-h-0">
@@ -123,7 +131,7 @@ const GrpcRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
         <button
           type="button"
           onClick={() => updateGrpc((current) => ({ ...current, useTls: !current.useTls }))}
-          title={grpc.useTls ? 'TLS ativado (grpcs)' : 'Sem TLS (texto puro)'}
+          title={grpc.useTls ? grpcTexts.tlsOn : grpcTexts.tlsOff}
           className={`px-3 rounded-xl border transition-colors ${
             grpc.useTls
               ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
@@ -138,7 +146,7 @@ const GrpcRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
             onEnter={run}
             className="flex-1"
             variables={variables}
-            placeholder="localhost:50051 ou grpcs://api.exemplo.com"
+            placeholder={grpcTexts.urlPlaceholder}
             onChange={(url) => updateDefinition((current) => ({ ...current, url }))}
           />
         </div>
@@ -152,12 +160,12 @@ const GrpcRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
         {streamActive ? (
           <button type="button" onClick={() => requestActions.disconnect(tab.id)} className={secondaryButtonClass}>
             <Square className="w-3.5 h-3.5" />
-            Encerrar stream
+            {grpcTexts.endStream}
           </button>
         ) : runtime.running ? (
           <button type="button" onClick={() => requestActions.cancel(tab.id)} className={secondaryButtonClass}>
             <X className="w-3.5 h-3.5" />
-            Cancelar
+            {dictionary.app.common.cancel}
           </button>
         ) : (
           <button type="button" onClick={run} className={`${primaryButtonClass} px-5`}>
@@ -176,11 +184,11 @@ const GrpcRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
               active={section}
               onChange={setSection}
               tabs={[
-                { key: 'message', label: 'Mensagem' },
+                { key: 'message', label: grpcTexts.message },
                 { key: 'metadata', label: 'Metadata', count: grpc.metadata.filter((entry) => entry.enabled && entry.key).length },
-                { key: 'auth', label: 'Autorização' },
-                { key: 'definition', label: grpc.descriptorSource === 'proto' ? 'Definição (.proto)' : 'Definição (reflection)' },
-                { key: 'settings', label: 'Configurações' },
+                { key: 'auth', label: requestTexts.authorization },
+                { key: 'definition', label: grpc.descriptorSource === 'proto' ? grpcTexts.definitionProto : grpcTexts.definitionReflection },
+                { key: 'settings', label: requestTexts.settings },
               ]}
               trailing={selectedMethod && (
                 <span className="text-[11px] text-gray-500 dark:text-zinc-400 font-mono truncate max-w-xs" title={`${selectedMethod.inputType} → ${selectedMethod.outputType}`}>
@@ -192,27 +200,27 @@ const GrpcRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
               {section === 'message' && (
                 <div className="h-full flex flex-col gap-2 min-h-0">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={formatMessage} className={secondaryButtonClass}>
+                    <button type="button" onClick={formatGrpcMessage} className={secondaryButtonClass}>
                       <Sparkles className="w-3.5 h-3.5" />
-                      Formatar
+                      {requestTexts.format}
                     </button>
                     <button
                       type="button"
                       disabled={!selectedMethod}
-                      title={selectedMethod ? 'Preencher com todos os campos do tipo de entrada' : 'Carregue os métodos para gerar um exemplo'}
+                      title={selectedMethod ? grpcTexts.exampleHint : grpcTexts.exampleDisabledHint}
                       onClick={() => selectedMethod && updateGrpc((current) => ({ ...current, message: selectedMethod.exampleMessage }))}
                       className={secondaryButtonClass}
                     >
-                      Gerar exemplo
+                      {grpcTexts.generateExample}
                     </button>
                     {canSendStreamMessage && (
                       <div className="ml-auto flex items-center gap-2">
                         <button type="button" onClick={() => requestActions.endGrpcStream(tab.id)} className={secondaryButtonClass}>
-                          Finalizar envio
+                          {grpcTexts.finishSending}
                         </button>
                         <button type="button" onClick={() => requestActions.sendGrpcMessage(tab.id, grpc.message)} className={primaryButtonClass}>
                           <Send className="w-3.5 h-3.5" />
-                          Enviar mensagem
+                          {grpcTexts.sendMessage}
                         </button>
                       </div>
                     )}
@@ -232,7 +240,6 @@ const GrpcRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
               {section === 'metadata' && (
                 <KeyValueTable
                   rows={grpc.metadata}
-                  keyPlaceholder="Chave"
                   onChange={(metadata) => updateGrpc((current) => ({ ...current, metadata }))}
                 />
               )}
@@ -248,8 +255,8 @@ const GrpcRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                   <div className="flex flex-wrap gap-3">
                     {(
                       [
-                        ['reflection', 'Reflection do servidor', 'Descobre serviços e mensagens automaticamente.'],
-                        ['proto', 'Arquivos .proto', 'Usa os contratos locais quando o reflection está desativado.'],
+                        ['reflection', grpcTexts.serverReflection, grpcTexts.reflectionHint],
+                        ['proto', grpcTexts.protoFiles, grpcTexts.protoHint],
                       ] as [DescriptorSource, string, string][]
                     ).map(([source, title, description]) => (
                       <label
@@ -274,10 +281,10 @@ const GrpcRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                   {grpc.descriptorSource === 'proto' && (
                     <>
                       <PathList
-                        title="Arquivos .proto"
+                        title={grpcTexts.protoFiles}
                         paths={grpc.protoFiles}
-                        addLabel="Adicionar arquivos"
-                        emptyLabel="Nenhum arquivo selecionado."
+                        addLabel={grpcTexts.addFiles}
+                        emptyLabel={grpcTexts.noFiles}
                         icon={<FilePlus2 className="w-3.5 h-3.5" />}
                         onRemove={(path) => updateDefinition((current) => ({ ...current, protoFiles: current.protoFiles.filter((file) => file !== path) }))}
                         onAdd={() =>
@@ -288,10 +295,10 @@ const GrpcRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                         }
                       />
                       <PathList
-                        title="Diretórios de import"
+                        title={grpcTexts.importPaths}
                         paths={grpc.importPaths}
-                        addLabel="Adicionar diretório"
-                        emptyLabel="A pasta de cada arquivo já é usada como raiz de import."
+                        addLabel={grpcTexts.addDirectory}
+                        emptyLabel={grpcTexts.importPathsHint}
                         icon={<FolderPlus className="w-3.5 h-3.5" />}
                         onRemove={(path) => updateDefinition((current) => ({ ...current, importPaths: current.importPaths.filter((entry) => entry !== path) }))}
                         onAdd={() =>
@@ -330,7 +337,7 @@ const GrpcRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
               <RealtimeMessageLog
                 events={runtime.events}
                 onClear={() => clearRealtimeEvents(tab.id)}
-                emptyHint="Inicie o stream para acompanhar as mensagens enviadas e recebidas."
+                emptyHint={grpcTexts.streamHint}
               />
             </>
           ) : (

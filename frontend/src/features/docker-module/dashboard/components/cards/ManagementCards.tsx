@@ -1,38 +1,42 @@
 import React from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Box, HardDrive, Image, Network } from 'lucide-react';
 
 const ManagementCards: React.FC = () => {
   const navigate = useNavigate();
+  const { dictionary } = useTranslation();
+  const homeTexts = dictionary.docker.home;
+  const navigationTexts = dictionary.docker.navigation;
 
   const shortcuts = [
     {
       icon: Box,
-      title: 'Containers',
+      title: navigationTexts.containers,
       to: '/docker/containers',
       accent: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
-      description: 'Inicie, pare, inspecione logs, abra terminal interativo e acompanhe métricas em tempo real.',
+      description: homeTexts.containersDescription,
     },
     {
       icon: Image,
-      title: 'Imagens',
+      title: navigationTexts.images,
       to: '/docker/images',
       accent: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20',
-      description: 'Pesquise imagens, construa novas tags via Dockerfile e remova camadas sem uso.',
+      description: homeTexts.imagesDescription,
     },
     {
       icon: HardDrive,
-      title: 'Volumes',
+      title: navigationTexts.volumes,
       to: '/docker/volumes',
       accent: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
-      description: 'Gerencie volumes persistentes, pontos de montagem, drivers e opções de armazenamento.',
+      description: homeTexts.volumesDescription,
     },
     {
       icon: Network,
-      title: 'Redes',
+      title: navigationTexts.networks,
       to: '/docker/networks',
       accent: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
-      description: 'Configure redes bridge, overlay ou host e inspecione sub-redes e gateways.',
+      description: homeTexts.networksDescription,
     },
   ];
 
@@ -61,7 +65,7 @@ const ManagementCards: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400">
-              <span>Gerenciar</span>
+              <span>{homeTexts.manage}</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>

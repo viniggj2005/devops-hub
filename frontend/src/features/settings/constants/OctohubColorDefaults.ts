@@ -11,25 +11,7 @@ export const defaultOctohubColors: OctohubColors = {
   conflicted: '#f97316',
 };
 
-export const octohubColorGroups: { title: string; description: string; keys: { key: OctohubColorKey; label: string; hint: string }[] }[] = [
-  {
-    title: 'Diff',
-    description: 'Linhas exibidas ao comparar alterações.',
-    keys: [
-      { key: 'addition', label: 'Linha adicionada', hint: 'Fundo e texto das linhas com +' },
-      { key: 'deletion', label: 'Linha removida', hint: 'Fundo e texto das linhas com -' },
-    ],
-  },
-  {
-    title: 'Status dos arquivos',
-    description: 'Etiquetas da lista de alterações.',
-    keys: [
-      { key: 'added', label: 'Adicionado', hint: 'Etiqueta A' },
-      { key: 'modified', label: 'Modificado', hint: 'Etiqueta M' },
-      { key: 'deleted', label: 'Removido', hint: 'Etiqueta D' },
-      { key: 'renamed', label: 'Renomeado', hint: 'Etiqueta R' },
-      { key: 'untracked', label: 'Não rastreado', hint: 'Etiqueta U' },
-      { key: 'conflicted', label: 'Em conflito', hint: 'Etiqueta !' },
-    ],
-  },
+export const octohubColorGroups: { id: 'diff' | 'fileStatus'; keys: OctohubColorKey[] }[] = [
+  { id: 'diff', keys: ['addition', 'deletion'] },
+  { id: 'fileStatus', keys: ['added', 'modified', 'deleted', 'renamed', 'untracked', 'conflicted'] },
 ];

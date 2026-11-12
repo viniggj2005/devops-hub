@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from '../../features/i18n/useTranslation';
 import { Laptop, Plus, Search, Server, X } from 'lucide-react';
 import LocalShellList from '../../features/ferretShell-module/terminal/components/LocalShellList';
 import { useLocalShells } from '../../features/ferretShell-module/terminal/functions/useLocalShells';
@@ -8,6 +9,8 @@ import CreateSshConnectionModal from '../../features/ferretShell-module/terminal
 
 const TerminalPage: React.FC = () => {
     const { token } = useAuth();
+    const { dictionary } = useTranslation();
+    const homeTexts = dictionary.ferretShell.home;
     const [search, setSearch] = useState('');
     const [reloadFlag, setReloadFlag] = useState(0);
     const { shells, loading, openShell } = useLocalShells();
@@ -22,10 +25,10 @@ const TerminalPage: React.FC = () => {
                     </div>
                     <div>
                         <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-                            Terminal local
+                            {homeTexts.localTitle}
                         </h2>
                         <p className="text-sm text-gray-500 dark:text-zinc-400">
-                            Abra um shell desta máquina em uma nova aba.
+                            {homeTexts.localDescription}
                         </p>
                     </div>
                 </div>
@@ -41,10 +44,10 @@ const TerminalPage: React.FC = () => {
                         </div>
                         <div>
                             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-                                Meus Servidores
+                                {homeTexts.serversTitle}
                             </h2>
                             <p className="text-sm text-gray-500 dark:text-zinc-400">
-                                Selecione um servidor para iniciar uma sessão SSH em aba.
+                                {homeTexts.serversDescription}
                             </p>
                         </div>
                     </div>
@@ -56,7 +59,7 @@ const TerminalPage: React.FC = () => {
                                 type="text"
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
-                                placeholder="Buscar servidor ou IP..."
+                                placeholder={homeTexts.searchPlaceholder}
                                 className="w-full h-10 pl-9 pr-8 rounded-xl text-xs outline-none border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-gray-800 dark:text-zinc-200 placeholder:text-gray-400 focus:border-purple-500"
                             />
                             {search && (
@@ -74,7 +77,7 @@ const TerminalPage: React.FC = () => {
                             className="h-10 px-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-purple-500/20 transition-all flex items-center gap-2 shrink-0"
                         >
                             <Plus className="w-4 h-4" />
-                            Nova Conexão
+                            {homeTexts.newConnection}
                         </button>
                     </div>
                 </div>

@@ -2,7 +2,6 @@ package talpadbFunctions
 
 import (
 	"os"
-	"fmt"
 	"net"
 	"time"
 	"errors"
@@ -12,6 +11,8 @@ import (
 
 	goOra "github.com/sijms/go-ora/v2"
 	"github.com/go-sql-driver/mysql"
+
+	"docker-manager-go/src/appErrors"
 )
 
 const ApplicationName = "Devops Hub"
@@ -68,7 +69,7 @@ func NormalizeEngine(engine string) (string, error) {
 		return EnginePostgres, nil
 	}
 	if !allowedEngines[normalized] {
-		return "", fmt.Errorf("banco não suportado: %s", engine)
+		return "", appErrors.New("talpadb.unsupportedEngine", "banco não suportado: {engine}").With("engine", engine)
 	}
 	return normalized, nil
 }
@@ -79,7 +80,7 @@ func NormalizeMysqlSslMode(sslMode string) (string, error) {
 		return "prefer", nil
 	}
 	if !mysqlSslModes[normalized] {
-		return "", fmt.Errorf("modo SSL inválido para MySQL: %s", sslMode)
+		return "", appErrors.New("talpadb.invalidSslModeFor", "modo SSL inválido para {engine}: {mode}").With("engine", "MySQL").With("mode", sslMode)
 	}
 	return normalized, nil
 }
@@ -112,7 +113,7 @@ func NormalizeOracleSslMode(sslMode string) (string, error) {
 		return "disable", nil
 	}
 	if !oracleSslModes[normalized] {
-		return "", fmt.Errorf("modo SSL inválido para Oracle: %s", sslMode)
+		return "", appErrors.New("talpadb.invalidSslModeFor", "modo SSL inválido para {engine}: {mode}").With("engine", "Oracle").With("mode", sslMode)
 	}
 	return normalized, nil
 }
@@ -133,17 +134,17 @@ func BuildOracleConnectionString(params ConnectionParams) string {
 func BuildSqliteConnectionString(params ConnectionParams) (string, error) {
 	path := strings.TrimSpace(params.Host)
 	if strings.Contains(path, "?") {
-		return "", errors.New("o caminho do arquivo SQLite não pode conter '?'")
+		return "", appErrors.New("talpadb.sqlitePathQuestionMark", "o caminho do arquivo SQLite não pode conter '?'")
 	}
 	info, err := os.Stat(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return "", fmt.Errorf("arquivo SQLite não encontrado: %s", path)
+			return "", appErrors.New("talpadb.sqliteFileNotFound", "arquivo SQLite não encontrado: {path}").With("path", path)
 		}
 		return "", err
 	}
 	if info.IsDir() {
-		return "", fmt.Errorf("o caminho informado é uma pasta, não um arquivo SQLite: %s", path)
+		return "", appErrors.New("talpadb.sqlitePathIsFolder", "o caminho informado é uma pasta, não um arquivo SQLite: {path}").With("path", path)
 	}
 	return path + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)", nil
 }
@@ -154,7 +155,7 @@ func NormalizeSslMode(sslMode string) (string, error) {
 		return "prefer", nil
 	}
 	if !allowedSslModes[normalized] {
-		return "", fmt.Errorf("modo SSL inválido: %s", sslMode)
+		return "", appErrors.New("talpadb.invalidSslMode", "modo SSL inválido: {mode}").With("mode", sslMode)
 	}
 	return normalized, nil
 }

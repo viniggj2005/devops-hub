@@ -1,8 +1,10 @@
 import TextField from './TextField';
 import React, { useState } from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { PasswordFieldProps } from '../../../../interfaces/AuthInterfaces';
 
 const PasswordField: React.FC<PasswordFieldProps> = (props) => {
+  const { dictionary } = useTranslation();
   const [show, setShow] = useState(false);
   return (
     <div className="relative">
@@ -19,9 +21,9 @@ const PasswordField: React.FC<PasswordFieldProps> = (props) => {
         type="button"
         className="absolute right-[10px] top-[32px] bg-transparent text-zinc-900 hover:scale-95 border-none cursor-pointer"
         onClick={() => setShow((s) => !s)}
-        aria-label="alternar visibilidade da senha"
+        aria-label={dictionary.app.auth.togglePassword}
       >
-        {show ? 'Ocultar' : 'Mostrar'}
+        {show ? dictionary.app.common.hide : dictionary.app.common.show}
       </button>
     </div>
   );

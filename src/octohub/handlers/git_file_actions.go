@@ -3,12 +3,13 @@ package octohubHandler
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"docker-manager-go/src/appErrors"
 )
 
 var unsafeOpenExtensions = map[string]bool{
@@ -41,7 +42,7 @@ func (handlerStruct *GitBranchHandler) repoFile(ctx context.Context, file string
 	}
 	fullPath := filepath.Join(root, filepath.FromSlash(file))
 	if !strings.HasPrefix(fullPath, root+string(filepath.Separator)) {
-		return "", fmt.Errorf("caminho fora do repositório: %s", file)
+		return "", appErrors.New("octohub.pathOutsideRepository", "caminho fora do repositório: {path}").With("path", file)
 	}
 	return fullPath, nil
 }
@@ -67,13 +68,13 @@ func vscodeExecutable() (string, error) {
 			return candidate, nil
 		}
 	}
-	return "", errors.New("VS Code não encontrado")
+	return "", appErrors.New("octohub.vscodeNotFound", "VS Code não encontrado")
 }
 
 func openInVSCode(paths ...string) error {
 	editor, err := vscodeExecutable()
 	if err != nil {
-		return errors.New(`VS Code não encontrado. Instale-o ou adicione o comando "code" ao PATH`)
+		return appErrors.New("octohub.vscodeNotInstalled", "VS Code não encontrado. Instale-o ou adicione o comando \"code\" ao PATH")
 	}
 	cmd := exec.Command(editor, paths...)
 	for _, entry := range os.Environ() {
@@ -90,7 +91,7 @@ func (handlerStruct *GitBranchHandler) OpenFileInEditor(ctx context.Context, fil
 		return err
 	}
 	if _, err := os.Stat(fullPath); err != nil {
-		return fmt.Errorf("o arquivo %s não existe mais no disco", file)
+		return appErrors.New("octohub.fileMissingOnDisk", "o arquivo {file} não existe mais no disco").With("file", file)
 	}
 	return openInVSCode(filepath.Clean(handlerStruct.gitHandler.repositoryPath(ctx)), fullPath)
 }
@@ -143,10 +144,10 @@ func (handlerStruct *GitBranchHandler) OpenWithDefaultProgram(ctx context.Contex
 	}
 	extension := strings.ToLower(filepath.Ext(strings.TrimRight(fullPath, ". ")))
 	if unsafeOpenExtensions[extension] {
-		return fmt.Errorf("por segurança, arquivos %s não são abertos com o programa padrão (eles seriam executados). Use \"Abrir no VS Code\"", extension)
+		return appErrors.New("octohub.unsafeExtension", "por segurança, arquivos {extension} não são abertos com o programa padrão (eles seriam executados). Use \"Abrir no VS Code\"").With("extension", extension)
 	}
 	if _, err := os.Stat(fullPath); err != nil {
-		return fmt.Errorf("o arquivo %s não existe mais", file)
+		return appErrors.New("octohub.fileMissing", "o arquivo {file} não existe mais").With("file", file)
 	}
 	switch runtime.GOOS {
 	case "windows":
@@ -183,14 +184,14 @@ func (handlerStruct *GitBranchHandler) IgnoreFile(ctx context.Context, file stri
 func (handlerStruct *GitBranchHandler) IgnoreExtension(ctx context.Context, extension string) error {
 	extension = strings.TrimPrefix(strings.TrimSpace(extension), ".")
 	if extension == "" || strings.ContainsAny(extension, `/\`) {
-		return fmt.Errorf("extensão inválida: %q", extension)
+		return appErrors.New("octohub.invalidExtension", "extensão inválida: \"{extension}\"").With("extension", extension)
 	}
 	return handlerStruct.appendGitignore(ctx, "*."+escapeGitignorePattern(extension))
 }
 
 func (handlerStruct *GitBranchHandler) appendGitignore(ctx context.Context, pattern string) error {
 	if strings.ContainsAny(pattern, "\r\n") {
-		return fmt.Errorf("padrão inválido para o .gitignore")
+		return appErrors.New("octohub.invalidGitignorePattern", "padrão inválido para o .gitignore")
 	}
 	repoPath := handlerStruct.gitHandler.repositoryPath(ctx)
 	if repoPath == "" {

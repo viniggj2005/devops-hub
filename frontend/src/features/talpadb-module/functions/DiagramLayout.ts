@@ -26,12 +26,7 @@ const ISOLATED_ROW_GAP = 48;
 
 export type DiagramBadge = 'PK' | 'FK' | 'UQ' | 'NN';
 
-export const diagramBadgeLabels: Record<DiagramBadge, string> = {
-  PK: 'chave primária',
-  FK: 'chave estrangeira',
-  UQ: 'valor único',
-  NN: 'não aceita NULL',
-};
+export const diagramBadges: DiagramBadge[] = ['PK', 'FK', 'UQ', 'NN'];
 
 export interface DiagramNode {
   key: string;

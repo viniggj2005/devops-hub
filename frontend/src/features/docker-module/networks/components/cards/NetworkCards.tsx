@@ -1,4 +1,7 @@
 import toast from 'react-hot-toast';
+import { formatMessage } from '../../../../i18n/Languages';
+import { currentDictionary } from '../../../../i18n/TranslateError';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import React, { useCallback, useState } from 'react';
 import { Copy, Info, Network, Trash2 } from 'lucide-react';
 import { NetworkService } from '../../services/NetworkService';
@@ -27,6 +30,8 @@ const NetworkCards: React.FC<NetworkCardProps> = ({
   Attachable,
 }) => {
   const confirmToast = useConfirmToast();
+  const { dictionary } = useTranslation();
+  const networkTexts = dictionary.docker.networks;
   const [isInspectOpen, setIsInspectOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [isInspectLoading, setIsInspectLoading] = useState(false);
@@ -40,7 +45,7 @@ const NetworkCards: React.FC<NetworkCardProps> = ({
       setInspectData(formattedData);
       setIsInspectOpen(true);
     } catch {
-      toast.error('Erro ao buscar dados de inspeção.');
+      toast.error(currentDictionary().docker.volumes.inspectFailed);
     } finally {
       setIsInspectLoading(false);
     }
@@ -53,15 +58,15 @@ const NetworkCards: React.FC<NetworkCardProps> = ({
   const handleDelete = useCallback(() => {
     confirmToast({
       id: Id,
-      title: 'Remover rede?',
-      message: `Deseja remover a rede "${Name}"?`,
+      title: currentDictionary().docker.networks.deleteTitle,
+      message: formatMessage(currentDictionary().docker.networks.deleteMessage, { name: Name }),
       onConfirm: async () => {
         setDeleteLoading(true);
         try {
           await NetworkService.deleteNetwork(clientId, Id);
           onDeleted?.(Id);
         } catch (error) {
-          throw error instanceof Error ? error : new Error('Erro ao remover a rede.');
+          throw error instanceof Error ? error : new Error(currentDictionary().docker.networks.deleteFailed);
         } finally {
           setDeleteLoading(false);
         }
@@ -108,7 +113,7 @@ const NetworkCards: React.FC<NetworkCardProps> = ({
               type="button"
               onClick={handleOpenInspect}
               disabled={isInspectLoading}
-              title="Inspecionar rede"
+              title={networkTexts.inspect}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer"
             >
               <Info className="h-4 w-4" />
@@ -117,7 +122,7 @@ const NetworkCards: React.FC<NetworkCardProps> = ({
               type="button"
               onClick={() => copyToClipboard(Id.slice(0, 12), 'ID da rede copiado')}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer"
-              title="Copiar ID"
+              title={networkTexts.copyId}
             >
               <Copy className="h-4 w-4" />
             </button>
@@ -126,7 +131,7 @@ const NetworkCards: React.FC<NetworkCardProps> = ({
               onClick={handleDelete}
               disabled={deleteLoading}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 cursor-pointer"
-              title="Remover rede"
+              title={networkTexts.delete}
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -153,7 +158,7 @@ const NetworkCards: React.FC<NetworkCardProps> = ({
 
           <div className="space-y-0.5">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-              Propriedades
+              {networkTexts.properties}
             </p>
             <div className="flex flex-wrap gap-1.5 text-[11px] text-gray-600 dark:text-zinc-400">
               <span className={Internal ? 'text-emerald-500 font-medium' : ''}>
@@ -173,7 +178,7 @@ const NetworkCards: React.FC<NetworkCardProps> = ({
           </div>
           <div className="space-y-0.5">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-              Criado
+              {networkTexts.created}
             </p>
             <p className="text-xs font-semibold text-gray-700 dark:text-zinc-300">
               {createdTimestamp ? FmtAgo(createdTimestamp) : '—'}

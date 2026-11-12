@@ -6,6 +6,7 @@ export interface UserDTO {
   id: number;
   nome: string;
   email: string;
+  language: string;
 }
 export interface AuthContextType {
   loading: boolean;

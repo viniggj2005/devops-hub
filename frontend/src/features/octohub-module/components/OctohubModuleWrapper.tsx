@@ -9,6 +9,8 @@ import PublishRepositoryModal from './PublishRepositoryModal';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import GithubAccountSwitcher from './GithubAccountSwitcher';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
+import { formatMessage } from '../../i18n/Languages';
+import { currentDictionary, translatePayload } from '../../i18n/TranslateError';
 import ConflictResolutionModal from './ConflictResolutionModal';
 import React, { useCallback, useEffect, useState } from 'react';
 import OctohubHomePage from '../../../pages/octohub/OctohubHomePage';
@@ -89,8 +91,8 @@ const OctohubModuleWrapper: React.FC = () => {
         if (!token) return;
         confirmToast({
             id: `github-account-${account.id}`,
-            title: `Remover conta @${account.login}?`,
-            message: `Deseja remover a conta @${account.login} do OctoHub?`,
+            title: formatMessage(currentDictionary().octohub.accounts.removeTitle, { login: account.login }),
+            message: formatMessage(currentDictionary().octohub.accounts.removeMessage, { login: account.login }),
             onConfirm: async () => {
                 await RemoveAccount(token, account.id);
                 await checkLogin();
@@ -106,10 +108,11 @@ const OctohubModuleWrapper: React.FC = () => {
         const offSuccess = Events.On('octohub:login-success', (event) => {
             const account: octohubDtos.GithubAccountDto = event.data;
             setLoginState(closedLogin);
-            toast.success(`Conta @${account.login} conectada.`);
+            toast.success(formatMessage(currentDictionary().octohub.accounts.connected, { login: account.login }));
             checkLogin();
         });
-        const offError = Events.On('octohub:login-error', ({ data: message }) => {
+        const offError = Events.On('octohub:login-error', ({ data: payload }) => {
+            const message = translatePayload(payload) ?? currentDictionary().errors.common.unknown;
             setLoginState((previous) => (previous.open ? { ...previous, loading: false, error: message } : previous));
         });
         return () => {

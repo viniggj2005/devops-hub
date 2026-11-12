@@ -3,8 +3,8 @@ package talpadbHandlers
 import (
 	"context"
 	"database/sql"
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/desktop"
-	"fmt"
 	"time"
 
 	"docker-manager-go/src/models"
@@ -31,7 +31,7 @@ func postgresOnlyError(engine string) error {
 	if resolved, err := talpadbEngines.ForName(engine); err == nil {
 		label = resolved.Label()
 	}
-	return fmt.Errorf("recurso disponível apenas para PostgreSQL (esta conexão é %s)", label)
+	return appErrors.New("talpadb.postgresOnly", "recurso disponível apenas para PostgreSQL (esta conexão é {engine})").With("engine", label)
 }
 
 func openGenericDatabase(ctx context.Context, engine talpadbEngines.Engine, params talpadbFunctions.ConnectionParams) (*sql.DB, error) {
@@ -41,7 +41,7 @@ func openGenericDatabase(ctx context.Context, engine talpadbEngines.Engine, para
 	}
 	database, err := sql.Open(engine.DriverName(), dataSourceName)
 	if err != nil {
-		return nil, fmt.Errorf("configuração de conexão inválida: %w", err)
+		return nil, appErrors.Wrap("talpadb.invalidConnectionConfig", "configuração de conexão inválida", err)
 	}
 	connectContext, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()

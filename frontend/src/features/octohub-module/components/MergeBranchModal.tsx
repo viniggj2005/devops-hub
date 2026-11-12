@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal } from '../../shared/components/modals/Modal';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
+import { useTranslation } from '../../i18n/useTranslation';
+import type { Dictionary } from '../../i18n/Languages';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import * as octohubStructs from '../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { CircleAlert, CircleCheck, Cloud, GitBranch, GitMerge, RefreshCw, Search } from 'lucide-react';
@@ -16,18 +18,22 @@ interface MergeBranchModalProps {
     initialBranch?: string | null;
 }
 
-const strategies: { value: MergeStrategy; label: string; description: string }[] = [
-    { value: 'rebase', label: 'Rebase', description: 'Reaplica os commits da branch atual em cima da branch escolhida, deixando o histórico linear.' },
-    { value: 'no-ff', label: 'Merge commit', description: 'Sempre cria um commit de merge, deixando claro no histórico de onde vieram as alterações.' },
-    { value: 'squash', label: 'Squash e merge', description: 'Junta todas as alterações da branch escolhida em um único commit novo na branch atual.' },
-    { value: 'merge', label: 'Merge', description: 'Traz os commits da branch escolhida. Avança direto (fast-forward) quando dá; senão cria um commit de merge.' },
-];
+type StrategyKey = keyof Dictionary['octohub']['merge']['strategies'];
 
-const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
+const strategies: { value: MergeStrategy; key: StrategyKey }[] = [
+    { value: 'rebase', key: 'rebase' },
+    { value: 'no-ff', key: 'noFastForward' },
+    { value: 'squash', key: 'squash' },
+    { value: 'merge', key: 'merge' },
+];
 
 const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, initialBranch }) => {
     const navigate = useNavigate();
+    const { dictionary, formatMessage } = useTranslation();
     const [filter, setFilter] = useState('');
+    const mergeTexts = dictionary.octohub.merge;
+    const commitsLabel = (count: number) => formatMessage(count === 1 ? mergeTexts.commitsOne : mergeTexts.commitsOther, { count });
+    const filesLabel = (count: number) => formatMessage(count === 1 ? mergeTexts.filesOne : mergeTexts.filesOther, { count });
     const [summary, setSummary] = useState('');
     const [dirty, setDirty] = useState(false);
     const [merging, setMerging] = useState(false);
@@ -86,7 +92,7 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
     useEffect(() => {
         if (!selected) return;
         if (strategy === 'squash') {
-            setSummary(`Squash de ${selected}`);
+            setSummary(formatMessage(mergeTexts.squashSummary, { branch: selected }));
             setDescription((preview?.Commits || []).map((commit) => `* ${commit.Title}`).join('\n'));
         } else if (strategy === 'no-ff') {
             setSummary(`Merge branch '${selected}'`);
@@ -107,9 +113,9 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
             await loadBranches(selected);
             setPreviewKey((key) => key + 1);
             notifyChange();
-            toast.success('Branches remotas atualizadas.');
+            toast.success(dictionary.octohub.common.remoteBranchesUpdated);
         } catch (error) {
-            handleGitError(error, 'Erro ao buscar do remoto', handleFetch);
+            handleGitError(error, dictionary.octohub.common.fetchFailed, handleFetch);
         } finally {
             setFetching(false);
         }
@@ -119,10 +125,10 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
         const source = selected || '';
         const target = current;
         switch (strategy) {
-            case 'merge': return preview?.CanFastForward ? `${target} avançou até ${source}.` : `${source} mesclada em ${target}.`;
-            case 'no-ff': return `${source} mesclada em ${target} com commit de merge.`;
-            case 'squash': return `As alterações de ${source} viraram um commit em ${target}.`;
-            default: return `${target} agora está em cima de ${source}.`;
+            case 'merge': return formatMessage(preview?.CanFastForward ? mergeTexts.fastForwarded : mergeTexts.merged, { source, target });
+            case 'no-ff': return formatMessage(mergeTexts.mergedWithCommit, { source, target });
+            case 'squash': return formatMessage(mergeTexts.squashed, { source, target });
+            default: return formatMessage(mergeTexts.rebased, { source, target });
         }
     };
 
@@ -150,10 +156,10 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
     };
 
     const actionLabel = {
-        merge: `Mesclar ${selected ?? ''} em ${current}`,
-        'no-ff': 'Criar commit de merge',
-        squash: 'Squash e merge',
-        rebase: `Rebase em ${selected ?? ''}`,
+        merge: formatMessage(mergeTexts.actionMerge, { source: selected, target: current }),
+        'no-ff': mergeTexts.actionNoFastForward,
+        squash: mergeTexts.actionSquash,
+        rebase: formatMessage(mergeTexts.actionRebase, { source: selected }),
     }[strategy];
 
     const needsMessage = strategy === 'squash' || strategy === 'no-ff';
@@ -165,7 +171,7 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
         <Modal
             size="lg"
             isOpen={open}
-            title="Mesclar na branch atual"
+            title={mergeTexts.title}
             description={current}
             onClose={() => !merging && onClose()}
             icon={<GitMerge className="w-5 h-5 text-emerald-500" />}
@@ -178,14 +184,14 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
                         className="mr-auto px-3 py-2 rounded-lg text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 flex items-center gap-2 disabled:opacity-50"
                     >
                         <RefreshCw className={`w-3.5 h-3.5 ${fetching ? 'animate-spin' : ''}`} />
-                        Buscar do remoto
+                        {dictionary.octohub.common.fetchFromRemote}
                     </button>
                     <button
                         onClick={onClose}
                         disabled={merging}
                         className="px-4 py-2 rounded-lg text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 disabled:opacity-50"
                     >
-                        Cancelar
+                        {dictionary.app.common.cancel}
                     </button>
                     <button
                         onClick={handleMerge}
@@ -215,11 +221,11 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
                                     : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
                                 }`}
                             >
-                                {item.label}
+                                {mergeTexts.strategies[item.key].label}
                             </button>
                         ))}
                     </div>
-                    <p className="text-[11px] text-zinc-500">{strategyInfo.description}</p>
+                    <p className="text-[11px] text-zinc-500">{mergeTexts.strategies[strategyInfo.key].description}</p>
                 </div>
 
                 <div className="flex gap-4 h-72">
@@ -230,7 +236,7 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
                                 <input
                                     autoFocus
                                     value={filter}
-                                    placeholder={strategy === 'rebase' ? 'Rebase em cima de...' : 'Trazer de...'}
+                                    placeholder={strategy === 'rebase' ? mergeTexts.rebaseOntoPlaceholder : mergeTexts.bringFromPlaceholder}
                                     onChange={(event) => setFilter(event.target.value)}
                                     className="w-full pl-8 pr-3 py-1.5 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                 />
@@ -238,7 +244,7 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
                         </div>
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
                             {filtered.length === 0 && (
-                                <p className="p-4 text-center text-xs text-zinc-500 italic">Nenhuma outra branch.</p>
+                                <p className="p-4 text-center text-xs text-zinc-500 italic">{mergeTexts.noOtherBranch}</p>
                             )}
                             {filtered.map((branch, index) => {
                                 const showGroup = index === 0 || filtered[index - 1].IsRemote !== branch.IsRemote;
@@ -246,7 +252,7 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
                                     <React.Fragment key={`${branch.IsRemote}-${branch.Name}`}>
                                         {showGroup && (
                                             <div className="px-2 pt-2 pb-1 text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                                                {branch.IsRemote ? 'Remotas' : 'Locais'}
+                                                {branch.IsRemote ? dictionary.octohub.branchSelector.remote : dictionary.octohub.branchSelector.local}
                                             </div>
                                         )}
                                         <button
@@ -267,52 +273,52 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
 
                     <div className="flex-1 min-w-0 flex flex-col border border-zinc-200 dark:border-white/10 rounded-xl p-4 overflow-y-auto custom-scrollbar space-y-3">
                         {!selected ? (
-                            <p className="m-auto text-xs text-zinc-500 italic">Escolha uma branch.</p>
+                            <p className="m-auto text-xs text-zinc-500 italic">{mergeTexts.chooseBranch}</p>
                         ) : loadingPreview || !preview ? (
                             <div className="m-auto flex items-center gap-2 text-xs text-zinc-500">
                                 <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                                Calculando...
+                                {mergeTexts.calculating}
                             </div>
                         ) : preview.UpToDate ? (
                             <div className="m-auto flex flex-col items-center gap-2 text-center text-xs text-zinc-500">
                                 <CircleCheck className="w-8 h-8 text-emerald-500" />
                                 {strategy === 'rebase'
-                                    ? `${current} já está em cima de ${selected}. Nada para fazer.`
-                                    : `${current} já tem todos os commits de ${selected}. Nada para mesclar.`}
+                                    ? formatMessage(mergeTexts.alreadyRebased, { current, selected })
+                                    : formatMessage(mergeTexts.alreadyMerged, { current, selected })}
                             </div>
                         ) : (
                             <>
                                 <p className="text-xs text-zinc-700 dark:text-zinc-300">
                                     {strategy === 'rebase'
                                         ? preview.Behind === 0
-                                            ? `${current} vai só avançar até ${selected} (${plural(preview.Ahead, 'commit')} novos).`
-                                            : `${plural(preview.Behind, 'commit')} de ${current} vão ser reaplicados em cima dos ${plural(preview.Ahead, 'commit')} novos de ${selected}.`
-                                        : `${plural(preview.Ahead, 'commit')} de ${selected} vão entrar em ${current}.`}
+                                            ? formatMessage(mergeTexts.rebaseFastForward, { current, selected, commits: commitsLabel(preview.Ahead) })
+                                            : formatMessage(mergeTexts.rebaseReplay, { current, selected, behind: commitsLabel(preview.Behind), ahead: commitsLabel(preview.Ahead) })
+                                        : formatMessage(mergeTexts.mergeIncoming, { current, selected, commits: commitsLabel(preview.Ahead) })}
                                 </p>
                                 {strategy === 'merge' && (
                                     <p className="text-xs text-zinc-500">
-                                        {preview.CanFastForward ? 'Vai avançar direto (fast-forward), sem commit de merge.' : 'Vai criar um commit de merge.'}
+                                        {preview.CanFastForward ? mergeTexts.willFastForward : mergeTexts.willCreateMergeCommit}
                                     </p>
                                 )}
                                 {preview.ConflictingFiles.length > 0 ? (
                                     <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs space-y-1">
                                         <div className="flex items-center gap-2 font-bold text-amber-600 dark:text-amber-400">
                                             <CircleAlert className="w-4 h-4" />
-                                            {strategy === 'rebase' ? 'Pode haver conflito em' : 'Vai haver conflito em'} {plural(preview.ConflictingFiles.length, 'arquivo')}
+                                            {formatMessage(strategy === 'rebase' ? mergeTexts.mayConflict : mergeTexts.willConflict, { files: filesLabel(preview.ConflictingFiles.length) })}
                                         </div>
                                         {preview.ConflictingFiles.slice(0, 6).map((file) => (
                                             <div key={file} className="font-mono text-[11px] text-zinc-600 dark:text-zinc-400 truncate">{file}</div>
                                         ))}
-                                        <p className="text-[11px] text-zinc-500">Dá para seguir: os conflitos ficam marcados para você resolver antes de concluir.</p>
+                                        <p className="text-[11px] text-zinc-500">{mergeTexts.conflictsHint}</p>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                                         <CircleCheck className="w-4 h-4" />
-                                        Sem conflitos
+                                        {mergeTexts.noConflicts}
                                     </div>
                                 )}
                                 <div className="space-y-1">
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Commits que entram</div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{mergeTexts.incomingCommits}</div>
                                     {preview.Commits.slice(0, 8).map((commit) => (
                                         <div key={commit.Hash} className="flex items-center gap-2 text-[11px] min-w-0">
                                             <span className="font-mono text-zinc-400 shrink-0">{commit.Hash}</span>
@@ -320,7 +326,7 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
                                             <span className="ml-auto shrink-0 text-zinc-400">{commit.Author}</span>
                                         </div>
                                     ))}
-                                    {preview.Ahead > 8 && <div className="text-[11px] text-zinc-400">e mais {preview.Ahead - 8}...</div>}
+                                    {preview.Ahead > 8 && <div className="text-[11px] text-zinc-400">{formatMessage(mergeTexts.andMore, { count: preview.Ahead - 8 })}</div>}
                                 </div>
                             </>
                         )}
@@ -329,11 +335,11 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
 
                 {needsMessage && (
                     <div className="space-y-2">
-                        <input value={summary} onChange={(event) => setSummary(event.target.value)} placeholder="Resumo do commit" className={inputClass} />
+                        <input value={summary} onChange={(event) => setSummary(event.target.value)} placeholder={mergeTexts.summaryPlaceholder} className={inputClass} />
                         <textarea
                             rows={3}
                             value={description}
-                            placeholder="Descrição"
+                            placeholder={dictionary.octohub.common.description}
                             onChange={(event) => setDescription(event.target.value)}
                             className={`${inputClass} resize-none`}
                         />
@@ -349,8 +355,8 @@ const MergeBranchModal: React.FC<MergeBranchModalProps> = ({ open, onClose, init
                             className="mt-0.5 accent-emerald-600"
                         />
                         <span className="text-zinc-700 dark:text-zinc-300">
-                            Você tem alterações não commitadas. Guardar em um stash antes de começar (elas ficam em Stashes pendentes para restaurar depois).
-                            {strategy === 'rebase' && <b> Obrigatório para o rebase.</b>}
+                            {mergeTexts.stashBeforeStart}
+                            {strategy === 'rebase' && <b>{mergeTexts.requiredForRebase}</b>}
                         </span>
                     </label>
                 )}

@@ -1,5 +1,6 @@
 import { Copy } from 'lucide-react';
 import React, { useState } from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import CodeEditor from '../editors/CodeEditor';
 import SectionTabs from '../editors/SectionTabs';
 import { iconButtonClass } from '../editors/FormStyles';
@@ -12,11 +13,13 @@ type GrpcResponseSection = 'message' | 'headers' | 'trailers';
 
 const GrpcResponseViewer: React.FC<{ runtime: TabRuntime; onCancel: () => void }> = ({ runtime, onCancel }) => {
   const [section, setSection] = useState<GrpcResponseSection>('message');
+  const { dictionary } = useTranslation();
+  const grpcTexts = dictionary.vulpes.grpc;
   const response = runtime.grpcResponse;
 
-  if (runtime.running) return <ResponseLoading label="Aguardando o servidor gRPC…" onCancel={onCancel} />;
+  if (runtime.running) return <ResponseLoading label={grpcTexts.waiting} onCancel={onCancel} />;
   if (runtime.error) return <ResponseError message={runtime.error} />;
-  if (!response) return <ResponseEmpty hint="Selecione um método e invoque (Ctrl+Enter) para ver a resposta." />;
+  if (!response) return <ResponseEmpty hint={grpcTexts.emptyHint} />;
 
   const succeeded = response.statusCode === 0;
 
@@ -32,7 +35,7 @@ const GrpcResponseViewer: React.FC<{ runtime: TabRuntime; onCancel: () => void }
         </span>
         <span className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400">{formatDuration(response.durationMs)}</span>
         {succeeded && (
-          <button type="button" title="Copiar resposta" onClick={() => copyToClipboard(response.message)} className={`ml-auto ${iconButtonClass}`}>
+          <button type="button" title={grpcTexts.copyResponse} onClick={() => copyToClipboard(response.message)} className={`ml-auto ${iconButtonClass}`}>
             <Copy className="w-3.5 h-3.5" />
           </button>
         )}
@@ -41,7 +44,7 @@ const GrpcResponseViewer: React.FC<{ runtime: TabRuntime; onCancel: () => void }
         active={section}
         onChange={setSection}
         tabs={[
-          { key: 'message', label: 'Resposta' },
+          { key: 'message', label: grpcTexts.reply },
           { key: 'headers', label: 'Metadata', count: response.headers.length },
           { key: 'trailers', label: 'Trailers', count: response.trailers.length },
         ]}
@@ -56,12 +59,12 @@ const GrpcResponseViewer: React.FC<{ runtime: TabRuntime; onCancel: () => void }
         ))}
       {section === 'headers' && (
         <div className="flex-1 overflow-auto">
-          <HeadersTable headers={response.headers} emptyLabel="Nenhuma metadata recebida." />
+          <HeadersTable headers={response.headers} emptyLabel={grpcTexts.noMetadata} />
         </div>
       )}
       {section === 'trailers' && (
         <div className="flex-1 overflow-auto">
-          <HeadersTable headers={response.trailers} emptyLabel="Nenhum trailer recebido." />
+          <HeadersTable headers={response.trailers} emptyLabel={grpcTexts.noTrailers} />
         </div>
       )}
     </div>

@@ -1,7 +1,9 @@
 import toast from 'react-hot-toast';
 import React, { useEffect, useMemo, useState } from 'react';
+import RichMessage from '../../i18n/RichMessage';
 import { Modal } from '../../shared/components/modals/Modal';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
+import { useTranslation } from '../../i18n/useTranslation';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import * as octohubStructs from '../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { CircleAlert, Cloud, GitBranch, GitBranchPlus, RefreshCw, Search } from 'lucide-react';
@@ -16,8 +18,10 @@ interface CreateBranchModalProps {
 const normalizeBranchName = (name: string) => name.trim().replace(/\s+/g, '-');
 
 const CreateBranchModal: React.FC<CreateBranchModalProps> = ({ open, onClose, initialName = '' }) => {
+    const { dictionary, formatMessage } = useTranslation();
     const [name, setName] = useState('');
     const [filter, setFilter] = useState('');
+    const branchTexts = dictionary.octohub.createBranch;
     const [dirty, setDirty] = useState(false);
     const [checkout, setCheckout] = useState(true);
     const [creating, setCreating] = useState(false);
@@ -68,9 +72,9 @@ const CreateBranchModal: React.FC<CreateBranchModalProps> = ({ open, onClose, in
             await FetchRemotes();
             await loadBranches(selected);
             notifyChange();
-            toast.success('Branches remotas atualizadas.');
+            toast.success(dictionary.octohub.common.remoteBranchesUpdated);
         } catch (error) {
-            handleGitError(error, 'Erro ao buscar do remoto', handleFetch);
+            handleGitError(error, dictionary.octohub.common.fetchFailed, handleFetch);
         } finally {
             setFetching(false);
         }
@@ -85,8 +89,8 @@ const CreateBranchModal: React.FC<CreateBranchModalProps> = ({ open, onClose, in
             onClose();
             toast.success(
                 checkout
-                    ? `Branch ${branchName} criada a partir de ${selected}. Agora você está nela.`
-                    : `Branch ${branchName} criada a partir de ${selected}.`
+                    ? formatMessage(branchTexts.createdAndSwitched, { name: branchName, source: selected })
+                    : formatMessage(branchTexts.created, { name: branchName, source: selected })
             );
         } catch (error) {
             toast.error(errorMessage(error));
@@ -101,8 +105,8 @@ const CreateBranchModal: React.FC<CreateBranchModalProps> = ({ open, onClose, in
         <Modal
             size="md"
             isOpen={open}
-            title="Nova branch"
-            description={selected ? `a partir de ${selected}` : undefined}
+            title={branchTexts.title}
+            description={selected ? formatMessage(branchTexts.fromBranch, { branch: selected }) : undefined}
             onClose={() => !creating && onClose()}
             icon={<GitBranchPlus className="w-5 h-5 text-emerald-500" />}
             footer={
@@ -114,14 +118,14 @@ const CreateBranchModal: React.FC<CreateBranchModalProps> = ({ open, onClose, in
                         className="mr-auto px-3 py-2 rounded-lg text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 flex items-center gap-2 disabled:opacity-50"
                     >
                         <RefreshCw className={`w-3.5 h-3.5 ${fetching ? 'animate-spin' : ''}`} />
-                        Buscar do remoto
+                        {dictionary.octohub.common.fetchFromRemote}
                     </button>
                     <button
                         onClick={onClose}
                         disabled={creating}
                         className="px-4 py-2 rounded-lg text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 disabled:opacity-50"
                     >
-                        Cancelar
+                        {dictionary.app.common.cancel}
                     </button>
                     <button
                         onClick={handleCreate}
@@ -133,44 +137,44 @@ const CreateBranchModal: React.FC<CreateBranchModalProps> = ({ open, onClose, in
                         ) : (
                             <GitBranchPlus className="w-4 h-4 shrink-0" />
                         )}
-                        Criar branch
+                        {branchTexts.create}
                     </button>
                 </>
             }
         >
             <div className="space-y-4">
                 <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Nome da branch</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{branchTexts.nameLabel}</label>
                     <input
                         autoFocus
                         value={name}
-                        placeholder="ex: feature/nova-tela"
+                        placeholder={branchTexts.namePlaceholder}
                         onChange={(event) => setName(event.target.value)}
                         onKeyDown={(event) => event.key === 'Enter' && handleCreate()}
                         className={inputClass}
                     />
                     {name.trim() !== branchName && branchName && (
                         <p className="text-[11px] text-zinc-500">
-                            Será criada como <span className="font-mono">{branchName}</span>
+                            <RichMessage template={branchTexts.willBeCreatedAs} values={{ name: <span className="font-mono">{branchName}</span> }} />
                         </p>
                     )}
                     {duplicated && (
                         <p className="flex items-center gap-1.5 text-[11px] text-rose-500">
                             <CircleAlert className="w-3.5 h-3.5" />
-                            Já existe uma branch local com esse nome.
+                            {branchTexts.duplicated}
                         </p>
                     )}
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Criar a partir de</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{branchTexts.sourceLabel}</label>
                     <div className="flex flex-col h-64 border border-zinc-200 dark:border-white/10 rounded-xl overflow-hidden">
                         <div className="p-2 border-b border-zinc-100 dark:border-white/5">
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
                                 <input
                                     value={filter}
-                                    placeholder="Filtrar branches..."
+                                    placeholder={dictionary.octohub.common.filterBranches}
                                     onChange={(event) => setFilter(event.target.value)}
                                     className="w-full pl-8 pr-3 py-1.5 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                 />
@@ -179,7 +183,7 @@ const CreateBranchModal: React.FC<CreateBranchModalProps> = ({ open, onClose, in
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
                             {filtered.length === 0 && (
                                 <p className="p-4 text-center text-xs text-zinc-500 italic">
-                                    {isDetached && branches.length === 0 ? 'Será criada a partir do HEAD atual.' : 'Nenhuma branch encontrada.'}
+                                    {isDetached && branches.length === 0 ? branchTexts.fromCurrentHead : dictionary.octohub.common.noBranchFound}
                                 </p>
                             )}
                             {filtered.map((branch, index) => {
@@ -188,7 +192,7 @@ const CreateBranchModal: React.FC<CreateBranchModalProps> = ({ open, onClose, in
                                     <React.Fragment key={`${branch.IsRemote}-${branch.Name}`}>
                                         {showGroup && (
                                             <div className="px-2 pt-2 pb-1 text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                                                {branch.IsRemote ? 'Remotas' : 'Locais'}
+                                                {branch.IsRemote ? dictionary.octohub.branchSelector.remote : dictionary.octohub.branchSelector.local}
                                             </div>
                                         )}
                                         <button
@@ -200,7 +204,7 @@ const CreateBranchModal: React.FC<CreateBranchModalProps> = ({ open, onClose, in
                                         >
                                             {branch.IsRemote ? <Cloud className="w-3.5 h-3.5 shrink-0" /> : <GitBranch className="w-3.5 h-3.5 shrink-0" />}
                                             <span className="truncate" title={branch.Name}>{branch.Name}</span>
-                                            {branch.IsCurrent && <span className="ml-auto shrink-0 text-[10px] font-normal text-zinc-400">atual</span>}
+                                            {branch.IsCurrent && <span className="ml-auto shrink-0 text-[10px] font-normal text-zinc-400">{branchTexts.current}</span>}
                                         </button>
                                     </React.Fragment>
                                 );
@@ -216,13 +220,13 @@ const CreateBranchModal: React.FC<CreateBranchModalProps> = ({ open, onClose, in
                         onChange={(event) => setCheckout(event.target.checked)}
                         className="mt-0.5 accent-emerald-600"
                     />
-                    <span className="text-zinc-700 dark:text-zinc-300">Mudar para a nova branch depois de criar</span>
+                    <span className="text-zinc-700 dark:text-zinc-300">{branchTexts.switchAfterCreate}</span>
                 </label>
 
                 {dirty && checkout && (
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-zinc-700 dark:text-zinc-300">
                         <CircleAlert className="w-4 h-4 shrink-0 text-amber-500" />
-                        Você tem alterações não commitadas. Elas vão junto para a nova branch; se conflitarem com a branch de origem, a criação é cancelada.
+                        {branchTexts.dirtyWarning}
                     </div>
                 )}
             </div>

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/models"
 	octohubDtos "docker-manager-go/src/octohub/dtos"
 )
@@ -49,7 +50,7 @@ func (handlerStruct *RepositoryHandler) ListGitlabProjects(token, host string) (
 		return nil, err
 	}
 	if credential.ID == 0 || credential.Password.Plaintext == "" {
-		return nil, fmt.Errorf("salve um token de acesso do GitLab (com a permissão read_api) nas Credenciais Git de %s para listar os projetos", host)
+		return nil, appErrors.New("octohub.gitlabTokenRequired", "salve um token de acesso do GitLab (com a permissão read_api) nas Credenciais Git de {host} para listar os projetos").With("host", host)
 	}
 
 	var projects []gitlabProject
@@ -103,7 +104,7 @@ func getGitlabAPI(endpoint, accessToken string, out any) error {
 
 	response, err := gitlabClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("não foi possível falar com o GitLab: %w", err)
+		return appErrors.Wrap("octohub.gitlabUnreachable", "não foi possível falar com o GitLab", err)
 	}
 	defer response.Body.Close()
 
@@ -111,13 +112,13 @@ func getGitlabAPI(endpoint, accessToken string, out any) error {
 	case http.StatusOK:
 		return json.NewDecoder(response.Body).Decode(out)
 	case http.StatusUnauthorized:
-		return fmt.Errorf("o GitLab recusou o token salvo. A API não aceita a senha da conta: use um Personal Access Token com a permissão read_api")
+		return appErrors.New("octohub.gitlabTokenRejected", "o GitLab recusou o token salvo. A API não aceita a senha da conta: use um Personal Access Token com a permissão read_api")
 	case http.StatusForbidden:
-		return fmt.Errorf("o token salvo não tem permissão para listar projetos: gere um com a permissão read_api")
+		return appErrors.New("octohub.gitlabTokenNoPermission", "o token salvo não tem permissão para listar projetos: gere um com a permissão read_api")
 	case http.StatusNotFound:
-		return fmt.Errorf("o servidor não respondeu como um GitLab (API v4 não encontrada)")
+		return appErrors.New("octohub.notGitlab", "o servidor não respondeu como um GitLab (API v4 não encontrada)")
 	default:
-		return fmt.Errorf("erro ao consultar o GitLab: status %d", response.StatusCode)
+		return appErrors.New("octohub.gitlabStatus", "erro ao consultar o GitLab: status {status}").With("status", response.StatusCode)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"docker-manager-go/src/appErrors"
 	auth "docker-manager-go/src/auth/functions"
 	authHandlers "docker-manager-go/src/auth/handlers"
 	cloudSyncFunctions "docker-manager-go/src/cloudSync/functions"
@@ -67,6 +68,7 @@ func main() {
 	desktopApplication := application.New(application.Options{
 		Name:        "Devops Hub",
 		Description: "Devops Hub Application",
+		MarshalError: appErrors.Marshal,
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
 		},

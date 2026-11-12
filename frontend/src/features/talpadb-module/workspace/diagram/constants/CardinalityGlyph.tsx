@@ -4,12 +4,6 @@ import type { RelationEndKind } from '../../../functions/DiagramEdges';
 export const GLYPH_WIDTH = 24;
 export const GLYPH_HEIGHT = 16;
 
-export const cardinalityLabels: Record<RelationEndKind, string> = {
-  one: 'exatamente um',
-  zeroOrOne: 'zero ou um',
-  zeroOrMany: 'zero ou muitos',
-};
-
 interface CardinalityGlyphProps {
   color: string;
   background: string;

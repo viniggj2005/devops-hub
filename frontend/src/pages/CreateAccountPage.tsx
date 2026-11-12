@@ -3,13 +3,14 @@ import { ShieldCheck } from 'lucide-react';
 import appIcon from '../assets/images/hub.svg';
 import { useNavigate } from 'react-router-dom';
 import { AuthWindowBar } from '../features/appFrame/WindowControls';
-import { appModules } from '../features/shared/constants/AppModules';
+import { useTranslation } from '../features/i18n/useTranslation';
+import { activeAppModules } from '../features/shared/constants/AppModules';
 import CreateUserForm from '../features/users/components/forms/CreateUserForm';
-
-const activeModules = appModules.filter((moduleItem) => moduleItem.status === 'Ativo');
 
 const CreateAccountPage: React.FC = () => {
   const navigate = useNavigate();
+  const { dictionary } = useTranslation();
+  const authTexts = dictionary.app.auth;
 
   return (
     <div
@@ -42,14 +43,14 @@ const CreateAccountPage: React.FC = () => {
               </div>
 
               <h2 className="text-lg font-semibold text-zinc-100 leading-snug mb-2">
-                Comece a operar sua infraestrutura.
+                {authTexts.signupHeadline}
               </h2>
               <p className="text-xs text-zinc-400 leading-relaxed mb-6">
-                Crie sua conta local para centralizar acessos, servidores, contêineres e bancos de dados.
+                {authTexts.signupPitch}
               </p>
 
               <div className="space-y-2.5">
-                {activeModules.map((moduleItem) => (
+                {activeAppModules.map((moduleItem) => (
                   <div
                     key={moduleItem.id}
                     className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.05]"
@@ -62,7 +63,7 @@ const CreateAccountPage: React.FC = () => {
                         {moduleItem.title}
                       </p>
                       <p className="text-[11px] text-zinc-500 truncate">
-                        {moduleItem.description}
+                        {dictionary.app.modules[moduleItem.configName]}
                       </p>
                     </div>
                   </div>
@@ -72,7 +73,7 @@ const CreateAccountPage: React.FC = () => {
 
             <div className="pt-6 mt-6 border-t border-white/[0.06] flex items-center gap-2 text-[11px] text-zinc-500">
               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Ambiente local seguro para suas credenciais</span>
+              <span>{dictionary.app.common.secureEnvironment}</span>
             </div>
           </div>
 
@@ -88,10 +89,10 @@ const CreateAccountPage: React.FC = () => {
 
             <div className="mb-6">
               <h1 className="text-xl font-bold text-white tracking-tight">
-                Criar nova conta
+                {authTexts.signupTitle}
               </h1>
               <p className="text-xs text-zinc-400 mt-1">
-                Preencha seus dados para configurar seu perfil no DevOps Hub.
+                {authTexts.signupSubtitle}
               </p>
             </div>
 
@@ -100,20 +101,20 @@ const CreateAccountPage: React.FC = () => {
             <div className="flex items-center gap-3 my-5">
               <div className="h-px flex-1 bg-white/[0.08]" />
               <span className="text-[11px] uppercase tracking-wider text-zinc-500">
-                ou
+                {dictionary.app.common.or}
               </span>
               <div className="h-px flex-1 bg-white/[0.08]" />
             </div>
 
             <div className="text-center">
               <p className="text-xs text-zinc-400">
-                Já possui uma conta?{' '}
+                {authTexts.hasAccount}{' '}
                 <button
                   type="button"
                   onClick={() => navigate('/login')}
                   className="text-blue-400 hover:text-blue-300 font-medium transition-colors underline-offset-4 hover:underline cursor-pointer"
                 >
-                  Fazer login
+                  {authTexts.loginLink}
                 </button>
               </p>
             </div>

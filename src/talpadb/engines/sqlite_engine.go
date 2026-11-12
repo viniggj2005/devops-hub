@@ -10,6 +10,7 @@ import (
 
 	_ "github.com/glebarez/go-sqlite"
 
+	"docker-manager-go/src/appErrors"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 	talpadbFunctions "docker-manager-go/src/talpadb/functions"
 )
@@ -265,7 +266,7 @@ func (engine *SqliteEngine) ListColumns(ctx context.Context, db Querier, schema 
 		return nil, err
 	}
 	if len(columns) == 0 {
-		return nil, fmt.Errorf("objeto %s.%s não encontrado", schema, relation)
+		return nil, appErrors.New("talpadb.objectNotFound", "objeto {object} não encontrado").With("object", schema+"."+relation)
 	}
 
 	if primaryKeyCount == 1 {
@@ -296,7 +297,7 @@ func (engine *SqliteEngine) objectType(ctx context.Context, db Querier, schema s
 	var objectType string
 	err := db.QueryRowContext(ctx, fmt.Sprintf("SELECT type FROM %s WHERE name = ? AND type IN ('table', 'view')", engine.master(schema)), name).Scan(&objectType)
 	if err == sql.ErrNoRows {
-		return "", fmt.Errorf("objeto %s.%s não encontrado", schema, name)
+		return "", appErrors.New("talpadb.objectNotFound", "objeto {object} não encontrado").With("object", schema+"."+name)
 	}
 	return objectType, err
 }
@@ -501,11 +502,11 @@ func (engine *SqliteEngine) ObjectDdl(ctx context.Context, db Querier, object ta
 		var file sql.NullString
 		err := db.QueryRowContext(ctx, "SELECT file FROM pragma_database_list WHERE name = ?", object.Name).Scan(&file)
 		if err != nil {
-			return "", fmt.Errorf("schema %s não encontrado", object.Name)
+			return "", appErrors.New("talpadb.schemaNotFound", "schema {schema} não encontrado").With("schema", object.Name)
 		}
 		return fmt.Sprintf("-- SCHEMA: %s\n\nATTACH DATABASE %s AS %s;\n", object.Name, talpadbFunctions.QuoteLiteral(file.String), engine.displayName(object.Name)), nil
 	}
-	return "", fmt.Errorf("tipo de objeto não suportado no SQLite: %s", object.Kind)
+	return "", appErrors.New("talpadb.unsupportedObjectKindIn", "tipo de objeto não suportado no {engine}: {kind}").With("engine", "SQLite").With("kind", object.Kind)
 }
 
 func (engine *SqliteEngine) CompletionSchema(ctx context.Context, db Querier) ([]talpadbDtos.CompletionTableDto, error) {
@@ -683,7 +684,7 @@ func (engine *SqliteEngine) TableColumns(ctx context.Context, db Querier, schema
 
 func (engine *SqliteEngine) DropStatement(ctx context.Context, db Querier, input talpadbDtos.DropObjectInputDto) (string, error) {
 	if input.Kind != "relation" {
-		return "", fmt.Errorf("%w: excluir %s no SQLite", ErrUnsupported, input.Kind)
+		return "", appErrors.Wrap("talpadb.dropUnsupported", "não é possível excluir {kind} no {engine}", ErrUnsupported).With("kind", input.Kind).With("engine", "SQLite")
 	}
 	objectType, err := engine.objectType(ctx, db, input.Schema, input.Name)
 	if err != nil {

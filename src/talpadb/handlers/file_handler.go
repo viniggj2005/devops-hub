@@ -2,11 +2,11 @@ package talpadbHandlers
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/desktop"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 )
@@ -55,7 +55,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) OpenSqlFile(callContext context
 		return nil, err
 	}
 	if info.Size() > maxSqlFileSize {
-		return nil, fmt.Errorf("arquivo muito grande (%d MB); o limite é 20 MB", info.Size()/1024/1024)
+		return nil, appErrors.New("talpadb.fileTooLarge", "arquivo muito grande ({size} MB); o limite é 20 MB").With("size", info.Size()/1024/1024)
 	}
 
 	content, err := os.ReadFile(path)

@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
+import { tabTitle } from "./TabTitle";
 import { AppTab, useAppStore } from "./AppStore";
+import { useTranslation } from "../i18n/useTranslation";
 import appIcon from "../../assets/images/hub.svg";
 import { isDetachedWindow } from "./WindowContext";
 import { useTabDetachDrag } from "./hooks/useTabDetachDrag";
@@ -17,18 +19,15 @@ interface TabMenu {
   tab: AppTab;
 }
 
-const dragHintLabels = {
-  newWindow: 'Solte para abrir em nova janela',
-  merge: 'Solte para mover para a outra janela',
-};
-
 const tabActionButtonClass = `
   p-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity
   hover:bg-black/10 dark:hover:bg-white/10
 `;
 
 export function AppFrame() {
+  const { dictionary, formatMessage } = useTranslation();
   const dropHighlighted = useTabTransferTarget();
+  const tabTexts = dictionary.app.tabs;
   const tabStripRef = useRef<HTMLDivElement>(null);
   const { maximized, toggleMaximise } = useWindowMaximise();
   const [tabMenu, setTabMenu] = useState<TabMenu | null>(null);
@@ -85,26 +84,25 @@ export function AppFrame() {
     const entries: ContextMenuEntry[] = [];
     if (canDragTab(tab.id)) {
       entries.push({
-        label: 'Abrir em nova janela',
+        label: tabTexts.openInNewWindow,
         icon: SquareArrowOutUpRight,
         disabled: !canOpenInNewWindow(tab.id),
-        hint: canOpenInNewWindow(tab.id) ? undefined : 'Esta já é a única aba desta janela',
+        hint: canOpenInNewWindow(tab.id) ? undefined : tabTexts.onlyTabInWindow,
         onClick: () => detachTab(tab.id),
       });
     }
     if (canMoveToMainWindow(tab.id)) {
-      entries.push({ label: 'Mover para a janela principal', icon: AppWindow, onClick: () => moveTabToMainWindow(tab.id) });
+      entries.push({ label: tabTexts.moveToMainWindow, icon: AppWindow, onClick: () => moveTabToMainWindow(tab.id) });
     }
     if (tab.type !== 'home') {
       if (entries.length > 0) entries.push('separator');
-      entries.push({ label: 'Fechar aba', icon: X, onClick: () => closeTab(tab.id) });
+      entries.push({ label: tabTexts.closeTab, icon: X, onClick: () => closeTab(tab.id) });
     }
     return entries;
   };
 
-  const idleHintLabel = !isDetachedWindow || tabs.length > 1
-    ? 'Arraste para baixo ou até outra janela'
-    : 'Arraste até outra janela para mesclar';
+  const dragHintLabels = { newWindow: tabTexts.dropToNewWindow, merge: tabTexts.dropToOtherWindow };
+  const idleHintLabel = !isDetachedWindow || tabs.length > 1 ? tabTexts.dragDownOrToWindow : tabTexts.dragToMerge;
   const hintLabel = hint && (hint.mode === 'idle' ? idleHintLabel : dragHintLabels[hint.mode]);
 
   return (
@@ -142,6 +140,7 @@ export function AppFrame() {
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
           const draggable = canDragTab(tab.id);
+          const title = tabTitle(tab, dictionary);
           return (
             <div
               key={tab.id}
@@ -172,10 +171,10 @@ export function AppFrame() {
                 }
                 ${hint && draggable ? 'cursor-grabbing' : ''}
               `}
-              title={draggable ? `${tab.title} — arraste para outra janela ou para baixo para destacar` : tab.title}
+              title={draggable ? formatMessage(tabTexts.dragTooltip, { title }) : title}
             >
               {getTabIcon(tab.type)}
-              <span className="text-xs font-medium truncate flex-1">{tab.title}</span>
+              <span className="text-xs font-medium truncate flex-1">{title}</span>
 
               {canMoveToMainWindow(tab.id) && (
                 <button
@@ -183,8 +182,8 @@ export function AppFrame() {
                     event.stopPropagation();
                     moveTabToMainWindow(tab.id);
                   }}
-                  title="Mover para a janela principal"
-                  aria-label="Mover para a janela principal"
+                  title={tabTexts.moveToMainWindow}
+                  aria-label={tabTexts.moveToMainWindow}
                   className={tabActionButtonClass}
                 >
                   <AppWindow className="w-3.5 h-3.5" />
@@ -197,8 +196,8 @@ export function AppFrame() {
                     event.stopPropagation();
                     detachTab(tab.id);
                   }}
-                  title="Abrir em nova janela"
-                  aria-label="Abrir em nova janela"
+                  title={tabTexts.openInNewWindow}
+                  aria-label={tabTexts.openInNewWindow}
                   className={tabActionButtonClass}
                 >
                   <SquareArrowOutUpRight className="w-3.5 h-3.5" />
@@ -211,6 +210,8 @@ export function AppFrame() {
                     event.stopPropagation();
                     closeTab(tab.id);
                   }}
+                  title={tabTexts.closeTab}
+                  aria-label={tabTexts.closeTab}
                   className={`
                     ${tabActionButtonClass}
                     ${isActive ? 'opacity-100' : ''}
@@ -226,7 +227,7 @@ export function AppFrame() {
         {dropHighlighted && (
           <div className="pointer-events-none absolute inset-1 z-20 flex items-center justify-center rounded-lg border-2 border-dashed border-blue-400 bg-blue-500/15">
             <span className="rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white shadow-lg">
-              Solte para mover a aba para esta janela
+              {tabTexts.dropToMergeHere}
             </span>
           </div>
         )}
@@ -259,7 +260,7 @@ export function AppFrame() {
         <ContextMenu
           x={tabMenu.x}
           y={tabMenu.y}
-          title={tabMenu.tab.title}
+          title={tabTitle(tabMenu.tab, dictionary)}
           entries={tabMenuEntries(tabMenu.tab)}
           onClose={() => setTabMenu(null)}
         />

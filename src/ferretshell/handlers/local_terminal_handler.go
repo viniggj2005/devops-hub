@@ -2,9 +2,9 @@ package ferretshellHandlers
 
 import (
 	"context"
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/desktop"
 	ferretShellDtos "docker-manager-go/src/ferretshell/dtos"
-	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -98,7 +98,7 @@ func (handlerStruct *LocalTerminalHandlerStruct) findShell(shellId string) (loca
 func (handlerStruct *LocalTerminalHandlerStruct) Start(ctx context.Context, startDto ferretShellDtos.LocalTerminalStartDto) error {
 	shell, found := handlerStruct.findShell(startDto.ShellId)
 	if !found {
-		return fmt.Errorf("terminal local '%s' não encontrado", startDto.ShellId)
+		return appErrors.New("ferretShell.localTerminalNotFound", "terminal local '{shell}' não encontrado").With("shell", startDto.ShellId)
 	}
 
 	windowName := desktop.CallingWindowName(ctx)
@@ -182,7 +182,7 @@ func (handlerStruct *LocalTerminalHandlerStruct) getSession(sessionKey string) (
 func (handlerStruct *LocalTerminalHandlerStruct) Send(ctx context.Context, sessionId string, data string) error {
 	terminal, found := handlerStruct.getSession(desktop.ScopedKey(desktop.CallingWindowName(ctx), sessionId))
 	if !found {
-		return errors.New("sessão não encontrada")
+		return appErrors.New("ferretShell.sessionNotFound", "sessão não encontrada")
 	}
 	_, writeError := terminal.console.Write([]byte(data))
 	return writeError
@@ -191,7 +191,7 @@ func (handlerStruct *LocalTerminalHandlerStruct) Send(ctx context.Context, sessi
 func (handlerStruct *LocalTerminalHandlerStruct) Resize(ctx context.Context, sessionId string, cols, rows int) error {
 	terminal, found := handlerStruct.getSession(desktop.ScopedKey(desktop.CallingWindowName(ctx), sessionId))
 	if !found {
-		return errors.New("sessão não encontrada")
+		return appErrors.New("ferretShell.sessionNotFound", "sessão não encontrada")
 	}
 	return terminal.console.Resize(cols, rows)
 }
@@ -199,7 +199,7 @@ func (handlerStruct *LocalTerminalHandlerStruct) Resize(ctx context.Context, ses
 func (handlerStruct *LocalTerminalHandlerStruct) Attach(ctx context.Context, sessionId string) error {
 	terminal, found := handlerStruct.getSession(desktop.ScopedKey(desktop.CallingWindowName(ctx), sessionId))
 	if !found {
-		return errors.New("sessão não encontrada")
+		return appErrors.New("ferretShell.sessionNotFound", "sessão não encontrada")
 	}
 	terminal.output.resume()
 	return nil

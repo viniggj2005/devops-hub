@@ -3,12 +3,15 @@ import React, { useEffect, useState } from 'react';
 import { Hash, User, Calendar } from 'lucide-react';
 import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { copyToClipboard } from '../../../shared/functions/clipboard';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface CommitDetailsHeaderProps {
     commit: octohubStructs.Commit;
 }
 
 const CommitDetailsHeader: React.FC<CommitDetailsHeaderProps> = ({ commit }) => {
+    const { language, dictionary } = useTranslation();
+    const detailsTexts = dictionary.octohub.commitDetails;
     const avatarUrl = `https://github.com/${commit.Author}.png`;
 
     const [imgError, setImgError] = useState(false);
@@ -22,7 +25,7 @@ const CommitDetailsHeader: React.FC<CommitDetailsHeaderProps> = ({ commit }) => 
             <div className="flex items-center justify-between gap-4 mb-4">
                 <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">{commit.Title}</h1>
                 <div
-                    onClick={() => copyToClipboard(commit.Hash, 'Hash copiado!')}
+                    onClick={() => copyToClipboard(commit.Hash, detailsTexts.hashCopied)}
                     className="flex items-center gap-2 px-2.5 py-1 bg-zinc-100 dark:bg-zinc-800/80 rounded-md border border-zinc-200 dark:border-white/10 font-mono text-[10px] text-zinc-600 dark:text-zinc-400 cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-700/80 transition-colors"
                 >
                     <Hash className="w-3 h-3" />
@@ -51,7 +54,7 @@ const CommitDetailsHeader: React.FC<CommitDetailsHeaderProps> = ({ commit }) => 
                         )}
                     </div>
                     <div>
-                        <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">Autor</p>
+                        <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">{detailsTexts.author}</p>
                         <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{commit.Author}</p>
                     </div>
                 </div>
@@ -60,8 +63,8 @@ const CommitDetailsHeader: React.FC<CommitDetailsHeaderProps> = ({ commit }) => 
                         <Calendar className="w-4 h-4" />
                     </div>
                     <div>
-                        <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">Data</p>
-                        <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{new Date(commit.Date.replace('Date:', '').trim()).toLocaleDateString(undefined, {
+                        <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">{detailsTexts.date}</p>
+                        <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{new Date(commit.Date.replace('Date:', '').trim()).toLocaleDateString(language, {
                             day: '2-digit',
                             month: 'short',
                             year: 'numeric',

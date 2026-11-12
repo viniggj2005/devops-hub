@@ -1,10 +1,10 @@
 package talpadbHandlers
 
 import (
-	"fmt"
 	"errors"
 	"context"
 
+	"docker-manager-go/src/appErrors"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 	talpadbEngines "docker-manager-go/src/talpadb/engines"
 )
@@ -48,7 +48,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) CreateDatabase(callContext cont
 	}
 	if commentSql != "" {
 		if _, err := entry.pool.Exec(ctx, commentSql); err != nil {
-			return fmt.Errorf("o banco foi criado, mas o comentário não foi salvo: %s", describeError(err))
+			return appErrors.Wrap("talpadb.commentNotSaved", "o banco foi criado, mas o comentário não foi salvo", errors.New(describeError(err)))
 		}
 	}
 	return nil

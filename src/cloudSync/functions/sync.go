@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+
+	"docker-manager-go/src/appErrors"
 )
 
 const (
@@ -24,7 +26,7 @@ const (
 	sqliteHeader    = "SQLite format 3\x00"
 )
 
-var ErrNotConnected = errors.New("nenhuma conta do Google conectada")
+var ErrNotConnected = appErrors.New("cloudSync.notConnected", "nenhuma conta do Google conectada")
 
 var sidecarSuffixes = []string{"-wal", "-shm"}
 
@@ -40,7 +42,7 @@ func UploadDatabase(ctx context.Context, dataBase *gorm.DB, dataBasePath string,
 	snapshotPath := dataBasePath + ".upload"
 	defer os.Remove(snapshotPath)
 	if err := snapshotDatabase(ctx, dataBase, snapshotPath); err != nil {
-		return false, fmt.Errorf("não foi possível copiar o banco para envio: %w", err)
+		return false, appErrors.Wrap("cloudSync.copyDatabaseFailed", "não foi possível copiar o banco para envio", err)
 	}
 	hash, err := fileSHA256(snapshotPath)
 	if err != nil {
@@ -92,7 +94,7 @@ func PrepareRestore(ctx context.Context, dataBasePath string) (*PreparedRestore,
 	downloadPath := dataBasePath + ".cloud"
 	if err := downloadBackup(ctx, driveHTTPClient(ctx, state.Token), remote.ID, downloadPath); err != nil {
 		os.Remove(downloadPath)
-		return nil, fmt.Errorf("não foi possível baixar o backup da nuvem: %w", err)
+		return nil, appErrors.Wrap("cloudSync.downloadFailed", "não foi possível baixar o backup da nuvem", err)
 	}
 	if err := verifyBackup(downloadPath, remote.Hash); err != nil {
 		os.Remove(downloadPath)
@@ -108,7 +110,7 @@ func (restore *PreparedRestore) Discard() {
 func (restore *PreparedRestore) Apply() error {
 	defer restore.Discard()
 	if err := backupLocalDatabase(restore.dataBasePath, time.Now()); err != nil {
-		return fmt.Errorf("não foi possível guardar uma cópia do banco local: %w", err)
+		return appErrors.Wrap("cloudSync.localBackupFailed", "não foi possível guardar uma cópia do banco local", err)
 	}
 	if err := replaceDatabase(restore.dataBasePath, restore.downloadPath); err != nil {
 		return err
@@ -143,7 +145,7 @@ func verifyBackup(path string, expectedHash string) error {
 
 	header := make([]byte, len(sqliteHeader))
 	if _, err := io.ReadFull(file, header); err != nil || !bytes.Equal(header, []byte(sqliteHeader)) {
-		return errors.New("o backup da nuvem não é um banco SQLite válido")
+		return appErrors.New("cloudSync.invalidBackup", "o backup da nuvem não é um banco SQLite válido")
 	}
 	if expectedHash == "" {
 		return nil
@@ -153,7 +155,7 @@ func verifyBackup(path string, expectedHash string) error {
 		return err
 	}
 	if hash != expectedHash {
-		return errors.New("o backup da nuvem chegou corrompido")
+		return appErrors.New("cloudSync.corruptedBackup", "o backup da nuvem chegou corrompido")
 	}
 	return nil
 }

@@ -1,12 +1,16 @@
 import toast from 'react-hot-toast';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { Search } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { errorMessage } from '../../../../shared/functions/ErrorMessage';
 import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { LogsProps } from '../../../../../interfaces/ContainerInterfaces';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
 import { ContainerLogs } from '../../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 
 const LogsModal: React.FC<LogsProps> = ({ id, setLogsModal }) => {
+  const { dictionary } = useTranslation();
+  const containerTexts = dictionary.docker.containers;
   const firstScrollDone = useRef(false);
   const [filter, setFilter] = useState<string>('');
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -16,16 +20,16 @@ const LogsModal: React.FC<LogsProps> = ({ id, setLogsModal }) => {
   useEffect(() => {
     (async () => {
       if (selectedCredentialId == null) {
-        toast.error('Escolha uma credencial Docker para visualizar os logs.');
+        toast.error(containerTexts.logsChooseCredential);
         setLogsModal(false);
         return;
       }
       try {
         const logsOutput = await ContainerLogs(selectedCredentialId, id);
-        toast.success('Logs buscados com sucesso!');
+        toast.success(containerTexts.logsLoaded);
         setContainerLogs(logsOutput ?? '');
-      } catch (error: any) {
-        toast.error(error?.message ?? String(error));
+      } catch (error) {
+        toast.error(errorMessage(error));
       }
     })();
   }, [id, selectedCredentialId, setLogsModal]);
@@ -58,7 +62,7 @@ const LogsModal: React.FC<LogsProps> = ({ id, setLogsModal }) => {
     <Modal
       isOpen={true}
       onClose={() => setLogsModal(false)}
-      title="Logs do contêiner"
+      title={containerTexts.logsTitle}
       description={id.slice(0, 12)}
       icon={<span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />}
       size="lg"
@@ -71,7 +75,7 @@ const LogsModal: React.FC<LogsProps> = ({ id, setLogsModal }) => {
             <input
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
-              placeholder="Filtrar logs..."
+              placeholder={containerTexts.logsFilter}
               className="w-full pl-10 pr-4 py-3 rounded-xl border backdrop-blur-sm transition-all outline-none bg-white/80 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:bg-white/10 dark:border-white/20 dark:text-white dark:placeholder:text-white/40 dark:focus:border-blue-500/50 dark:focus:ring-blue-500/20"
               autoFocus
             />

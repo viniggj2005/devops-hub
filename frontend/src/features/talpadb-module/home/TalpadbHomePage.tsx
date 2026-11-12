@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { useTalpadbStore } from '../TalpadbStore';
 import ConnectionCard from './components/ConnectionCard';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useTranslation } from '../../i18n/useTranslation';
 import { tabIcons } from '../workspace/constants/TabIcons';
 import { TalpadbServices } from '../services/TalpadbServices';
 import ConnectionFormModal from './components/ConnectionFormModal';
@@ -14,7 +15,7 @@ import { connectionLabel, errorMessage, formatDuration } from '../functions/Trea
 import type { DatabaseEngine, TalpadbConnection } from '../../../interfaces/TalpadbInterfaces';
 
 const engineFilters: { value: 'all' | DatabaseEngine; label: string }[] = [
-  { value: 'all', label: 'Todos' },
+  { value: 'all', label: '' },
   { value: 'postgres', label: 'PostgreSQL' },
   { value: 'mysql', label: 'MySQL' },
   { value: 'sqlite', label: 'SQLite' },
@@ -24,7 +25,9 @@ const engineFilters: { value: 'all' | DatabaseEngine; label: string }[] = [
 const TalpadbHomePage: React.FC = () => {
   const { token } = useAuth();
   const confirmToast = useConfirmToast();
+  const { dictionary, formatMessage } = useTranslation();
   const [search, setSearch] = useState('');
+  const homeTexts = dictionary.talpadb.home;
   const [modalOpen, setModalOpen] = useState(false);
   const [testingId, setTestingId] = useState<number | null>(null);
   const connected = useExplorerStore((state) => state.connected);
@@ -87,10 +90,14 @@ const TalpadbHomePage: React.FC = () => {
         username: connection.username,
       });
       toast.success(
-        `Conexão OK: ${engineInfo(engineOf(connection)).label} ${result.serverVersion} · ${formatDuration(result.latencyMs)}`
+        formatMessage(homeTexts.connectionOk, {
+          engine: engineInfo(engineOf(connection)).label,
+          version: result.serverVersion,
+          latency: formatDuration(result.latencyMs),
+        })
       );
     } catch (error) {
-      toast.error(`Falha na conexão: ${errorMessage(error)}`);
+      toast.error(formatMessage(homeTexts.connectionFailed, { error: errorMessage(error) }));
     } finally {
       setTestingId(null);
     }
@@ -100,8 +107,8 @@ const TalpadbHomePage: React.FC = () => {
     const label = connectionLabel(connection);
     confirmToast({
       id: `talpadb-connection-${connection.id}`,
-      title: `Conexão ${label} deletada!`,
-      message: `Deseja deletar a conexão: ${label}?`,
+      title: formatMessage(homeTexts.deleteTitle, { name: label }),
+      message: formatMessage(homeTexts.deleteMessage, { name: label }),
       onConfirm: async () => {
         await TalpadbServices.deleteConnection(token ?? '', connection.id);
         closeConnectionTabs(connection.id);
@@ -140,19 +147,19 @@ const TalpadbHomePage: React.FC = () => {
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Servidores Cadastrados
+                  {homeTexts.title}
                 </h1>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
-                  {connections.length} {connections.length === 1 ? 'servidor' : 'servidores'}
+                  {formatMessage(connections.length === 1 ? homeTexts.serversOne : homeTexts.serversOther, { count: connections.length })}
                 </span>
                 {connectedCount > 0 && (
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                    {connectedCount} {connectedCount === 1 ? 'conectado' : 'conectados'}
+                    {formatMessage(connectedCount === 1 ? homeTexts.connectedOne : homeTexts.connectedOther, { count: connectedCount })}
                   </span>
                 )}
               </div>
               <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">
-                Gerencie credenciais, teste a latência ou abra conexões direto no Workspace.
+                {homeTexts.description}
               </p>
             </div>
           </div>
@@ -163,7 +170,7 @@ const TalpadbHomePage: React.FC = () => {
               className="px-4 py-2.5 rounded-xl text-xs font-bold border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors flex items-center gap-2"
             >
               <LayoutPanelLeft className="w-4 h-4 text-cyan-500" />
-              Ir ao Workspace
+              {homeTexts.goToWorkspace}
             </button>
             <button
               onClick={() => {
@@ -173,7 +180,7 @@ const TalpadbHomePage: React.FC = () => {
               className="px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
-              Nova Conexão
+              {homeTexts.newConnection}
             </button>
           </div>
         </div>
@@ -181,7 +188,7 @@ const TalpadbHomePage: React.FC = () => {
         {tabs.length > 0 && (
           <div className="mt-5 pt-4 border-t border-gray-100 dark:border-white/5 flex items-center gap-2 overflow-x-auto">
             <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500 shrink-0 mr-1">
-              Abas abertas:
+              {homeTexts.openTabs}
             </span>
             {tabs.map((tab) => {
               const { icon: Icon, className } = tabIcons[tab.type];
@@ -215,7 +222,7 @@ const TalpadbHomePage: React.FC = () => {
                 type="text"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar por nome, host ou banco..."
+                placeholder={homeTexts.searchPlaceholder}
                 className="w-full h-9 pl-9 pr-8 rounded-xl text-xs outline-none border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-gray-800 dark:text-zinc-200 placeholder:text-gray-400 focus:border-cyan-500"
               />
               {search && (
@@ -239,7 +246,7 @@ const TalpadbHomePage: React.FC = () => {
                       : 'text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'
                   }`}
                 >
-                  {filterItem.label}
+                  {filterItem.value === 'all' ? homeTexts.filterAll : filterItem.label}
                 </button>
               ))}
             </div>
@@ -250,7 +257,7 @@ const TalpadbHomePage: React.FC = () => {
           <div className="flex flex-col items-center text-center gap-3 py-12 rounded-2xl border border-dashed border-gray-300 dark:border-white/10">
             <Database className="w-10 h-10 text-gray-300 dark:text-zinc-600" />
             <p className="text-sm text-gray-500 dark:text-zinc-400">
-              Nenhuma conexão cadastrada ainda.
+              {homeTexts.empty}
             </p>
             <button
               onClick={() => {
@@ -260,12 +267,12 @@ const TalpadbHomePage: React.FC = () => {
               className="mt-1 px-5 py-2.5 rounded-xl bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 text-xs font-bold hover:bg-cyan-500/20 transition-colors flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
-              Cadastrar primeira conexão
+              {homeTexts.createFirst}
             </button>
           </div>
         ) : filteredConnections.length === 0 ? (
           <p className="py-10 text-center text-xs text-gray-400">
-            Nenhum servidor corresponde ao filtro selecionado.
+            {homeTexts.noMatch}
           </p>
         ) : (
           <div>

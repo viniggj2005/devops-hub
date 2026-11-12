@@ -8,6 +8,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/models"
 	generalConfigsDtos "docker-manager-go/src/generalConfigs/dtos"
 )
@@ -17,14 +18,14 @@ const maxThemeProfileNameLength = 60
 func validateThemeProfile(body *generalConfigsDtos.SaveThemeProfileInputDto) error {
 	body.Name = strings.TrimSpace(body.Name)
 	if body.Name == "" {
-		return errors.New("dê um nome ao perfil de tema")
+		return appErrors.New("settings.profileNameRequired", "dê um nome ao perfil de tema")
 	}
 	if utf8.RuneCountInString(body.Name) > maxThemeProfileNameLength {
-		return errors.New("o nome do perfil pode ter no máximo 60 caracteres")
+		return appErrors.New("settings.profileNameTooLong", "o nome do perfil pode ter no máximo 60 caracteres")
 	}
 	var configObject map[string]any
 	if err := json.Unmarshal([]byte(body.Config), &configObject); err != nil {
-		return errors.New("o perfil precisa ser um objeto JSON válido")
+		return appErrors.New("settings.invalidProfileJson", "o perfil precisa ser um objeto JSON válido")
 	}
 	return nil
 }
@@ -68,7 +69,7 @@ func (handlerStruct *GeneralConfigsHandlerStruct) SaveThemeProfile(token string,
 			return err
 		}
 		if duplicates > 0 {
-			return errors.New("já existe um perfil de tema com o nome " + body.Name)
+			return appErrors.New("settings.profileNameTaken", "já existe um perfil de tema com o nome {name}").With("name", body.Name)
 		}
 
 		if body.ID == 0 {
@@ -77,7 +78,7 @@ func (handlerStruct *GeneralConfigsHandlerStruct) SaveThemeProfile(token string,
 		}
 		if err := transaction.Where("id = ? AND user_id = ?", body.ID, session.UserID).First(&profileModel).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("perfil de tema não encontrado")
+				return appErrors.New("settings.profileNotFound", "perfil de tema não encontrado")
 			}
 			return err
 		}
@@ -104,7 +105,7 @@ func (handlerStruct *GeneralConfigsHandlerStruct) DeleteThemeProfile(token strin
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return errors.New("perfil de tema não encontrado")
+		return appErrors.New("settings.profileNotFound", "perfil de tema não encontrado")
 	}
 	return nil
 }

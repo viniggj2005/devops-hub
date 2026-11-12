@@ -3,9 +3,9 @@ package talpadbHandlers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/desktop"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 	talpadbEngines "docker-manager-go/src/talpadb/engines"
@@ -31,13 +31,13 @@ func (handlerStruct *TalpadbClientHandlerStruct) maintenanceDatabase(userID uint
 			return candidate, nil
 		}
 	}
-	return "", errors.New("não há outro banco disponível para executar a exclusão")
+	return "", appErrors.New("talpadb.noOtherDatabase", "não há outro banco disponível para executar a exclusão")
 }
 
 func (handlerStruct *TalpadbClientHandlerStruct) buildDropSql(ctx context.Context, windowName string, userID uint, connectionID uint, database string, input talpadbDtos.DropObjectInputDto) (string, *poolEntry, error) {
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
-		return "", nil, errors.New("informe o objeto a excluir")
+		return "", nil, appErrors.New("talpadb.dropObjectRequired", "informe o objeto a excluir")
 	}
 
 	switch input.Kind {
@@ -53,7 +53,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) buildDropSql(ctx context.Contex
 		sql := "DROP DATABASE " + talpadbEngines.Postgres.QuoteIdentifier(name)
 		if input.Force {
 			if entry.versionNumber < 130000 {
-				return "", nil, errors.New("a opção FORCE exige PostgreSQL 13 ou superior")
+				return "", nil, appErrors.New("talpadb.forceRequiresPg13", "a opção FORCE exige PostgreSQL 13 ou superior")
 			}
 			sql += " WITH (FORCE)"
 		}
@@ -81,7 +81,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) buildDropSql(ctx context.Contex
 		}
 		return statement, entry, nil
 	}
-	return "", nil, fmt.Errorf("tipo de objeto desconhecido: %s", input.Kind)
+	return "", nil, appErrors.New("talpadb.unknownObjectKind", "tipo de objeto desconhecido: {kind}").With("kind", input.Kind)
 }
 
 func (handlerStruct *TalpadbClientHandlerStruct) PreviewDropObject(callContext context.Context, token string, connectionId uint, database string, input talpadbDtos.DropObjectInputDto) (string, error) {

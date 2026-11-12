@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 )
 
@@ -157,7 +158,7 @@ func ParsePostmanFile(content []byte, sourceName string) (*ImportedData, error) 
 	content = bytes.TrimPrefix(content, []byte("\xef\xbb\xbf"))
 	var probe map[string]json.RawMessage
 	if err := json.Unmarshal(content, &probe); err != nil {
-		return nil, fmt.Errorf("%s não é um JSON válido: %w", sourceName, err)
+		return nil, appErrors.Wrap("vulpes.invalidImportJson", "{source} não é um JSON válido", err).With("source", sourceName)
 	}
 
 	importer := postmanImporter{warnings: newWarningCollector()}
@@ -176,9 +177,9 @@ func ParsePostmanFile(content []byte, sourceName string) (*ImportedData, error) 
 		}
 		imported.Environments = append(imported.Environments, *environment)
 	case probe["requests"] != nil && probe["order"] != nil:
-		return nil, fmt.Errorf("%s está no formato Postman v1, que não é suportado; exporte a coleção novamente como v2.1", sourceName)
+		return nil, appErrors.New("vulpes.postmanV1Unsupported", "{source} está no formato Postman v1, que não é suportado; exporte a coleção novamente como v2.1").With("source", sourceName)
 	default:
-		return nil, fmt.Errorf("%s não é uma coleção nem um ambiente do Postman ou do Insomnia", sourceName)
+		return nil, appErrors.New("vulpes.unrecognizedImport", "{source} não é uma coleção nem um ambiente do Postman ou do Insomnia").With("source", sourceName)
 	}
 	imported.Warnings = importer.warnings.list()
 	return imported, nil
@@ -187,10 +188,10 @@ func ParsePostmanFile(content []byte, sourceName string) (*ImportedData, error) 
 func (importer postmanImporter) parseCollection(content []byte, sourceName string) (*ImportedCollection, error) {
 	var collection postmanCollection
 	if err := json.Unmarshal(content, &collection); err != nil {
-		return nil, fmt.Errorf("não foi possível ler a coleção %s: %w", sourceName, err)
+		return nil, appErrors.Wrap("vulpes.readCollectionFailed", "não foi possível ler a coleção {source}", err).With("source", sourceName)
 	}
 	if strings.Contains(collection.Info.Schema, "/v1.") {
-		return nil, fmt.Errorf("%s está no formato Postman v1, que não é suportado; exporte a coleção novamente como v2.1", sourceName)
+		return nil, appErrors.New("vulpes.postmanV1Unsupported", "{source} está no formato Postman v1, que não é suportado; exporte a coleção novamente como v2.1").With("source", sourceName)
 	}
 
 	name := strings.TrimSpace(collection.Info.Name)
@@ -641,7 +642,7 @@ func parseVariables(entries []postmanEntry) []vulpesDtos.VariableDto {
 func parseEnvironment(content []byte, sourceName string) (*vulpesDtos.EnvironmentInputDto, error) {
 	var environment postmanEnvironment
 	if err := json.Unmarshal(content, &environment); err != nil {
-		return nil, fmt.Errorf("não foi possível ler o ambiente %s: %w", sourceName, err)
+		return nil, appErrors.Wrap("vulpes.readEnvironmentFailed", "não foi possível ler o ambiente {source}", err).With("source", sourceName)
 	}
 	name := strings.TrimSpace(environment.Name)
 	if name == "" && environment.Scope == "globals" {

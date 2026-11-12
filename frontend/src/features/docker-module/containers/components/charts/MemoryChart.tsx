@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { memo } from 'react';
 import 'chartjs-adapter-date-fns';
 import { Line } from 'react-chartjs-2';
@@ -16,11 +17,12 @@ import { MemoryChartsProps } from '../../../../../interfaces/ContainerInterfaces
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, TimeScale);
 
 function MemoryChartBase({ percentPoints, usageMBPoints }: MemoryChartsProps) {
+  const { dictionary } = useTranslation();
   const data = {
     labels: percentPoints.map((point) => point.time),
     datasets: [
       {
-        label: 'Memória (%)',
+        label: dictionary.docker.stats.memoryLabel,
         data: percentPoints.map((point) => point.value),
         borderWidth: 2,
         borderColor: '#ff4d4d',
@@ -31,7 +33,7 @@ function MemoryChartBase({ percentPoints, usageMBPoints }: MemoryChartsProps) {
         pointHoverRadius: 5,
       },
       {
-        label: 'Uso (MB)',
+        label: dictionary.docker.stats.usageLabel,
         data: usageMBPoints.map((point) => point.value),
         borderWidth: 2,
         borderColor: '#4dff4d',

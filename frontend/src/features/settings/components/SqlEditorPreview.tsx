@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../i18n/useTranslation';
 import { SqlEditorColorKey, SqlEditorColors } from '../../../interfaces/GeneralConfigsInterfaces';
 
 type TokenKind = Extract<
@@ -9,7 +10,7 @@ type TokenKind = Extract<
 type Token = [TokenKind, string];
 
 const sampleLines: Token[][] = [
-  [['comment', '-- Pedidos dos últimos 30 dias']],
+  [['comment', '']],
   [['keyword', 'SELECT '], ['identifier', 'c.nome'], ['foreground', ', '], ['function', 'count'], ['foreground', '(*) '], ['keyword', 'AS '], ['identifier', 'total']],
   [['keyword', 'FROM '], ['identifier', 'public.pedidos p']],
   [['keyword', 'JOIN '], ['identifier', 'clientes c '], ['keyword', 'ON '], ['identifier', 'c.id '], ['operator', '= '], ['identifier', 'p.cliente_id']],
@@ -25,7 +26,9 @@ interface SqlEditorPreviewProps {
   colors: SqlEditorColors;
 }
 
-const SqlEditorPreview: React.FC<SqlEditorPreviewProps> = ({ colors, fontSize }) => (
+const SqlEditorPreview: React.FC<SqlEditorPreviewProps> = ({ colors, fontSize }) => {
+  const { dictionary } = useTranslation();
+  return (
   <div
     style={{ backgroundColor: colors.background, color: colors.foreground, fontSize }}
     className="overflow-hidden rounded-xl border border-gray-200 dark:border-white/10 py-3 font-mono leading-relaxed"
@@ -49,7 +52,7 @@ const SqlEditorPreview: React.FC<SqlEditorPreviewProps> = ({ colors, fontSize })
                 backgroundColor: lineIndex === 1 && tokenIndex === 1 ? colors.selection : undefined,
               }}
             >
-              {text}
+              {kind === 'comment' ? dictionary.preferences.sqlEditorTheme.sampleComment : text}
             </span>
           ))}
           {lineIndex === activeLineIndex && (
@@ -59,6 +62,7 @@ const SqlEditorPreview: React.FC<SqlEditorPreviewProps> = ({ colors, fontSize })
       </div>
     ))}
   </div>
-);
+  );
+};
 
 export default SqlEditorPreview;

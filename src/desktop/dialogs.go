@@ -2,14 +2,15 @@ package desktop
 
 import (
 	"context"
-	"errors"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"docker-manager-go/src/appErrors"
 )
 
 const dialogCancelledMessage = "cancelled by user"
 
-var errDialogUnavailable = errors.New("diálogos nativos indisponíveis fora da aplicação")
+var errDialogUnavailable = appErrors.New("window.dialogsUnavailable", "diálogos nativos indisponíveis fora da aplicação")
 
 type FileFilter = application.FileFilter
 

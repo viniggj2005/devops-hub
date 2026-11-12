@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { KeyRound, Link2, Plus, Trash2, Undo2 } from 'lucide-react';
 import { engineInfo } from '../../../functions/DatabaseEngines';
 import type { ColumnDraft, DatabaseEngine } from '../../../../../interfaces/TalpadbInterfaces';
@@ -13,6 +14,9 @@ interface ColumnsEditorProps {
 
 const ColumnsEditor: React.FC<ColumnsEditorProps> = ({ engine, columns, onChange }) => {
   const info = engineInfo(engine);
+  const { dictionary, formatMessage } = useTranslation();
+  const commonTexts = dictionary.talpadb.common;
+  const editorTexts = dictionary.talpadb.tableEditors;
   const update = (id: string, changes: Partial<ColumnDraft>) =>
     onChange(columns.map((column) => (column.id === id ? { ...column, ...changes } : column)));
 
@@ -31,11 +35,11 @@ const ColumnsEditor: React.FC<ColumnsEditorProps> = ({ engine, columns, onChange
       <table className="w-full text-sm">
         <thead className={tableHead}>
           <tr>
-            <th className={headerCell}>Nome</th>
-            <th className={headerCell}>Tipo</th>
+            <th className={headerCell}>{commonTexts.name}</th>
+            <th className={headerCell}>{commonTexts.type}</th>
             <th className={`${headerCell} text-center`}>Not null</th>
-            <th className={headerCell}>Padrão</th>
-            <th className={headerCell}>Comentário</th>
+            <th className={headerCell}>{dictionary.talpadb.table.defaultValue}</th>
+            <th className={headerCell}>{commonTexts.comment}</th>
             <th className="w-10" />
           </tr>
         </thead>
@@ -56,7 +60,7 @@ const ColumnsEditor: React.FC<ColumnsEditorProps> = ({ engine, columns, onChange
                     <input
                       value={column.name}
                       disabled={disabled}
-                      placeholder="nome_da_coluna"
+                      placeholder={editorTexts.columnPlaceholder}
                       autoFocus={!original && !column.name}
                       onChange={(event) => update(column.id, { name: event.target.value })}
                       className={`${fieldClass} font-medium ${disabled ? 'line-through' : ''}`}
@@ -67,7 +71,7 @@ const ColumnsEditor: React.FC<ColumnsEditorProps> = ({ engine, columns, onChange
                   <input
                     value={column.dataType}
                     disabled={definitionLocked}
-                    title={definitionLocked && !disabled ? `${info.label} não permite alterar a definição de colunas existentes` : undefined}
+                    title={definitionLocked && !disabled ? formatMessage(editorTexts.definitionLocked, { engine: info.label }) : undefined}
                     list="talpadb-column-types"
                     onChange={(event) => update(column.id, { dataType: event.target.value })}
                     className={`${fieldClass} font-mono min-w-[140px]`}
@@ -86,8 +90,8 @@ const ColumnsEditor: React.FC<ColumnsEditorProps> = ({ engine, columns, onChange
                   <input
                     value={column.defaultValue}
                     disabled={definitionLocked || defaultLocked}
-                    placeholder={defaultLocked ? (original?.identity ? 'identity' : 'gerada') : 'sem padrão'}
-                    title={defaultLocked ? 'Colunas identity/geradas não aceitam DEFAULT' : 'Expressão SQL, ex.: now(), 0, \'ativo\''}
+                    placeholder={defaultLocked ? (original?.identity ? 'identity' : editorTexts.generated) : editorTexts.noDefault}
+                    title={defaultLocked ? editorTexts.lockedDefaultHint : editorTexts.defaultHint}
                     onChange={(event) => update(column.id, { defaultValue: event.target.value })}
                     className={`${fieldClass} font-mono`}
                   />
@@ -96,7 +100,7 @@ const ColumnsEditor: React.FC<ColumnsEditorProps> = ({ engine, columns, onChange
                   <input
                     value={column.comment}
                     disabled={commentLocked}
-                    placeholder={engine === 'sqlite' ? 'SQLite não guarda comentários' : undefined}
+                    placeholder={engine === 'sqlite' ? dictionary.talpadb.table.sqliteNoComments : undefined}
                     onChange={(event) => update(column.id, { comment: event.target.value })}
                     className={fieldClass}
                   />
@@ -104,7 +108,7 @@ const ColumnsEditor: React.FC<ColumnsEditorProps> = ({ engine, columns, onChange
                 <td className={editCell}>
                   <button
                     onClick={() => remove(column)}
-                    title={column.dropped ? 'Restaurar coluna' : original ? 'Excluir coluna' : 'Remover coluna nova'}
+                    title={column.dropped ? editorTexts.restoreColumn : original ? editorTexts.dropColumn : editorTexts.removeNewColumn}
                     className={`${iconButton} ${column.dropped ? 'hover:text-cyan-600' : 'hover:text-rose-500'}`}
                   >
                     {column.dropped ? <Undo2 className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
@@ -116,7 +120,7 @@ const ColumnsEditor: React.FC<ColumnsEditorProps> = ({ engine, columns, onChange
         </tbody>
       </table>
       <button onClick={() => onChange([...columns, createColumnDraft(engine)])} className={addButton}>
-        <Plus className="w-4 h-4" /> Adicionar coluna
+        <Plus className="w-4 h-4" /> {editorTexts.addColumn}
       </button>
     </>
   );

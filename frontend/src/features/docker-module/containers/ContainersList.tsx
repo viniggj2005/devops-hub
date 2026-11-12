@@ -1,4 +1,5 @@
 import { Box, Loader2, Search } from 'lucide-react';
+import { useTranslation } from '../../i18n/useTranslation';
 import ContainerCard from './components/cards/ContainerCard';
 import TerminalModal from './components/modals/TerminalModal';
 import { FmtName } from '../../shared/functions/TreatmentFunction';
@@ -15,6 +16,8 @@ type StatusFilter = 'all' | 'running' | 'paused' | 'stopped';
 
 const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
   const timerRef = useRef<number | null>(null);
+  const { dictionary, formatMessage } = useTranslation();
+  const containerTexts = dictionary.docker.containers;
   const [searchQuery, setSearchQuery] = useState('');
   const [logsModalId, setLogsModalId] = useState<string | null>(null);
   const [menuModalId, setMenuModalId] = useState<string | null>(null);
@@ -124,7 +127,7 @@ const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
       <div className="rounded-2xl border border-gray-200 dark:border-white/[0.07] bg-white dark:bg-zinc-900/50 p-10 flex flex-col items-center justify-center gap-3 text-center">
         <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
         <p className="text-sm font-medium text-gray-700 dark:text-zinc-300">
-          Conectando ao daemon Docker...
+          {dictionary.docker.connection.connecting}
         </p>
       </div>
     );
@@ -135,20 +138,20 @@ const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
       <div className="rounded-2xl border border-dashed border-gray-300 dark:border-white/10 bg-white/50 dark:bg-zinc-900/40 p-10 text-center space-y-2">
         <Box className="w-8 h-8 text-gray-400 dark:text-zinc-500 mx-auto" />
         <p className="text-sm font-semibold text-gray-800 dark:text-zinc-200">
-          Nenhuma credencial Docker selecionada
+          {dictionary.docker.common.noCredential}
         </p>
         <p className="text-xs text-gray-500 dark:text-zinc-400">
-          Selecione uma credencial na barra superior para listar e administrar os containers.
+          {containerTexts.selectCredentialHint}
         </p>
       </div>
     );
   }
 
   const filterTabs: { id: StatusFilter; label: string; count: number }[] = [
-    { id: 'all', label: 'Todos', count: counts.all },
-    { id: 'running', label: 'Em execução', count: counts.running },
-    { id: 'paused', label: 'Pausados', count: counts.paused },
-    { id: 'stopped', label: 'Parados', count: counts.stopped },
+    { id: 'all', label: containerTexts.all, count: counts.all },
+    { id: 'running', label: containerTexts.running, count: counts.running },
+    { id: 'paused', label: containerTexts.paused, count: counts.paused },
+    { id: 'stopped', label: containerTexts.stopped, count: counts.stopped },
   ];
 
   return (
@@ -160,7 +163,7 @@ const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
             type="text"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Filtrar por nome, imagem, ID ou porta..."
+            placeholder={containerTexts.searchPlaceholder}
             className="w-full pl-10 pr-4 py-2 rounded-xl bg-white dark:bg-zinc-900/80 border border-gray-200 dark:border-white/10 text-xs text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20 transition-all"
           />
         </div>
@@ -190,19 +193,19 @@ const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
         <div className="rounded-2xl border border-gray-200 dark:border-white/[0.07] bg-white dark:bg-zinc-900/50 p-10 flex items-center justify-center gap-3">
           <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
           <span className="text-xs font-medium text-gray-600 dark:text-zinc-400">
-            Carregando containers...
+            {containerTexts.loading}
           </span>
         </div>
       ) : filteredContainers.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-300 dark:border-white/10 bg-white/50 dark:bg-zinc-900/40 p-10 text-center space-y-1.5">
           <Box className="w-7 h-7 text-gray-400 dark:text-zinc-500 mx-auto" />
           <p className="text-sm font-semibold text-gray-800 dark:text-zinc-200">
-            Nenhum container encontrado
+            {containerTexts.empty}
           </p>
           <p className="text-xs text-gray-500 dark:text-zinc-400">
             {searchQuery || statusFilter !== 'all'
-              ? 'Ajuste os filtros de busca ou estado para visualizar outros containers.'
-              : 'Crie um novo container para começar a operar neste host.'}
+              ? containerTexts.adjustFilters
+              : containerTexts.createHint}
           </p>
         </div>
       ) : (
@@ -251,8 +254,8 @@ const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
       )}
 
       <footer className="pt-2 text-[11px] text-gray-400 dark:text-zinc-500 flex items-center justify-between">
-        <span>Sincronização automática a cada 3s</span>
-        <span>{counts.all} container(s) no host</span>
+        <span>{containerTexts.autoSync}</span>
+        <span>{formatMessage(containerTexts.hostCount, { count: counts.all })}</span>
       </footer>
     </div>
   );

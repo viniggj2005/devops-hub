@@ -1,4 +1,5 @@
 import { Send } from 'lucide-react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useState } from 'react';
 import SplitPane from '../editors/SplitPane';
 import CodeEditor from '../editors/CodeEditor';
@@ -18,15 +19,16 @@ import type { KeyValue, WebSocketMessageKind, WebSocketRequest } from '../../../
 
 type WebSocketSection = 'message' | 'params' | 'headers' | 'auth' | 'settings';
 
-const messageKinds: { kind: WebSocketMessageKind; label: string }[] = [
-  { kind: 'text', label: 'Texto' },
-  { kind: 'json', label: 'JSON' },
-  { kind: 'binary', label: 'Binário (base64)' },
-];
-
 const WebSocketRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variables, inheritedHint, onSave }) => {
   const webSocket = tab.request.webSocket as WebSocketRequest;
   const [section, setSection] = useState<WebSocketSection>('message');
+  const { dictionary } = useTranslation();
+  const webSocketTexts = dictionary.vulpes.webSocket;
+  const messageKinds: { kind: WebSocketMessageKind; label: string }[] = [
+    { kind: 'text', label: dictionary.vulpes.realtime.textKind },
+    { kind: 'json', label: 'JSON' },
+    { kind: 'binary', label: dictionary.vulpes.realtime.binaryKind },
+  ];
   const updateRequest = useVulpesStore((state) => state.updateRequest);
   const clearRealtimeEvents = useVulpesStore((state) => state.clearRealtimeEvents);
   const connected = runtime.connection === 'connected';
@@ -64,11 +66,11 @@ const WebSocketRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, v
               active={section}
               onChange={setSection}
               tabs={[
-                { key: 'message', label: 'Mensagem' },
+                { key: 'message', label: webSocketTexts.message },
                 { key: 'params', label: 'Params', count: webSocket.params.filter((param) => param.enabled && param.key).length },
                 { key: 'headers', label: 'Headers', count: webSocket.headers.filter((header) => header.enabled && header.key).length },
-                { key: 'auth', label: 'Autorização' },
-                { key: 'settings', label: 'Configurações' },
+                { key: 'auth', label: dictionary.vulpes.request.authorization },
+                { key: 'settings', label: dictionary.vulpes.request.settings },
               ]}
             />
             <div className="flex-1 min-h-0 overflow-auto p-4">
@@ -91,11 +93,11 @@ const WebSocketRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, v
                       type="button"
                       disabled={!connected}
                       onClick={sendMessage}
-                      title={connected ? 'Enviar (Ctrl+Enter)' : 'Conecte-se para enviar mensagens'}
+                      title={connected ? webSocketTexts.sendHint : webSocketTexts.connectToSend}
                       className={`ml-auto ${primaryButtonClass}`}
                     >
                       <Send className="w-3.5 h-3.5" />
-                      Enviar
+                      {dictionary.vulpes.request.send}
                     </button>
                   </div>
                   <div className="flex-1 min-h-[120px] rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden">
@@ -103,7 +105,7 @@ const WebSocketRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, v
                       onSave={onSave}
                       onRun={sendMessage}
                       value={webSocket.message}
-                      placeholder="Mensagem a enviar"
+                      placeholder={webSocketTexts.messagePlaceholder}
                       language={webSocket.messageKind === 'json' ? 'json' : 'text'}
                       onChange={(message) => updateWebSocket((current) => ({ ...current, message }))}
                     />
@@ -128,7 +130,7 @@ const WebSocketRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, v
               )}
               {section === 'settings' && (
                 <SettingsSection>
-                  <SettingRow title="Subprotocolos" description="Separados por vírgula, enviados em Sec-WebSocket-Protocol.">
+                  <SettingRow title={webSocketTexts.subprotocols} description={webSocketTexts.subprotocolsHint}>
                     <input
                       spellCheck={false}
                       placeholder="chat, json"
@@ -152,7 +154,7 @@ const WebSocketRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, v
           <RealtimeMessageLog
             events={runtime.events}
             onClear={() => clearRealtimeEvents(tab.id)}
-            emptyHint="Conecte-se para acompanhar as mensagens enviadas e recebidas."
+            emptyHint={webSocketTexts.emptyHint}
           />
         }
       />

@@ -1,6 +1,7 @@
 import Toolbar from './components/toolbar/Toolbar';
 import ImageCard from './components/cards/ImageCard';
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from '../../i18n/useTranslation';
 import { Image as ImageIcon, Loader2 } from 'lucide-react';
 import ImageBuildModal from './components/modals/ImageBuildModal';
 import { useDockerClient } from '../../../contexts/DockerClientContext';
@@ -10,6 +11,8 @@ import { ParseNameAndTag } from '../../../features/shared/functions/TreatmentFun
 
 const ListContainersImages: React.FC = () => {
   const [query, setQuery] = useState('');
+  const { dictionary } = useTranslation();
+  const imageTexts = dictionary.docker.images;
   const [view, setView] = useState<ViewMode>('grid');
   const [showBuildModal, setShowBuildModal] = useState(false);
   const { connecting, dockerClientId, loading: credentialsLoading } = useDockerClient();
@@ -51,7 +54,7 @@ const ListContainersImages: React.FC = () => {
       <div className="rounded-2xl border border-gray-200 dark:border-white/[0.07] bg-white dark:bg-zinc-900/50 p-10 flex flex-col items-center justify-center gap-3 text-center">
         <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
         <p className="text-sm font-medium text-gray-700 dark:text-zinc-300">
-          Conectando ao daemon Docker...
+          {dictionary.docker.connection.connecting}
         </p>
       </div>
     );
@@ -62,10 +65,10 @@ const ListContainersImages: React.FC = () => {
       <div className="rounded-2xl border border-dashed border-gray-300 dark:border-white/10 bg-white/50 dark:bg-zinc-900/40 p-10 text-center space-y-2">
         <ImageIcon className="w-8 h-8 text-gray-400 dark:text-zinc-500 mx-auto" />
         <p className="text-sm font-semibold text-gray-800 dark:text-zinc-200">
-          Nenhuma credencial Docker selecionada
+          {dictionary.docker.common.noCredential}
         </p>
         <p className="text-xs text-gray-500 dark:text-zinc-400">
-          Selecione uma credencial na barra superior para listar e gerenciar as imagens.
+          {imageTexts.selectCredentialHint}
         </p>
       </div>
     );
@@ -87,19 +90,19 @@ const ListContainersImages: React.FC = () => {
         <div className="rounded-2xl border border-gray-200 dark:border-white/[0.07] bg-white dark:bg-zinc-900/50 p-10 flex items-center justify-center gap-3">
           <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
           <span className="text-xs font-medium text-gray-600 dark:text-zinc-400">
-            Carregando imagens...
+            {imageTexts.loading}
           </span>
         </div>
       ) : filteredSorted.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-300 dark:border-white/10 bg-white/50 dark:bg-zinc-900/40 p-10 text-center space-y-1.5">
           <ImageIcon className="w-7 h-7 text-gray-400 dark:text-zinc-500 mx-auto" />
           <p className="text-sm font-semibold text-gray-800 dark:text-zinc-200">
-            Nenhuma imagem encontrada
+            {imageTexts.empty}
           </p>
           <p className="text-xs text-gray-500 dark:text-zinc-400">
             {query
-              ? 'Nenhuma imagem corresponde aos termos pesquisados.'
-              : 'Construa uma nova imagem a partir de um Dockerfile para começar.'}
+              ? imageTexts.noMatch
+              : imageTexts.buildHint}
           </p>
         </div>
       ) : view === 'grid' ? (

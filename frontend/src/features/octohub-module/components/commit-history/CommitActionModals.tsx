@@ -1,6 +1,7 @@
 import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
 import { Modal } from '../../../shared/components/modals/Modal';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { useOctohubRepository } from '../../contexts/OctohubRepositoryContext';
 import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { ArrowUpDown, ChevronDown, ChevronUp, Cherry, GitBranch, GitBranchPlus, LockKeyhole, Search, Tag } from 'lucide-react';
@@ -23,14 +24,16 @@ const shortHash = (hash: string) => hash.slice(0, 7);
 
 const inputClass = 'w-full px-3 py-2 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500';
 
-const Footer: React.FC<{ busy: boolean; disabled: boolean; label: string; onConfirm: () => void; onClose: () => void }> = ({ busy, disabled, label, onConfirm, onClose }) => (
+const Footer: React.FC<{ busy: boolean; disabled: boolean; label: string; onConfirm: () => void; onClose: () => void }> = ({ busy, disabled, label, onConfirm, onClose }) => {
+    const { dictionary } = useTranslation();
+    return (
     <>
         <button
             onClick={onClose}
             disabled={busy}
             className="px-4 py-2 rounded-lg text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 disabled:opacity-50"
         >
-            Cancelar
+            {dictionary.app.common.cancel}
         </button>
         <button
             onClick={onConfirm}
@@ -41,18 +44,22 @@ const Footer: React.FC<{ busy: boolean; disabled: boolean; label: string; onConf
             {label}
         </button>
     </>
-);
+    );
+};
 
-const StashOption: React.FC<{ dirty: boolean; checked: boolean; required?: boolean; onChange: (value: boolean) => void }> = ({ dirty, checked, required, onChange }) =>
-    dirty ? (
+const StashOption: React.FC<{ dirty: boolean; checked: boolean; required?: boolean; onChange: (value: boolean) => void }> = ({ dirty, checked, required, onChange }) => {
+    const { dictionary } = useTranslation();
+    const actionTexts = dictionary.octohub.commitActions;
+    return dirty ? (
         <label className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs cursor-pointer">
             <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="mt-0.5 accent-emerald-600" />
             <span className="text-zinc-700 dark:text-zinc-300">
-                Você tem alterações não commitadas. Guardar em um stash antes (elas ficam em Stashes pendentes).
-                {required && <b> Obrigatório para esta operação.</b>}
+                {actionTexts.stashBefore}
+                {required && <b>{actionTexts.requiredForOperation}</b>}
             </span>
         </label>
     ) : null;
+};
 
 const CommitSummary: React.FC<{ commit: octohubStructs.Commit }> = ({ commit }) => (
     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-white/5 text-xs min-w-0">
@@ -63,6 +70,8 @@ const CommitSummary: React.FC<{ commit: octohubStructs.Commit }> = ({ commit }) 
 
 const CreateBranchModal: React.FC<ActionProps> = ({ commit, onClose }) => {
     const { notifyChange, handleGitError } = useOctohubRepository();
+    const { dictionary, formatMessage } = useTranslation();
+    const actionTexts = dictionary.octohub.commitActions;
     const [name, setName] = useState('');
     const [busy, setBusy] = useState(false);
     const [checkout, setCheckout] = useState(true);
@@ -73,11 +82,11 @@ const CreateBranchModal: React.FC<ActionProps> = ({ commit, onClose }) => {
         setBusy(true);
         try {
             await CreateBranchFromCommit(branchName, commit.Hash, checkout);
-            toast.success(`Branch ${branchName} criada em ${shortHash(commit.Hash)}.`);
+            toast.success(formatMessage(actionTexts.branchCreated, { name: branchName, hash: shortHash(commit.Hash) }));
             notifyChange();
             onClose();
         } catch (error) {
-            handleGitError(error, 'Erro ao criar a branch');
+            handleGitError(error, actionTexts.branchFailed);
         } finally {
             setBusy(false);
         }
@@ -88,9 +97,9 @@ const CreateBranchModal: React.FC<ActionProps> = ({ commit, onClose }) => {
             isOpen
             size="sm"
             onClose={onClose}
-            title="Criar branch a partir do commit"
+            title={actionTexts.branchTitle}
             icon={<GitBranchPlus className="w-5 h-5 text-emerald-500" />}
-            footer={<Footer busy={busy} disabled={!branchName} label="Criar branch" onConfirm={create} onClose={onClose} />}
+            footer={<Footer busy={busy} disabled={!branchName} label={actionTexts.createBranch} onConfirm={create} onClose={onClose} />}
         >
             <div className="space-y-3">
                 <CommitSummary commit={commit} />
@@ -98,13 +107,13 @@ const CreateBranchModal: React.FC<ActionProps> = ({ commit, onClose }) => {
                     autoFocus
                     value={name}
                     className={inputClass}
-                    placeholder="nome-da-branch"
+                    placeholder={actionTexts.branchPlaceholder}
                     onChange={(event) => setName(event.target.value)}
                     onKeyDown={(event) => event.key === 'Enter' && create()}
                 />
                 <label className="flex items-center gap-2 text-xs text-zinc-700 dark:text-zinc-300 cursor-pointer">
                     <input type="checkbox" checked={checkout} onChange={(event) => setCheckout(event.target.checked)} className="accent-emerald-600" />
-                    Trocar para a nova branch
+                    {actionTexts.switchToNewBranch}
                 </label>
             </div>
         </Modal>
@@ -113,6 +122,8 @@ const CreateBranchModal: React.FC<ActionProps> = ({ commit, onClose }) => {
 
 const CreateTagModal: React.FC<ActionProps> = ({ commit, onClose }) => {
     const { notifyChange, handleGitError } = useOctohubRepository();
+    const { dictionary, formatMessage } = useTranslation();
+    const actionTexts = dictionary.octohub.commitActions;
     const [name, setName] = useState('');
     const [busy, setBusy] = useState(false);
     const [push, setPush] = useState(false);
@@ -122,9 +133,9 @@ const CreateTagModal: React.FC<ActionProps> = ({ commit, onClose }) => {
     const pushTag = async (tag: string) => {
         try {
             await PushTag(tag);
-            toast.success(`Tag ${tag} enviada para o origin.`);
+            toast.success(formatMessage(actionTexts.tagPushed, { tag }));
         } catch (error) {
-            handleGitError(error, 'A tag foi criada, mas não foi enviada', () => pushTag(tag));
+            handleGitError(error, actionTexts.tagNotPushed, () => pushTag(tag));
         }
     };
 
@@ -133,12 +144,12 @@ const CreateTagModal: React.FC<ActionProps> = ({ commit, onClose }) => {
         setBusy(true);
         try {
             await CreateTag(tagName, commit.Hash, message);
-            toast.success(`Tag ${tagName} criada em ${shortHash(commit.Hash)}.`);
+            toast.success(formatMessage(actionTexts.tagCreated, { tag: tagName, hash: shortHash(commit.Hash) }));
             notifyChange();
             onClose();
             if (push) await pushTag(tagName);
         } catch (error) {
-            handleGitError(error, 'Erro ao criar a tag');
+            handleGitError(error, actionTexts.tagFailed);
         } finally {
             setBusy(false);
         }
@@ -148,10 +159,10 @@ const CreateTagModal: React.FC<ActionProps> = ({ commit, onClose }) => {
         <Modal
             isOpen
             size="sm"
-            title="Criar tag"
+            title={actionTexts.tagTitle}
             onClose={onClose}
             icon={<Tag className="w-5 h-5 text-emerald-500" />}
-            footer={<Footer busy={busy} disabled={!tagName} label="Criar tag" onConfirm={create} onClose={onClose} />}
+            footer={<Footer busy={busy} disabled={!tagName} label={actionTexts.createTag} onConfirm={create} onClose={onClose} />}
         >
             <div className="space-y-3">
                 <CommitSummary commit={commit} />
@@ -160,12 +171,12 @@ const CreateTagModal: React.FC<ActionProps> = ({ commit, onClose }) => {
                     rows={3}
                     value={message}
                     onChange={(event) => setMessage(event.target.value)}
-                    placeholder="Mensagem (opcional; com mensagem a tag fica anotada)"
+                    placeholder={actionTexts.tagMessagePlaceholder}
                     className={`${inputClass} resize-none`}
                 />
                 <label className="flex items-center gap-2 text-xs text-zinc-700 dark:text-zinc-300 cursor-pointer">
                     <input type="checkbox" checked={push} onChange={(event) => setPush(event.target.checked)} className="accent-emerald-600" />
-                    Enviar a tag para o origin agora
+                    {actionTexts.pushTagNow}
                 </label>
             </div>
         </Modal>
@@ -174,6 +185,8 @@ const CreateTagModal: React.FC<ActionProps> = ({ commit, onClose }) => {
 
 const CherryPickModal: React.FC<ActionProps> = ({ commit, onClose }) => {
     const { notifyChange, openConflicts, handleGitError } = useOctohubRepository();
+    const { dictionary, formatMessage } = useTranslation();
+    const actionTexts = dictionary.octohub.commitActions;
     const [filter, setFilter] = useState('');
     const [busy, setBusy] = useState(false);
     const [dirty, setDirty] = useState(false);
@@ -199,9 +212,9 @@ const CherryPickModal: React.FC<ActionProps> = ({ commit, onClose }) => {
             notifyChange();
             onClose();
             if (state.Kind) openConflicts();
-            else toast.success(`Commit aplicado em ${target}. Agora você está nessa branch.`);
+            else toast.success(formatMessage(actionTexts.cherryPicked, { branch: target }));
         } catch (error) {
-            handleGitError(error, 'Erro no cherry-pick');
+            handleGitError(error, actionTexts.cherryPickFailed);
         } finally {
             setBusy(false);
         }
@@ -212,20 +225,20 @@ const CherryPickModal: React.FC<ActionProps> = ({ commit, onClose }) => {
             isOpen
             size="sm"
             onClose={onClose}
-            title="Cherry-pick do commit"
+            title={actionTexts.cherryPickTitle}
             icon={<Cherry className="w-5 h-5 text-emerald-500" />}
-            footer={<Footer busy={busy} disabled={!target} label={target ? `Aplicar em ${target}` : 'Escolha a branch'} onConfirm={apply} onClose={onClose} />}
+            footer={<Footer busy={busy} disabled={!target} label={target ? formatMessage(actionTexts.applyOn, { branch: target }) : actionTexts.chooseBranch} onConfirm={apply} onClose={onClose} />}
         >
             <div className="space-y-3">
                 <CommitSummary commit={commit} />
-                <p className="text-[11px] text-zinc-500">O OctoHub troca para a branch escolhida e aplica este commit nela.</p>
+                <p className="text-[11px] text-zinc-500">{actionTexts.cherryPickHint}</p>
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-                    <input autoFocus value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filtrar branches..." className={`${inputClass} pl-8`} />
+                    <input autoFocus value={filter} onChange={(event) => setFilter(event.target.value)} placeholder={dictionary.octohub.common.filterBranches} className={`${inputClass} pl-8`} />
                 </div>
                 <div className="max-h-56 overflow-y-auto custom-scrollbar border border-zinc-200 dark:border-white/10 rounded-lg p-1">
                     {filtered.length === 0 ? (
-                        <p className="p-4 text-center text-xs text-zinc-500 italic">Nenhuma outra branch local.</p>
+                        <p className="p-4 text-center text-xs text-zinc-500 italic">{actionTexts.noOtherLocalBranch}</p>
                     ) : (
                         filtered.map((branch) => (
                             <button
@@ -250,6 +263,8 @@ const CherryPickModal: React.FC<ActionProps> = ({ commit, onClose }) => {
 
 const ReorderModal: React.FC<ActionProps> = ({ commit, onClose }) => {
     const { notifyChange, openConflicts, handleGitError } = useOctohubRepository();
+    const { dictionary } = useTranslation();
+    const actionTexts = dictionary.octohub.commitActions;
     const [busy, setBusy] = useState(false);
     const [dirty, setDirty] = useState(false);
     const [stash, setStash] = useState(true);
@@ -263,7 +278,7 @@ const ReorderModal: React.FC<ActionProps> = ({ commit, onClose }) => {
                 setOrder(list || []);
             })
             .catch((error) => {
-                handleGitError(error, 'Erro ao carregar os commits');
+                handleGitError(error, actionTexts.loadCommitsFailed);
                 onClose();
             });
         HasUncommittedChanges().then(setDirty).catch(() => setDirty(false));
@@ -291,9 +306,9 @@ const ReorderModal: React.FC<ActionProps> = ({ commit, onClose }) => {
             notifyChange();
             onClose();
             if (state.Kind) openConflicts();
-            else toast.success('Commits reordenados.');
+            else toast.success(actionTexts.reordered);
         } catch (error) {
-            handleGitError(error, 'Erro ao reordenar os commits');
+            handleGitError(error, actionTexts.reorderFailed);
         } finally {
             setBusy(false);
         }
@@ -304,28 +319,27 @@ const ReorderModal: React.FC<ActionProps> = ({ commit, onClose }) => {
             isOpen
             size="md"
             onClose={onClose}
-            title="Reordenar commits"
+            title={actionTexts.reorderTitle}
             icon={<ArrowUpDown className="w-5 h-5 text-emerald-500" />}
-            footer={<Footer busy={busy} disabled={!changed || (dirty && !stash)} label="Aplicar nova ordem" onConfirm={apply} onClose={onClose} />}
+            footer={<Footer busy={busy} disabled={!changed || (dirty && !stash)} label={actionTexts.applyOrder} onConfirm={apply} onClose={onClose} />}
         >
             <div className="space-y-3">
                 <p className="text-[11px] text-zinc-500">
-                    Do mais novo (em cima) ao mais antigo. Use as setas para mudar a posição; o OctoHub refaz os commits na nova ordem.
-                    Commits já enviados para o remoto ficam travados, porque mudá-los exigiria forçar o envio.
+                    {actionTexts.reorderHint}
                 </p>
                 {original !== null && !commitListed && (
                     <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                        O commit escolhido já foi enviado, está antes de um merge ou não está entre os 30 mais recentes.
+                        {actionTexts.commitNotListed}
                     </p>
                 )}
                 {original === null ? (
                     <div className="py-8 flex items-center justify-center gap-2 text-xs text-zinc-500">
                         <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                        Carregando commits...
+                        {actionTexts.loadingCommits}
                     </div>
                 ) : movableCount < 2 ? (
                     <p className="py-6 text-center text-xs text-zinc-500 italic">
-                        Não há commits suficientes para reordenar: os enviados ao remoto ficam travados e a lista para no último merge.
+                        {actionTexts.notEnoughCommits}
                     </p>
                 ) : null}
                 {order.length > 0 && (
@@ -343,14 +357,14 @@ const ReorderModal: React.FC<ActionProps> = ({ commit, onClose }) => {
                                         <div className="text-[10px] text-zinc-500 truncate">{item.Author}</div>
                                     </div>
                                     {locked ? (
-                                        <span title="Já enviado ao remoto" className="shrink-0 flex items-center gap-1 text-[10px] text-zinc-400">
+                                        <span title={actionTexts.alreadyPushed} className="shrink-0 flex items-center gap-1 text-[10px] text-zinc-400">
                                             <LockKeyhole className="w-3 h-3" />
-                                            enviado
+                                            {actionTexts.pushed}
                                         </span>
                                     ) : (
                                         <div className="shrink-0 flex flex-col">
                                             <button
-                                                title="Mover para cima"
+                                                title={actionTexts.moveUp}
                                                 disabled={index === 0 || busy}
                                                 onClick={() => move(index, -1)}
                                                 className="p-0.5 rounded text-zinc-500 hover:text-emerald-500 hover:bg-emerald-500/10 disabled:opacity-30"
@@ -358,7 +372,7 @@ const ReorderModal: React.FC<ActionProps> = ({ commit, onClose }) => {
                                                 <ChevronUp className="w-4 h-4" />
                                             </button>
                                             <button
-                                                title="Mover para baixo"
+                                                title={actionTexts.moveDown}
                                                 disabled={index >= movableCount - 1 || busy}
                                                 onClick={() => move(index, 1)}
                                                 className="p-0.5 rounded text-zinc-500 hover:text-emerald-500 hover:bg-emerald-500/10 disabled:opacity-30"

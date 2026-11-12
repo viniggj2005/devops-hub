@@ -1,9 +1,11 @@
 import toast from 'react-hot-toast';
+import { currentDictionary } from '../../../../i18n/TranslateError';
 import '@xterm/xterm/css/xterm.css';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { Events } from '@wailsio/runtime';
 import React, { useEffect, useRef } from 'react';
+import { errorMessage } from '../../../../shared/functions/ErrorMessage';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
 import { TerminalInstance } from '../../../../../interfaces/TerminalInterfaces';
 import { containerExec, terminalWrite, terminalResize, terminalClose } from '../../services/ContainersService';
@@ -61,7 +63,7 @@ const ContainerTerminal: React.FC<Props> = ({ instance }) => {
     });
 
     const offClosed = Events.On(`terminal:closed:${containerId}`, () => {
-      terminal.writeln('\r\n[conexão encerrada pelo servidor]');
+      terminal.writeln(`\r\n${currentDictionary().docker.containers.connectionClosed}`);
       connectedRef.current = false;
     });
 
@@ -74,9 +76,9 @@ const ContainerTerminal: React.FC<Props> = ({ instance }) => {
         terminal.focus();
 
         await terminalResize(selectedCredentialId, containerId, terminal.cols, terminal.rows);
-      } catch (error: any) {
-        terminal.writeln(`\r\nErro ao conectar: ${error?.message || error}`);
-        toast.error(error?.message || String(error));
+      } catch (error) {
+        terminal.writeln(`\r\n${errorMessage(error)}`);
+        toast.error(errorMessage(error));
       }
     })();
 

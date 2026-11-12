@@ -1,4 +1,5 @@
 import type { Cookie } from '../../../interfaces/VulpesInterfaces';
+import { currentDictionary, currentLanguage } from '../../i18n/TranslateError';
 
 export interface DomainCookies {
   domain: string;
@@ -39,13 +40,13 @@ export const groupCookiesByDomain = (cookies: Cookie[]): DomainCookies[] => {
 };
 
 export const formatCookieExpiry = (expires: string) => {
-  if (!expires) return 'Sessão';
+  if (!expires) return currentDictionary().vulpes.cookies.session;
   const moment = new Date(expires);
-  return Number.isNaN(moment.getTime()) ? expires : moment.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  return Number.isNaN(moment.getTime()) ? expires : moment.toLocaleString(currentLanguage(), { dateStyle: 'short', timeStyle: 'short' });
 };
 
 export const cookieFlags = (cookie: Cookie) =>
-  [cookie.hostOnly && 'Somente host', cookie.httpOnly && 'HttpOnly', cookie.secure && 'Secure', cookie.sameSite && `SameSite=${cookie.sameSite}`]
+  [cookie.hostOnly && currentDictionary().vulpes.cookies.hostOnlyFlag, cookie.httpOnly && 'HttpOnly', cookie.secure && 'Secure', cookie.sameSite && `SameSite=${cookie.sameSite}`]
     .filter(Boolean)
     .join(' · ');
 
@@ -64,12 +65,13 @@ export const fromDateTimeLocal = (value: string) => {
 
 export const cookieValidationError = (cookie: Cookie) => {
   const name = cookie.name.trim();
-  if (!name) return 'Informe o nome do cookie.';
-  if (invalidNameCharacters.test(name)) return 'O nome não pode ter espaços nem os caracteres ( ) < > @ , ; : \\ " / [ ] ? = { }.';
-  if (invalidValueCharacters.test(cookie.value)) return 'O valor não pode ter aspas, ponto e vírgula, barra invertida nem acentos.';
-  if (!cookie.domain.trim().replace(/^\./, '')) return 'Informe o domínio do cookie.';
-  if (cookie.path && !cookie.path.startsWith('/')) return 'O path precisa começar com "/".';
-  if (isCookieExpired(cookie)) return 'A data de expiração já passou.';
+  const validationTexts = currentDictionary().vulpes.cookies.validation;
+  if (!name) return validationTexts.nameRequired;
+  if (invalidNameCharacters.test(name)) return validationTexts.invalidName;
+  if (invalidValueCharacters.test(cookie.value)) return validationTexts.invalidValue;
+  if (!cookie.domain.trim().replace(/^\./, '')) return validationTexts.domainRequired;
+  if (cookie.path && !cookie.path.startsWith('/')) return validationTexts.pathSlash;
+  if (isCookieExpired(cookie)) return validationTexts.expired;
   return null;
 };
 

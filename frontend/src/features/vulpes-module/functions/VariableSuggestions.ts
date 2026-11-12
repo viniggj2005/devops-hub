@@ -1,8 +1,10 @@
 import { isDynamicVariable, type VariableMap } from './Variables';
+import { formatMessage } from '../../i18n/Languages';
+import { currentDictionary } from '../../i18n/TranslateError';
 import type { CollectionItem, HttpResponse } from '../../../interfaces/VulpesInterfaces';
 import { parseResponseTag, buildResponseTag, discoverJsonPaths, decodeResponseBodyText, extractResponsePreview } from './ResponseVariables';
 
-export type SuggestionKind = 'coleção' | 'ambiente' | 'dinâmica' | 'resposta';
+export type SuggestionKind = 'collection' | 'environment' | 'dynamic' | 'response';
 
 export type VariableStatus = 'defined' | 'dynamic' | 'response' | 'missing';
 
@@ -29,7 +31,7 @@ export interface VariableSuggestion {
 export interface VariableDescription {
   name: string;
   value: string;
-  source: string;
+  source: SuggestionKind | '';
   preview?: string;
   requestId?: string;
   status: VariableStatus;
@@ -48,88 +50,16 @@ const maxPathsPerRequest = 18;
 const maxHeadersPerRequest = 6;
 const responseVariable = '$response';
 
-export const dynamicVariableDescriptions: Record<string, string> = {
-  $guid: 'UUID v4 aleatório',
-  $randomBoolean: 'true ou false',
-  $randomUUID: 'UUID v4 aleatório',
-  $isoTimestamp: 'Data atual em ISO 8601',
-  $timestamp: 'Data atual em segundos (Unix)',
-  $randomInt: 'Número inteiro entre 0 e 1000',
-  $randomAlphaNumeric: 'Um caractere alfanumérico',
-  $randomFirstName: 'Primeiro nome',
-  $randomLastName: 'Sobrenome',
-  $randomFullName: 'Nome completo',
-  $randomNamePrefix: 'Pronome de tratamento (Mr., Dr.)',
-  $randomNameSuffix: 'Sufixo de nome (Jr., PhD)',
-  $randomUserName: 'Nome de usuário',
-  $randomEmail: 'E-mail',
-  $randomExampleEmail: 'E-mail em domínio example',
-  $randomPassword: 'Senha alfanumérica de 15 caracteres',
-  $randomPhoneNumber: 'Telefone',
-  $randomPhoneNumberExt: 'Telefone com DDI',
-  $randomCity: 'Cidade',
-  $randomStreetName: 'Nome de rua',
-  $randomStreetAddress: 'Endereço com número',
-  $randomCountry: 'País',
-  $randomCountryCode: 'Código de país (BR, US)',
-  $randomLatitude: 'Latitude',
-  $randomLongitude: 'Longitude',
-  $randomIP: 'Endereço IPv4',
-  $randomIPV6: 'Endereço IPv6',
-  $randomMACAddress: 'Endereço MAC',
-  $randomUrl: 'URL',
-  $randomDomainName: 'Domínio',
-  $randomDomainSuffix: 'Sufixo de domínio (com, io)',
-  $randomDomainWord: 'Palavra de domínio',
-  $randomProtocol: 'http ou https',
-  $randomUserAgent: 'User-Agent de navegador',
-  $randomSemver: 'Versão semântica (1.2.3)',
-  $randomLocale: 'Locale (pt_BR, en_US)',
-  $randomColor: 'Nome de cor',
-  $randomHexColor: 'Cor hexadecimal',
-  $randomAbbreviation: 'Sigla técnica (API, SQL)',
-  $randomCompanyName: 'Nome de empresa',
-  $randomCompanySuffix: 'Sufixo de empresa (Ltda, Inc)',
-  $randomCatchPhrase: 'Frase de efeito',
-  $randomBs: 'Frase curta',
-  $randomJobTitle: 'Cargo',
-  $randomJobArea: 'Área de atuação',
-  $randomJobType: 'Tipo de cargo',
-  $randomJobDescriptor: 'Adjetivo de cargo',
-  $randomDepartment: 'Departamento',
-  $randomProduct: 'Produto',
-  $randomProductName: 'Nome de produto',
-  $randomProductAdjective: 'Adjetivo de produto',
-  $randomProductMaterial: 'Material de produto',
-  $randomPrice: 'Preço (123.45)',
-  $randomCurrencyCode: 'Código de moeda (BRL, USD)',
-  $randomCurrencySymbol: 'Símbolo de moeda',
-  $randomBankAccount: 'Conta bancária de 8 dígitos',
-  $randomCreditCardMask: 'Final de cartão (4 dígitos)',
-  $randomBitcoin: 'Endereço Bitcoin',
-  $randomDatePast: 'Data no último ano',
-  $randomDateFuture: 'Data no próximo ano',
-  $randomDateRecent: 'Data nos últimos 2 dias',
-  $randomWeekday: 'Dia da semana',
-  $randomMonth: 'Mês',
-  $randomFileName: 'Nome de arquivo',
-  $randomFileExt: 'Extensão de arquivo',
-  $randomFileType: 'Tipo de arquivo',
-  $randomMimeType: 'MIME type',
-  $randomDatabaseType: 'Tipo de coluna SQL',
-  $randomDatabaseColumn: 'Nome de coluna',
-  $randomAvatarImage: 'URL de avatar',
-  $randomImageUrl: 'URL de imagem',
-  $randomWord: 'Palavra',
-  $randomWords: 'Algumas palavras',
-  $randomLoremWord: 'Palavra lorem ipsum',
-  $randomLoremWords: 'Palavras lorem ipsum',
-  $randomLoremSlug: 'Slug lorem-ipsum',
-  $randomLoremSentence: 'Frase lorem ipsum',
-  $randomLoremSentences: 'Frases lorem ipsum',
-  $randomLoremParagraph: 'Parágrafo lorem ipsum',
-  $randomLoremText: 'Texto lorem ipsum',
-  $randomLoremLines: 'Linhas lorem ipsum',
+const dynamicVariableDescriptions = (): Record<string, string> => currentDictionary().vulpes.dynamicVariables;
+
+export const suggestionKindLabel = (kind: SuggestionKind | '') => (kind ? currentDictionary().vulpes.variables.kinds[kind] : '');
+
+export const variableStatusLabel = (description: VariableDescription) => {
+  const variableTexts = currentDictionary().vulpes.variables;
+  if (description.status === 'defined') return formatMessage(variableTexts.defined, { source: suggestionKindLabel(description.source) });
+  if (description.status === 'response') return variableTexts.linkedResponse;
+  if (description.status === 'dynamic') return variableTexts.dynamic;
+  return variableTexts.unknown;
 };
 
 export const isResponseVariable = (name: string) => name === responseVariable || /^\$response\s/.test(name);
@@ -195,12 +125,13 @@ export const buildSuggestions = (
   requests: SourceRequest[],
   responsesByItemId: Record<string, HttpResponse> = {}
 ): VariableSuggestion[] => {
+  const variableTexts = currentDictionary().vulpes.variables;
   const defined: VariableSuggestion[] = [...variables.entries()].map(([name, variable]) => ({
     name,
     label: name,
     cursorBack: 0,
     kind: variable.source,
-    detail: variable.secret ? hiddenValue : variable.value || '(vazio)',
+    detail: variable.secret ? hiddenValue : variable.value || variableTexts.empty,
   }));
 
   const responses: VariableSuggestion[] = [];
@@ -211,38 +142,38 @@ export const buildSuggestions = (
       discoveredPaths.forEach((pathItem) => {
         responses.push({
           cursorBack: 0,
-          kind: 'resposta',
+          kind: 'response',
           label: `${request.name} → ${pathItem.path}`,
-          detail: `Valor atual: ${pathItem.preview}`,
+          detail: formatMessage(variableTexts.currentValue, { value: pathItem.preview }),
           name: buildResponseTag({ field: 'body', requestReference: request.reference, filter: pathItem.path, trigger: 'never' }, false),
         });
       });
       response.headers.slice(0, maxHeadersPerRequest).forEach((header) => {
         responses.push({
           cursorBack: 0,
-          kind: 'resposta',
-          label: `${request.name} → Header ${header.key}`,
-          detail: `Header: ${header.value}`,
+          kind: 'response',
+          label: formatMessage(variableTexts.headerLabel, { request: request.name, key: header.key }),
+          detail: formatMessage(variableTexts.header, { value: header.value }),
           name: buildResponseTag({ field: 'header', requestReference: request.reference, filter: header.key, trigger: 'never' }, false),
         });
       });
     }
     responses.push({
       cursorBack: 1,
-      kind: 'resposta',
+      kind: 'response',
       label: `${responseVariable} → ${request.name} (JSONPath)`,
       name: `${responseVariable} 'body', '${request.reference}', '$.'`,
       detail: response
-        ? `Extrair outro campo do body de "${request.name}"`
-        : `Valor do body da resposta de "${request.name}" (complete o JSONPath)`,
+        ? formatMessage(variableTexts.extractAnother, { name: request.name })
+        : formatMessage(variableTexts.bodyValue, { name: request.name }),
     });
   });
 
-  const dynamic: VariableSuggestion[] = Object.entries(dynamicVariableDescriptions).map(([name, description]) => ({
+  const dynamic: VariableSuggestion[] = Object.entries(dynamicVariableDescriptions()).map(([name, description]) => ({
     name,
     label: name,
     cursorBack: 0,
-    kind: 'dinâmica',
+    kind: 'dynamic',
     detail: description,
   }));
 
@@ -280,13 +211,14 @@ const describeResponse = (
   requests: SourceRequest[],
   responsesByItemId: Record<string, HttpResponse>
 ): VariableDescription => {
+  const variableTexts = currentDictionary().vulpes.variables;
   const parsed = parseResponseTag(name);
   if (!parsed.valid) {
     return {
       name,
       status: 'missing',
-      source: 'resposta',
-      value: parsed.error ?? 'Referência {{$response}} inválida',
+      source: 'response',
+      value: parsed.error ?? variableTexts.invalidReference,
     };
   }
 
@@ -298,10 +230,10 @@ const describeResponse = (
     return {
       name,
       status: 'missing',
-      source: 'resposta',
+      source: 'response',
       value: parsed.requestReference
-        ? `Requisição "${parsed.requestReference}" não encontrada na coleção`
-        : 'Informe a requisição de origem',
+        ? formatMessage(variableTexts.requestNotFound, { name: parsed.requestReference })
+        : currentDictionary().vulpes.responseErrors.requestRequired,
     };
   }
 
@@ -309,14 +241,14 @@ const describeResponse = (
     return {
       name,
       status: 'missing',
-      source: 'resposta',
+      source: 'response',
       requestId: request.id,
-      value: `Complete o JSONPath para "${request.name}" (ex: $.token)`,
+      value: formatMessage(variableTexts.completeJsonPath, { name: request.name }),
     };
   }
 
-  const readableFilter = parsed.filter || 'conteúdo inteiro';
-  const summary = `${parsed.field} de "${request.name}" · ${readableFilter}`;
+  const readableFilter = parsed.filter || variableTexts.wholeContent;
+  const summary = formatMessage(variableTexts.summary, { field: parsed.field, name: request.name, filter: readableFilter });
   const response = responsesByItemId[request.id];
 
   if (response) {
@@ -325,16 +257,16 @@ const describeResponse = (
       return {
         name,
         status: 'missing',
-        source: 'resposta',
+        source: 'response',
         requestId: request.id,
-        value: `${extracted.value} (em "${request.name}")`,
+        value: formatMessage(variableTexts.extractionIn, { value: extracted.value, name: request.name }),
       };
     }
     return {
       name,
       value: summary,
       status: 'response',
-      source: 'resposta',
+      source: 'response',
       requestId: request.id,
       preview: extracted.value,
     };
@@ -342,9 +274,9 @@ const describeResponse = (
 
   return {
     name,
-    value: `${summary} · será extraído ao enviar`,
+    value: formatMessage(variableTexts.extractedOnSend, { summary }),
     status: 'response',
-    source: 'resposta',
+    source: 'response',
     requestId: request.id,
   };
 };
@@ -372,12 +304,13 @@ export const describeVariable = (
         requestId: responseDesc.requestId,
       };
     }
-    const value = variable.secret || masked ? hiddenValue : variable.value || '(vazio)';
+    const value = variable.secret || masked ? hiddenValue : variable.value || currentDictionary().vulpes.variables.empty;
     return { name, status: 'defined', source: variable.source, value };
   }
   if (isResponseVariable(name)) return describeResponse(name, requests, responsesByItemId);
-  const description = dynamicVariableDescriptions[name];
-  if (description) return { name, status: 'dynamic', source: 'dinâmica', value: `${description} · gerado no envio` };
-  if (isDynamicVariable(name)) return { name, status: 'missing', source: 'dinâmica', value: 'Variável dinâmica desconhecida' };
-  return { name, status: 'missing', source: '', value: 'Não definida na coleção nem no ambiente ativo' };
+  const variableTexts = currentDictionary().vulpes.variables;
+  const description = dynamicVariableDescriptions()[name];
+  if (description) return { name, status: 'dynamic', source: 'dynamic', value: formatMessage(variableTexts.generatedOnSend, { description }) };
+  if (isDynamicVariable(name)) return { name, status: 'missing', source: 'dynamic', value: variableTexts.unknownDynamic };
+  return { name, status: 'missing', source: '', value: variableTexts.notDefined };
 };

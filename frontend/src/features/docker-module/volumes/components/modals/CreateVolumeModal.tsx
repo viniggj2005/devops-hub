@@ -1,6 +1,7 @@
 import toast from 'react-hot-toast';
 import { Database } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { VolumeService } from '../../services/VolumeService';
 import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { ModalProps } from '../../../../../interfaces/TerminalInterfaces';
@@ -14,6 +15,8 @@ interface KeyValueInput {
 
 const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) => {
   const [name, setName] = useState('');
+  const { dictionary } = useTranslation();
+  const volumeTexts = dictionary.docker.volumes;
   const [driver, setDriver] = useState('local');
   const { selectedCredentialId } = useDockerClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,7 +74,7 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
     event?.preventDefault();
     if (!selectedCredentialId) return;
     if (!name.trim()) {
-      toast.error('Informe o nome do volume.');
+      toast.error(volumeTexts.nameRequired);
       return;
     }
 
@@ -84,7 +87,7 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
         DriverOpts: parsedDriverOpts,
       });
 
-      toast.success('O volume foi criado.');
+      toast.success(volumeTexts.created);
 
       onClose();
       onCreated?.();
@@ -95,7 +98,7 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
       setLabels([{ key: '', value: '' }]);
     } catch (createError) {
       console.error(createError);
-      toast.error('Não foi possível criar o volume.');
+      toast.error(volumeTexts.createFailed);
     } finally {
       setIsSubmitting(false);
     }
@@ -111,13 +114,13 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
     <Modal
       isOpen={open}
       onClose={onClose}
-      title="Novo Volume Docker"
-      description="Configuração de volume persistente"
+      title={volumeTexts.createTitle}
+      description={volumeTexts.createDescription}
       icon={<Database className="w-5 h-5 text-blue-500" />}
       footer={
         <>
           <ModalButton variant="secondary" onClick={onClose} disabled={isSubmitting}>
-            Cancelar
+            {dictionary.app.common.cancel}
           </ModalButton>
           <ModalButton
             variant="primary"
@@ -125,7 +128,7 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
             disabled={isSubmitting}
             isLoading={isSubmitting}
           >
-            Criar Volume
+            {volumeTexts.create}
           </ModalButton>
         </>
       }
@@ -133,7 +136,7 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className={labelClass}>
-            Nome <span className="text-red-400">*</span>
+            {volumeTexts.name} <span className="text-red-400">*</span>
           </label>
           <input
             type="text"
@@ -141,7 +144,7 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
             required
             onChange={(event) => setName(event.target.value)}
             className={inputClass}
-            placeholder="meu-volume"
+            placeholder={volumeTexts.namePlaceholder}
           />
         </div>
 
@@ -160,13 +163,13 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className={labelClass}>Opções do driver</label>
+            <label className={labelClass}>{volumeTexts.driverOptions}</label>
             <button
               type="button"
               onClick={() => handleAddEntry('driver')}
               className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline transition-colors cursor-pointer"
             >
-              + Adicionar opção
+              {volumeTexts.addOption}
             </button>
           </div>
           {driverOpts.map((entry, index) => (
@@ -175,14 +178,14 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
                 type="text"
                 value={entry.key}
                 onChange={(event) => handleChangeEntry(index, 'driver', 'key', event.target.value)}
-                placeholder="chave"
+                placeholder={volumeTexts.key}
                 className={`${inputClass} !py-2`}
               />
               <input
                 type="text"
                 value={entry.value}
                 onChange={(event) => handleChangeEntry(index, 'driver', 'value', event.target.value)}
-                placeholder="valor"
+                placeholder={volumeTexts.value}
                 className={`${inputClass} !py-2`}
               />
             </div>
@@ -197,7 +200,7 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
               onClick={() => handleAddEntry('label')}
               className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline transition-colors cursor-pointer"
             >
-              + Adicionar label
+              {volumeTexts.addLabel}
             </button>
           </div>
           {labels.map((entry, index) => (
@@ -206,14 +209,14 @@ const CreateVolumeModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) =
                 type="text"
                 value={entry.key}
                 onChange={(event) => handleChangeEntry(index, 'label', 'key', event.target.value)}
-                placeholder="chave"
+                placeholder={volumeTexts.key}
                 className={`${inputClass} !py-2`}
               />
               <input
                 type="text"
                 value={entry.value}
                 onChange={(event) => handleChangeEntry(index, 'label', 'value', event.target.value)}
-                placeholder="valor"
+                placeholder={volumeTexts.value}
                 className={`${inputClass} !py-2`}
               />
             </div>

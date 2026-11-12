@@ -1,5 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+import RichMessage from '../../i18n/RichMessage';
+import { useTranslation } from '../../i18n/useTranslation';
 import { AlertCircle, ArrowRight, X, WavesArrowDown, WavesArrowUp } from 'lucide-react';
 
 interface StashChangesModalProps {
@@ -19,6 +21,8 @@ const StashChangesModal: React.FC<StashChangesModalProps> = ({
     targetBranch,
     currentBranch,
 }) => {
+    const { dictionary, formatMessage } = useTranslation();
+    const stashTexts = dictionary.octohub.stashPrompt;
     if (!isOpen) return null;
 
     return createPortal(
@@ -43,10 +47,10 @@ const StashChangesModal: React.FC<StashChangesModalProps> = ({
                             <AlertCircle className="w-10 h-10 text-amber-500" />
                         </div>
                         <h3 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tighter mb-2">
-                            Espere um momento!
+                            {stashTexts.title}
                         </h3>
                         <p className="text-zinc-500 dark:text-zinc-400 px-12 text-sm leading-relaxed">
-                            Você tem alterações não salvas em <span className="font-bold text-emerald-500">{currentBranch}</span>.
+                            <RichMessage template={stashTexts.unsavedChanges} values={{ branch: <span className="font-bold text-emerald-500">{currentBranch}</span> }} />
                         </p>
                     </div>
 
@@ -60,8 +64,8 @@ const StashChangesModal: React.FC<StashChangesModalProps> = ({
                                 <WavesArrowUp className="w-6 h-6 text-emerald-500 group-hover:text-white" />
                             </div>
                             <div className="flex-1">
-                                <h4 className="font-bold text-zinc-900 dark:text-white text-base">Trazendo alterações para {targetBranch}</h4>
-                                <p className="text-xs text-zinc-500 mt-0.5">Mover o trabalho atual para o branch de destino.</p>
+                                <h4 className="font-bold text-zinc-900 dark:text-white text-base">{formatMessage(stashTexts.bringTitle, { branch: targetBranch })}</h4>
+                                <p className="text-xs text-zinc-500 mt-0.5">{stashTexts.bringDescription}</p>
                             </div>
                             <ArrowRight className="w-5 h-5 text-zinc-300 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
                         </button>
@@ -75,8 +79,8 @@ const StashChangesModal: React.FC<StashChangesModalProps> = ({
                                 <WavesArrowDown className="w-6 h-6 text-amber-500 group-hover:text-white" />
                             </div>
                             <div className="flex-1">
-                                <h4 className="font-bold text-zinc-900 dark:text-white text-base">Deixar alterações em {currentBranch}</h4>
-                                <p className="text-xs text-zinc-500 mt-0.5">Armazenar e mantê-las onde estão.</p>
+                                <h4 className="font-bold text-zinc-900 dark:text-white text-base">{formatMessage(stashTexts.leaveTitle, { branch: currentBranch })}</h4>
+                                <p className="text-xs text-zinc-500 mt-0.5">{stashTexts.leaveDescription}</p>
                             </div>
                             <ArrowRight className="w-5 h-5 text-zinc-300 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
                         </button>
@@ -86,7 +90,7 @@ const StashChangesModal: React.FC<StashChangesModalProps> = ({
                         <div className="p-6 bg-zinc-50/50 dark:bg-black/40 flex items-center justify-center border-t border-zinc-100 dark:border-white/5">
                             <div className="flex items-center gap-3 text-emerald-500 font-black italic text-xs uppercase tracking-widest animate-pulse">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" />
-                                Switching...
+                                {stashTexts.switching}
                             </div>
                         </div>
                     )}

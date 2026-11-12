@@ -3,6 +3,8 @@ import { useVulpesStore } from '../../VulpesStore';
 import { findItem } from '../../functions/CollectionTree';
 import { requireToken } from '../../actions/ActionHelpers';
 import React, { useEffect, useMemo, useState } from 'react';
+import RichMessage from '../../../i18n/RichMessage';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { VulpesServices } from '../../services/VulpesServices';
 import { Modal } from '../../../shared/components/modals/Modal';
 import { collectionActions } from '../../actions/CollectionActions';
@@ -12,7 +14,7 @@ import type { SourceRequest } from '../../functions/VariableSuggestions';
 import type { Collection, HttpResponse } from '../../../../interfaces/VulpesInterfaces';
 import { fieldInputClass, fieldLabelClass, primaryButtonClass, secondaryButtonClass } from '../editors/FormStyles';
 import { Play, Copy, Check, Link2, Search, Loader2, Sparkles, BookmarkPlus, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { parseResponseTag, buildResponseTag, discoverJsonPaths, ResponseFieldKind, ResponseTriggerKind, responseFieldOptions, decodeResponseBodyText, extractResponsePreview, responseTriggerOptions } from '../../functions/ResponseVariables';
+import { parseResponseTag, buildResponseTag, discoverJsonPaths, ResponseFieldKind, ResponseTriggerKind, responseFieldKinds, decodeResponseBodyText, extractResponsePreview, responseTriggerKinds } from '../../functions/ResponseVariables';
 
 export interface ResponseBuilderOptions {
   defaultRequestId?: string;
@@ -52,6 +54,10 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
   responsesByItemId,
 }) => {
   const activeEnvironmentId = useVulpesStore((state) => state.activeEnvironmentId);
+  const { dictionary, formatMessage } = useTranslation();
+  const referenceTexts = dictionary.vulpes.reference;
+  const responseFieldOptions = responseFieldKinds.map((value) => ({ value, label: referenceTexts.fields[value] }));
+  const responseTriggerOptions = responseTriggerKinds.map((value) => ({ value, label: referenceTexts.triggers[value] }));
   const setItemResponse = useVulpesStore((state) => state.setItemResponse);
 
   const [filter, setFilter] = useState('$.');
@@ -145,7 +151,7 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
   const livePreview = useMemo(() => {
     if (!selectedRequest || !expression) return null;
     const parsed = parseResponseTag(expression);
-    if (!parsed.valid) return { ok: false, value: parsed.error ?? 'Configuração incompleta' };
+    if (!parsed.valid) return { ok: false, value: parsed.error ?? dictionary.vulpes.responseErrors.incomplete };
     if (!sourceResponse) return null;
     return extractResponsePreview(sourceResponse, parsed);
   }, [selectedRequest, expression, sourceResponse]);
@@ -170,7 +176,7 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
         setFilter(paths[0].path);
         setVariableName(guessVariableName(paths[0].path, 'body'));
       }
-      toast.success(`Resposta de "${selectedRequest.name}" carregada (${response.status})`);
+      toast.success(formatMessage(referenceTexts.responseLoadedToast, { name: selectedRequest.name, status: response.status }));
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
@@ -185,7 +191,7 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
       onClose();
       return;
     }
-    copyToClipboard(expression, 'Variável {{$response}} copiada');
+    copyToClipboard(expression, referenceTexts.variableCopied);
     onClose();
   };
 
@@ -209,9 +215,9 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
       });
       if (options?.onApply) {
         options.onApply(`{{${cleanName}}}`);
-        toast.success(`Variável {{${cleanName}}} salva na coleção e inserida`);
+        toast.success(formatMessage(referenceTexts.savedAndInserted, { name: cleanName }));
       } else {
-        await copyToClipboard(`{{${cleanName}}}`, `Variável {{${cleanName}}} salva na coleção e copiada`);
+        await copyToClipboard(`{{${cleanName}}}`, formatMessage(referenceTexts.savedAndCopied, { name: cleanName }));
       }
       onClose();
     } catch (error) {
@@ -227,25 +233,25 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       icon={<Link2 className="w-4 h-4 text-violet-500" />}
-      title="Usar resposta de uma requisição em outra"
+      title={referenceTexts.title}
       description={
         collection
-          ? `Coleção "${collection.name}" · encadeia valores extraídos automaticamente`
-          : 'Salve a requisição em uma coleção para encadear respostas'
+          ? formatMessage(referenceTexts.collectionDescription, { name: collection.name })
+          : referenceTexts.noCollectionDescription
       }
       footer={
         <>
           <button type="button" onClick={onClose} className={secondaryButtonClass}>
-            Cancelar
+            {dictionary.app.common.cancel}
           </button>
           {expression && (
             <button
               type="button"
-              onClick={() => copyToClipboard(expression, 'Expressão {{$response}} copiada')}
+              onClick={() => copyToClipboard(expression, referenceTexts.expressionCopied)}
               className={secondaryButtonClass}
             >
               <Copy className="w-3.5 h-3.5" />
-              Copiar {'{{$response}}'}
+              {referenceTexts.copyExpression}
             </button>
           )}
           <button
@@ -255,7 +261,7 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
             className={primaryButtonClass}
           >
             <Check className="w-3.5 h-3.5" />
-            {options?.onApply ? 'Inserir na requisição' : 'Copiar e fechar'}
+            {options?.onApply ? referenceTexts.insert : referenceTexts.copyAndClose}
           </button>
         </>
       }
@@ -264,18 +270,17 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-800 dark:text-amber-200 space-y-1.5">
           <p className="font-bold flex items-center gap-1.5">
             <AlertTriangle className="w-4 h-4 text-amber-500" />
-            Nenhuma requisição HTTP disponível nesta coleção
+            {referenceTexts.noRequests}
           </p>
           <p>
-            Para usar a resposta de uma requisição em outra, salve suas requisições HTTP dentro de uma coleção (ex: uma requisição{' '}
-            <strong>Login</strong> e outra que consome o token).
+            <RichMessage template={referenceTexts.noRequestsHint} values={{ login: <strong>Login</strong> }} />
           </p>
         </div>
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
             <div>
-              <label className={fieldLabelClass}>1. Requisição de origem</label>
+              <label className={fieldLabelClass}>{referenceTexts.sourceRequest}</label>
               <select
                 value={selectedRequestId}
                 onChange={(event) => {
@@ -296,8 +301,8 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
                   return (
                     <option key={request.id} value={request.id}>
                       {request.name}
-                      {isSelf ? ' (aba atual)' : ''}
-                      {hasResp ? ' · ✓ resposta carregada' : ' · sem resposta recente'}
+                      {isSelf ? referenceTexts.currentTab : ''}
+                      {hasResp ? referenceTexts.responseLoaded : referenceTexts.noRecentResponse}
                     </option>
                   );
                 })}
@@ -307,16 +312,16 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
               type="button"
               disabled={!selectedRequest || sendingSource}
               onClick={executeSourceRequest}
-              title="Envia a requisição selecionada agora para listar os campos da resposta"
+              title={referenceTexts.runHint}
               className={`${secondaryButtonClass} h-[34px]`}
             >
               {sendingSource ? <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" /> : <Play className="w-3.5 h-3.5 text-amber-500" />}
-              {sourceResponse ? 'Atualizar resposta' : 'Executar para ler campos'}
+              {sourceResponse ? referenceTexts.refreshResponse : referenceTexts.runToRead}
             </button>
           </div>
 
           <div>
-            <label className={fieldLabelClass}>2. O que extrair da resposta</label>
+            <label className={fieldLabelClass}>{referenceTexts.whatToExtract}</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {responseFieldOptions.map((option) => (
                 <button
@@ -352,12 +357,12 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <label className={`${fieldLabelClass} mb-0`}>
-                  {field === 'body' ? '3. Campo JSONPath (clique abaixo ou digite)' : '3. Nome do Header (clique abaixo ou digite)'}
+                  {field === 'body' ? referenceTexts.jsonPathField : referenceTexts.headerField}
                 </label>
                 {sourceResponse && (
                   <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" />
-                    {field === 'body' ? `${discoveredPaths.length} campos detectados` : `${sourceResponse.headers.length} headers detectados`}
+                    {field === 'body' ? formatMessage(referenceTexts.fieldsDetected, { count: discoveredPaths.length }) : formatMessage(referenceTexts.headersDetected, { count: sourceResponse.headers.length })}
                   </span>
                 )}
               </div>
@@ -368,7 +373,7 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
                   setFilter(event.target.value);
                   setVariableName(guessVariableName(event.target.value, field));
                 }}
-                placeholder={field === 'body' ? 'Ex: $.data.token ou $.access_token' : 'Ex: Authorization ou X-Session'}
+                placeholder={field === 'body' ? referenceTexts.jsonPathPlaceholder : referenceTexts.headerPlaceholder}
                 className={`${fieldInputClass} font-mono`}
               />
 
@@ -379,7 +384,7 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
                     <input
                       value={searchQuery}
                       onChange={(event) => setSearchQuery(event.target.value)}
-                      placeholder={field === 'body' ? 'Filtrar campos da resposta (ex: token, id)...' : 'Filtrar headers...'}
+                      placeholder={field === 'body' ? referenceTexts.filterFields : referenceTexts.filterHeaders}
                       className="w-full bg-transparent text-xs text-gray-800 dark:text-zinc-200 placeholder:text-gray-400 focus:outline-none"
                     />
                   </div>
@@ -434,7 +439,10 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
                 !sourceResponse && (
                   <p className="text-[11px] text-gray-500 dark:text-zinc-400 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                    Clique em <strong>Executar para ler campos</strong> acima para escolher o campo direto da resposta real de "{selectedRequest?.name}".
+                    <RichMessage
+                      template={referenceTexts.runToChoose}
+                      values={{ run: <strong>{referenceTexts.runToRead}</strong>, name: selectedRequest?.name }}
+                    />
                   </p>
                 )
               )}
@@ -443,7 +451,7 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-3">
             <div>
-              <label className={fieldLabelClass}>4. Quando reenviar "{selectedRequest?.name}"</label>
+              <label className={fieldLabelClass}>{formatMessage(referenceTexts.whenResend, { name: selectedRequest?.name })}</label>
               <select
                 value={trigger}
                 onChange={(event) => setTrigger(event.target.value as ResponseTriggerKind)}
@@ -457,7 +465,7 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
               </select>
             </div>
             <div>
-              <label className={fieldLabelClass}>Validade (seg)</label>
+              <label className={fieldLabelClass}>{referenceTexts.maxAge}</label>
               <input
                 min={0}
                 type="number"
@@ -472,7 +480,7 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
           <div className="rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-zinc-950 p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-500">
-                Variável gerada
+                {referenceTexts.generated}
               </span>
               {livePreview && (
                 <span
@@ -481,7 +489,7 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
                   }`}
                 >
                   {livePreview.ok ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-                  {livePreview.ok ? 'Extração validada' : livePreview.value}
+                  {livePreview.ok ? referenceTexts.validated : livePreview.value}
                 </span>
               )}
             </div>
@@ -490,9 +498,9 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
             </code>
             {livePreview?.ok && (
               <div className="text-xs flex items-baseline gap-2 pt-1">
-                <span className="text-gray-500 dark:text-zinc-400 flex-shrink-0">Valor atual extraído:</span>
+                <span className="text-gray-500 dark:text-zinc-400 flex-shrink-0">{referenceTexts.currentExtracted}</span>
                 <code className="font-mono text-emerald-700 dark:text-emerald-300 break-all line-clamp-2">
-                  {livePreview.value || '(vazio)'}
+                  {livePreview.value || dictionary.vulpes.variables.empty}
                 </code>
               </div>
             )}
@@ -501,12 +509,12 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
           <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex flex-col sm:flex-row sm:items-end gap-2.5">
             <div className="flex-1 min-w-0">
               <label className="block text-[11px] font-bold text-amber-800 dark:text-amber-300 mb-1">
-                Opcional: Salvar como variável curta na coleção (para usar como {'{{nome}}'})
+                {referenceTexts.saveShort}
               </label>
               <input
                 value={variableName}
                 spellCheck={false}
-                placeholder="Ex: token, userId..."
+                placeholder={referenceTexts.shortPlaceholder}
                 onChange={(event) => setVariableName(event.target.value)}
                 className={`${fieldInputClass} font-mono bg-white dark:bg-zinc-900`}
               />
@@ -518,9 +526,7 @@ const ResponseReferenceModal: React.FC<ResponseReferenceModalProps> = ({
               className={`${secondaryButtonClass} h-[34px] border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10`}
             >
               {savingVariable ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookmarkPlus className="w-3.5 h-3.5" />}
-              Salvar {'{{'}
-              {variableName.trim() || 'variavel'}
-              {'}}'}
+              {formatMessage(referenceTexts.saveVariable, { name: variableName.trim() || referenceTexts.defaultVariableName })}
             </button>
           </div>
         </div>

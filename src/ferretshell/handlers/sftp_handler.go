@@ -2,7 +2,6 @@ package ferretshellHandlers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"golang.org/x/crypto/ssh"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/desktop"
 	"docker-manager-go/src/processes"
 	ferretShellDtos "docker-manager-go/src/ferretshell/dtos"
@@ -99,7 +99,7 @@ func (handlerStruct *SftpHandlerStruct) ConnectSFTP(ctx context.Context, configu
 func (handlerStruct *SftpHandlerStruct) DisconnectSFTP(sessionId string) error {
 	value, ok := handlerStruct.SftpSessions.Load(sessionId)
 	if !ok {
-		return errors.New("sessão não encontrada")
+		return appErrors.New("ferretShell.sessionNotFound", "sessão não encontrada")
 	}
 	session := value.(*sftpSession)
 	session.sftpClient.Close()
@@ -111,7 +111,7 @@ func (handlerStruct *SftpHandlerStruct) DisconnectSFTP(sessionId string) error {
 func (handlerStruct *SftpHandlerStruct) getSftpClient(sessionId string) (*sftp.Client, error) {
 	value, ok := handlerStruct.SftpSessions.Load(sessionId)
 	if !ok {
-		return nil, errors.New("sessão não encontrada")
+		return nil, appErrors.New("ferretShell.sessionNotFound", "sessão não encontrada")
 	}
 	return value.(*sftpSession).sftpClient, nil
 }
@@ -226,14 +226,14 @@ func (handlerStruct *SftpHandlerStruct) UploadMultipleFiles(sessionId string, re
 func (handlerStruct *SftpHandlerStruct) UploadDirectory(sessionId string, remoteDir string, localPath string) error {
 	value, ok := handlerStruct.SftpSessions.Load(sessionId)
 	if !ok {
-		return errors.New("sessão não encontrada")
+		return appErrors.New("ferretShell.sessionNotFound", "sessão não encontrada")
 	}
 	session := value.(*sftpSession)
 
 	localTar := filepath.Join(os.TempDir(), "upload_"+uuid.New().String()+".tar.gz")
 	tarCmd := processes.Command("tar", "-czf", localTar, "-C", filepath.Dir(localPath), filepath.Base(localPath))
 	if err := tarCmd.Run(); err != nil {
-		return fmt.Errorf("falha ao compactar localmente: %w", err)
+		return appErrors.Wrap("ferretShell.compressLocalFailed", "falha ao compactar localmente", err)
 	}
 	defer os.Remove(localTar)
 
@@ -252,7 +252,7 @@ func (handlerStruct *SftpHandlerStruct) UploadDirectory(sessionId string, remote
 
 	extractCmd := fmt.Sprintf("mkdir -p %s && tar -xzf %s -C %s", remoteDir, remoteTarPath, remoteDir)
 	if err := sshSession.Run(extractCmd); err != nil {
-		return fmt.Errorf("falha ao extrair no servidor: %w", err)
+		return appErrors.Wrap("ferretShell.extractRemoteFailed", "falha ao extrair no servidor", err)
 	}
 
 	return nil
@@ -261,7 +261,7 @@ func (handlerStruct *SftpHandlerStruct) UploadDirectory(sessionId string, remote
 func (handlerStruct *SftpHandlerStruct) DownloadDirectory(sessionId string, remotePath string, localDir string) error {
 	value, ok := handlerStruct.SftpSessions.Load(sessionId)
 	if !ok {
-		return errors.New("sessão não encontrada")
+		return appErrors.New("ferretShell.sessionNotFound", "sessão não encontrada")
 	}
 	session := value.(*sftpSession)
 
@@ -276,7 +276,7 @@ func (handlerStruct *SftpHandlerStruct) DownloadDirectory(sessionId string, remo
 
 	compressCmd := fmt.Sprintf("tar -czf %s -C %s %s", remoteTarPath, path.Dir(remotePath), remoteBase)
 	if err := sshSession.Run(compressCmd); err != nil {
-		return fmt.Errorf("falha ao compactar no servidor: %w", err)
+		return appErrors.Wrap("ferretShell.compressRemoteFailed", "falha ao compactar no servidor", err)
 	}
 	defer session.sftpClient.Remove(remoteTarPath)
 
@@ -289,7 +289,7 @@ func (handlerStruct *SftpHandlerStruct) DownloadDirectory(sessionId string, remo
 
 	extractCmd := processes.Command("tar", "-xzf", localTar, "-C", localDir)
 	if err := extractCmd.Run(); err != nil {
-		return fmt.Errorf("falha ao extrair localmente: %w", err)
+		return appErrors.Wrap("ferretShell.extractLocalFailed", "falha ao extrair localmente", err)
 	}
 
 	return nil

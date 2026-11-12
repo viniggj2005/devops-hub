@@ -1,6 +1,7 @@
 import React from 'react';
 import { LogOut } from 'lucide-react';
 import { navItems } from './SidebarItems';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../../appFrame/AppStore';
 import ToggleThemeButton from '../buttons/ToggleThemeButton';
@@ -11,7 +12,9 @@ import DockerCredentialSelector from '../../../docker-module/dockerCredentials/c
 const Sidebar: React.FC<SidebarProps> = () => {
   const navigate = useNavigate();
   const { setActiveTab } = useAppStore();
+  const { dictionary } = useTranslation();
   const { connecting, dockerClientId } = useDockerClient();
+  const { navigation, connection } = dictionary.docker;
 
   const statusColor = connecting
     ? 'bg-amber-400 animate-pulse'
@@ -20,10 +23,10 @@ const Sidebar: React.FC<SidebarProps> = () => {
       : 'bg-zinc-400 dark:bg-zinc-600';
 
   const statusTitle = connecting
-    ? 'Conectando ao daemon Docker...'
+    ? connection.connecting
     : dockerClientId != null
-      ? 'Conectado ao daemon Docker'
-      : 'Nenhuma credencial ativa';
+      ? connection.connected
+      : connection.noCredential;
 
   return (
     <nav className="h-16 shrink-0 border-b border-gray-200 dark:border-white/5 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md z-40 px-4 sm:px-6 flex items-center justify-between gap-4">
@@ -42,7 +45,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
         </button>
 
         <div className="flex items-center gap-1 p-1 rounded-xl bg-gray-100/80 dark:bg-white/5 border border-gray-200/60 dark:border-white/5 overflow-x-auto no-scrollbar">
-          {navItems.map(({ label, to, icon: Icon }) => (
+          {navItems.map(({ labelKey, to, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -55,7 +58,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
               }
             >
               <Icon className="w-3.5 h-3.5 shrink-0" />
-              <span>{label}</span>
+              <span>{navigation[labelKey]}</span>
             </NavLink>
           ))}
         </div>
@@ -73,10 +76,10 @@ const Sidebar: React.FC<SidebarProps> = () => {
           type="button"
           onClick={() => setActiveTab('home')}
           className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-red-500 hover:bg-red-500/10 transition-all group cursor-pointer"
-          title="Voltar ao Console"
+          title={navigation.backToConsole}
         >
           <LogOut className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          <span className="hidden xl:inline">Voltar</span>
+          <span className="hidden xl:inline">{navigation.back}</span>
         </button>
       </div>
     </nav>

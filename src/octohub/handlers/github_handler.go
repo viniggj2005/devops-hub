@@ -14,6 +14,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 
+	"docker-manager-go/src/appErrors"
 	auth "docker-manager-go/src/auth/functions"
 	"docker-manager-go/src/desktop"
 	"docker-manager-go/src/models"
@@ -88,7 +89,7 @@ func (handlerStruct *OctohubHandler) StartDeviceLogin(callContext context.Contex
 		return nil, err
 	}
 	if response.Error == "device_flow_disabled" {
-		return nil, fmt.Errorf("o Device Flow está desativado no OAuth App do GitHub, habilite 'Enable Device Flow' nas configurações do app")
+		return nil, appErrors.New("octohub.deviceFlowDisabled", "o Device Flow está desativado no OAuth App do GitHub, habilite 'Enable Device Flow' nas configurações do app")
 	}
 	if response.Error != "" {
 		return nil, fmt.Errorf("github: %s - %s", response.Error, response.ErrorDesc)
@@ -118,6 +119,14 @@ func (handlerStruct *OctohubHandler) CancelDeviceLogin() {
 	}
 }
 
+func emitLoginError(windowName string, err error) {
+	payload := appErrors.PayloadOf(err)
+	if payload == nil {
+		payload = &appErrors.Payload{Detail: err.Error()}
+	}
+	desktop.EmitToWindow(windowName, LoginErrorEvent, payload)
+}
+
 func (handlerStruct *OctohubHandler) pollDeviceToken(ctx context.Context, windowName string, userID uint, deviceCode string, intervalSeconds int) {
 	interval := time.Duration(max(intervalSeconds, 5)) * time.Second
 
@@ -125,7 +134,7 @@ func (handlerStruct *OctohubHandler) pollDeviceToken(ctx context.Context, window
 		select {
 		case <-ctx.Done():
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				desktop.EmitToWindow(windowName, LoginErrorEvent, "o código expirou, tente conectar novamente")
+				emitLoginError(windowName, appErrors.New("octohub.deviceCodeExpired", "o código expirou, tente conectar novamente"))
 			}
 			return
 		case <-time.After(interval):
@@ -150,7 +159,7 @@ func (handlerStruct *OctohubHandler) pollDeviceToken(ctx context.Context, window
 		case "":
 			account, err := handlerStruct.saveAccount(userID, response.AccessToken, response.Scope)
 			if err != nil {
-				desktop.EmitToWindow(windowName, LoginErrorEvent, err.Error())
+				emitLoginError(windowName, err)
 			} else {
 				desktop.Broadcast(LoginSuccessEvent, account)
 			}
@@ -160,10 +169,10 @@ func (handlerStruct *OctohubHandler) pollDeviceToken(ctx context.Context, window
 		case "slow_down":
 			interval = time.Duration(max(response.Interval, int(interval.Seconds())+5)) * time.Second
 		case "access_denied":
-			desktop.EmitToWindow(windowName, LoginErrorEvent, "autorização negada no GitHub")
+			emitLoginError(windowName, appErrors.New("octohub.githubAuthorizationDenied", "autorização negada no GitHub"))
 			return
 		default:
-			desktop.EmitToWindow(windowName, LoginErrorEvent, fmt.Sprintf("github: %s - %s", response.Error, response.ErrorDesc))
+			emitLoginError(windowName, fmt.Errorf("github: %s - %s", response.Error, response.ErrorDesc))
 			return
 		}
 	}
@@ -199,7 +208,7 @@ func (handlerStruct *OctohubHandler) upsertAccount(userID uint, user *githubUser
 		return tx.Save(&account).Error
 	})
 	if err != nil {
-		return nil, fmt.Errorf("erro ao salvar conta do GitHub: %w", err)
+		return nil, appErrors.Wrap("octohub.saveAccountFailed", "erro ao salvar conta do GitHub", err)
 	}
 
 	return octohubDtos.ToGithubAccountDto(&account), nil
@@ -247,7 +256,7 @@ func (handlerStruct *OctohubHandler) SwitchAccount(token string, accountID uint)
 	return handlerStruct.DataBase.Transaction(func(tx *gorm.DB) error {
 		var account models.GithubAccountModel
 		if err := tx.Where("id = ? AND user_id = ?", accountID, userID).First(&account).Error; err != nil {
-			return fmt.Errorf("conta não encontrada: %w", err)
+			return appErrors.Wrap("octohub.accountNotFound", "conta não encontrada", err)
 		}
 		if err := tx.Model(&models.GithubAccountModel{}).Where("user_id = ?", userID).Update("is_active", false).Error; err != nil {
 			return err
@@ -265,7 +274,7 @@ func (handlerStruct *OctohubHandler) RemoveAccount(token string, accountID uint)
 	return handlerStruct.DataBase.Transaction(func(tx *gorm.DB) error {
 		var account models.GithubAccountModel
 		if err := tx.Where("id = ? AND user_id = ?", accountID, userID).First(&account).Error; err != nil {
-			return fmt.Errorf("conta não encontrada: %w", err)
+			return appErrors.Wrap("octohub.accountNotFound", "conta não encontrada", err)
 		}
 		if err := tx.Unscoped().Delete(&account).Error; err != nil {
 			return err
@@ -294,7 +303,7 @@ func (handlerStruct *OctohubHandler) GetUserInfo(token string) (map[string]inter
 
 	account, err := handlerStruct.activeAccount(userID)
 	if err != nil {
-		return nil, fmt.Errorf("nenhuma conta do GitHub conectada")
+		return nil, appErrors.New("octohub.noGithubAccount", "nenhuma conta do GitHub conectada")
 	}
 
 	var user map[string]interface{}
@@ -354,10 +363,10 @@ func getGithubAPI(endpoint, accessToken string, out any) error {
 	defer response.Body.Close()
 
 	if response.StatusCode == http.StatusUnauthorized {
-		return fmt.Errorf("token do GitHub inválido ou revogado, reconecte a conta")
+		return appErrors.New("octohub.githubTokenInvalid", "token do GitHub inválido ou revogado, reconecte a conta")
 	}
 	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("erro ao consultar o GitHub: status %d", response.StatusCode)
+		return appErrors.New("octohub.githubStatus", "erro ao consultar o GitHub: status {status}").With("status", response.StatusCode)
 	}
 
 	return json.NewDecoder(response.Body).Decode(out)

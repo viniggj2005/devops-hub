@@ -1,5 +1,6 @@
 import toast from 'react-hot-toast';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import { DockerImageInfo } from '../../../../interfaces/ContainerImagesInterfaces';
 import { ImagesList } from '../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 
@@ -23,8 +24,8 @@ export const ContainerImagesService = (clientId: number | null, pollMiliseconds 
       const imagesList = await ImagesList(clientId);
       setImages((imagesList as DockerImageInfo[]) ?? []);
       hasLoadedRef.current = true;
-    } catch (error: any) {
-      toast.error(String(error?.message ?? error));
+    } catch (error) {
+      toast.error(errorMessage(error));
     } finally {
       setLoading(false);
     }

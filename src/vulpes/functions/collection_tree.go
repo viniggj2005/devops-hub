@@ -2,15 +2,15 @@ package vulpesFunctions
 
 import (
 	"encoding/json"
-	"errors"
 
+	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 )
 
 var (
-	ErrItemNotFound    = errors.New("item não encontrado na coleção")
-	ErrParentNotFound  = errors.New("pasta de destino não encontrada")
-	ErrParentNotFolder = errors.New("o destino precisa ser uma pasta")
+	ErrItemNotFound    = appErrors.New("vulpes.itemNotFound", "item não encontrado na coleção")
+	ErrParentNotFound  = appErrors.New("vulpes.parentNotFound", "pasta de destino não encontrada")
+	ErrParentNotFolder = appErrors.New("vulpes.parentNotFolder", "o destino precisa ser uma pasta")
 )
 
 func FindItem(items []vulpesDtos.CollectionItemDto, itemID string) *vulpesDtos.CollectionItemDto {

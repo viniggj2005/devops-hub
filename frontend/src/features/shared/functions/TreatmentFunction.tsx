@@ -1,17 +1,21 @@
+import { currentDictionary } from '../../i18n/TranslateError';
+import { formatMessage } from '../../i18n/Languages';
+
 export function FmtAgo(created?: number) {
   if (!created) return '-';
   const miliseconds = Date.now() - created * 1000;
   const seconds = Math.max(1, Math.floor(miliseconds / 1000));
+  const { ago, units: unitLabels } = currentDictionary().app.timeAgo;
   const units: [number, string][] = [
-    [60, 's'],
-    [60, 'min'],
-    [24, 'h'],
-    [7, 'd'],
-    [4.345, 'sem'],
-    [12, 'm'],
+    [60, unitLabels.seconds],
+    [60, unitLabels.minutes],
+    [24, unitLabels.hours],
+    [7, unitLabels.days],
+    [4.345, unitLabels.weeks],
+    [12, unitLabels.months],
   ];
   let value = seconds;
-  let label = 's';
+  let label = unitLabels.seconds;
   for (let index = 0; index < units.length; index++) {
     const [key, tag] = units[index];
     if (value < key) {
@@ -21,7 +25,7 @@ export function FmtAgo(created?: number) {
     value = Math.floor(value / key);
     label = tag;
   }
-  return `${value} ${label} atrás`;
+  return formatMessage(ago, { value, unit: label });
 }
 
 export function FmtName(names: string[]) {

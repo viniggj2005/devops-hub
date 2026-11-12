@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { Activity, Cpu, Image, MemoryStick } from 'lucide-react';
 import * as dockerDtos from '../../../../../../bindings/docker-manager-go/src/dockermanager/dtos/models';
 
@@ -7,38 +8,40 @@ interface StatsGridProps {
 }
 
 const StatsGrid: React.FC<StatsGridProps> = ({ info }) => {
+  const { dictionary, formatMessage } = useTranslation();
+  const homeTexts = dictionary.docker.home;
   const memoryGb = info?.MemTotal ? (info.MemTotal / (1024 * 1024 * 1024)).toFixed(1) : '0.0';
 
   const stats = [
     {
       icon: Activity,
-      label: 'Containers Ativos',
+      label: homeTexts.activeContainers,
       value: info?.ContainersRunning ?? 0,
       accent: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
       subtitle: info
-        ? `${info.Containers} total • ${info.ContainersPaused} pausados • ${info.ContainersStopped} parados`
-        : 'Aguardando conexão',
+        ? formatMessage(homeTexts.containersSummary, { total: info.Containers, paused: info.ContainersPaused, stopped: info.ContainersStopped })
+        : homeTexts.waitingConnection,
     },
     {
       icon: Image,
-      label: 'Imagens Locais',
+      label: homeTexts.localImages,
       value: info?.Images ?? 0,
       accent: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
-      subtitle: 'Disponíveis no host',
+      subtitle: homeTexts.availableOnHost,
     },
     {
       icon: Cpu,
-      label: 'CPUs do Host',
+      label: homeTexts.hostCpus,
       value: info?.NCPU ?? 0,
       accent: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
-      subtitle: info?.Architecture ? `Arquitetura ${info.Architecture}` : 'Núcleos lógicos',
+      subtitle: info?.Architecture ? formatMessage(homeTexts.architecture, { architecture: info.Architecture }) : homeTexts.logicalCores,
     },
     {
       icon: MemoryStick,
       value: `${memoryGb} GB`,
-      label: 'Memória Total',
+      label: homeTexts.totalMemory,
       accent: 'text-purple-500 bg-purple-500/10 border-purple-500/20',
-      subtitle: info?.OperatingSystem || 'RAM alocada no daemon',
+      subtitle: info?.OperatingSystem || homeTexts.daemonRam,
     },
   ];
 

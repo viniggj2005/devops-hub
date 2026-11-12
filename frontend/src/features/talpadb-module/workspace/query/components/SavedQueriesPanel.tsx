@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import RichMessage from '../../../../i18n/RichMessage';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import type { SavedQuery } from '../../../../../interfaces/TalpadbInterfaces';
 import { ConfirmModal } from '../../../../shared/components/modals/ConfirmModal';
 import {
@@ -34,6 +36,8 @@ const SavedQueriesPanel: React.FC<SavedQueriesPanelProps> = ({
   onSelectSavedQuery,
 }) => {
   const [searchFilter, setSearchFilter] = useState('');
+  const { dictionary, formatMessage } = useTranslation();
+  const savedTexts = dictionary.talpadb.savedQueries;
   const [deletingQuery, setDeletingQuery] = useState(false);
   const [nameDraft, setNameDraft] = useState(savedQueryName);
   const [pendingDeleteQuery, setPendingDeleteQuery] = useState<SavedQuery | null>(null);
@@ -80,13 +84,13 @@ const SavedQueriesPanel: React.FC<SavedQueriesPanelProps> = ({
         >
           <span className="inline-flex items-center gap-1.5 font-semibold text-gray-700 dark:text-zinc-200 whitespace-nowrap">
             <Bookmark className="h-3.5 w-3.5 text-cyan-500" />
-            Salvar atual:
+            {savedTexts.saveCurrent}
           </span>
           <input
             type="text"
             value={nameDraft}
             onChange={(event) => setNameDraft(event.target.value)}
-            placeholder="Dê apenas um nome para salvar a query e suas variáveis..."
+            placeholder={savedTexts.namePlaceholder}
             className="h-7 min-w-[200px] max-w-md flex-1 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900 px-3 text-xs text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-cyan-500"
           />
           <button
@@ -95,7 +99,7 @@ const SavedQueriesPanel: React.FC<SavedQueriesPanelProps> = ({
             className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 px-3 text-[11px] font-bold text-white shadow-sm shadow-cyan-500/15 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
           >
             <Save className="h-3.5 w-3.5" />
-            {savingQuery ? 'Salvando...' : 'Salvar Query'}
+            {savingQuery ? dictionary.talpadb.common.saving : dictionary.talpadb.toolbar.saveQuery}
           </button>
         </form>
 
@@ -106,7 +110,7 @@ const SavedQueriesPanel: React.FC<SavedQueriesPanelProps> = ({
               type="text"
               value={searchFilter}
               onChange={(event) => setSearchFilter(event.target.value)}
-              placeholder="Buscar query salva..."
+              placeholder={savedTexts.searchPlaceholder}
               className="h-7 w-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900 pl-8 pr-2.5 text-xs text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-cyan-500"
             />
           </div>
@@ -116,7 +120,7 @@ const SavedQueriesPanel: React.FC<SavedQueriesPanelProps> = ({
       <div className="flex-1 overflow-auto p-3">
         {loading ? (
           <div className="flex h-full items-center justify-center text-gray-400 dark:text-zinc-500">
-            Carregando queries salvas...
+            {savedTexts.loading}
           </div>
         ) : filteredQueries.length === 0 ? (
           <div className="flex h-full min-h-[120px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-200 dark:border-white/10 bg-gray-50/40 dark:bg-white/[0.01] p-6 text-center">
@@ -125,12 +129,17 @@ const SavedQueriesPanel: React.FC<SavedQueriesPanelProps> = ({
             </div>
             <p className="font-semibold text-gray-800 dark:text-zinc-200">
               {savedQueries.length === 0
-                ? 'Nenhuma query salva nesta conexão'
-                : 'Nenhuma query encontrada para o filtro'}
+                ? savedTexts.emptyConnection
+                : savedTexts.emptyFilter}
             </p>
             <p className="text-[11px] text-gray-500 dark:text-zinc-400">
-              Monte seu SQL com <code className="font-mono font-semibold text-amber-500">$1</code>,{' '}
-              <code className="font-mono font-semibold text-amber-500">$2</code>, preencha as variáveis e digite um nome acima para salvar.
+              <RichMessage
+                template={savedTexts.emptyHint}
+                values={{
+                  first: <code className="font-mono font-semibold text-amber-500">$1</code>,
+                  second: <code className="font-mono font-semibold text-amber-500">$2</code>,
+                }}
+              />
             </p>
           </div>
         ) : (
@@ -157,7 +166,7 @@ const SavedQueriesPanel: React.FC<SavedQueriesPanelProps> = ({
                       </span>
                       {isCurrentActive && (
                         <span className="rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] font-semibold text-cyan-600 dark:text-cyan-400">
-                          Aberta na aba
+                          {savedTexts.openInTab}
                         </span>
                       )}
                       {savedItem.databaseName && (
@@ -189,7 +198,7 @@ const SavedQueriesPanel: React.FC<SavedQueriesPanelProps> = ({
                         className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900 px-2.5 text-[11px] font-semibold text-gray-700 dark:text-zinc-200 transition-colors hover:bg-gray-100 dark:hover:bg-white/10"
                       >
                         <FolderOpen className="h-3.5 w-3.5 text-cyan-500" />
-                        Carregar
+                        {savedTexts.load}
                       </button>
                       <button
                         type="button"
@@ -197,12 +206,12 @@ const SavedQueriesPanel: React.FC<SavedQueriesPanelProps> = ({
                         className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-emerald-500"
                       >
                         <Play className="h-3 w-3 fill-current" />
-                        Executar
+                        {dictionary.talpadb.toolbar.run}
                       </button>
                       <button
                         type="button"
                         onClick={() => setPendingDeleteQuery(savedItem)}
-                        title="Excluir query salva"
+                        title={savedTexts.deleteTitle}
                         className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 transition-colors hover:bg-rose-500/10 hover:text-rose-500"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -226,15 +235,15 @@ const SavedQueriesPanel: React.FC<SavedQueriesPanelProps> = ({
           if (!deletingQuery) setPendingDeleteQuery(null);
         }}
         onConfirm={handleConfirmDelete}
-        title="Excluir query salva"
+        title={savedTexts.deleteTitle}
         message={
           pendingDeleteQuery
-            ? `Tem certeza que deseja excluir a query salva "${pendingDeleteQuery.name}" e suas variáveis? Esta ação não pode ser desfeita.`
+            ? formatMessage(savedTexts.deleteMessage, { name: pendingDeleteQuery.name })
             : ''
         }
         type="danger"
-        confirmText="Excluir"
-        cancelText="Cancelar"
+        confirmText={savedTexts.delete}
+        cancelText={dictionary.app.common.cancel}
         isLoading={deletingQuery}
       />
     </div>

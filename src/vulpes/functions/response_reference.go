@@ -2,12 +2,11 @@ package vulpesFunctions
 
 import (
 	"encoding/base64"
-	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 )
 
@@ -46,7 +45,7 @@ var resendBehaviors = map[string]bool{
 	ResendWhenExpired: true,
 }
 
-var errMissingResponseRequest = errors.New("informe a requisição de origem em {{$response}}")
+var errMissingResponseRequest = appErrors.New("vulpes.responseRequestRequired", "informe a requisição de origem em {{$response}}")
 
 type ResponseReference struct {
 	Field     string
@@ -82,15 +81,15 @@ func ResponseReferenceFromArguments(arguments []string) (ResponseReference, erro
 		return reference, errMissingResponseRequest
 	}
 	if !responseFields[reference.Field] {
-		return reference, fmt.Errorf("o atributo %q de {{$response}} é inválido; use body, header, raw ou url", reference.Field)
+		return reference, appErrors.New("vulpes.responseInvalidField", "o atributo \"{field}\" de {{$response}} é inválido; use body, header, raw ou url").With("field", reference.Field)
 	}
 	if !resendBehaviors[reference.Trigger] {
-		return reference, fmt.Errorf("o reenvio %q de {{$response}} é inválido; use never, no-history, when-expired ou always", reference.Trigger)
+		return reference, appErrors.New("vulpes.responseInvalidTrigger", "o reenvio \"{trigger}\" de {{$response}} é inválido; use never, no-history, when-expired ou always").With("trigger", reference.Trigger)
 	}
 	if maxAge := argument(4, ""); maxAge != "" {
 		seconds, err := strconv.ParseFloat(maxAge, 64)
 		if err != nil || seconds < 0 {
-			return reference, fmt.Errorf("a validade %q de {{$response}} precisa ser um número de segundos", maxAge)
+			return reference, appErrors.New("vulpes.responseInvalidMaxAge", "a validade \"{maxAge}\" de {{$response}} precisa ser um número de segundos").With("maxAge", maxAge)
 		}
 		reference.MaxAge = time.Duration(seconds * float64(time.Second))
 	}
@@ -132,7 +131,7 @@ func ExtractResponseValue(response *vulpesDtos.HttpResponseDto, reference Respon
 	if response.BodyEncoding == vulpesDtos.EncodingBase64 {
 		decoded, err := base64.StdEncoding.DecodeString(body)
 		if err != nil {
-			return "", fmt.Errorf("o corpo da resposta de origem é inválido: %w", err)
+			return "", appErrors.Wrap("vulpes.responseInvalidBody", "o corpo da resposta de origem é inválido", err)
 		}
 		body = string(decoded)
 	}
@@ -145,14 +144,14 @@ func ExtractResponseValue(response *vulpesDtos.HttpResponseDto, reference Respon
 		return body, nil
 	case ResponseFieldHeader:
 		if filter == "" {
-			return "", errors.New("informe o nome do cabeçalho em {{$response 'header', ...}}")
+			return "", appErrors.New("vulpes.responseHeaderNameRequired", "informe o nome do cabeçalho em {{$response 'header', ...}}")
 		}
 		for _, header := range response.Headers {
 			if strings.EqualFold(header.Key, filter) {
 				return header.Value, nil
 			}
 		}
-		return "", fmt.Errorf("o cabeçalho %s não está na resposta de origem", filter)
+		return "", appErrors.New("vulpes.responseHeaderMissing", "o cabeçalho {header} não está na resposta de origem").With("header", filter)
 	}
 	switch {
 	case filter == "":
@@ -160,7 +159,7 @@ func ExtractResponseValue(response *vulpesDtos.HttpResponseDto, reference Respon
 	case strings.HasPrefix(filter, "$"):
 		return ExtractJsonPath(body, filter)
 	}
-	return "", fmt.Errorf("o filtro %q não é suportado; use JSONPath (começando com $)", filter)
+	return "", appErrors.New("vulpes.responseUnsupportedFilter", "o filtro \"{filter}\" não é suportado; use JSONPath (começando com $)").With("filter", filter)
 }
 
 func FindRequestItem(items []vulpesDtos.CollectionItemDto, reference string) *vulpesDtos.CollectionItemDto {

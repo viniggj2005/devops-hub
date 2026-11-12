@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle2, Loader2, Server } from 'lucide-react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import * as ferretshellDtos from '../../../../../bindings/docker-manager-go/src/ferretshell/dtos/models';
 
 interface SftpSidebarProps {
@@ -17,20 +18,22 @@ const SftpSidebar: React.FC<SftpSidebarProps> = ({
     activeConnectionId,
     connectingConnectionId,
 }) => {
+    const { dictionary } = useTranslation();
+    const sftpTexts = dictionary.ferretShell.sftp;
     return (
         <div className="w-64 flex flex-col bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-lg">
             <div className="p-4 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-zinc-800/30 flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase text-gray-400">Conexões</h3>
+                <h3 className="text-xs font-bold uppercase text-gray-400">{sftpTexts.connections}</h3>
                 {connecting && (
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-500">
                         <Loader2 className="w-3 h-3 animate-spin" />
-                        Conectando
+                        {sftpTexts.connecting}
                     </span>
                 )}
             </div>
             <div className="flex-1 overflow-auto p-2 space-y-1">
                 {connections.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-gray-400 italic">Nenhuma conexão salva</div>
+                    <div className="p-4 text-center text-xs text-gray-400 italic">{sftpTexts.noConnections}</div>
                 ) : (
                     connections.map(connection => {
                         const isConnectingThis = connecting && connectingConnectionId === connection.id;
@@ -64,7 +67,7 @@ const SftpSidebar: React.FC<SftpSidebarProps> = ({
                                     </div>
                                     {isConnectingThis && (
                                         <span className="shrink-0 rounded-full bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-purple-600 dark:text-purple-300">
-                                            Conectando...
+                                            {sftpTexts.connectingEllipsis}
                                         </span>
                                     )}
                                 </div>

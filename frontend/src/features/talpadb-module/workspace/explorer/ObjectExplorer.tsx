@@ -1,6 +1,7 @@
 import toast from 'react-hot-toast';
 import React, { useMemo, useState } from 'react';
 import ContextMenu from '../components/ContextMenu';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { useTalpadbStore } from '../../TalpadbStore';
 import CreateDatabaseModal from './CreateDatabaseModal';
 import { useExplorerActions } from './useExplorerActions';
@@ -114,7 +115,9 @@ function computeFilter(
 
 const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) => {
   const { token } = useAuth();
+  const { dictionary } = useTranslation();
   const [filter, setFilter] = useState('');
+  const explorerTexts = dictionary.talpadb.explorer;
   const [formOpen, setFormOpen] = useState(false);
   const connections = useTalpadbStore((state) => state.connections);
   const loadConnections = useTalpadbStore((state) => state.loadConnections);
@@ -243,7 +246,7 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
                   onClick={() => token && useExplorerStore.getState().refresh(token, id)}
                   className="ml-auto flex-shrink-0 underline underline-offset-2 hover:text-rose-700"
                 >
-                  tentar de novo
+                  {explorerTexts.retry}
                 </button>
               </div>
             )}
@@ -257,7 +260,7 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
                   style={{ paddingLeft: indent + 22 }}
                   className="h-6 flex items-center text-[12px] italic text-gray-400"
                 >
-                  vazio
+                  {explorerTexts.empty}
                 </div>
               )}
           </>
@@ -274,27 +277,27 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
       <div className="px-3 pt-3 pb-2 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-zinc-800/30 space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 pl-1">
-            Explorador
+            {explorerTexts.title}
           </h3>
           <div className="flex items-center gap-0.5">
-            <button title="Nova conexão" onClick={openNewConnection} className={headerButton}>
+            <button title={explorerTexts.newConnection} onClick={openNewConnection} className={headerButton}>
               <Plus className="w-4 h-4" />
             </button>
             <button
-              title="Recarregar conexões"
+              title={explorerTexts.reloadConnections}
               onClick={reloadConnections}
               className={headerButton}
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
             <button
-              title="Recolher tudo"
+              title={explorerTexts.collapseAll}
               onClick={() => useExplorerStore.getState().collapseAll()}
               className={headerButton}
             >
               <ChevronsDownUp className="w-4 h-4" />
             </button>
-            <button title="Recolher explorador (Ctrl+B)" onClick={onCollapse} className={headerButton}>
+            <button title={explorerTexts.collapseExplorer} onClick={onCollapse} className={headerButton}>
               <PanelLeftClose className="w-4 h-4" />
             </button>
           </div>
@@ -304,7 +307,7 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
           <input
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
-            placeholder="Filtrar objetos carregados…"
+            placeholder={explorerTexts.filterPlaceholder}
             className="w-full h-8 pl-8 pr-7 rounded-lg text-xs outline-none border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-800 dark:text-zinc-200 placeholder:text-gray-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
           />
           {filter && (
@@ -322,12 +325,12 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
         {rootIds.length === 0 ? (
           <div className="flex flex-col items-center gap-3 text-center px-4 py-10">
             <Database className="w-8 h-8 text-gray-300 dark:text-zinc-600" />
-            <p className="text-xs text-gray-400">Nenhuma conexão cadastrada.</p>
+            <p className="text-xs text-gray-400">{explorerTexts.noConnections}</p>
             <button
               onClick={openNewConnection}
               className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 text-xs font-semibold hover:bg-cyan-500/20 transition-colors"
             >
-              Nova conexão
+              {explorerTexts.newConnection}
             </button>
           </div>
         ) : (
@@ -335,7 +338,7 @@ const ObjectExplorer: React.FC<{ onCollapse: () => void }> = ({ onCollapse }) =>
             {rootIds.map((id) => renderNode(id, 0))}
             {filtered && filtered.visible.size === 0 && (
               <p className="px-3 py-6 text-center text-xs text-gray-400">
-                Nada encontrado entre os objetos já carregados.
+                {explorerTexts.noMatch}
               </p>
             )}
           </>

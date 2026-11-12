@@ -3,19 +3,20 @@ package dockerFunctions
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"net/http"
+
+	"docker-manager-go/src/appErrors"
 )
 
 func BuildTLSHTTPClient(caPEM, certPEM, keyPEM string) (*http.Client, error) {
 	cert, err := tls.X509KeyPair([]byte(certPEM), []byte(keyPEM))
 	if err != nil {
-		return nil, fmt.Errorf("erro ao carregar client cert/key: %w", err)
+		return nil, appErrors.Wrap("docker.loadClientCertFailed", "erro ao carregar client cert/key", err)
 	}
 
 	roots := x509.NewCertPool()
 	if ok := roots.AppendCertsFromPEM([]byte(caPEM)); !ok {
-		return nil, fmt.Errorf("erro ao carregar CA: conteúdo inválido")
+		return nil, appErrors.New("docker.invalidCa", "erro ao carregar CA: conteúdo inválido")
 	}
 
 	tlsConfig := &tls.Config{
