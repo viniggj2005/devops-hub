@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Duration } from '../../../bindings/time/models';
 import React, { useState, useEffect, useRef } from 'react';
 import { errorMessage } from '../../features/shared/functions/ErrorMessage';
+import { useTranslation } from '../../features/i18n/useTranslation';
 import { usePromptToast } from '../../features/shared/components/toasts/PromptToast';
 import { useConfirmToast } from '../../features/shared/components/toasts/ConfirmToast';
 import SftpSidebar from '../../features/ferretShell-module/sftp/components/SftpSidebar';
@@ -19,6 +20,8 @@ import { bytesToBase64, normalizeKey } from '../../features/ferretShell-module/t
 const SftpPage: React.FC = () => {
     const { token, user } = useAuth();
     const promptToast = usePromptToast();
+    const { dictionary, formatMessage } = useTranslation();
+    const sftpTexts = dictionary.ferretShell.sftp;
     const confirmToast = useConfirmToast();
     const sessionIdRef = useRef<string | null>(null);
     const [connecting, setConnecting] = useState(false);
@@ -75,8 +78,8 @@ const SftpPage: React.FC = () => {
         try {
             const list = await Sftp.ListFiles(currentSessionId, path);
             setRemoteFiles(list.sort((first, second) => (first.isDir === second.isDir ? first.name.localeCompare(second.name) : first.isDir ? -1 : 1)));
-        } catch (remoteError: any) {
-            setError(remoteError.message);
+        } catch (remoteError) {
+            setError(errorMessage(remoteError));
         } finally {
             setLoadingRemoteFiles(false);
         }
@@ -110,11 +113,11 @@ const SftpPage: React.FC = () => {
                 config.Password = sshDto.password;
             } else {
                 const password = await promptToast({
-                    title: 'Senha SSH',
+                    title: sftpTexts.passwordTitle,
                     inputType: 'password',
-                    confirmLabel: 'Conectar',
-                    placeholder: 'sua senha',
-                    message: `Digite a senha para ${sshDto.systemUser}@${sshDto.host}`,
+                    confirmLabel: sftpTexts.connect,
+                    placeholder: dictionary.ferretShell.connectionForm.passwordPlaceholder,
+                    message: formatMessage(sftpTexts.enterPassword, { target: `${sshDto.systemUser}@${sshDto.host}` }),
                 });
                 if (!password) {
                     setConnecting(false);
@@ -131,10 +134,10 @@ const SftpPage: React.FC = () => {
             setActiveConnectionId(sshDto.id);
             setRemotePath('/');
             await loadRemoteFiles(newSessionId, '/');
-            toast.success('Conectado ao servidor SFTP');
-        } catch (connectError: any) {
-            setError(connectError.message || 'Erro ao conectar');
-            toast.error(connectError.message || 'Falha na conexão');
+            toast.success(sftpTexts.connected);
+        } catch (connectError) {
+            setError(errorMessage(connectError));
+            toast.error(errorMessage(connectError));
         } finally {
             setConnecting(false);
             setConnectingConnectionId(null);
@@ -156,7 +159,7 @@ const SftpPage: React.FC = () => {
                     await Sftp.DownloadFile(sessionId, remote, local);
                 }
             }
-            toast.success('Download concluído');
+            toast.success(sftpTexts.downloadDone);
             loadLocalFiles(localPath);
         } catch (downloadError: any) {
             toast.error(errorMessage(downloadError));
@@ -175,7 +178,7 @@ const SftpPage: React.FC = () => {
                     await Sftp.UploadFile(sessionId, remote, item.path);
                 }
             }
-            toast.success('Upload concluído');
+            toast.success(sftpTexts.uploadDone);
             loadRemoteFiles(sessionId, remotePath);
         } catch (uploadError: any) {
             toast.error(errorMessage(uploadError));
@@ -185,12 +188,12 @@ const SftpPage: React.FC = () => {
     const handleLocalDelete = async () => {
         if (selectedLocalIndices.length === 0) return;
         const pathsToDelete = selectedLocalIndices.map(index => localFiles[index].path);
-        const itemName = selectedLocalIndices.length === 1 ? `"${localFiles[selectedLocalIndices[0]].name}"` : `${pathsToDelete.length} itens`;
+        const itemName = selectedLocalIndices.length === 1 ? `"${localFiles[selectedLocalIndices[0]].name}"` : formatMessage(sftpTexts.itemsCount, { count: pathsToDelete.length });
 
         confirmToast({
             id: 'sftp-local-delete',
-            title: 'Confirmar Exclusão',
-            message: `Tem certeza que deseja excluir ${itemName}?`,
+            title: sftpTexts.deleteTitle,
+            message: formatMessage(sftpTexts.deleteMessage, { target: itemName }),
             onConfirm: async () => {
                 await Local.DeleteLocalFiles(pathsToDelete);
                 setSelectedLocalIndices([]);
@@ -211,7 +214,7 @@ const SftpPage: React.FC = () => {
             const parentPath = itemToRename.path.substring(0, itemToRename.path.lastIndexOf(itemToRename.name));
             const newPath = parentPath + newName;
             await Local.RenameLocalFile(itemToRename.path, newPath);
-            toast.success('Arquivo renomeado');
+            toast.success(sftpTexts.renamed);
             loadLocalFiles(localPath);
         } catch (renameError: any) {
             toast.error(errorMessage(renameError));
@@ -288,7 +291,7 @@ const SftpPage: React.FC = () => {
                 if (payload.type === 'upload') { handleUpload(payload.items, targetPath); return; }
             }
             if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
-                toast('Para arquivos externos, arraste primeiro para o painel Local.');
+                toast(sftpTexts.externalFilesHint);
             }
         } catch (dropError) { console.error('Erro ao processar drop no remoto:', dropError); }
     };

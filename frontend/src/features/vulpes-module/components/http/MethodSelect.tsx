@@ -1,4 +1,5 @@
 import { ChevronDown } from 'lucide-react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useRef, useState } from 'react';
 import { useDismiss } from '../../../shared/hooks/useDismiss';
 import { HTTP_METHODS, methodColor } from '../../functions/RequestDefaults';
@@ -10,6 +11,7 @@ interface MethodSelectProps {
 
 const MethodSelect: React.FC<MethodSelectProps> = ({ method, onChange }) => {
   const [open, setOpen] = useState(false);
+  const { dictionary } = useTranslation();
   const [customMethod, setCustomMethod] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   useDismiss(containerRef, open, () => setOpen(false));
@@ -52,7 +54,7 @@ const MethodSelect: React.FC<MethodSelectProps> = ({ method, onChange }) => {
           >
             <input
               value={customMethod}
-              placeholder="Outro método…"
+              placeholder={dictionary.vulpes.request.otherMethod}
               onChange={(event) => setCustomMethod(event.target.value)}
               className="w-full rounded-md bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-white/10 px-2 py-1 text-xs font-mono uppercase focus:outline-none focus:border-amber-500"
             />

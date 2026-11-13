@@ -1,5 +1,7 @@
 import toast from 'react-hot-toast';
 import { Events } from '@wailsio/runtime';
+import { useLanguageStore } from '../features/i18n/LanguageStore';
+import { currentDictionary, hasErrorCode, translateError } from '../features/i18n/TranslateError';
 import { isDetachedWindow } from '../features/appFrame/WindowContext';
 import { AuthContextType, LoginResponse, UserDTO } from '../interfaces/AuthInterfaces';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
@@ -25,6 +27,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     setToken(session.token);
     setUser(session.user);
     tokenRef.current = session.token;
+    useLanguageStore.getState().applyLanguage(session.user.language);
   };
 
   const clearSession = () => {
@@ -38,10 +41,10 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     setError(null);
     try {
       const loginResponse = await loginApi(email, password);
-      if (!loginResponse) throw new Error('Falha no login');
+      if (!loginResponse) throw new Error(currentDictionary().errors.common.loginFailed);
       applySession(loginResponse);
-    } catch (loginError: any) {
-      const message = loginError?.message || loginError || 'Falha no login';
+    } catch (loginError) {
+      const message = loginError ? translateError(loginError) : currentDictionary().errors.common.loginFailed;
       setError(message);
       toast.error(message);
       clearSession();
@@ -78,10 +81,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     if (!token) return;
     const pingSession = () => {
       myInfo(token).catch((pingError) => {
-        const message = String(pingError?.message ?? pingError ?? '').toLowerCase();
-        if (message.includes('token inválido') || message.includes('sessão expirada')) {
-          clearSession();
-        }
+        if (hasErrorCode(pingError, 'auth.invalidToken', 'auth.sessionExpired')) clearSession();
       });
     };
     const intervalId = window.setInterval(pingSession, sessionKeepAliveIntervalMs);

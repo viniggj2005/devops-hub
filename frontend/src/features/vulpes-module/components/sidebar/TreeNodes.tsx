@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useEffect, useRef, useState } from 'react';
 import { requestBadge } from '../../functions/RequestDefaults';
 import { countRequests, filterTree } from '../../functions/CollectionTree';
@@ -45,10 +46,11 @@ const InlineRename: React.FC<{ initialName: string; onFinish: (name: string | nu
 
 const MenuButton: React.FC<{ target: TreeTarget }> = ({ target }) => {
   const tree = useSidebarTree();
+  const { dictionary } = useTranslation();
   return (
     <button
       type="button"
-      title="Ações"
+      title={dictionary.vulpes.sidebar.actions}
       onClick={(event) => {
         event.stopPropagation();
         tree.openMenu(event, target);
@@ -71,6 +73,8 @@ interface ItemNodeProps {
 
 const ItemNode: React.FC<ItemNodeProps> = ({ collection, item, depth, parentId, index, siblingCount }) => {
   const tree = useSidebarTree();
+  const { dictionary } = useTranslation();
+  const sidebarTexts = dictionary.vulpes.sidebar;
   const key = itemKey(item.id);
   const isFolder = item.kind === 'folder';
   const isRenaming = tree.renamingKey === key;
@@ -143,7 +147,7 @@ const ItemNode: React.FC<ItemNodeProps> = ({ collection, item, depth, parentId, 
             {isFolder && (
               <button
                 type="button"
-                title="Executar pasta no Runner"
+                title={sidebarTexts.runFolderHint}
                 onClick={(event) => {
                   event.stopPropagation();
                   tree.openRunner(collection.id, item.id);
@@ -158,7 +162,7 @@ const ItemNode: React.FC<ItemNodeProps> = ({ collection, item, depth, parentId, 
                 <button
                   type="button"
                   disabled={!canMoveUp}
-                  title="Mover para cima"
+                  title={sidebarTexts.moveUp}
                   onClick={(event) => {
                     event.stopPropagation();
                     tree.moveByOffset(collection, item, 'up');
@@ -170,7 +174,7 @@ const ItemNode: React.FC<ItemNodeProps> = ({ collection, item, depth, parentId, 
                 <button
                   type="button"
                   disabled={!canMoveDown}
-                  title="Mover para baixo"
+                  title={sidebarTexts.moveDown}
                   onClick={(event) => {
                     event.stopPropagation();
                     tree.moveByOffset(collection, item, 'down');
@@ -199,7 +203,7 @@ const ItemNode: React.FC<ItemNodeProps> = ({ collection, item, depth, parentId, 
         ))}
       {expanded && item.children.length === 0 && (
         <p style={indentFor(depth + 2)} className="h-6 flex items-center text-[11px] italic text-gray-400 dark:text-zinc-500">
-          Pasta vazia
+          {sidebarTexts.emptyFolder}
         </p>
       )}
     </>
@@ -208,6 +212,7 @@ const ItemNode: React.FC<ItemNodeProps> = ({ collection, item, depth, parentId, 
 
 export const CollectionNode: React.FC<{ collection: Collection; search: string }> = ({ collection, search }) => {
   const tree = useSidebarTree();
+  const { dictionary } = useTranslation();
   const key = collectionKey(collection.id);
   const isRenaming = tree.renamingKey === key;
   const items = tree.searching && !collection.name.toLowerCase().includes(search.trim().toLowerCase()) ? filterTree(collection.items, search) : collection.items;
@@ -246,7 +251,7 @@ export const CollectionNode: React.FC<{ collection: Collection; search: string }
           <div className="flex items-center gap-0.5 flex-shrink-0">
             <button
               type="button"
-              title="Executar coleção no Runner"
+              title={dictionary.vulpes.sidebar.runCollectionHint}
               onClick={(event) => {
                 event.stopPropagation();
                 tree.openRunner(collection.id, null);
@@ -272,7 +277,7 @@ export const CollectionNode: React.FC<{ collection: Collection; search: string }
           />
         ))}
       {expanded && collection.items.length === 0 && (
-        <p className="pl-9 h-6 flex items-center text-[11px] italic text-gray-400 dark:text-zinc-500">Coleção vazia — use o menu ⋯ para adicionar</p>
+        <p className="pl-9 h-6 flex items-center text-[11px] italic text-gray-400 dark:text-zinc-500">{dictionary.vulpes.sidebar.emptyCollection}</p>
       )}
     </div>
   );

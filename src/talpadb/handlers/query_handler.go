@@ -2,6 +2,7 @@ package talpadbHandlers
 
 import (
 	"context"
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/desktop"
 	"errors"
 	"fmt"
@@ -17,8 +18,9 @@ import (
 	talpadbFunctions "docker-manager-go/src/talpadb/functions"
 )
 
+var errQuerySessionNotFound = appErrors.New("talpadb.querySessionNotFound", "sessão de consulta não encontrada")
+
 const (
-	sessionNotFoundMessage = "sessão de consulta não encontrada"
 	defaultMaxRows         = 1000
 	maxRowsLimit           = 50000
 	maxNoticesPerExecution = 500
@@ -52,7 +54,7 @@ func (session *querySession) identity() poolIdentity {
 func (session *querySession) connect(ctx context.Context) error {
 	config, err := pgconn.ParseConfig(session.connectionString)
 	if err != nil {
-		return fmt.Errorf("configuração de conexão inválida: %w", err)
+		return appErrors.Wrap("talpadb.invalidConnectionConfig", "configuração de conexão inválida", err)
 	}
 	config.OnNotice = func(_ *pgconn.PgConn, notice *pgconn.Notice) {
 		session.addNotice(toQueryMessage((*pgconn.PgError)(notice)))
@@ -188,7 +190,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) findSession(token string, sessi
 	session, exists := handlerStruct.sessions[sessionId]
 	handlerStruct.mutex.Unlock()
 	if !exists || session.userID != userID {
-		return nil, errors.New(sessionNotFoundMessage)
+		return nil, errQuerySessionNotFound
 	}
 	return session, nil
 }
@@ -295,10 +297,10 @@ func (handlerStruct *TalpadbClientHandlerStruct) ExecuteQuery(token string, sess
 		return nil, err
 	}
 	if strings.TrimSpace(sql) == "" {
-		return nil, errors.New("a consulta está vazia")
+		return nil, appErrors.New("talpadb.emptyQuery", "a consulta está vazia")
 	}
 	if !session.executionMutex.TryLock() {
-		return nil, errors.New("já existe uma consulta em execução nesta aba")
+		return nil, appErrors.New("talpadb.queryAlreadyRunning", "já existe uma consulta em execução nesta aba")
 	}
 	defer session.executionMutex.Unlock()
 
@@ -315,7 +317,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) ExecuteQuery(token string, sess
 	runContext, cancelRun := context.WithCancel(handlerStruct.baseContext())
 	defer cancelRun()
 	if !session.beginRun(cancelRun) {
-		return nil, errors.New(sessionNotFoundMessage)
+		return nil, errQuerySessionNotFound
 	}
 	defer session.endRun()
 
@@ -326,7 +328,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) ExecuteQuery(token string, sess
 	conn := session.currentConn()
 	if conn == nil || conn.IsClosed() {
 		if err := session.connect(runContext); err != nil {
-			return nil, fmt.Errorf("não foi possível reconectar ao servidor: %w", err)
+			return nil, appErrors.Wrap("talpadb.reconnectFailed", "não foi possível reconectar ao servidor", err)
 		}
 		conn = session.currentConn()
 		execution.Reconnected = true

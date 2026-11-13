@@ -3,6 +3,7 @@ import { Check, RotateCcw } from 'lucide-react';
 import TerminalPreview from './TerminalPreview';
 import React, { useCallback, useState } from 'react';
 import { useDebouncedDraft } from '../hooks/useDebouncedDraft';
+import { useTranslation } from '../../i18n/useTranslation';
 import { useGeneralConfigsStore } from '../store/GeneralConfigsStore';
 import { TerminalColorKey } from '../../../interfaces/GeneralConfigsInterfaces';
 import {
@@ -16,7 +17,10 @@ import {
 const previewColorKeys: TerminalColorKey[] = ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan'];
 
 const TerminalThemeSettings: React.FC = () => {
+  const { dictionary } = useTranslation();
   const savedTheme = useGeneralConfigsStore(state => state.terminalTheme);
+  const { common } = dictionary.preferences;
+  const terminalTexts = dictionary.preferences.terminalTheme;
   const setTerminalTheme = useGeneralConfigsStore(state => state.setTerminalTheme);
   const saveTheme = useCallback(setTerminalTheme, [setTerminalTheme]);
   const [draftTheme, setDraftTheme] = useDebouncedDraft(savedTheme, saveTheme);
@@ -31,9 +35,9 @@ const TerminalThemeSettings: React.FC = () => {
     <section className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Terminal do FerretShell</h2>
+          <h2 className="text-2xl font-bold">{terminalTexts.title}</h2>
           <p className="text-gray-500 dark:text-zinc-400 mt-1">
-            Cores e fonte dos terminais SSH. As mudanças valem na hora, inclusive nos terminais já abertos.
+            {terminalTexts.description}
           </p>
         </div>
         <button
@@ -42,13 +46,13 @@ const TerminalThemeSettings: React.FC = () => {
           className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-white/5"
         >
           <RotateCcw className="w-4 h-4" />
-          Restaurar padrão
+          {common.restoreDefault}
         </button>
       </header>
 
       <div>
-        <h3 className="text-sm font-semibold mb-3">Temas prontos</h3>
-        <div role="radiogroup" aria-label="Temas prontos" className="grid gap-3 grid-cols-2 lg:grid-cols-3">
+        <h3 className="text-sm font-semibold mb-3">{common.readyThemes}</h3>
+        <div role="radiogroup" aria-label={common.readyThemes} className="grid gap-3 grid-cols-2 lg:grid-cols-3">
           {terminalThemePresets.map(preset => {
             const isSelected = draftTheme.preset === preset.id;
             return (
@@ -63,7 +67,7 @@ const TerminalThemeSettings: React.FC = () => {
                   : 'border-gray-200 dark:border-white/10 hover:border-purple-500/50'}`}
               >
                 <div style={{ backgroundColor: preset.colors.background, color: preset.colors.foreground }} className="p-3 font-mono text-xs">
-                  <p>$ ssh servidor</p>
+                  <p>{terminalTexts.sampleCommand}</p>
                   <div className="mt-2 flex gap-1">
                     {previewColorKeys.map(colorKey => (
                       <span key={colorKey} style={{ backgroundColor: preset.colors[colorKey] }} className="h-2.5 w-2.5 rounded-full" />
@@ -79,7 +83,7 @@ const TerminalThemeSettings: React.FC = () => {
           })}
         </div>
         {draftTheme.preset === customPresetId && (
-          <p className="mt-2 text-xs text-purple-600 dark:text-purple-400">Usando cores personalizadas.</p>
+          <p className="mt-2 text-xs text-purple-600 dark:text-purple-400">{common.usingCustomColors}</p>
         )}
       </div>
 
@@ -87,7 +91,7 @@ const TerminalThemeSettings: React.FC = () => {
         <div className="space-y-5">
           <label className="block">
             <span className="flex items-center justify-between text-sm font-semibold">
-              Tamanho da fonte
+              {common.fontSize}
               <span className="font-mono text-gray-500 dark:text-zinc-400">{draftTheme.fontSize}px</span>
             </span>
             <input
@@ -101,13 +105,13 @@ const TerminalThemeSettings: React.FC = () => {
           </label>
 
           {visibleGroups.map(group => (
-            <div key={group.title}>
-              <h3 className="text-sm font-semibold mb-3">{group.title}</h3>
+            <div key={group.id}>
+              <h3 className="text-sm font-semibold mb-3">{terminalTexts.groups[group.id]}</h3>
               <div className="grid gap-3 grid-cols-2">
-                {group.keys.map(({ key, label }) => (
+                {group.keys.map(key => (
                   <ColorField
                     key={key}
-                    label={label}
+                    label={terminalTexts.colors[key]}
                     value={draftTheme.colors[key]}
                     onChange={color => updateColor(key, color)}
                   />
@@ -121,12 +125,12 @@ const TerminalThemeSettings: React.FC = () => {
             onClick={() => setShowAllColors(current => !current)}
             className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline"
           >
-            {showAllColors ? 'Mostrar só as cores principais' : 'Editar as 16 cores ANSI'}
+            {showAllColors ? terminalTexts.showMainColors : terminalTexts.editAllColors}
           </button>
         </div>
 
         <div className="xl:sticky xl:top-4 self-start">
-          <h3 className="text-sm font-semibold mb-3">Prévia</h3>
+          <h3 className="text-sm font-semibold mb-3">{common.preview}</h3>
           <TerminalPreview theme={draftTheme} />
         </div>
       </div>

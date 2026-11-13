@@ -2,6 +2,7 @@ import toast from 'react-hot-toast';
 import { createPortal } from 'react-dom';
 import { VsCodeIcon } from '../../shared/Icons';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
+import { useTranslation } from '../../i18n/useTranslation';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import * as octohubStructs from '../../../../bindings/docker-manager-go/src/octohub/structs/models';
@@ -28,6 +29,8 @@ const ConflictResolutionModal: React.FC = () => {
     const [files, setFiles] = useState<octohubStructs.ConflictFile[]>([]);
     const [operation, setOperation] = useState<octohubStructs.OperationState | null>(null);
     const { conflictsOpen, closeConflicts, currentBranch, notifyChange } = useOctohubRepository();
+    const { dictionary, formatMessage } = useTranslation();
+    const conflictTexts = dictionary.octohub.conflicts;
 
     const check = useCallback(async () => {
         try {
@@ -77,16 +80,17 @@ const ConflictResolutionModal: React.FC = () => {
     const pending = files.filter((file) => !file.Resolved);
     const allResolved = loaded && pending.length === 0;
     const concludesWithCommit = kind === 'merge' || kind === 'squash';
-    const oursLabel = kind === 'rebase' ? 'da base' : `de ${currentBranch || 'HEAD'}`;
+    const oursLabel = kind === 'rebase' ? conflictTexts.oursBase : formatMessage(conflictTexts.oursBranch, { branch: currentBranch || 'HEAD' });
     const theirsLabels: Record<string, string> = {
-        '': 'do stash',
-        merge: `de ${operation?.Branch || 'outra branch'}`,
-        squash: 'da branch mesclada',
-        rebase: `de ${operation?.Branch || 'sua branch'}`,
-        revert: 'da reversão',
-        'cherry-pick': 'do commit escolhido',
+        '': conflictTexts.theirsStash,
+        merge: formatMessage(conflictTexts.theirsBranch, { branch: operation?.Branch || conflictTexts.otherBranch }),
+        squash: conflictTexts.theirsSquash,
+        rebase: formatMessage(conflictTexts.theirsBranch, { branch: operation?.Branch || conflictTexts.yourBranch }),
+        revert: conflictTexts.theirsRevert,
+        'cherry-pick': conflictTexts.theirsCherryPick,
     };
-    const theirsLabel = theirsLabels[kind] ?? 'da outra versão';
+    const theirsLabel = theirsLabels[kind] ?? conflictTexts.theirsFallback;
+    const operationName = operationLabels[kind] ?? kind;
 
     const resolve = async (file: string, resolution: string) => {
         setBusyFile(file);
@@ -102,7 +106,7 @@ const ConflictResolutionModal: React.FC = () => {
 
     const openFile = (file: string) => {
         OpenFileInEditor(file).catch((err) => {
-            toast.error(`Erro ao abrir no editor: ${errorMessage(err)}`);
+            toast.error(formatMessage(conflictTexts.openEditorFailed, { error: errorMessage(err) }));
         });
     };
 
@@ -114,9 +118,9 @@ const ConflictResolutionModal: React.FC = () => {
             if (next.Kind && next.ConflictingFiles.length > 0) {
                 reset();
                 await check();
-                toast('O próximo commit também teve conflito.');
+                toast(conflictTexts.nextCommitConflict);
             } else {
-                toast.success(`${operationLabels[kind] ?? 'Operação'} concluído.`);
+                toast.success(formatMessage(conflictTexts.operationDone, { operation: operationLabels[kind] ?? conflictTexts.operationFallback }));
                 closeConflicts();
             }
         } catch (err) {
@@ -130,13 +134,13 @@ const ConflictResolutionModal: React.FC = () => {
     const neutralButton = `${actionButton} bg-zinc-100 dark:bg-white/10 hover:bg-zinc-200 dark:hover:bg-white/20 text-zinc-800 dark:text-zinc-200`;
 
     const renderStatus = (file: octohubStructs.ConflictFile) => {
-        if (file.Resolved) return <span className="text-emerald-600 dark:text-emerald-400">Resolvido</span>;
-        if (file.Kind === 'deleted-by-us') return `Removido ${oursLabel} e alterado ${theirsLabel}`;
-        if (file.Kind === 'deleted-by-them') return `Alterado ${oursLabel} e removido ${theirsLabel}`;
-        if (file.Binary) return 'Arquivo binário: escolha uma das versões';
-        if (file.Markers > 0) return `${file.Markers} trecho${file.Markers === 1 ? '' : 's'} em conflito`;
-        if (file.SameAsOurs) return `Sem marcadores e igual à versão ${oursLabel}. Confirme se é isso mesmo.`;
-        return 'Precisa de revisão';
+        if (file.Resolved) return <span className="text-emerald-600 dark:text-emerald-400">{conflictTexts.resolved}</span>;
+        if (file.Kind === 'deleted-by-us') return formatMessage(conflictTexts.deletedByUs, { ours: oursLabel, theirs: theirsLabel });
+        if (file.Kind === 'deleted-by-them') return formatMessage(conflictTexts.deletedByThem, { ours: oursLabel, theirs: theirsLabel });
+        if (file.Binary) return conflictTexts.binaryFile;
+        if (file.Markers > 0) return formatMessage(file.Markers === 1 ? conflictTexts.hunksOne : conflictTexts.hunksOther, { count: file.Markers });
+        if (file.SameAsOurs) return formatMessage(conflictTexts.sameAsOurs, { ours: oursLabel });
+        return conflictTexts.needsReview;
     };
 
     const renderActions = (file: octohubStructs.ConflictFile) => {
@@ -145,8 +149,8 @@ const ConflictResolutionModal: React.FC = () => {
         if (file.Kind === 'deleted-by-us' || file.Kind === 'deleted-by-them') {
             return (
                 <>
-                    <button disabled={busy} onClick={() => resolve(file.File, 'keep')} className={neutralButton}>Manter arquivo</button>
-                    <button disabled={busy} onClick={() => resolve(file.File, 'delete')} className={`${actionButton} bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20`}>Remover</button>
+                    <button disabled={busy} onClick={() => resolve(file.File, 'keep')} className={neutralButton}>{conflictTexts.keepFile}</button>
+                    <button disabled={busy} onClick={() => resolve(file.File, 'delete')} className={`${actionButton} bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20`}>{conflictTexts.remove}</button>
                 </>
             );
         }
@@ -156,7 +160,7 @@ const ConflictResolutionModal: React.FC = () => {
                     <button
                         disabled={busy}
                         onClick={() => openFile(file.File)}
-                        title="Abrir este arquivo no VS Code para resolver os conflitos"
+                        title={conflictTexts.openInVsCodeHint}
                         className={`${actionButton} group/vscode pl-2.5 text-white bg-gradient-to-b from-[#1f9cf0] to-[#0065a9] hover:from-[#33a8f5] hover:to-[#0073bd] shadow-md shadow-[#007acc]/30 ring-1 ring-inset ring-white/15 active:scale-95`}
                     >
                         <VsCodeIcon className="w-4 h-4 drop-shadow-sm transition-transform group-hover/vscode:scale-110" />
@@ -165,15 +169,15 @@ const ConflictResolutionModal: React.FC = () => {
                 )}
                 {file.SameAsOurs || (!file.Binary && file.Markers === 0) ? (
                     <button disabled={busy} onClick={() => resolve(file.File, 'keep')} className={`${actionButton} bg-emerald-500 hover:bg-emerald-600 text-white`}>
-                        Está resolvido
+                        {conflictTexts.markResolved}
                     </button>
                 ) : (
                     <>
-                        <button disabled={busy} onClick={() => resolve(file.File, 'ours')} className={neutralButton} title={`Usar o arquivo inteiro na versão ${oursLabel}`}>
-                            Usar {oursLabel}
+                        <button disabled={busy} onClick={() => resolve(file.File, 'ours')} className={neutralButton} title={formatMessage(conflictTexts.useVersionHint, { version: oursLabel })}>
+                            {formatMessage(conflictTexts.useVersion, { version: oursLabel })}
                         </button>
-                        <button disabled={busy} onClick={() => resolve(file.File, 'theirs')} className={neutralButton} title={`Usar o arquivo inteiro na versão ${theirsLabel}`}>
-                            Usar {theirsLabel}
+                        <button disabled={busy} onClick={() => resolve(file.File, 'theirs')} className={neutralButton} title={formatMessage(conflictTexts.useVersionHint, { version: theirsLabel })}>
+                            {formatMessage(conflictTexts.useVersion, { version: theirsLabel })}
                         </button>
                     </>
                 )}
@@ -203,16 +207,16 @@ const ConflictResolutionModal: React.FC = () => {
                             {allResolved ? <CircleCheck className="w-10 h-10 text-emerald-500" /> : <GitMerge className="w-10 h-10 text-red-500" />}
                         </div>
                         <h3 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tighter mb-2">
-                            {allResolved ? 'Conflitos resolvidos' : 'Conflitos Detectados'}
+                            {allResolved ? conflictTexts.allResolvedTitle : conflictTexts.detectedTitle}
                         </h3>
                         <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
                             {allResolved
                                 ? kind
                                     ? concludesWithCommit
-                                        ? `Tudo certo. Conclua o ${kind} agora ou feche para revisar a mensagem do commit.`
-                                        : `Tudo certo. Continue o ${operationLabels[kind] ?? kind} para seguir.`
-                                    : 'Tudo certo. O stash continua em Stashes pendentes; descarte-o quando não precisar mais.'
-                                : 'Resolva no editor tirando os marcadores <<<<<<< e >>>>>>>, ou escolha uma versão inteira. O OctoHub percebe sozinho quando cada arquivo fica resolvido.'}
+                                        ? formatMessage(conflictTexts.allResolvedCommit, { operation: kind })
+                                        : formatMessage(conflictTexts.allResolvedContinue, { operation: operationName })
+                                    : conflictTexts.allResolvedStash
+                                : conflictTexts.instructions}
                         </p>
                     </div>
 
@@ -220,10 +224,10 @@ const ConflictResolutionModal: React.FC = () => {
                         {!loaded ? (
                             <div className="flex items-center justify-center gap-2 py-8 text-sm text-zinc-500">
                                 <LoaderCircle className="w-4 h-4 animate-spin" />
-                                Verificando arquivos...
+                                {conflictTexts.checkingFiles}
                             </div>
                         ) : files.length === 0 ? (
-                            <p className="py-8 text-center text-sm text-zinc-500">Nenhum arquivo em conflito.</p>
+                            <p className="py-8 text-center text-sm text-zinc-500">{conflictTexts.noConflicts}</p>
                         ) : (
                             <div className="space-y-3 pb-2">
                                 {files.map((file) => (
@@ -257,7 +261,7 @@ const ConflictResolutionModal: React.FC = () => {
                             {loaded && files.length > 0 && (
                                 <>
                                     <div className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 mb-1.5">
-                                        {files.length - pending.length} de {files.length} resolvidos
+                                        {formatMessage(conflictTexts.progress, { resolved: files.length - pending.length, total: files.length })}
                                     </div>
                                     <div className="h-1.5 rounded-full bg-zinc-100 dark:bg-white/10 overflow-hidden">
                                         <div
@@ -273,7 +277,7 @@ const ConflictResolutionModal: React.FC = () => {
                             disabled={continuing}
                             className="px-4 py-2.5 rounded-xl text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 disabled:opacity-50"
                         >
-                            {allResolved && concludesWithCommit ? 'Revisar mensagem' : 'Fechar'}
+                            {allResolved && concludesWithCommit ? conflictTexts.reviewMessage : conflictTexts.close}
                         </button>
                         {allResolved && kind && (
                             <button
@@ -282,7 +286,7 @@ const ConflictResolutionModal: React.FC = () => {
                                 className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 flex items-center gap-2 disabled:opacity-50"
                             >
                                 {continuing ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                                {concludesWithCommit ? `Concluir ${kind}` : `Continuar ${operationLabels[kind] ?? kind}`}
+                                {concludesWithCommit ? formatMessage(conflictTexts.conclude, { operation: kind }) : formatMessage(conflictTexts.continueOperation, { operation: operationName })}
                             </button>
                         )}
                     </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../../i18n/useTranslation';
 import React from 'react';
 import { X } from 'lucide-react';
 import ContainerTerminal from '../terminal/ContainerTerminal';
@@ -9,6 +10,7 @@ interface TerminalModalProps {
 }
 
 const TerminalModal: React.FC<TerminalModalProps> = ({ id, name, onClose }) => {
+  const { dictionary, formatMessage } = useTranslation();
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
       <div
@@ -40,7 +42,7 @@ const TerminalModal: React.FC<TerminalModalProps> = ({ id, name, onClose }) => {
           <ContainerTerminal
             instance={{
               id: `term-${id}`,
-              title: `Terminal: ${name}`,
+              title: formatMessage(dictionary.docker.containers.terminalTitle, { name }),
               containerId: id,
               containerName: name
             }}
@@ -51,7 +53,7 @@ const TerminalModal: React.FC<TerminalModalProps> = ({ id, name, onClose }) => {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
               <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-medium text-gray-400">Conectado</span>
+              <span className="text-[10px] font-medium text-gray-400">{dictionary.docker.common.connected}</span>
             </div>
           </div>
           <div className="text-[10px] text-gray-500 font-mono">

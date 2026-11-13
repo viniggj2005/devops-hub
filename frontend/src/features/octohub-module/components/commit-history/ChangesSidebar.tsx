@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import SelectionCheckbox from './SelectionCheckbox';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { fileKindStyles } from '../../functions/gitStatus';
 import { useDismiss } from '../../../shared/hooks/useDismiss';
 import { SelectionState } from '../../functions/lineSelection';
@@ -29,12 +30,6 @@ interface ChangesSidebarProps {
     onStashFileClick?: (stashID: string, filePath: string) => void;
     onFileContextMenu?: (event: React.MouseEvent, file: octohubStructs.FilesStatus) => void;
 }
-
-const selectionTitles: Record<SelectionState, string> = {
-    none: 'Fora do commit',
-    all: 'Arquivo inteiro no commit',
-    partial: 'Só as linhas selecionadas entram no commit',
-};
 
 const splitPath = (path: string) => {
     const slash = path.lastIndexOf('/');
@@ -83,7 +78,10 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
     toggleAllSelection,
     toggleFileSelection,
 }) => {
+    const { dictionary, formatMessage } = useTranslation();
     const discardMenuRef = useRef<HTMLDivElement>(null);
+    const changesTexts = dictionary.octohub.changes;
+    const fileKindTitles: Record<string, string> = dictionary.octohub.fileKinds;
     const [discardMenuOpen, setDiscardMenuOpen] = useState(false);
     const [loadingStashFiles, setLoadingStashFiles] = useState(false);
     const [expandedStash, setExpandedStash] = useState<string | null>(null);
@@ -125,13 +123,13 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                         <button
                             onClick={toggleAllSelection}
                             disabled={files.length === 0}
-                            title={allState === 'all' ? 'Desmarcar todos' : 'Selecionar todos'}
+                            title={allState === 'all' ? changesTexts.unselectAll : changesTexts.selectAll}
                             className="p-1 hover:bg-zinc-200 dark:hover:bg-white/10 rounded transition-colors disabled:opacity-50"
                         >
                             <SelectionCheckbox state={allState} />
                         </button>
                         <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-                            {files.length} Alterações
+                            {formatMessage(changesTexts.count, { count: files.length })}
                         </h2>
                     </div>
                     <div className="flex items-center gap-1">
@@ -139,11 +137,11 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                             <button
                                 disabled={files.length === 0}
                                 onClick={() => setDiscardMenuOpen((open) => !open)}
-                                title="Descartar alterações"
+                                title={changesTexts.discardChanges}
                                 className="flex items-center gap-1 px-2 py-1.5 text-[11px] font-bold text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-500"
                             >
                                 <Undo2 className="w-3.5 h-3.5" />
-                                Descartar
+                                {changesTexts.discard}
                                 <ChevronDown className="w-3 h-3" />
                             </button>
                             {discardMenuOpen && (
@@ -157,9 +155,9 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                                             }}
                                             className="w-full text-left px-3 py-2 rounded-lg hover:bg-rose-500/10 disabled:opacity-40 disabled:hover:bg-transparent"
                                         >
-                                            <div className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">Descartar selecionadas</div>
+                                            <div className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{changesTexts.discardSelected}</div>
                                             <div className="text-[10px] text-zinc-500">
-                                                {selectedCount} arquivo{selectedCount === 1 ? '' : 's'} marcado{selectedCount === 1 ? '' : 's'}, incluindo linhas avulsas
+                                                {formatMessage(selectedCount === 1 ? changesTexts.selectedFilesOne : changesTexts.selectedFilesOther, { count: selectedCount })}
                                             </div>
                                         </button>
                                         <button
@@ -169,8 +167,8 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                                             }}
                                             className="w-full text-left px-3 py-2 rounded-lg hover:bg-rose-500/10"
                                         >
-                                            <div className="text-xs font-semibold text-rose-600 dark:text-rose-400">Descartar todas as alterações</div>
-                                            <div className="text-[10px] text-zinc-500">{files.length} arquivo{files.length === 1 ? '' : 's'}</div>
+                                            <div className="text-xs font-semibold text-rose-600 dark:text-rose-400">{changesTexts.discardAll}</div>
+                                            <div className="text-[10px] text-zinc-500">{formatMessage(files.length === 1 ? changesTexts.filesOne : changesTexts.filesOther, { count: files.length })}</div>
                                         </button>
                                     </div>
                                 </>
@@ -179,7 +177,7 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                         <button
                             onClick={onRefresh}
                             className="p-1.5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-lg transition-colors"
-                            title="Atualizar"
+                            title={dictionary.octohub.common.refresh}
                         >
                             <RotateCcw className="w-3.5 h-3.5 text-zinc-500" />
                         </button>
@@ -189,7 +187,7 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                     <input
                         type="text"
-                        placeholder="Filtrar alterações..."
+                        placeholder={changesTexts.filterPlaceholder}
                         className="w-full pl-9 pr-4 py-1.5 bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all text-zinc-900 dark:text-white"
                         value={searchTerm}
                         onChange={(event) => onSearchTermChange(event.target.value)}
@@ -202,7 +200,7 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                     <div className="flex items-center gap-2 mb-2 px-1">
                         <Package className="w-4 h-4 text-amber-500" />
                         <h3 className="text-xs font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider">
-                            Stashes Pendentes
+                            {changesTexts.pendingStashes}
                         </h3>
                     </div>
                     <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
@@ -224,7 +222,7 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                                 {expandedStash === stash.ID && (
                                     <div className="mt-1 mb-1 border border-amber-500/10 rounded overflow-hidden">
                                         {loadingStashFiles ? (
-                                            <div className="p-3 text-center text-[10px] text-zinc-400">Carregando arquivos...</div>
+                                            <div className="p-3 text-center text-[10px] text-zinc-400">{changesTexts.loadingFiles}</div>
                                         ) : stashFiles.length > 0 ? (
                                             <div className="divide-y divide-amber-500/5 bg-black/5 dark:bg-black/40">
                                                 {stashFiles.map(file => (
@@ -245,7 +243,7 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                                                 ))}
                                             </div>
                                         ) : (
-                                            <div className="p-3 text-center text-[10px] text-zinc-400">Nenhum arquivo encontrado</div>
+                                            <div className="p-3 text-center text-[10px] text-zinc-400">{changesTexts.noFileFound}</div>
                                         )}
                                     </div>
                                 )}
@@ -256,14 +254,14 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                                         className="flex-1 py-1.5 flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold rounded transition-colors"
                                     >
                                         <ArchiveRestore className="w-3 h-3" />
-                                        Restaurar
+                                        {changesTexts.restore}
                                     </button>
                                     <button
                                         onClick={() => onDropStash?.(stash.ID)}
                                         className="flex-1 py-1.5 flex items-center justify-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-[10px] font-bold rounded transition-colors"
                                     >
                                         <Trash2 className="w-3 h-3" />
-                                        Descartar
+                                        {changesTexts.discard}
                                     </button>
                                 </div>
                             </div>
@@ -296,7 +294,7 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                                     title={file.OldFileName ? `${file.OldFileName} → ${file.FileName}` : file.FileName}
                                 >
                                     <div
-                                        title={selectionTitles[selection]}
+                                        title={changesTexts.selection[selection]}
                                         className="shrink-0 p-1 hover:bg-zinc-200 dark:hover:bg-white/10 rounded transition-colors"
                                         onClick={(event) => {
                                             event.stopPropagation();
@@ -311,12 +309,12 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                                         </div>
                                         {(folder || file.OldFileName) && (
                                             <div className="text-[10px] text-zinc-400 truncate">
-                                                {file.OldFileName ? `renomeado de ${file.OldFileName}` : folder}
+                                                {file.OldFileName ? formatMessage(changesTexts.renamedFrom, { name: file.OldFileName }) : folder}
                                             </div>
                                         )}
                                     </div>
                                     <button
-                                        title="Descartar as alterações deste arquivo"
+                                        title={changesTexts.discardFile}
                                         onClick={(event) => {
                                             event.stopPropagation();
                                             onDiscardFile(file);
@@ -325,7 +323,7 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                                     >
                                         <Undo2 className="w-3.5 h-3.5" />
                                     </button>
-                                    <div title={kind.title} className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${kind.className}`}>
+                                    <div title={fileKindTitles[file.Kind] ?? fileKindTitles.modified} className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${kind.className}`}>
                                         {kind.label}
                                     </div>
                                 </div>
@@ -334,7 +332,7 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                     </div>
                 ) : (
                     <div className="p-8 text-center text-zinc-500 italic text-xs">
-                        {files.length === 0 ? "Nenhuma alteração pendente." : "Nenhuma alteração corresponde ao filtro."}
+                        {files.length === 0 ? changesTexts.nonePending : changesTexts.noneMatching}
                     </div>
                 )}
             </div>

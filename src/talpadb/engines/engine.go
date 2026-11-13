@@ -6,13 +6,14 @@ import (
 	"context"
 	"database/sql"
 
+	"docker-manager-go/src/appErrors"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 	talpadbFunctions "docker-manager-go/src/talpadb/functions"
 )
 
 const MaxDiagramTables = 400
 
-var ErrUnsupported = errors.New("operação não suportada por este banco")
+var ErrUnsupported = appErrors.New("talpadb.unsupportedOperation", "operação não suportada por este banco")
 
 type Querier interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
@@ -65,7 +66,7 @@ var engines = map[string]Engine{
 func ForName(name string) (Engine, error) {
 	engine, exists := engines[name]
 	if !exists {
-		return nil, fmt.Errorf("banco não suportado: %s", name)
+		return nil, appErrors.New("talpadb.unsupportedEngine", "banco não suportado: {engine}").With("engine", name)
 	}
 	return engine, nil
 }

@@ -72,6 +72,63 @@ func TestUserHandlerCreateValidationAndDuplicate(test *testing.T) {
 	}
 }
 
+func TestUserHandlerLanguage(test *testing.T) {
+	handler, token, userID := setupUserTestHandler(test)
+
+	created, err := handler.GetByID(token, userID)
+	if err != nil {
+		test.Fatalf("unexpected error getting user by ID: %v", err)
+	}
+	if created.Language != models.DefaultLanguage {
+		test.Fatalf("expected default language %s, got %s", models.DefaultLanguage, created.Language)
+	}
+
+	_, err = handler.Create(userDtos.CreateUserInputDto{
+		Name:     "Klingon",
+		Email:    "klingon@example.com",
+		Password: "secretPassword123",
+		Language: "tlh",
+	})
+	if err == nil {
+		test.Fatalf("expected error when creating user with invalid language")
+	}
+
+	_, err = handler.UpdateLanguage("invalid-token", models.English)
+	if err == nil {
+		test.Fatalf("expected error updating language with invalid token")
+	}
+
+	_, err = handler.UpdateLanguage(token, "tlh")
+	if err == nil {
+		test.Fatalf("expected error updating to invalid language")
+	}
+
+	updated, err := handler.UpdateLanguage(token, models.Spanish)
+	if err != nil {
+		test.Fatalf("unexpected error updating language: %v", err)
+	}
+	if updated.Language != models.Spanish {
+		test.Fatalf("expected language %s, got %s", models.Spanish, updated.Language)
+	}
+
+	var storedModel models.UserModel
+	if err := handler.DataBase.First(&storedModel, userID).Error; err != nil {
+		test.Fatalf("unexpected error loading stored user: %v", err)
+	}
+	if storedModel.Language != models.Spanish {
+		test.Fatalf("expected stored language %s, got %s", models.Spanish, storedModel.Language)
+	}
+
+	english := models.English
+	updatedByID, err := handler.Update(token, userID, userDtos.UpdateUserInputDto{Language: &english})
+	if err != nil {
+		test.Fatalf("unexpected error updating language through Update: %v", err)
+	}
+	if updatedByID.Language != models.English {
+		test.Fatalf("expected language %s, got %s", models.English, updatedByID.Language)
+	}
+}
+
 func TestUserHandlerGetUpdateAndMyInfo(test *testing.T) {
 	handler, token, userID := setupUserTestHandler(test)
 

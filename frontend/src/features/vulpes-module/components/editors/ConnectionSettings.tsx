@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { fieldInputClass, fieldLabelClass } from './FormStyles';
 import ToggleSwitch from '../../../shared/components/forms/ToggleSwitch';
 
@@ -23,33 +24,40 @@ interface TlsSettingProps {
   onChange: (skipTlsVerify: boolean) => void;
 }
 
-export const TlsSetting: React.FC<TlsSettingProps> = ({ skipTlsVerify, onChange }) => (
-  <SettingRow
-    title="Verificar certificado TLS"
-    description="Desative apenas para servidores com certificado autoassinado ou inválido."
-  >
-    <ToggleSwitch label="Verificar certificado TLS" checked={!skipTlsVerify} onChange={(checked) => onChange(!checked)} />
-  </SettingRow>
-);
+export const TlsSetting: React.FC<TlsSettingProps> = ({ skipTlsVerify, onChange }) => {
+  const { dictionary } = useTranslation();
+  const editorTexts = dictionary.vulpes.editors;
+
+  return (
+    <SettingRow title={editorTexts.verifyTls} description={editorTexts.verifyTlsHint}>
+      <ToggleSwitch label={editorTexts.verifyTls} checked={!skipTlsVerify} onChange={(checked) => onChange(!checked)} />
+    </SettingRow>
+  );
+};
 
 interface TimeoutSettingProps {
   timeoutMs: number;
   onChange: (timeoutMs: number) => void;
 }
 
-export const TimeoutSetting: React.FC<TimeoutSettingProps> = ({ timeoutMs, onChange }) => (
-  <SettingRow title="Tempo limite" description="Em milissegundos. Use 0 para aguardar indefinidamente.">
-    <input
-      min={0}
-      step={500}
-      type="number"
-      value={timeoutMs}
-      aria-label="Tempo limite em milissegundos"
-      onChange={(event) => onChange(Math.max(0, Number(event.target.value) || 0))}
-      className={`${fieldInputClass} w-32 text-right font-mono`}
-    />
-  </SettingRow>
-);
+export const TimeoutSetting: React.FC<TimeoutSettingProps> = ({ timeoutMs, onChange }) => {
+  const { dictionary } = useTranslation();
+  const editorTexts = dictionary.vulpes.editors;
+
+  return (
+    <SettingRow title={editorTexts.timeout} description={editorTexts.timeoutHint}>
+      <input
+        min={0}
+        step={500}
+        type="number"
+        value={timeoutMs}
+        aria-label={editorTexts.timeoutLabel}
+        onChange={(event) => onChange(Math.max(0, Number(event.target.value) || 0))}
+        className={`${fieldInputClass} w-32 text-right font-mono`}
+      />
+    </SettingRow>
+  );
+};
 
 export const SettingsSection: React.FC<{ title?: string; children: React.ReactNode }> = ({ title, children }) => (
   <div className="max-w-2xl">

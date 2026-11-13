@@ -5,7 +5,9 @@ import { useTalpadbStore } from '../TalpadbStore';
 import TalpadbHomePage from '../home/TalpadbHomePage';
 import WorkspacePage from '../workspace/WorkspacePage';
 import { TalpadbServices } from '../services/TalpadbServices';
+import { formatMessage } from '../../i18n/Languages';
 import { errorMessage } from '../functions/TreatmentFunctions';
+import { currentDictionary } from '../../i18n/TranslateError';
 import { getToken, useAuth } from '../../../contexts/AuthContext';
 import { useExplorerStore } from '../workspace/explorer/ExplorerStore';
 
@@ -19,7 +21,7 @@ const TalpadbModuleWrapper: React.FC = () => {
       .getState()
       .loadConnections(token)
       .then((connections) => useExplorerStore.getState().syncServers(connections))
-      .catch((error) => toast.error(`Erro ao carregar conexões: ${errorMessage(error)}`));
+      .catch((error) => toast.error(formatMessage(currentDictionary().talpadb.home.loadConnectionsFailed, { error: errorMessage(error) })));
   }, [token]);
 
   useEffect(

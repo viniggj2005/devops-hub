@@ -2,11 +2,11 @@ package talpadbHandlers
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
 	"gorm.io/gorm/clause"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/models"
 )
 
@@ -38,10 +38,10 @@ func (handlerStruct *TalpadbHandlerStruct) SaveDiagramLayout(token string, conne
 		return err
 	}
 	if len(layout) > maxDiagramLayoutBytes {
-		return errors.New("o layout do diagrama é grande demais para ser salvo")
+		return appErrors.New("talpadb.diagramTooLarge", "o layout do diagrama é grande demais para ser salvo")
 	}
 	if !json.Valid([]byte(layout)) {
-		return errors.New("layout do diagrama inválido")
+		return appErrors.New("talpadb.invalidDiagram", "layout do diagrama inválido")
 	}
 
 	return handlerStruct.upsertDiagramLayout(models.TalpadbDiagramLayoutModel{

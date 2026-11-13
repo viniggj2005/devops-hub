@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { useAuth } from '../../../../contexts/AuthContext';
 import Select from '../../../../features/shared/components/forms/Select';
 import { useDockerClient } from '../../../../contexts/DockerClientContext';
@@ -8,6 +9,8 @@ const DockerCredentialSelector: React.FC<DockerCredentialSelectorProps> = ({
   variant = 'default',
 }) => {
   const { isAuthenticated } = useAuth();
+  const { dictionary } = useTranslation();
+  const credentialTexts = dictionary.docker.credentials;
   const { ready, loading, connecting, credentials, selectedCredentialId, setSelectedCredentialId } =
     useDockerClient();
 
@@ -37,13 +40,13 @@ const DockerCredentialSelector: React.FC<DockerCredentialSelectorProps> = ({
   const labelId = 'docker-credential-selector-label';
 
   const placeholder =
-    credentials.length === 0 ? (ready ? 'Cadastre uma credencial' : 'Carregando…') : 'Selecione…';
+    credentials.length === 0 ? (ready ? credentialTexts.registerOne : credentialTexts.loading) : credentialTexts.select;
 
   return (
     <section className={containerClass}>
       <div className={wrapperClass}>
         <span id={labelId} className={labelClass}>
-          Credencial Docker
+          {credentialTexts.label}
         </span>
 
         <div className={['w-full max-w-full', 'overflow-visible'].join(' ')}>
@@ -58,7 +61,7 @@ const DockerCredentialSelector: React.FC<DockerCredentialSelectorProps> = ({
             }))}
             placeholder={placeholder}
             aria-labelledby={variant === 'navbar' ? undefined : labelId}
-            aria-label={variant === 'navbar' ? 'Credencial Docker' : undefined}
+            aria-label={variant === 'navbar' ? credentialTexts.label : undefined}
             onChange={(optionValue) =>
               setSelectedCredentialId(optionValue ? Number(optionValue) : null)
             }

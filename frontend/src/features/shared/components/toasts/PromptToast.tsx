@@ -1,6 +1,7 @@
 import toast from 'react-hot-toast';
 import { KeyRound } from 'lucide-react';
 import React, { useState } from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 type PromptOpts = {
   id?: string;
@@ -16,6 +17,7 @@ const PromptToastCard: React.FC<{
   options: PromptOpts;
   onSettle: (value: string | null) => void;
 }> = ({ toastId, options, onSettle }) => {
+  const { dictionary } = useTranslation();
   const [inputValue, setInputValue] = useState('');
 
   const handleConfirm = (event?: React.FormEvent) => {
@@ -71,13 +73,13 @@ const PromptToastCard: React.FC<{
           onClick={handleCancel}
           className="px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-700 dark:text-zinc-300 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors cursor-pointer"
         >
-          Cancelar
+          {dictionary.app.common.cancel}
         </button>
         <button
           type="submit"
           className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors cursor-pointer"
         >
-          {options.confirmLabel ?? 'Confirmar'}
+          {options.confirmLabel ?? dictionary.app.common.confirm}
         </button>
       </div>
     </form>

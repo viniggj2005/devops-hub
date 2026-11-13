@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"docker-manager-go/src/appErrors"
 	octohubStructs "docker-manager-go/src/octohub/structs"
 )
 
@@ -14,7 +15,7 @@ var commitHashRegex = regexp.MustCompile(`^[0-9a-fA-F]{7,64}$`)
 
 func validCommitHash(hash string) error {
 	if !commitHashRegex.MatchString(hash) {
-		return fmt.Errorf("commit inválido: %q", hash)
+		return appErrors.New("octohub.invalidCommit", "commit inválido: \"{hash}\"").With("hash", hash)
 	}
 	return nil
 }
@@ -30,7 +31,7 @@ func (handlerStruct *GitBranchHandler) ensureNoOperation(ctx context.Context) er
 		return err
 	}
 	if state.Kind != "" {
-		return fmt.Errorf("conclua ou aborte o %s em andamento antes", operationNames[state.Kind])
+		return appErrors.New("octohub.operationInProgress", "conclua ou aborte o {operation} em andamento antes").With("operation", operationNames[state.Kind])
 	}
 	return nil
 }
@@ -41,19 +42,19 @@ func (handlerStruct *GitBranchHandler) stashBefore(ctx context.Context, action s
 		return err
 	}
 	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"stash", "push", "-u", "-m", "OctoHub: alterações guardadas antes de " + action}); err != nil {
-		return fmt.Errorf("erro ao guardar as alterações em stash: %w", err)
+		return appErrors.Wrap("octohub.stashFailed", "erro ao guardar as alterações em stash", err)
 	}
 	return nil
 }
 
-func (handlerStruct *GitBranchHandler) runStoppableCommand(ctx context.Context, args []string, failure string, extraEnv ...string) (octohubStructs.OperationState, error) {
+func (handlerStruct *GitBranchHandler) runStoppableCommand(ctx context.Context, args []string, failure *appErrors.AppError, extraEnv ...string) (octohubStructs.OperationState, error) {
 	_, _, runErr := handlerStruct.gitHandler.runGit(ctx, args, "", append(append([]string{}, nonInteractiveEnv...), extraEnv...)...)
 	state, err := handlerStruct.GetOperationState(ctx)
 	if runErr != nil {
 		if err == nil && len(state.ConflictingFiles) > 0 {
 			return state, nil
 		}
-		return state, fmt.Errorf("%s: %w", failure, runErr)
+		return state, appErrors.Wrap(failure.Code, failure.Message, runErr)
 	}
 	return state, err
 }
@@ -76,7 +77,7 @@ func (handlerStruct *GitBranchHandler) RevertCommit(ctx context.Context, hash st
 	if handlerStruct.isMergeCommit(ctx, hash) {
 		args = append(args, "-m", "1")
 	}
-	return handlerStruct.runStoppableCommand(ctx, append(args, hash), "erro ao reverter o commit")
+	return handlerStruct.runStoppableCommand(ctx, append(args, hash), appErrors.New("octohub.revertFailed", "erro ao reverter o commit"))
 }
 
 func (handlerStruct *GitBranchHandler) CreateBranchFromCommit(ctx context.Context, name, hash string, checkout bool) error {
@@ -85,7 +86,7 @@ func (handlerStruct *GitBranchHandler) CreateBranchFromCommit(ctx context.Contex
 	}
 	name = strings.TrimSpace(name)
 	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"check-ref-format", "--branch", name}); err != nil || name == "" {
-		return fmt.Errorf("nome de branch inválido: %s", name)
+		return appErrors.New("octohub.invalidBranchName", "nome de branch inválido: {name}").With("name", name)
 	}
 	args := []string{"branch", name, hash}
 	if checkout {
@@ -101,10 +102,10 @@ func (handlerStruct *GitBranchHandler) CreateTag(ctx context.Context, name, hash
 	}
 	name = strings.TrimSpace(name)
 	if name == "" || strings.HasPrefix(name, "-") {
-		return fmt.Errorf("informe um nome de tag válido")
+		return appErrors.New("octohub.tagNameRequired", "informe um nome de tag válido")
 	}
 	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"check-ref-format", "refs/tags/" + name}); err != nil {
-		return fmt.Errorf("nome de tag inválido: %s", name)
+		return appErrors.New("octohub.invalidTagName", "nome de tag inválido: {name}").With("name", name)
 	}
 	args := []string{"tag"}
 	if summary := strings.TrimSpace(message); summary != "" {
@@ -117,7 +118,7 @@ func (handlerStruct *GitBranchHandler) CreateTag(ctx context.Context, name, hash
 func (handlerStruct *GitBranchHandler) PushTag(ctx context.Context, name string) error {
 	name = strings.TrimSpace(name)
 	if name == "" || strings.HasPrefix(name, "-") {
-		return fmt.Errorf("informe um nome de tag válido")
+		return appErrors.New("octohub.tagNameRequired", "informe um nome de tag válido")
 	}
 	_, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"push", "origin", "refs/tags/" + name})
 	return err
@@ -141,7 +142,7 @@ func (handlerStruct *GitBranchHandler) CherryPickCommit(ctx context.Context, has
 
 	if current, _ := handlerStruct.GetCurrentBranch(ctx); current != targetBranch {
 		if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"checkout", targetBranch}); err != nil {
-			return octohubStructs.OperationState{}, fmt.Errorf("erro ao trocar para %s: %w", targetBranch, err)
+			return octohubStructs.OperationState{}, appErrors.Wrap("octohub.switchToBranchFailed", "erro ao trocar para {branch}", err).With("branch", targetBranch)
 		}
 	}
 
@@ -149,10 +150,10 @@ func (handlerStruct *GitBranchHandler) CherryPickCommit(ctx context.Context, has
 	if handlerStruct.isMergeCommit(ctx, hash) {
 		args = append(args, "-m", "1")
 	}
-	state, err := handlerStruct.runStoppableCommand(ctx, append(args, hash), "erro ao aplicar o commit")
+	state, err := handlerStruct.runStoppableCommand(ctx, append(args, hash), appErrors.New("octohub.cherryPickFailed", "erro ao aplicar o commit"))
 	if err != nil && state.Kind == "cherry-pick" && len(state.ConflictingFiles) == 0 {
 		handlerStruct.runNonInteractive(ctx, []string{"cherry-pick", "--abort"}, "")
-		return octohubStructs.OperationState{}, fmt.Errorf("%s já tem essas alterações, não há nada para aplicar", targetBranch)
+		return octohubStructs.OperationState{}, appErrors.New("octohub.nothingToApply", "{branch} já tem essas alterações, não há nada para aplicar").With("branch", targetBranch)
 	}
 	return state, err
 }
@@ -191,7 +192,7 @@ func (handlerStruct *GitBranchHandler) ListReorderableCommits(ctx context.Contex
 
 func (handlerStruct *GitBranchHandler) ReorderCommits(ctx context.Context, order []string, stashChanges bool) (octohubStructs.OperationState, error) {
 	if len(order) < 2 {
-		return octohubStructs.OperationState{}, fmt.Errorf("escolha ao menos dois commits")
+		return octohubStructs.OperationState{}, appErrors.New("octohub.reorderNeedsTwoCommits", "escolha ao menos dois commits")
 	}
 	for _, hash := range order {
 		if err := validCommitHash(hash); err != nil {
@@ -208,7 +209,7 @@ func (handlerStruct *GitBranchHandler) ReorderCommits(ctx context.Context, order
 	}
 	current := strings.Fields(string(out))
 	if len(current) != len(order) || !sameCommits(current, order) {
-		return octohubStructs.OperationState{}, fmt.Errorf("o histórico mudou, abra a reordenação de novo")
+		return octohubStructs.OperationState{}, appErrors.New("octohub.historyChanged", "o histórico mudou, abra a reordenação de novo")
 	}
 
 	changed := -1
@@ -227,7 +228,7 @@ func (handlerStruct *GitBranchHandler) ReorderCommits(ctx context.Context, order
 	}
 	if base != "" {
 		if merges, _ := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-list", "--merges", base + "..HEAD"}); strings.TrimSpace(string(merges)) != "" {
-			return octohubStructs.OperationState{}, fmt.Errorf("não dá para reordenar commits que têm um merge no meio")
+			return octohubStructs.OperationState{}, appErrors.New("octohub.reorderAcrossMerge", "não dá para reordenar commits que têm um merge no meio")
 		}
 	}
 
@@ -259,7 +260,7 @@ func (handlerStruct *GitBranchHandler) ReorderCommits(ctx context.Context, order
 	} else {
 		args = append(args, base)
 	}
-	return handlerStruct.runStoppableCommand(ctx, args, "erro ao reordenar os commits", "GIT_SEQUENCE_EDITOR=cp "+shellQuote(todoPath))
+	return handlerStruct.runStoppableCommand(ctx, args, appErrors.New("octohub.reorderFailed", "erro ao reordenar os commits"), "GIT_SEQUENCE_EDITOR=cp "+shellQuote(todoPath))
 }
 
 func sameCommits(first, second []string) bool {

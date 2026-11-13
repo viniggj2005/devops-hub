@@ -145,41 +145,12 @@ export const terminalThemePresets: TerminalThemePreset[] = [
   },
 ];
 
-export const terminalColorGroups: { title: string; keys: { key: TerminalColorKey; label: string }[] }[] = [
+export const terminalColorGroups: { id: 'main' | 'ansi' | 'brightAnsi'; keys: TerminalColorKey[] }[] = [
+  { id: 'main', keys: ['background', 'foreground', 'cursor', 'selectionBackground'] },
+  { id: 'ansi', keys: ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'] },
   {
-    title: 'Principais',
-    keys: [
-      { key: 'background', label: 'Fundo' },
-      { key: 'foreground', label: 'Texto' },
-      { key: 'cursor', label: 'Cursor' },
-      { key: 'selectionBackground', label: 'Seleção' },
-    ],
-  },
-  {
-    title: 'Cores ANSI',
-    keys: [
-      { key: 'black', label: 'Preto' },
-      { key: 'red', label: 'Vermelho' },
-      { key: 'green', label: 'Verde' },
-      { key: 'yellow', label: 'Amarelo' },
-      { key: 'blue', label: 'Azul' },
-      { key: 'magenta', label: 'Magenta' },
-      { key: 'cyan', label: 'Ciano' },
-      { key: 'white', label: 'Branco' },
-    ],
-  },
-  {
-    title: 'Cores ANSI claras',
-    keys: [
-      { key: 'brightBlack', label: 'Preto claro' },
-      { key: 'brightRed', label: 'Vermelho claro' },
-      { key: 'brightGreen', label: 'Verde claro' },
-      { key: 'brightYellow', label: 'Amarelo claro' },
-      { key: 'brightBlue', label: 'Azul claro' },
-      { key: 'brightMagenta', label: 'Magenta claro' },
-      { key: 'brightCyan', label: 'Ciano claro' },
-      { key: 'brightWhite', label: 'Branco claro' },
-    ],
+    id: 'brightAnsi',
+    keys: ['brightBlack', 'brightRed', 'brightGreen', 'brightYellow', 'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite'],
   },
 ];
 

@@ -1,4 +1,5 @@
 import toast from 'react-hot-toast';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import ContainerStatsModal from './ContainerStatsModal';
 import React, { useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../../../../shared/functions/ErrorMessage';
@@ -25,10 +26,12 @@ const ContainersMenuModal: React.FC<ContainerProps> = ({
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isInspectOpen, setIsInspectOpen] = useState(false);
   const [inspectContent, setInspectContent] = useState<string | null>(null);
+  const { dictionary, formatMessage } = useTranslation();
+  const containerTexts = dictionary.docker.containers;
 
   const ensureClient = () => {
     if (selectedCredentialId == null) {
-      toast.error('Escolha uma credencial Docker para executar esta ação.');
+      toast.error(dictionary.docker.common.chooseCredentialAction);
       return null;
     }
     return selectedCredentialId;
@@ -57,7 +60,7 @@ const ContainersMenuModal: React.FC<ContainerProps> = ({
       if (clientId == null) return;
       setMenuModal(false);
       await ContainerRestart(clientId, id);
-      toast.success(`Container ${FmtName([name])} reiniciado!`);
+      toast.success(formatMessage(containerTexts.restarted, { name: FmtName([name]) }));
     } catch (error: any) {
       toast.error(errorMessage(error));
     }
@@ -80,8 +83,8 @@ const ContainersMenuModal: React.FC<ContainerProps> = ({
     setMenuModal(false);
     confirmToast({
       id,
-      title: 'Excluir container?',
-      message: `Tem certeza que deseja remover ${FmtName([name])}? Esta ação não pode ser desfeita.`,
+      title: containerTexts.deleteTitle,
+      message: formatMessage(containerTexts.deleteMessage, { name: FmtName([name]) }),
       onConfirm: async () => {
         const currentClientId = ensureClient();
         if (currentClientId == null) return;
@@ -132,7 +135,7 @@ const ContainersMenuModal: React.FC<ContainerProps> = ({
           <div className="flex flex-col gap-0.5">
             <MenuItem
               icon={SquareTerminal}
-              label="Terminal"
+              label={containerTexts.terminal}
               onClick={() => {
                 onOpenTerminal();
                 setMenuModal(false);
@@ -140,7 +143,7 @@ const ContainersMenuModal: React.FC<ContainerProps> = ({
             />
             <MenuItem
               icon={ClipboardList}
-              label="Ver Logs"
+              label={containerTexts.viewLogs}
               onClick={() => {
                 onOpenLogs();
                 setMenuModal(false);
@@ -148,7 +151,7 @@ const ContainersMenuModal: React.FC<ContainerProps> = ({
             />
             <MenuItem
               icon={ChartSpline}
-              label="Estatísticas"
+              label={containerTexts.statistics}
               onClick={() => {
                 setMenuModal(false);
                 setIsStatsOpen(true);
@@ -156,7 +159,7 @@ const ContainersMenuModal: React.FC<ContainerProps> = ({
             />
             <MenuItem
               icon={BookSearch}
-              label="Inspecionar"
+              label={containerTexts.inspect}
               onClick={handleInspect}
             />
 
@@ -164,12 +167,12 @@ const ContainersMenuModal: React.FC<ContainerProps> = ({
 
             <MenuItem
               icon={RotateCcw}
-              label="Reiniciar"
+              label={containerTexts.restart}
               onClick={handleRestart}
             />
             <MenuItem
               icon={Trash2}
-              label="Excluir"
+              label={dictionary.docker.common.delete}
               onClick={handleDelete}
               danger
             />
@@ -179,7 +182,7 @@ const ContainersMenuModal: React.FC<ContainerProps> = ({
 
       {isInspectOpen && (
         <InspectModal
-          title="Inspect do container"
+          title={containerTexts.inspectTitle}
           name={`${FmtName([name])}`}
           data={inspectContent}
           onClose={() => setIsInspectOpen(false)}

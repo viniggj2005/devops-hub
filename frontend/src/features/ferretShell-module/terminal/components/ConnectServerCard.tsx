@@ -1,9 +1,12 @@
 import React from 'react';
 import { Plus, Server } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 const ConnectServerCard: React.FC = () => {
     const navigate = useNavigate();
+    const { dictionary } = useTranslation();
+    const homeTexts = dictionary.ferretShell.home;
 
     return (
         <div className="relative">
@@ -15,15 +18,15 @@ const ConnectServerCard: React.FC = () => {
                             <Server className="w-7 h-7 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-gray-900 dark:text-white mb-2 font-bold text-xl">Precisa conectar em um servidor?</h2>
+                            <h2 className="text-gray-900 dark:text-white mb-2 font-bold text-xl">{homeTexts.connectTitle}</h2>
                             <p className="text-gray-600 dark:text-white/70">
-                                Crie uma nova conexão SSH e gerencie seus terminais com rapidez.
+                                {homeTexts.connectDescription}
                             </p>
                         </div>
                     </div>
                     <button onClick={() => navigate('/term/createConnectionForm')} className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/50 transition-all flex items-center gap-2 whitespace-nowrap font-medium">
                         <Plus className="w-5 h-5" />
-                        Criar conexão SSH
+                        {homeTexts.createSshConnection}
                     </button>
                 </div>
             </div>

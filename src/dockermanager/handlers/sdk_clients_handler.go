@@ -6,6 +6,7 @@ import (
 	"net"
 	"sync"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/desktop"
 	dockerDtos "docker-manager-go/src/dockermanager/dtos"
 	dockerFunctions "docker-manager-go/src/dockermanager/functions"
@@ -55,7 +56,7 @@ func (handlerStruct *DockerSdkHandlerStruct) AddDockerClient(id int) error {
 
 	docker, err := handlerStruct.dockerHandler.getDockerConnectionByIdWithoutToken(id)
 	if err != nil {
-		return fmt.Errorf("erro ao buscar conexão Docker: %w", err)
+		return appErrors.Wrap("docker.findConnectionFailed", "erro ao buscar conexão Docker", err)
 	}
 
 	dockerId := fmt.Sprintf("%d", docker.ID)
@@ -69,7 +70,7 @@ func (handlerStruct *DockerSdkHandlerStruct) AddDockerClient(id int) error {
 		docker.Key.Plaintext,
 	)
 	if err != nil {
-		return fmt.Errorf("erro ao montar TLS: %w", err)
+		return appErrors.Wrap("docker.tlsFailed", "erro ao montar TLS", err)
 	}
 
 	dockerClient, err := client.NewClientWithOpts(
@@ -78,7 +79,7 @@ func (handlerStruct *DockerSdkHandlerStruct) AddDockerClient(id int) error {
 		client.WithAPIVersionNegotiation(),
 	)
 	if err != nil {
-		return fmt.Errorf("erro ao criar cliente Docker: %w", err)
+		return appErrors.Wrap("docker.createClientFailed", "erro ao criar cliente Docker", err)
 	}
 
 	baseContext := handlerStruct.appContext

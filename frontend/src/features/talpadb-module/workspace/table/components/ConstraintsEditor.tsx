@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { Plus, Trash2, Undo2, X } from 'lucide-react';
 import { generateId } from '../../../functions/TreatmentFunctions';
 import { addButton, bodyCell, editCell, fieldClass, headerCell, iconButton, rowStatusClass, tableHead } from '../constants/TableStyles';
@@ -32,6 +33,9 @@ const ConstraintsEditor: React.FC<ConstraintsEditorProps> = ({
   onNewConstraintsChange,
   onDroppedConstraintsChange,
 }) => {
+  const { dictionary, formatMessage } = useTranslation();
+  const commonTexts = dictionary.talpadb.common;
+  const editorTexts = dictionary.talpadb.tableEditors;
   const toggleDropped = (quotedName: string) =>
     onDroppedConstraintsChange(
       droppedConstraints.includes(quotedName)
@@ -53,9 +57,9 @@ const ConstraintsEditor: React.FC<ConstraintsEditorProps> = ({
       <table className="w-full text-sm">
         <thead className={tableHead}>
           <tr>
-            <th className={headerCell}>Nome</th>
-            <th className={headerCell}>Tipo</th>
-            <th className={headerCell}>Definição</th>
+            <th className={headerCell}>{commonTexts.name}</th>
+            <th className={headerCell}>{commonTexts.type}</th>
+            <th className={headerCell}>{commonTexts.definition}</th>
             {!readOnly && <th className="w-10" />}
           </tr>
         </thead>
@@ -75,7 +79,7 @@ const ConstraintsEditor: React.FC<ConstraintsEditorProps> = ({
                   <button
                     disabled={!constraint.isLocal}
                     onClick={() => toggleDropped(constraint.quotedName)}
-                    title={!constraint.isLocal ? 'Constraint herdada: exclua na tabela pai' : dropped ? 'Manter constraint' : 'Excluir constraint'}
+                    title={!constraint.isLocal ? editorTexts.inheritedConstraint : dropped ? editorTexts.keepConstraint : editorTexts.dropConstraint}
                     className={`${iconButton} ${dropped ? 'hover:text-cyan-600' : 'hover:text-rose-500'}`}
                   >
                     {dropped ? <Undo2 className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
@@ -89,7 +93,7 @@ const ConstraintsEditor: React.FC<ConstraintsEditorProps> = ({
               <td className={editCell}>
                 <input
                   value={constraint.name}
-                  placeholder="automático"
+                  placeholder={editorTexts.automatic}
                   onChange={(event) => updateNew(constraint.id, { name: event.target.value })}
                   className={fieldClass}
                 />
@@ -112,7 +116,7 @@ const ConstraintsEditor: React.FC<ConstraintsEditorProps> = ({
                   <input
                     autoFocus
                     value={constraint.expression}
-                    placeholder="preco >= 0"
+                    placeholder={editorTexts.checkPlaceholder}
                     onChange={(event) => updateNew(constraint.id, { expression: event.target.value })}
                     className={`${fieldClass} font-mono`}
                   />
@@ -121,7 +125,7 @@ const ConstraintsEditor: React.FC<ConstraintsEditorProps> = ({
                     <input
                       autoFocus
                       value={constraint.columns}
-                      placeholder="coluna_a, coluna_b"
+                      placeholder={editorTexts.constraintColumnsPlaceholder}
                       onChange={(event) => updateNew(constraint.id, { columns: event.target.value })}
                       className={`${fieldClass} font-mono`}
                     />
@@ -130,7 +134,7 @@ const ConstraintsEditor: React.FC<ConstraintsEditorProps> = ({
                         <span className="text-[11px] font-semibold text-gray-400 whitespace-nowrap">REFERENCES</span>
                         <input
                           value={constraint.references}
-                          placeholder="public.clientes (id) ON DELETE CASCADE"
+                          placeholder={editorTexts.referencesPlaceholder}
                           onChange={(event) => updateNew(constraint.id, { references: event.target.value })}
                           className={`${fieldClass} font-mono`}
                         />
@@ -141,7 +145,7 @@ const ConstraintsEditor: React.FC<ConstraintsEditorProps> = ({
               </td>
               <td className={editCell}>
                 <button
-                  title="Remover constraint nova"
+                  title={editorTexts.removeNewConstraint}
                   onClick={() => onNewConstraintsChange(newConstraints.filter((item) => item.id !== constraint.id))}
                   className={`${iconButton} hover:text-rose-500`}
                 >
@@ -153,11 +157,11 @@ const ConstraintsEditor: React.FC<ConstraintsEditorProps> = ({
         </tbody>
       </table>
       {constraints.length === 0 && newConstraints.length === 0 && (
-        <p className="px-4 py-6 text-sm text-gray-400">Nada cadastrado.</p>
+        <p className="px-4 py-6 text-sm text-gray-400">{commonTexts.nothingRegistered}</p>
       )}
       {!readOnly && (
         <button onClick={addConstraint} className={addButton}>
-          <Plus className="w-4 h-4" /> Adicionar constraint
+          <Plus className="w-4 h-4" /> {editorTexts.addConstraint}
         </button>
       )}
     </>

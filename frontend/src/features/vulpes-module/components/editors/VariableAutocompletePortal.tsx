@@ -1,13 +1,14 @@
 import { createPortal } from 'react-dom';
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Link2, Settings2, Sparkles } from 'lucide-react';
-import { isResponseVariable, type SuggestionKind, type VariableSuggestion, type VariableDescription } from '../../functions/VariableSuggestions';
+import { isResponseVariable, suggestionKindLabel, variableStatusLabel, type SuggestionKind, type VariableSuggestion, type VariableDescription } from '../../functions/VariableSuggestions';
 
 export const kindBadgeStyles: Record<SuggestionKind, string> = {
-  dinâmica: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
-  coleção: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
-  resposta: 'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30',
-  ambiente: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+  dynamic: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
+  response: 'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30',
+  collection: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+  environment: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
 };
 
 interface PortalPosition {
@@ -47,6 +48,8 @@ export const VariableAutocompletePortal: React.FC<VariableAutocompletePortalProp
   onOpenResponseBuilder,
 }) => {
   const listRef = useRef<HTMLDivElement>(null);
+  const { dictionary } = useTranslation();
+  const variableTexts = dictionary.vulpes.variables;
   const [position, setPosition] = useState<PortalPosition | null>(null);
 
   useLayoutEffect(() => {
@@ -77,7 +80,7 @@ export const VariableAutocompletePortal: React.FC<VariableAutocompletePortalProp
     >
       <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-gray-100 dark:border-white/5 bg-gray-50/80 dark:bg-white/[0.03]">
         <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
-          Variáveis · ↑↓ Enter
+          {variableTexts.hint}
         </span>
         {hasRequests && (
           <button
@@ -86,14 +89,14 @@ export const VariableAutocompletePortal: React.FC<VariableAutocompletePortalProp
             className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-violet-500/15 text-violet-700 dark:text-violet-300 hover:bg-violet-500/25 transition-colors"
           >
             <Link2 className="w-3 h-3" />
-            Vincular resposta de outra requisição…
+            {variableTexts.linkResponse}
           </button>
         )}
       </div>
 
       {suggestions.length === 0 ? (
         <div className="px-3 py-4 text-center text-xs text-gray-500 dark:text-zinc-400">
-          Nenhuma variável correspondente encontrada.
+          {variableTexts.noMatch}
         </div>
       ) : (
         <div ref={listRef} className="max-h-64 overflow-y-auto divide-y divide-gray-100 dark:divide-white/5">
@@ -116,7 +119,7 @@ export const VariableAutocompletePortal: React.FC<VariableAutocompletePortalProp
                   <span
                     className={`px-1.5 py-0.2 rounded border text-[10px] font-bold uppercase tracking-wide flex-shrink-0 ${kindBadgeStyles[suggestion.kind]}`}
                   >
-                    {suggestion.kind}
+                    {suggestionKindLabel(suggestion.kind)}
                   </span>
                 </div>
                 <span className="text-[11px] text-gray-500 dark:text-zinc-400 font-mono truncate">
@@ -148,6 +151,7 @@ export const VariableInspectorPortal: React.FC<VariableInspectorPortalProps> = (
   onEditResponse,
 }) => {
   const [position, setPosition] = useState<PortalPosition | null>(null);
+  const { dictionary: inspectorDictionary } = useTranslation();
 
   useLayoutEffect(() => {
     const update = () => setPosition(computePosition(anchor, 130, 320));
@@ -200,13 +204,7 @@ export const VariableInspectorPortal: React.FC<VariableInspectorPortalProps> = (
                           : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
                   }`}
                 >
-                  {item.status === 'defined'
-                    ? `✓ ${item.source}`
-                    : item.status === 'response'
-                      ? '✓ Resposta vinculada'
-                      : item.status === 'dynamic'
-                        ? '✓ Dinâmica'
-                        : '✕ Não reconhecida'}
+                  {variableStatusLabel(item)}
                 </span>
                 {isResp && onEditResponse && (
                   <button
@@ -215,7 +213,7 @@ export const VariableInspectorPortal: React.FC<VariableInspectorPortalProps> = (
                     className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-500/15 text-violet-700 dark:text-violet-300 hover:bg-violet-500/25"
                   >
                     <Settings2 className="w-3 h-3" />
-                    Configurar
+                    {inspectorDictionary.vulpes.variables.configure}
                   </button>
                 )}
               </div>

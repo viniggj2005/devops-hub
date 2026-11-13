@@ -3,11 +3,11 @@ package ferretshellHandlers
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 
+	"docker-manager-go/src/appErrors"
 	auth "docker-manager-go/src/auth/functions"
 	ferretShellDtos "docker-manager-go/src/ferretshell/dtos"
 	"docker-manager-go/src/models"
@@ -36,7 +36,7 @@ func (handlerStruct *SshHandlerStruct) UpdateSshConnection(token string, id uint
 
 	var existing models.SshConnectionModel
 	if err := handlerStruct.DataBase.First(&existing, id).Error; err != nil {
-		return fmt.Errorf("conexão não encontrada: %w", err)
+		return appErrors.Wrap("ferretShell.connectionNotFound", "conexão não encontrada", err)
 	}
 
 	if body.Host != "" {
@@ -55,14 +55,14 @@ func (handlerStruct *SshHandlerStruct) UpdateSshConnection(token string, id uint
 	if body.Key != nil && *body.Key != "" {
 		keyBytes, err := base64.StdEncoding.DecodeString(*body.Key)
 		if err != nil {
-			return fmt.Errorf("erro ao decodificar chave: %w", err)
+			return appErrors.Wrap("ferretShell.decodeKeyFailed", "erro ao decodificar chave", err)
 		}
 		existing.Key.Plaintext = string(keyBytes)
 	}
 	if body.Password != nil && *body.Password != "" {
 		passwordBytes, err := base64.StdEncoding.DecodeString(*body.Password)
 		if err != nil {
-			return fmt.Errorf("erro ao decodificar senha: %w", err)
+			return appErrors.Wrap("ferretShell.decodePasswordFailed", "erro ao decodificar senha", err)
 		}
 		existing.Password.Plaintext = string(passwordBytes)
 	}
@@ -70,7 +70,7 @@ func (handlerStruct *SshHandlerStruct) UpdateSshConnection(token string, id uint
 	if body.KnownHostsData != nil && *body.KnownHostsData != "" {
 		knownBytes, err := base64.StdEncoding.DecodeString(*body.KnownHostsData)
 		if err != nil {
-			return fmt.Errorf("erro ao decodificar knownHosts: %w", err)
+			return appErrors.Wrap("ferretShell.decodeKnownHostsFailed", "erro ao decodificar knownHosts", err)
 		}
 		existing.KnownHostsData.Plaintext = string(knownBytes)
 	}
@@ -78,7 +78,7 @@ func (handlerStruct *SshHandlerStruct) UpdateSshConnection(token string, id uint
 	existing.UserID = body.UserID
 
 	if err := handlerStruct.DataBase.Save(&existing).Error; err != nil {
-		return fmt.Errorf("erro ao atualizar conexão: %w", err)
+		return appErrors.Wrap("ferretShell.updateConnectionFailed", "erro ao atualizar conexão", err)
 	}
 
 	return nil
@@ -90,7 +90,7 @@ func (handlerStruct *SshHandlerStruct) CreateSshConnection(token string, body fe
 	}
 
 	if body.Host == "" {
-		return fmt.Errorf("o campo 'host' é obrigatório")
+		return appErrors.New("ferretShell.hostRequired", "o campo 'host' é obrigatório")
 	}
 
 	var port int64 = 22
@@ -103,7 +103,7 @@ func (handlerStruct *SshHandlerStruct) CreateSshConnection(token string, body fe
 	if body.Key != nil && *body.Key != "" {
 		keyBytes, err := base64.StdEncoding.DecodeString(*body.Key)
 		if err != nil {
-			return fmt.Errorf("erro ao decodificar chave: %w", err)
+			return appErrors.Wrap("ferretShell.decodeKeyFailed", "erro ao decodificar chave", err)
 		}
 		keyString = string(keyBytes)
 	}
@@ -111,7 +111,7 @@ func (handlerStruct *SshHandlerStruct) CreateSshConnection(token string, body fe
 	if body.Password != nil && *body.Password != "" {
 		passwordBytes, err := base64.StdEncoding.DecodeString(*body.Password)
 		if err != nil {
-			return fmt.Errorf("erro ao decodificar senha: %w", err)
+			return appErrors.Wrap("ferretShell.decodePasswordFailed", "erro ao decodificar senha", err)
 		}
 		passwordString = string(passwordBytes)
 	}
@@ -120,7 +120,7 @@ func (handlerStruct *SshHandlerStruct) CreateSshConnection(token string, body fe
 	if body.KnownHostsData != nil && *body.KnownHostsData != "" {
 		knownBytes, err := base64.StdEncoding.DecodeString(*body.KnownHostsData)
 		if err != nil {
-			return fmt.Errorf("erro ao decodificar knownHosts: %w", err)
+			return appErrors.Wrap("ferretShell.decodeKnownHostsFailed", "erro ao decodificar knownHosts", err)
 		}
 		knownString = string(knownBytes)
 	}
@@ -142,11 +142,11 @@ func (handlerStruct *SshHandlerStruct) CreateSshConnection(token string, body fe
 	}
 
 	if connection.Host.Plaintext == "" {
-		return fmt.Errorf("erro: host está vazio antes do insert")
+		return appErrors.New("ferretShell.emptyHost", "erro: host está vazio antes do insert")
 	}
 
 	if err := handlerStruct.DataBase.Select("*").Create(&connection).Error; err != nil {
-		return fmt.Errorf("erro ao criar conexão: %w", err)
+		return appErrors.Wrap("ferretShell.createConnectionFailed", "erro ao criar conexão", err)
 	}
 
 	return nil

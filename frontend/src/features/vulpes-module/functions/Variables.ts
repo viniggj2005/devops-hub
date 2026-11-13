@@ -3,7 +3,7 @@ import type { Collection, Environment, Variable } from '../../../interfaces/Vulp
 export interface ResolvedVariable {
   value: string;
   secret: boolean;
-  source: 'coleção' | 'ambiente';
+  source: 'collection' | 'environment';
 }
 
 export interface TextToken {
@@ -25,8 +25,8 @@ export const buildVariableMap = (collection?: Collection | null, environment?: E
     layer
       .filter((variable) => variable.enabled && variable.key)
       .forEach((variable) => variables.set(variable.key, { value: variable.value, secret: variable.secret, source }));
-  addLayer(collection?.variables ?? [], 'coleção');
-  addLayer(environment?.variables ?? [], 'ambiente');
+  addLayer(collection?.variables ?? [], 'collection');
+  addLayer(environment?.variables ?? [], 'environment');
   return variables;
 };
 

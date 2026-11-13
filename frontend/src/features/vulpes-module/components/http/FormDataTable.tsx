@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../i18n/useTranslation';
 import React from 'react';
 import toast from 'react-hot-toast';
 import { FileUp, Trash2 } from 'lucide-react';
@@ -18,6 +19,9 @@ const fileName = (path: string) => path.split(/[\\/]/).pop() ?? path;
 
 const FormDataTable: React.FC<FormDataTableProps> = ({ fields, onChange }) => {
   const displayRows = [...fields, emptyFormField()];
+  const { dictionary } = useTranslation();
+  const commonTexts = dictionary.vulpes.common;
+  const bodyTexts = dictionary.vulpes.body;
 
   const updateRow = (rowIndex: number, patch: Partial<FormField>) => {
     if (rowIndex === fields.length) {
@@ -40,9 +44,9 @@ const FormDataTable: React.FC<FormDataTableProps> = ({ fields, onChange }) => {
     <div className="rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden">
       <div className="grid grid-cols-[28px_1fr_84px_1.4fr_1fr_28px] bg-gray-50 dark:bg-white/5 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-500">
         <span />
-        <span className="px-2 py-1.5">Chave</span>
-        <span className="px-2 py-1.5 border-l border-gray-200 dark:border-white/10">Tipo</span>
-        <span className="px-2 py-1.5 border-l border-gray-200 dark:border-white/10">Valor</span>
+        <span className="px-2 py-1.5">{commonTexts.key}</span>
+        <span className="px-2 py-1.5 border-l border-gray-200 dark:border-white/10">{commonTexts.type}</span>
+        <span className="px-2 py-1.5 border-l border-gray-200 dark:border-white/10">{commonTexts.value}</span>
         <span className="px-2 py-1.5 border-l border-gray-200 dark:border-white/10">Content-Type</span>
         <span />
       </div>
@@ -66,7 +70,7 @@ const FormDataTable: React.FC<FormDataTableProps> = ({ fields, onChange }) => {
             <VariableInput
               compact
               value={field.key}
-              placeholder="Chave"
+              placeholder={commonTexts.key}
               inputClassName="focus:bg-amber-500/5"
               onChange={(key) => updateRow(rowIndex, { key })}
             />
@@ -75,24 +79,24 @@ const FormDataTable: React.FC<FormDataTableProps> = ({ fields, onChange }) => {
               onChange={(event) => updateRow(rowIndex, { kind: event.target.value as FormField['kind'] })}
               className="h-full bg-transparent border-l border-gray-200 dark:border-white/10 px-1.5 text-xs text-gray-700 dark:text-zinc-300 focus:outline-none"
             >
-              <option value="text">Texto</option>
-              <option value="file">Arquivo</option>
+              <option value="text">{bodyTexts.text}</option>
+              <option value="file">{bodyTexts.file}</option>
             </select>
             {field.kind === 'file' ? (
               <button
                 type="button"
-                title={field.filePath || 'Selecionar arquivo'}
+                title={field.filePath || bodyTexts.selectFile}
                 onClick={() => chooseFile(rowIndex)}
                 className="h-full flex items-center gap-1.5 px-2 border-l border-gray-200 dark:border-white/10 text-xs text-left text-gray-600 dark:text-zinc-300 hover:bg-amber-500/5 truncate"
               >
                 <FileUp className="w-3.5 h-3.5 flex-shrink-0 text-amber-500" />
-                <span className="truncate">{field.filePath ? fileName(field.filePath) : 'Selecionar arquivo…'}</span>
+                <span className="truncate">{field.filePath ? fileName(field.filePath) : bodyTexts.selectFileEllipsis}</span>
               </button>
             ) : (
               <VariableInput
                 compact
                 value={field.value}
-                placeholder="Valor"
+                placeholder={commonTexts.value}
                 inputClassName="focus:bg-amber-500/5"
                 onChange={(value) => updateRow(rowIndex, { value })}
                 className="border-l border-gray-200 dark:border-white/10"
@@ -100,7 +104,7 @@ const FormDataTable: React.FC<FormDataTableProps> = ({ fields, onChange }) => {
             )}
             <input
               value={field.contentType}
-              placeholder="automático"
+              placeholder={bodyTexts.automatic}
               spellCheck={false}
               onChange={(event) => updateRow(rowIndex, { contentType: event.target.value })}
               className={`${cellInputClass} border-l border-gray-200 dark:border-white/10`}
@@ -109,7 +113,7 @@ const FormDataTable: React.FC<FormDataTableProps> = ({ fields, onChange }) => {
               {!isGhost && (
                 <button
                   type="button"
-                  title="Remover"
+                  title={commonTexts.remove}
                   onClick={() => onChange(fields.filter((_, index) => index !== rowIndex))}
                   className="p-1 rounded text-gray-400 opacity-0 group-hover:opacity-100 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
                 >

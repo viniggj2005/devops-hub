@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { useShallow } from 'zustand/react/shallow';
 import { useVulpesStore } from '../../VulpesStore';
 import { workspaceTabLabel } from '../../functions/WorkspaceTabs';
@@ -25,6 +26,8 @@ interface DropIndicator {
 const groupDragType = 'application/x-vulpes-tab-group';
 
 const RequestTabBar: React.FC<RequestTabBarProps> = ({ onClose }) => {
+  const { dictionary, formatMessage } = useTranslation();
+  const workspaceTexts = dictionary.vulpes.workspace;
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
   const {
@@ -74,27 +77,27 @@ const RequestTabBar: React.FC<RequestTabBarProps> = ({ onClose }) => {
       return [
         ...PROTOCOLS.map((protocol) => ({
           icon: Plus,
-          label: `Nova requisição ${protocolLabels[protocol]}`,
+          label: formatMessage(dictionary.vulpes.sidebar.newRequestOf, { protocol: protocolLabels[protocol] }),
           onClick: () => openScratch(protocol),
         })),
         'separator',
-        { icon: Play, label: 'Executar em lote (Runner)', onClick: () => openRunner(currentCollectionId(), null) },
-        { icon: CookieIcon, label: 'Gerenciar cookies', onClick: () => openCookies(currentCollectionId()) },
+        { icon: Play, label: workspaceTexts.runBatch, onClick: () => openRunner(currentCollectionId(), null) },
+        { icon: CookieIcon, label: dictionary.vulpes.response.manageCookies, onClick: () => openCookies(currentCollectionId()) },
       ];
     }
     const groupIndex = groups.findIndex((candidate) => candidate.id === group.id);
     const groupPanes = panesOf(group);
     const otherPanes = groups.filter((candidate) => candidate.id !== group.id).flatMap(panesOf);
     return [
-      { icon: X, label: groupPanes.length > 1 ? 'Fechar todos os painéis' : 'Fechar', onClick: () => onClose(groupPanes) },
-      { icon: Layers, label: 'Fechar as outras', disabled: otherPanes.length === 0, onClick: () => onClose(otherPanes) },
-      { icon: XCircle, label: 'Fechar todas', onClick: () => onClose(tabs) },
+      { icon: X, label: groupPanes.length > 1 ? workspaceTexts.closeAllPanes : workspaceTexts.close, onClick: () => onClose(groupPanes) },
+      { icon: Layers, label: workspaceTexts.closeOthers, disabled: otherPanes.length === 0, onClick: () => onClose(otherPanes) },
+      { icon: XCircle, label: workspaceTexts.closeAll, onClick: () => onClose(tabs) },
       'separator',
-      { icon: Ungroup, label: 'Separar painéis', disabled: groupPanes.length < 2, onClick: () => ungroup(group.id) },
-      { icon: ArrowLeft, label: 'Mover para a esquerda', disabled: groupIndex <= 0, onClick: () => moveGroup(group.id, groupIndex - 1) },
+      { icon: Ungroup, label: workspaceTexts.ungroup, disabled: groupPanes.length < 2, onClick: () => ungroup(group.id) },
+      { icon: ArrowLeft, label: workspaceTexts.moveLeft, disabled: groupIndex <= 0, onClick: () => moveGroup(group.id, groupIndex - 1) },
       {
         icon: ArrowRight,
-        label: 'Mover para a direita',
+        label: workspaceTexts.moveRight,
         disabled: groupIndex >= groups.length - 1,
         onClick: () => moveGroup(group.id, groupIndex + 2),
       },
@@ -170,7 +173,7 @@ const RequestTabBar: React.FC<RequestTabBarProps> = ({ onClose }) => {
               }}
               onDragLeave={() => dropIndicator?.groupId === group.id && setDropIndicator(null)}
               onDrop={(event) => dropOnGroup(event, group.id)}
-              title={`${title}${isSplit ? ` — ${panes.length} painéis` : ''}\nArraste para reordenar ou solte sobre a área aberta para dividir a tela`}
+              title={`${title}${isSplit ? formatMessage(workspaceTexts.panesSuffix, { count: panes.length }) : ''}\n${workspaceTexts.dragHint}`}
               className={`group relative flex items-center gap-2 pl-3 pr-1.5 min-w-[140px] max-w-[280px] flex-shrink-0 text-xs border-r border-gray-200 dark:border-white/5 cursor-pointer transition-colors ${
                 draggingGroupId === group.id ? 'opacity-50' : ''
               } ${
@@ -196,10 +199,10 @@ const RequestTabBar: React.FC<RequestTabBarProps> = ({ onClose }) => {
                   {panes.length}
                 </span>
               )}
-              {dirty && <span title="Alterações não salvas" className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0 group-hover:hidden" />}
+              {dirty && <span title={workspaceTexts.unsavedChanges} className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0 group-hover:hidden" />}
               <button
                 type="button"
-                title={isSplit ? 'Fechar todos os painéis' : 'Fechar aba'}
+                title={isSplit ? workspaceTexts.closeAllPanes : workspaceTexts.closeTab}
                 onClick={(event) => {
                   event.stopPropagation();
                   onClose(panes);
@@ -214,7 +217,7 @@ const RequestTabBar: React.FC<RequestTabBarProps> = ({ onClose }) => {
       </div>
       <button
         type="button"
-        title="Nova requisição"
+        title={dictionary.vulpes.common.newRequest}
         onClick={(event) => {
           const bounds = event.currentTarget.getBoundingClientRect();
           setMenu({ x: bounds.left, y: bounds.bottom + 4, group: null });

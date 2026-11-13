@@ -5,6 +5,7 @@ import { toBase64 } from '../functions/TreatmentFunctions';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { TerminalServices } from '../services/TerminalServices';
 import { errorMessage } from '../../../shared/functions/ErrorMessage';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { EditSshConnectionFormProps, CreateSshConnectionInterface } from '../../../../interfaces/TerminalInterfaces';
 
 const labelBase = 'text-xs font-medium text-zinc-400';
@@ -21,6 +22,8 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
 }) => {
   const { user, token } = useAuth();
   const fileTypes = ['PEM', 'TXT'];
+  const { dictionary, formatMessage } = useTranslation();
+  const formTexts = dictionary.ferretShell.connectionForm;
   const [submitting, setSubmitting] = useState(false);
   const [fileName, setFileName] = useState<string>('');
   const [formData, setFormData] = useState<CreateSshConnectionInterface>(connection);
@@ -55,7 +58,7 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!formData.key && !formData.password) {
-      toast.error('Você deve fornecer uma senha ou um arquivo de chave.');
+      toast.error(formTexts.credentialsRequired);
       return;
     }
     setSubmitting(true);
@@ -67,10 +70,10 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
         password: formData.password ? btoa(formData.password) : undefined,
       };
       await TerminalServices.updateSshConnection(token ?? '', id, payload);
-      toast.success('Conexão atualizada com sucesso');
+      toast.success(formTexts.updated);
       onSuccess?.();
     } catch (error: any) {
-      toast.error(`Erro ao atualizar conexão: ${errorMessage(error)}`);
+      toast.error(formatMessage(formTexts.updateFailed, { error: errorMessage(error) }));
     } finally {
       setSubmitting(false);
     }
@@ -80,7 +83,7 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
     <form onSubmit={handleSubmit} className="grid gap-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="md:col-span-2 grid gap-1.5">
-          <label className={labelBase}>Alias</label>
+          <label className={labelBase}>{formTexts.alias}</label>
           <input
             className={inputBase}
             type="text"
@@ -90,7 +93,7 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
           />
         </div>
         <div className="grid gap-1.5">
-          <label className={labelBase}>Host</label>
+          <label className={labelBase}>{formTexts.host}</label>
           <input
             className={inputBase}
             type="text"
@@ -102,7 +105,7 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
         </div>
 
         <div className="grid gap-1.5">
-          <label className={labelBase}>Usuário do sistema</label>
+          <label className={labelBase}>{formTexts.systemUser}</label>
           <input
             className={inputBase}
             type="text"
@@ -114,7 +117,7 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
         </div>
 
         <div className="grid gap-1.5">
-          <label className={labelBase}>Porta</label>
+          <label className={labelBase}>{formTexts.port}</label>
           <input
             className={inputBase}
             type="number"
@@ -127,28 +130,28 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
         </div>
 
         <div className="grid gap-1.5">
-          <label className={labelBase}>Senha</label>
+          <label className={labelBase}>{formTexts.password}</label>
           <input
             className={inputBase}
             type="password"
             name="password"
             value={formData.password}
             onChange={handleChange}
-            placeholder="Deixe em branco para não alterar"
+            placeholder={formTexts.keepPasswordPlaceholder}
           />
         </div>
 
         <div className="md:col-span-2 grid gap-2">
-          <label className={labelBase}>Arquivo da chave (.pem, .txt)</label>
+          <label className={labelBase}>{formTexts.keyFile}</label>
           <div className="rounded-lg border border-dashed border-gray-300 dark:border-white/10 p-4">
             <FileUploader handleChange={handleFileChange} name="key" types={fileTypes}>
               <div className="flex cursor-pointer items-center justify-between">
                 <span className="text-sm">
                   {fileName
-                    ? `Selecionado: ${fileName}`
-                    : 'Arraste e solte ou clique para substituir a chave'}
+                    ? formatMessage(formTexts.selectedFile, { name: fileName })
+                    : formTexts.dropReplaceKey}
                 </span>
-                <span className="rounded-md border px-2 py-1 text-xs">Procurar</span>
+                <span className="rounded-md border px-2 py-1 text-xs">{formTexts.browse}</span>
               </div>
             </FileUploader>
           </div>
@@ -161,14 +164,14 @@ const EditSshConnectionForm: React.FC<EditSshConnectionFormProps> = ({
           onClick={onSuccess}
           className="rounded-lg border border-gray-300 dark:border-white/10 px-4 py-2 text-sm hover:scale-[0.98]"
         >
-          Cancelar
+          {dictionary.app.common.cancel}
         </button>
         <button
           type="submit"
           disabled={submitting}
           className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60"
         >
-          {submitting ? 'Salvando…' : 'Salvar alterações'}
+          {submitting ? formTexts.saving : formTexts.saveChanges}
         </button>
       </div>
     </form>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useDismiss } from '../../hooks/useDismiss';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { SelectOption, SelectProps, SelectVariant } from '../../../../interfaces/SharedInterfaces';
 
 const buttonBaseClass =
@@ -34,10 +35,11 @@ const Select: React.FC<SelectProps> = ({
   disabled = false,
   variant = 'default',
   'aria-label': ariaLabel,
-  placeholder = 'Selecione…',
+  placeholder,
   'aria-labelledby': ariaLabelledBy,
-  noOptionsMessage = 'Nenhuma opção disponível',
+  noOptionsMessage,
 }) => {
+  const { dictionary } = useTranslation();
   const [open, setOpen] = React.useState(false);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -277,7 +279,7 @@ const Select: React.FC<SelectProps> = ({
         onKeyDown={handleKeyDown}
       >
         <span className={`flex flex-col text-left truncate ${selectedLabelClass}`}>
-          <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
+          <span className="truncate">{selectedOption ? selectedOption.label : placeholder ?? dictionary.app.common.select}</span>
           {selectedOption && selectedOption.description ? (
             <span className="text-xs font-normal text-gray-500 truncate">
               {selectedOption.description}
@@ -315,7 +317,7 @@ const Select: React.FC<SelectProps> = ({
         >
           {options.length === 0 ? (
             <div className="px-4 py-3 text-xs text-gray-500 dark:text-zinc-400">
-              {noOptionsMessage}
+              {noOptionsMessage ?? dictionary.app.common.noOptions}
             </div>
           ) : (
             options.map((option, index) => renderOption(option, index))

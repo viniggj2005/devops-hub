@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useDismiss } from '../../shared/hooks/useDismiss';
 import { useTerminalStore } from '../terminal/TerminalStore';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
+import { useTranslation } from '../../i18n/useTranslation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalShells } from '../terminal/functions/useLocalShells';
 import ToggleThemeButton from '../../shared/components/buttons/ToggleThemeButton';
@@ -27,9 +28,9 @@ import {
 } from 'lucide-react';
 
 const navLinks = [
-    { to: '/term/home', label: 'Início', icon: Home },
-    { to: '/term/sftp', label: 'SFTP', icon: FolderSync },
-];
+    { to: '/term/home', labelKey: 'home', icon: Home },
+    { to: '/term/sftp', labelKey: 'sftp', icon: FolderSync },
+] as const;
 
 const shellIcons: Record<LocalShellKind, React.ElementType> = {
     wsl: Box,
@@ -42,6 +43,8 @@ const shellIcons: Record<LocalShellKind, React.ElementType> = {
 const FerretShellNavbar: React.FC = () => {
     const navigate = useNavigate();
     const { token, user } = useAuth();
+    const { dictionary, formatMessage } = useTranslation();
+    const navbarTexts = dictionary.ferretShell.navbar;
     const { shells, openShell } = useLocalShells();
     const [menuFilter, setMenuFilter] = useState('');
     const [menuOpen, setMenuOpen] = useState(false);
@@ -118,7 +121,7 @@ const FerretShellNavbar: React.FC = () => {
             if (hasKey || hasPassword) {
                 createTab({ title: connection.alias || `${ssh.User}@${ssh.Host}`, config: ssh });
             } else {
-                toast.error('Nenhum método de autenticação encontrado para esta conexão.');
+                toast.error(dictionary.ferretShell.connections.noAuthMethod);
             }
         } catch (error) {
             toast.error(errorMessage(error));
@@ -167,7 +170,7 @@ const FerretShellNavbar: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-1 p-1 rounded-xl bg-gray-100/80 dark:bg-white/5 border border-gray-200/60 dark:border-white/5 flex-shrink-0">
-                    {navLinks.map(({ to, label, icon: Icon }) => (
+                    {navLinks.map(({ to, labelKey, icon: Icon }) => (
                         <NavLink
                             key={to}
                             to={to}
@@ -181,7 +184,7 @@ const FerretShellNavbar: React.FC = () => {
                             }
                         >
                             <Icon className="w-3.5 h-3.5" />
-                            <span className="hidden md:inline">{label}</span>
+                            <span className="hidden md:inline">{navbarTexts[labelKey]}</span>
                         </NavLink>
                     ))}
                 </div>
@@ -203,7 +206,7 @@ const FerretShellNavbar: React.FC = () => {
                                 onClick={() => handleTabClick(tab.id)}
                                 title={
                                     canDrag
-                                        ? 'Arraste até o terminal aberto para juntar na mesma tela'
+                                        ? navbarTexts.dragToMerge
                                         : tab.title
                                 }
                                 onDragStart={(event) => {
@@ -239,7 +242,7 @@ const FerretShellNavbar: React.FC = () => {
                                 </span>
                                 {instanceCount > 1 && (
                                     <span
-                                        title={`${instanceCount} terminais nesta tela`}
+                                        title={formatMessage(navbarTexts.terminalsOnScreen, { count: instanceCount })}
                                         className="rounded-full bg-purple-500/20 px-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-300"
                                     >
                                         {instanceCount}
@@ -267,7 +270,7 @@ const FerretShellNavbar: React.FC = () => {
                         <button
                             ref={triggerRef}
                             onClick={toggleMenu}
-                            title="Abrir novo terminal ou servidor SSH"
+                            title={navbarTexts.newTerminal}
                             className={`h-8 px-2 rounded-xl flex items-center gap-1 shrink-0 transition-colors ${
                                 menuOpen
                                     ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400'
@@ -298,7 +301,7 @@ const FerretShellNavbar: React.FC = () => {
                                 autoFocus
                                 type="text"
                                 value={menuFilter}
-                                placeholder="Filtrar terminal ou servidor..."
+                                placeholder={navbarTexts.filterPlaceholder}
                                 onChange={(event) => setMenuFilter(event.target.value)}
                                 className="w-full h-8 pl-8 pr-7 rounded-lg text-xs outline-none border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/20 text-gray-800 dark:text-zinc-200 focus:border-purple-500"
                             />
@@ -317,7 +320,7 @@ const FerretShellNavbar: React.FC = () => {
                         {filteredShells.length > 0 && (
                             <div>
                                 <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-                                    Terminal local
+                                    {dictionary.ferretShell.home.localTitle}
                                 </div>
                                 {filteredShells.map((shell) => {
                                     const ShellIcon = shellIcons[shell.kind] ?? SquareTerminal;
@@ -335,7 +338,7 @@ const FerretShellNavbar: React.FC = () => {
                                             </span>
                                             {shell.isDefault && (
                                                 <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
-                                                    Padrão
+                                                    {dictionary.ferretShell.localShells.default}
                                                 </span>
                                             )}
                                         </button>
@@ -347,7 +350,7 @@ const FerretShellNavbar: React.FC = () => {
                         {filteredSsh.length > 0 && (
                             <div>
                                 <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-                                    Meus Servidores
+                                    {dictionary.ferretShell.home.serversTitle}
                                 </div>
                                 {filteredSsh.map((connection) => {
                                     const label =
@@ -379,7 +382,7 @@ const FerretShellNavbar: React.FC = () => {
 
                         {filteredShells.length === 0 && filteredSsh.length === 0 && (
                             <p className="py-4 text-center text-xs text-gray-400 italic">
-                                Nenhum terminal ou servidor encontrado.
+                                {navbarTexts.nothingFound}
                             </p>
                         )}
                     </div>

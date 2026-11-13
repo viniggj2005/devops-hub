@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/coder/websocket"
 
+	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 	vulpesFunctions "docker-manager-go/src/vulpes/functions"
 )
@@ -88,7 +88,7 @@ func (handlerStruct *VulpesClientHandlerStruct) dialMqttConnection(
 		}
 		return websocket.NetConn(sessionContext, wsConnection, websocket.MessageBinary), nil
 	default:
-		return nil, fmt.Errorf("transporte MQTT %q não suportado", endpoint.Transport)
+		return nil, appErrors.New("vulpes.unsupportedMqttTransport", "transporte MQTT \"{transport}\" não suportado").With("transport", endpoint.Transport)
 	}
 }
 
@@ -116,7 +116,7 @@ func (handlerStruct *VulpesClientHandlerStruct) ConnectMqtt(callContext context.
 		return nil, err
 	}
 	if plan.request.Mqtt == nil {
-		return nil, errors.New("a requisição não é MQTT")
+		return nil, appErrors.New("vulpes.requestNotMqtt", "a requisição não é MQTT")
 	}
 	mqttRequest := plan.resolver.ResolveMqttRequest(*plan.request.Mqtt)
 	if err := plan.resolver.TakeError(); err != nil {
@@ -192,17 +192,17 @@ func (handlerStruct *VulpesClientHandlerStruct) ConnectMqtt(callContext context.
 
 func (session *mqttSession) handshake(connectPacket []byte) error {
 	if err := session.writePacket(connectPacket, dialTimeout); err != nil {
-		return fmt.Errorf("falha ao enviar pacote CONNECT ao broker MQTT: %w", err)
+		return appErrors.Wrap("vulpes.mqttConnectSendFailed", "falha ao enviar pacote CONNECT ao broker MQTT", err)
 	}
 	_ = session.connection.SetReadDeadline(time.Now().Add(dialTimeout))
 	defer func() { _ = session.connection.SetReadDeadline(time.Time{}) }()
 
 	packetType, _, body, err := vulpesFunctions.ReadMqttPacket(session.connection)
 	if err != nil {
-		return fmt.Errorf("o broker MQTT não respondeu ao handshake: %w", err)
+		return appErrors.Wrap("vulpes.mqttHandshakeFailed", "o broker MQTT não respondeu ao handshake", err)
 	}
 	if packetType != vulpesFunctions.MqttConnack {
-		return fmt.Errorf("resposta inesperada do broker MQTT (pacote %d)", packetType)
+		return appErrors.New("vulpes.mqttUnexpectedPacket", "resposta inesperada do broker MQTT (pacote {packet})").With("packet", packetType)
 	}
 	_, returnCode, err := vulpesFunctions.ParseMqttConnack(body)
 	if err != nil {
@@ -230,19 +230,15 @@ func (session *mqttSession) subscribeInitialTopics(subscriptions []vulpesDtos.Mq
 		return
 	}
 	if err := session.writePacket(packet, writeTimeout); err != nil {
-		session.emit(vulpesDtos.RealtimeEventDto{
-			Kind:      vulpesDtos.RealtimeError,
-			Data:      fmt.Sprintf("Falha ao assinar tópicos: %v", err),
-			Direction: vulpesDtos.DirectionSystem,
-		})
+		session.emit(errorEvent(appErrors.Wrap("vulpes.mqttSubscribeTopicsFailed", "Falha ao assinar tópicos", err)))
 		return
 	}
-	session.emit(vulpesDtos.RealtimeEventDto{
+	subscribedMessage := appErrors.New("vulpes.realtimeSubscribedTopics", "Inscrito em: {topics}").With("topics", strings.Join(topicLabels, ", "))
+	session.emit(localizedEvent(subscribedMessage, vulpesDtos.RealtimeEventDto{
 		Kind:      vulpesDtos.RealtimeMetadata,
-		Data:      "Inscrito em: " + strings.Join(topicLabels, ", "),
 		Event:     "SUBSCRIBE",
 		Direction: vulpesDtos.DirectionSystem,
-	})
+	}))
 }
 
 func (handlerStruct *VulpesClientHandlerStruct) PublishMqtt(callContext context.Context, token string, sessionID string, input vulpesDtos.MqttPublishInputDto) error {
@@ -266,12 +262,12 @@ func (handlerStruct *VulpesClientHandlerStruct) PublishMqtt(callContext context.
 	switch input.Kind {
 	case "json":
 		if !json.Valid(payload) {
-			return errors.New("a mensagem não é um JSON válido")
+			return appErrors.New("vulpes.messageInvalidJson", "a mensagem não é um JSON válido")
 		}
 	case "binary":
 		decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(data))
 		if err != nil {
-			return errors.New("mensagens binárias precisam estar em base64")
+			return appErrors.New("vulpes.binaryMessageNotBase64", "mensagens binárias precisam estar em base64")
 		}
 		payload, encoding = decoded, vulpesDtos.EncodingBase64
 	}
@@ -290,7 +286,7 @@ func (handlerStruct *VulpesClientHandlerStruct) PublishMqtt(callContext context.
 		return err
 	}
 	if err := session.writePacket(packet, writeTimeout); err != nil {
-		return fmt.Errorf("não foi possível publicar a mensagem: %w", err)
+		return appErrors.Wrap("vulpes.mqttPublishFailed", "não foi possível publicar a mensagem", err)
 	}
 
 	eventLabel := topic
@@ -330,14 +326,14 @@ func (handlerStruct *VulpesClientHandlerStruct) SubscribeMqtt(callContext contex
 		return err
 	}
 	if err := session.writePacket(packet, writeTimeout); err != nil {
-		return fmt.Errorf("não foi possível assinar o tópico: %w", err)
+		return appErrors.Wrap("vulpes.mqttSubscribeFailed", "não foi possível assinar o tópico", err)
 	}
-	session.emit(vulpesDtos.RealtimeEventDto{
+	subscribedMessage := appErrors.New("vulpes.realtimeSubscribedTopic", "Inscrito em {topic} (QoS {qos})").With("topic", topic).With("qos", entry.Qos)
+	session.emit(localizedEvent(subscribedMessage, vulpesDtos.RealtimeEventDto{
 		Kind:      vulpesDtos.RealtimeMetadata,
-		Data:      fmt.Sprintf("Inscrito em %s (QoS %d)", topic, entry.Qos),
 		Event:     "SUBSCRIBE",
 		Direction: vulpesDtos.DirectionSystem,
-	})
+	}))
 	return nil
 }
 
@@ -360,14 +356,14 @@ func (handlerStruct *VulpesClientHandlerStruct) UnsubscribeMqtt(callContext cont
 		return err
 	}
 	if err := session.writePacket(packet, writeTimeout); err != nil {
-		return fmt.Errorf("não foi possível cancelar a inscrição: %w", err)
+		return appErrors.Wrap("vulpes.mqttUnsubscribeFailed", "não foi possível cancelar a inscrição", err)
 	}
-	session.emit(vulpesDtos.RealtimeEventDto{
+	unsubscribedMessage := appErrors.New("vulpes.realtimeUnsubscribed", "Inscrição cancelada: {topic}").With("topic", resolvedTopic)
+	session.emit(localizedEvent(unsubscribedMessage, vulpesDtos.RealtimeEventDto{
 		Kind:      vulpesDtos.RealtimeMetadata,
-		Data:      fmt.Sprintf("Inscrição cancelada: %s", resolvedTopic),
 		Event:     "UNSUBSCRIBE",
 		Direction: vulpesDtos.DirectionSystem,
-	})
+	}))
 	return nil
 }
 
@@ -381,11 +377,11 @@ func (session *mqttSession) read(onFinish func()) {
 		packetType, flags, body, err := vulpesFunctions.ReadMqttPacket(session.connection)
 		if err != nil {
 			if session.closedByClient.Load() {
-				session.emit(vulpesDtos.RealtimeEventDto{Kind: vulpesDtos.RealtimeClosed, Data: "Desconectado", Direction: vulpesDtos.DirectionSystem})
+				session.emit(systemEvent(vulpesDtos.RealtimeClosed, appErrors.New("vulpes.realtimeDisconnected", "Desconectado")))
 				return
 			}
-			session.emit(vulpesDtos.RealtimeEventDto{Kind: vulpesDtos.RealtimeError, Data: err.Error(), Direction: vulpesDtos.DirectionSystem})
-			session.emit(vulpesDtos.RealtimeEventDto{Kind: vulpesDtos.RealtimeClosed, Data: "Conexão encerrada pelo broker", Direction: vulpesDtos.DirectionSystem})
+			session.emit(errorEvent(err))
+			session.emit(systemEvent(vulpesDtos.RealtimeClosed, appErrors.New("vulpes.realtimeClosedByBroker", "Conexão encerrada pelo broker")))
 			return
 		}
 		session.handlePacket(packetType, flags, body)
@@ -397,7 +393,7 @@ func (session *mqttSession) handlePacket(packetType byte, flags byte, body []byt
 	case vulpesFunctions.MqttPublish:
 		incoming, err := vulpesFunctions.ParseMqttPublish(flags, body)
 		if err != nil {
-			session.emit(vulpesDtos.RealtimeEventDto{Kind: vulpesDtos.RealtimeError, Data: err.Error(), Direction: vulpesDtos.DirectionSystem})
+			session.emit(errorEvent(err))
 			return
 		}
 		if incoming.Qos == 1 {
@@ -426,13 +422,12 @@ func (session *mqttSession) handlePacket(packetType byte, flags byte, body []byt
 		session.emit(event)
 	case vulpesFunctions.MqttPuback:
 		if packetID, err := vulpesFunctions.ParseMqttPacketID(body); err == nil {
-			session.emit(vulpesDtos.RealtimeEventDto{
+			session.emit(localizedEvent(appErrors.New("vulpes.realtimePuback", "Publicação confirmada pelo broker (PUBACK)"), vulpesDtos.RealtimeEventDto{
 				Kind:      vulpesDtos.RealtimeAck,
-				Data:      "Publicação confirmada pelo broker (PUBACK)",
 				AckID:     int64(packetID),
 				HasAck:    true,
 				Direction: vulpesDtos.DirectionIncoming,
-			})
+			}))
 		}
 	case vulpesFunctions.MqttPubrec:
 		if packetID, err := vulpesFunctions.ParseMqttPacketID(body); err == nil {
@@ -444,13 +439,12 @@ func (session *mqttSession) handlePacket(packetType byte, flags byte, body []byt
 		}
 	case vulpesFunctions.MqttPubcomp:
 		if packetID, err := vulpesFunctions.ParseMqttPacketID(body); err == nil {
-			session.emit(vulpesDtos.RealtimeEventDto{
+			session.emit(localizedEvent(appErrors.New("vulpes.realtimePubcomp", "Publicação QoS 2 concluída (PUBCOMP)"), vulpesDtos.RealtimeEventDto{
 				Kind:      vulpesDtos.RealtimeAck,
-				Data:      "Publicação QoS 2 concluída (PUBCOMP)",
 				AckID:     int64(packetID),
 				HasAck:    true,
 				Direction: vulpesDtos.DirectionIncoming,
-			})
+			}))
 		}
 	}
 }

@@ -4,6 +4,7 @@ import RepositorySelector from './RepositorySelector';
 import OpenInEditorButton from './OpenInEditorButton';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { GitCommitHorizontal, House } from 'lucide-react';
+import { useTranslation } from '../../i18n/useTranslation';
 import ToggleThemeButton from '../../shared/components/buttons/ToggleThemeButton';
 
 interface OctohubNavbarProps {
@@ -12,18 +13,20 @@ interface OctohubNavbarProps {
 }
 
 const navLinks = [
-    { to: '/octohub/home', label: 'Início', icon: House },
-    { to: '/octohub/history', label: 'Alterações', icon: GitCommitHorizontal },
-];
+    { to: '/octohub/home', labelKey: 'home', icon: House },
+    { to: '/octohub/history', labelKey: 'changes', icon: GitCommitHorizontal },
+] as const;
 
 const OctohubNavbar: React.FC<OctohubNavbarProps> = ({ isLoggedIn, accountSwitcher }) => {
     const navigate = useNavigate();
+    const { dictionary } = useTranslation();
+    const navbarTexts = dictionary.octohub.navbar;
 
     return (
         <nav className="h-16 border-b border-gray-200 dark:border-white/5 bg-white dark:bg-zinc-900/50 backdrop-blur-md sticky top-0 z-20 px-6 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
                 <button
-                    title="Início do OctoHub"
+                    title={navbarTexts.homeTitle}
                     onClick={() => navigate('/octohub/home')}
                     className="flex items-center gap-3 shrink-0 group mr-1"
                 >
@@ -40,11 +43,11 @@ const OctohubNavbar: React.FC<OctohubNavbarProps> = ({ isLoggedIn, accountSwitch
                 </button>
 
                 <div className="flex items-center gap-1 p-1 rounded-xl bg-zinc-100/80 dark:bg-white/5 border border-zinc-200/70 dark:border-white/5 shrink-0">
-                    {navLinks.map(({ to, label, icon: Icon }) => (
+                    {navLinks.map(({ to, labelKey, icon: Icon }) => (
                         <NavLink
                             key={to}
                             to={to}
-                            title={label}
+                            title={navbarTexts[labelKey]}
                             className={({ isActive }) =>
                                 `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                     isActive
@@ -54,7 +57,7 @@ const OctohubNavbar: React.FC<OctohubNavbarProps> = ({ isLoggedIn, accountSwitch
                             }
                         >
                             <Icon className="w-3.5 h-3.5" />
-                            <span className="hidden lg:inline">{label}</span>
+                            <span className="hidden lg:inline">{navbarTexts[labelKey]}</span>
                         </NavLink>
                     ))}
                 </div>
@@ -74,7 +77,7 @@ const OctohubNavbar: React.FC<OctohubNavbarProps> = ({ isLoggedIn, accountSwitch
                 ) : (
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-500/10 text-gray-500 rounded-full text-xs font-bold">
                         <div className="w-2 h-2 rounded-full bg-gray-400" />
-                        Desconectado
+                        {navbarTexts.disconnected}
                     </div>
                 )}
                 <ToggleThemeButton />

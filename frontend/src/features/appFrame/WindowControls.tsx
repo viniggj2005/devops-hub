@@ -2,8 +2,7 @@ import { Window } from "@wailsio/runtime";
 import { useEffect, useState } from "react";
 import { isDetachedWindow } from "./WindowContext";
 import { CircleX, Copy, Minus } from "lucide-react";
-
-const closeLabel = isDetachedWindow ? "Fechar janela" : "Fechar";
+import { useTranslation } from "../i18n/useTranslation";
 
 const controlButtonClass = `
   inline-flex h-8 w-8 items-center justify-center
@@ -35,17 +34,22 @@ interface WindowControlsProps {
 }
 
 export function WindowControls({ maximized, onToggleMaximise }: WindowControlsProps) {
+  const { dictionary } = useTranslation();
+  const windowTexts = dictionary.app.window;
+  const closeLabel = isDetachedWindow ? windowTexts.closeWindow : dictionary.app.common.close;
+  const maximiseLabel = maximized ? windowTexts.restore : windowTexts.maximize;
+
   return (
     <div className="appframe-no-drag shrink-0 flex items-center gap-1.5 px-2" onDoubleClick={event => event.stopPropagation()}>
-      <button onClick={() => Window.Minimise()} className={controlButtonClass} aria-label="Minimizar" title="Minimizar">
+      <button onClick={() => Window.Minimise()} className={controlButtonClass} aria-label={windowTexts.minimize} title={windowTexts.minimize}>
         <Minus className="w-5 h-5" />
       </button>
 
       <button
         onClick={onToggleMaximise}
         className={controlButtonClass}
-        title={maximized ? "Restaurar" : "Maximizar"}
-        aria-label={maximized ? "Restaurar" : "Maximizar"}
+        title={maximiseLabel}
+        aria-label={maximiseLabel}
       >
         <Copy className="w-4 h-4 rotate-90" />
       </button>

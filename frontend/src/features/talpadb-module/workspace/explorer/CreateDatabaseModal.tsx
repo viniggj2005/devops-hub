@@ -1,5 +1,6 @@
 import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { Database, Loader2, Plus } from 'lucide-react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { fieldClass } from '../table/constants/TableStyles';
@@ -34,6 +35,8 @@ const inputClass = `${fieldClass} h-9 text-sm`;
 const CreateDatabaseModal: React.FC<CreateDatabaseModalProps> = ({ connectionId, connectionName, onClose, onCreated }) => {
   const { token } = useAuth();
   const [preview, setPreview] = useState('');
+  const { dictionary, formatMessage } = useTranslation();
+  const createTexts = dictionary.talpadb.createDatabase;
   const [creating, setCreating] = useState(false);
   const [input, setInput] = useState<CreateDatabaseInput>(emptyInput);
   const [options, setOptions] = useState<DatabaseOptions | null>(null);
@@ -53,10 +56,10 @@ const CreateDatabaseModal: React.FC<CreateDatabaseModalProps> = ({ connectionId,
     const timer = window.setTimeout(() => {
       TalpadbServices.previewCreateDatabase(input)
         .then(setPreview)
-        .catch(() => setPreview('-- Informe o nome do banco'));
+        .catch(() => setPreview(createTexts.namePrompt));
     }, 150);
     return () => window.clearTimeout(timer);
-  }, [isOpen, input]);
+  }, [isOpen, input, createTexts.namePrompt]);
 
   const change = (changes: Partial<CreateDatabaseInput>) => setInput((current) => ({ ...current, ...changes }));
 
@@ -67,11 +70,11 @@ const CreateDatabaseModal: React.FC<CreateDatabaseModalProps> = ({ connectionId,
     setCreating(true);
     try {
       await TalpadbServices.createDatabase(token, connectionId, input);
-      toast.success(`Banco criado: ${input.name.trim()}`);
+      toast.success(formatMessage(createTexts.created, { name: input.name.trim() }));
       onCreated(connectionId, input.name.trim());
       onClose();
     } catch (error) {
-      toast.error(`Erro ao criar banco: ${errorMessage(error)}`);
+      toast.error(formatMessage(createTexts.createFailed, { error: errorMessage(error) }));
     } finally {
       setCreating(false);
     }
@@ -82,7 +85,7 @@ const CreateDatabaseModal: React.FC<CreateDatabaseModalProps> = ({ connectionId,
       size="lg"
       isOpen={isOpen}
       onClose={close}
-      title="Criar banco de dados"
+      title={createTexts.title}
       description={connectionName}
       icon={<Database className="w-5 h-5 text-cyan-500" />}
       footer={
@@ -92,7 +95,7 @@ const CreateDatabaseModal: React.FC<CreateDatabaseModalProps> = ({ connectionId,
             disabled={creating}
             className="px-4 py-2 rounded-lg text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 disabled:opacity-50"
           >
-            Cancelar
+            {dictionary.app.common.cancel}
           </button>
           <button
             onClick={create}
@@ -100,18 +103,18 @@ const CreateDatabaseModal: React.FC<CreateDatabaseModalProps> = ({ connectionId,
             className="px-5 py-2 rounded-lg text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 flex items-center gap-2"
           >
             {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            {creating ? 'Criando...' : 'Criar banco'}
+            {creating ? dictionary.talpadb.common.creating : createTexts.create}
           </button>
         </>
       }
     >
       <div className="space-y-4">
         <div>
-          <label className={labelClass}>Nome</label>
+          <label className={labelClass}>{dictionary.talpadb.common.name}</label>
           <input
             autoFocus
             value={input.name}
-            placeholder="meu_banco"
+            placeholder={createTexts.namePlaceholder}
             onChange={(event) => change({ name: event.target.value })}
             onKeyDown={(event) => event.key === 'Enter' && create()}
             className={inputClass}
@@ -120,9 +123,9 @@ const CreateDatabaseModal: React.FC<CreateDatabaseModalProps> = ({ connectionId,
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={labelClass}>Dono</label>
+            <label className={labelClass}>{createTexts.owner}</label>
             <select value={input.owner} onChange={(event) => change({ owner: event.target.value })} className={inputClass}>
-              <option value="">{options ? `${options.currentUser} (você)` : 'Usuário atual'}</option>
+              <option value="">{options ? formatMessage(createTexts.currentUserYou, { user: options.currentUser }) : createTexts.currentUser}</option>
               {options?.roles
                 .filter((role) => role !== options.currentUser)
                 .map((role) => (
@@ -133,9 +136,9 @@ const CreateDatabaseModal: React.FC<CreateDatabaseModalProps> = ({ connectionId,
             </select>
           </div>
           <div>
-            <label className={labelClass}>Template</label>
+            <label className={labelClass}>{createTexts.template}</label>
             <select value={input.template} onChange={(event) => change({ template: event.target.value })} className={inputClass}>
-              <option value="">template1 (padrão)</option>
+              <option value="">{createTexts.defaultTemplate}</option>
               {options?.templates
                 .filter((template) => template !== 'template1')
                 .map((template) => (
@@ -149,7 +152,7 @@ const CreateDatabaseModal: React.FC<CreateDatabaseModalProps> = ({ connectionId,
 
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className={labelClass}>Encoding</label>
+            <label className={labelClass}>{createTexts.encoding}</label>
             <input
               list="talpadb-encodings"
               value={input.encoding}
@@ -164,31 +167,31 @@ const CreateDatabaseModal: React.FC<CreateDatabaseModalProps> = ({ connectionId,
             </datalist>
           </div>
           <div>
-            <label className={labelClass}>Collation (LC_COLLATE)</label>
+            <label className={labelClass}>{createTexts.collation}</label>
             <input
               value={input.collate}
-              placeholder={options?.defaultCollate || 'herda do template'}
+              placeholder={options?.defaultCollate || createTexts.inheritsTemplate}
               onChange={(event) => change({ collate: event.target.value })}
               className={`${inputClass} font-mono`}
             />
           </div>
           <div>
-            <label className={labelClass}>Ctype (LC_CTYPE)</label>
+            <label className={labelClass}>{createTexts.ctype}</label>
             <input
               value={input.ctype}
-              placeholder={options?.defaultCtype || 'herda do template'}
+              placeholder={options?.defaultCtype || createTexts.inheritsTemplate}
               onChange={(event) => change({ ctype: event.target.value })}
               className={`${inputClass} font-mono`}
             />
           </div>
         </div>
         <p className="text-[11px] text-gray-500 dark:text-zinc-400 -mt-1">
-          Deixe em branco para herdar do template. Encoding ou collation diferentes do template1 exigem o template0.
+          {createTexts.inheritHint}
         </p>
 
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,3fr)] gap-3">
           <div>
-            <label className={labelClass}>Limite de conexões</label>
+            <label className={labelClass}>{createTexts.connectionLimit}</label>
             <input
               type="number"
               min={-1}
@@ -198,10 +201,10 @@ const CreateDatabaseModal: React.FC<CreateDatabaseModalProps> = ({ connectionId,
             />
           </div>
           <div>
-            <label className={labelClass}>Comentário</label>
+            <label className={labelClass}>{dictionary.talpadb.common.comment}</label>
             <input
               value={input.comment}
-              placeholder="Opcional"
+              placeholder={createTexts.optional}
               onChange={(event) => change({ comment: event.target.value })}
               className={inputClass}
             />

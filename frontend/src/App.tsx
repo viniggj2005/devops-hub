@@ -4,8 +4,11 @@ import MainHomePage from './pages/MainHomePage';
 import { Events, Window } from '@wailsio/runtime';
 import { AppFrame } from './features/appFrame/appFrame';
 import SettingsPage from './pages/settings/SettingsPage';
+import { tabTitle } from './features/appFrame/TabTitle';
 import { useAppStore } from './features/appFrame/AppStore';
+import { useTranslation } from './features/i18n/useTranslation';
 import { windowInstanceId } from './features/appFrame/WindowContext';
+import { languageChangedEvent, useLanguageStore } from './features/i18n/LanguageStore';
 import { useUpdateNotifier } from './features/shared/hooks/useUpdateNotifier';
 import VulpesModuleWrapper from './features/vulpes-module/components/VulpesModuleWrapper';
 import DockerModuleWrapper from './features/docker-module/components/DockerModuleWrapper';
@@ -16,10 +19,12 @@ import FerretShellModuleWrapper from './features/ferretShell-module/components/F
 import { generalConfigsChangedEvent, useGeneralConfigsStore } from './features/settings/store/GeneralConfigsStore';
 
 export default function App() {
+  const { dictionary } = useTranslation();
   const { tabs, activeTabId } = useAppStore();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const loadGeneralConfigs = useGeneralConfigsStore(state => state.load);
   const resetGeneralConfigs = useGeneralConfigsStore(state => state.reset);
+  const applyLanguage = useLanguageStore(state => state.applyLanguage);
   const octohubColors = useGeneralConfigsStore(state => state.octohubColors);
 
   useUpdateNotifier();
@@ -33,10 +38,14 @@ export default function App() {
     if (originWindowId !== windowInstanceId) loadGeneralConfigs();
   }), [loadGeneralConfigs]);
 
+  useEffect(() => Events.On(languageChangedEvent, ({ data }) => {
+    if (data?.originWindowId !== windowInstanceId) applyLanguage(data?.language);
+  }), [applyLanguage]);
+
   useEffect(() => applyOctohubColorVariables(octohubColors), [octohubColors]);
 
   const activeTab = tabs.find(tab => tab.id === activeTabId);
-  const windowTitle = activeTab && activeTab.type !== 'home' ? `Devops Hub · ${activeTab.title}` : 'Devops Hub';
+  const windowTitle = activeTab && activeTab.type !== 'home' ? `Devops Hub · ${tabTitle(activeTab, dictionary)}` : 'Devops Hub';
 
   useEffect(() => {
     Window.SetTitle(windowTitle);

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -12,6 +11,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 
+	"docker-manager-go/src/appErrors"
 	auth "docker-manager-go/src/auth/functions"
 	"docker-manager-go/src/models"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
@@ -24,9 +24,9 @@ const (
 )
 
 var (
-	errCollectionNotFound  = errors.New("coleção não encontrada")
-	errEnvironmentNotFound = errors.New("ambiente não encontrado")
-	errMoveIntoItself      = errors.New("não é possível mover uma pasta para dentro dela mesma")
+	errCollectionNotFound  = appErrors.New("vulpes.collectionNotFound", "coleção não encontrada")
+	errEnvironmentNotFound = appErrors.New("vulpes.environmentNotFound", "ambiente não encontrado")
+	errMoveIntoItself      = appErrors.New("vulpes.moveIntoItself", "não é possível mover uma pasta para dentro dela mesma")
 )
 
 type VulpesHandlerStruct struct {
@@ -63,13 +63,29 @@ func (handlerStruct *VulpesHandlerStruct) database() *gorm.DB {
 	return handlerStruct.DataBase.WithContext(handlerStruct.databaseContext())
 }
 
-func validateName(name string, subject string) (string, error) {
+type nameRules struct {
+	required *appErrors.AppError
+	tooLong  *appErrors.AppError
+}
+
+var (
+	collectionNameRules = nameRules{
+		required: appErrors.New("vulpes.collectionNameRequired", "informe o nome da coleção"),
+		tooLong:  appErrors.New("vulpes.collectionNameTooLong", "o nome da coleção pode ter no máximo {max} caracteres"),
+	}
+	environmentNameRules = nameRules{
+		required: appErrors.New("vulpes.environmentNameRequired", "informe o nome do ambiente"),
+		tooLong:  appErrors.New("vulpes.environmentNameTooLong", "o nome do ambiente pode ter no máximo {max} caracteres"),
+	}
+)
+
+func validateName(name string, rules nameRules) (string, error) {
 	trimmed := strings.TrimSpace(name)
 	if trimmed == "" {
-		return "", fmt.Errorf("informe o nome do %s", subject)
+		return "", rules.required
 	}
 	if utf8.RuneCountInString(trimmed) > maxNameLength {
-		return "", fmt.Errorf("o nome do %s pode ter no máximo %d caracteres", subject, maxNameLength)
+		return "", rules.tooLong.With("max", maxNameLength)
 	}
 	return trimmed, nil
 }
@@ -93,7 +109,7 @@ func decodeContent(encoded string) (vulpesDtos.CollectionContentDto, error) {
 	var content vulpesDtos.CollectionContentDto
 	if strings.TrimSpace(encoded) != "" {
 		if err := json.Unmarshal([]byte(encoded), &content); err != nil {
-			return content, fmt.Errorf("o conteúdo da coleção está corrompido: %w", err)
+			return content, appErrors.Wrap("vulpes.corruptedCollection", "o conteúdo da coleção está corrompido", err)
 		}
 	}
 	vulpesFunctions.NormalizeContent(&content)
@@ -107,7 +123,7 @@ func encodeContent(content *vulpesDtos.CollectionContentDto) (string, error) {
 		return "", err
 	}
 	if len(encoded) > maxCollectionBytes {
-		return "", fmt.Errorf("a coleção ultrapassou o limite de %d MB", maxCollectionBytes>>20)
+		return "", appErrors.New("vulpes.collectionTooLarge", "a coleção ultrapassou o limite de {megabytes} MB").With("megabytes", maxCollectionBytes>>20)
 	}
 	return string(encoded), nil
 }
@@ -171,7 +187,7 @@ func (handlerStruct *VulpesHandlerStruct) FindAllCollections(token string) ([]vu
 	for index := range collections {
 		content, err := decodeContent(collections[index].Content.Plaintext)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", collections[index].Name, err)
+			return nil, appErrors.Wrap("vulpes.namedFailure", "{name}", err).With("name", collections[index].Name)
 		}
 		result = append(result, toCollectionDto(&collections[index], content))
 	}
@@ -183,7 +199,7 @@ func (handlerStruct *VulpesHandlerStruct) CreateCollection(token string, input v
 	if err != nil {
 		return nil, err
 	}
-	name, err := validateName(input.Name, "coleção")
+	name, err := validateName(input.Name, collectionNameRules)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +216,7 @@ func (handlerStruct *VulpesHandlerStruct) createCollection(dataBase *gorm.DB, us
 	collection := models.VulpesCollectionModel{Name: name, UserID: userID}
 	collection.Content.Plaintext = encoded
 	if err := dataBase.Create(&collection).Error; err != nil {
-		return nil, fmt.Errorf("erro ao criar coleção: %w", err)
+		return nil, appErrors.Wrap("vulpes.createCollectionFailed", "erro ao criar coleção", err)
 	}
 	result := toCollectionDto(&collection, content)
 	return &result, nil
@@ -211,7 +227,7 @@ func (handlerStruct *VulpesHandlerStruct) UpdateCollection(token string, collect
 	if err != nil {
 		return nil, err
 	}
-	name, err := validateName(input.Name, "coleção")
+	name, err := validateName(input.Name, collectionNameRules)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +261,7 @@ func (handlerStruct *VulpesHandlerStruct) DeleteCollection(token string, collect
 	}
 	result := handlerStruct.database().Where("id = ? AND user_id = ?", collectionID, userID).Delete(&models.VulpesCollectionModel{})
 	if result.Error != nil {
-		return fmt.Errorf("erro ao excluir coleção: %w", result.Error)
+		return appErrors.Wrap("vulpes.deleteCollectionFailed", "erro ao excluir coleção", result.Error)
 	}
 	if result.RowsAffected == 0 {
 		return errCollectionNotFound
@@ -442,7 +458,7 @@ func decodeVariables(encoded string) ([]vulpesDtos.VariableDto, error) {
 	var variables []vulpesDtos.VariableDto
 	if strings.TrimSpace(encoded) != "" {
 		if err := json.Unmarshal([]byte(encoded), &variables); err != nil {
-			return nil, fmt.Errorf("as variáveis do ambiente estão corrompidas: %w", err)
+			return nil, appErrors.Wrap("vulpes.corruptedEnvironment", "as variáveis do ambiente estão corrompidas", err)
 		}
 	}
 	return vulpesFunctions.NormalizeVariables(variables), nil
@@ -467,7 +483,7 @@ func (handlerStruct *VulpesHandlerStruct) FindAllEnvironments(token string) ([]v
 	for index := range environments {
 		variables, err := decodeVariables(environments[index].Variables.Plaintext)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", environments[index].Name, err)
+			return nil, appErrors.Wrap("vulpes.namedFailure", "{name}", err).With("name", environments[index].Name)
 		}
 		result = append(result, toEnvironmentDto(&environments[index], variables))
 	}
@@ -483,7 +499,7 @@ func (handlerStruct *VulpesHandlerStruct) CreateEnvironment(token string, input 
 }
 
 func (handlerStruct *VulpesHandlerStruct) createEnvironment(dataBase *gorm.DB, userID uint, input vulpesDtos.EnvironmentInputDto) (*vulpesDtos.EnvironmentDto, error) {
-	name, err := validateName(input.Name, "ambiente")
+	name, err := validateName(input.Name, environmentNameRules)
 	if err != nil {
 		return nil, err
 	}
@@ -496,7 +512,7 @@ func (handlerStruct *VulpesHandlerStruct) createEnvironment(dataBase *gorm.DB, u
 	environment := models.VulpesEnvironmentModel{Name: name, UserID: userID}
 	environment.Variables.Plaintext = string(encoded)
 	if err := dataBase.Create(&environment).Error; err != nil {
-		return nil, fmt.Errorf("erro ao criar ambiente: %w", err)
+		return nil, appErrors.Wrap("vulpes.createEnvironmentFailed", "erro ao criar ambiente", err)
 	}
 	result := toEnvironmentDto(&environment, variables)
 	return &result, nil
@@ -507,7 +523,7 @@ func (handlerStruct *VulpesHandlerStruct) UpdateEnvironment(token string, enviro
 	if err != nil {
 		return nil, err
 	}
-	name, err := validateName(input.Name, "ambiente")
+	name, err := validateName(input.Name, environmentNameRules)
 	if err != nil {
 		return nil, err
 	}
@@ -524,7 +540,7 @@ func (handlerStruct *VulpesHandlerStruct) UpdateEnvironment(token string, enviro
 	environment.Name = name
 	environment.Variables.Plaintext = string(encoded)
 	if err := handlerStruct.database().Save(environment).Error; err != nil {
-		return nil, fmt.Errorf("erro ao atualizar ambiente: %w", err)
+		return nil, appErrors.Wrap("vulpes.updateEnvironmentFailed", "erro ao atualizar ambiente", err)
 	}
 	result := toEnvironmentDto(environment, variables)
 	return &result, nil
@@ -537,7 +553,7 @@ func (handlerStruct *VulpesHandlerStruct) DeleteEnvironment(token string, enviro
 	}
 	result := handlerStruct.database().Where("id = ? AND user_id = ?", environmentID, userID).Delete(&models.VulpesEnvironmentModel{})
 	if result.Error != nil {
-		return fmt.Errorf("erro ao excluir ambiente: %w", result.Error)
+		return appErrors.Wrap("vulpes.deleteEnvironmentFailed", "erro ao excluir ambiente", result.Error)
 	}
 	if result.RowsAffected == 0 {
 		return errEnvironmentNotFound

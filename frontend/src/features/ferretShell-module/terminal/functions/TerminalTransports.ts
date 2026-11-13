@@ -3,10 +3,9 @@ import * as SshTerminal from '../../../../../bindings/docker-manager-go/src/ferr
 import * as LocalTerminal from '../../../../../bindings/docker-manager-go/src/ferretshell/handlers/localterminalhandlerstruct';
 
 export interface TerminalTransport {
-  exitLabel: string;
   exitEvent: string;
   dataEvent: string;
-  restartAction: string;
+  kind: 'ssh' | 'local';
   disconnect: () => void;
   attach: () => Promise<void>;
   send: (data: string) => Promise<void>;
@@ -17,8 +16,7 @@ export interface TerminalTransport {
 const buildSshTransport = (instance: TerminalInstance): TerminalTransport => {
   const sessionId = instance.config?.SshSessionId || instance.id;
   return {
-    restartAction: 'reconectar',
-    exitLabel: 'conexão encerrada',
+    kind: 'ssh',
     exitEvent: `ssh:exit:${sessionId}`,
     dataEvent: `ssh:data:${sessionId}`,
     disconnect: () => SshTerminal.Disconnect(sessionId),
@@ -32,8 +30,7 @@ const buildSshTransport = (instance: TerminalInstance): TerminalTransport => {
 const buildLocalTransport = (instance: TerminalInstance, shellId: string): TerminalTransport => {
   const sessionId = instance.id;
   return {
-    restartAction: 'reiniciar',
-    exitLabel: 'terminal encerrado',
+    kind: 'local',
     exitEvent: `local:exit:${sessionId}`,
     dataEvent: `local:data:${sessionId}`,
     disconnect: () => LocalTerminal.Disconnect(sessionId),

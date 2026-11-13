@@ -1,4 +1,6 @@
 import toast from 'react-hot-toast';
+import { formatMessage } from '../../i18n/Languages';
+import { currentDictionary } from '../../i18n/TranslateError';
 import { getToken } from '../../../contexts/AuthContext';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
 import type { ExportFormat, ExportResult } from '../../../interfaces/VulpesInterfaces';
@@ -10,7 +12,7 @@ export const exportFormats: { format: ExportFormat; label: string }[] = [
 
 export const requireToken = () => {
   const token = getToken();
-  if (!token) throw new Error('Sessão expirada; faça login novamente');
+  if (!token) throw new Error(currentDictionary().vulpes.common.sessionExpired);
   return token;
 };
 
@@ -25,8 +27,10 @@ export const runWithToast = async <Result>(operation: () => Promise<Result>, suc
   }
 };
 
-export const announceExport = (result: ExportResult | null, subject: string) => {
+export const announceExport = (result: ExportResult | null, subject: 'environment' | 'collection') => {
   if (!result?.path) return;
-  toast.success(`${subject} exportado para ${result.path}`);
+  const commonTexts = currentDictionary().vulpes.common;
+  const template = subject === 'environment' ? commonTexts.environmentExported : commonTexts.collectionExported;
+  toast.success(formatMessage(template, { path: result.path }));
   if (result.warnings.length) toast(result.warnings.join('\n'), { icon: '⚠️', duration: 9000 });
 };

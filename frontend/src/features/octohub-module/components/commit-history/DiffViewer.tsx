@@ -1,5 +1,6 @@
 import { Undo2 } from 'lucide-react';
 import SelectionCheckbox from './SelectionCheckbox';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { stateOf } from '../../functions/lineSelection';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { DiffHunk, DiffLine, parseDiff } from '../../functions/diffParser';
@@ -19,7 +20,9 @@ const lineStyles: Record<string, { row: string; prefix: string }> = {
 };
 
 const DiffViewer: React.FC<DiffViewerProps> = ({ diff, loading, isLineSelected, onSetLines, onDiscardHunk }) => {
+    const { dictionary } = useTranslation();
     const dragSelection = useRef<boolean | null>(null);
+    const diffTexts = dictionary.octohub.diff;
     const lastClickedLine = useRef<number | null>(null);
     const parsed = useMemo(() => parseDiff(diff ?? ''), [diff]);
     const selectable = Boolean(isLineSelected && onSetLines) && parsed.changeIndexes.length > 0;
@@ -72,7 +75,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, loading, isLineSelected, 
                         {selectable && (
                             <button
                                 onClick={() => toggleHunk(hunk)}
-                                title="Selecionar ou desmarcar todas as linhas deste trecho"
+                                title={diffTexts.toggleHunk}
                                 className="w-7 flex items-center justify-center hover:bg-zinc-200 dark:hover:bg-white/10"
                             >
                                 <SelectionCheckbox size="w-3.5 h-3.5" state={stateOf(selectedCount, hunk.changeIndexes.length)} />
@@ -81,11 +84,11 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, loading, isLineSelected, 
                         {onDiscardHunk ? (
                             <button
                                 onClick={() => onDiscardHunk(hunk)}
-                                title="Descartar as alterações deste trecho"
+                                title={diffTexts.discardHunk}
                                 className="w-20 flex items-center justify-center gap-1 font-sans font-bold hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
                             >
                                 <Undo2 className="w-3 h-3" />
-                                Descartar
+                                {dictionary.octohub.common.discard}
                             </button>
                         ) : (
                             <div className="w-20 flex items-center justify-center">@@</div>
@@ -103,7 +106,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, loading, isLineSelected, 
                         {selectable && <div className="w-7" />}
                         <div className="w-20" />
                     </div>
-                    <div className="px-4 py-0.5 text-[10px]">Sem quebra de linha no final do arquivo</div>
+                    <div className="px-4 py-0.5 text-[10px]">{diffTexts.noNewline}</div>
                 </div>
             );
         }
@@ -120,7 +123,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, loading, isLineSelected, 
                             <div
                                 onMouseDown={(event) => startToggle(event, line.index)}
                                 onMouseEnter={() => continueDragging(line.index)}
-                                title={selected ? 'Esta linha entra no commit (clique para remover)' : 'Esta linha não entra no commit (clique para incluir)'}
+                                title={selected ? diffTexts.lineIncluded : diffTexts.lineExcluded}
                                 className="w-7 flex items-center justify-center cursor-pointer hover:bg-zinc-200 dark:hover:bg-white/10"
                             >
                                 <SelectionCheckbox size="w-3.5 h-3.5" state={selected ? 'all' : 'none'} />
@@ -144,7 +147,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, loading, isLineSelected, 
         return (
             <div className="p-8 flex items-center justify-center gap-2 text-zinc-500 text-xs italic">
                 <div className="w-3 h-3 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin"></div>
-                Carregando diff...
+                {diffTexts.loading}
             </div>
         );
     }
@@ -154,7 +157,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, loading, isLineSelected, 
     if (parsed.isBinary || parsed.lines.length === 0) {
         return (
             <div className="p-8 text-center text-zinc-500 text-xs italic">
-                {parsed.isBinary ? 'Arquivo binário: o conteúdo não pode ser exibido.' : 'Sem alterações de conteúdo para exibir.'}
+                {parsed.isBinary ? diffTexts.binary : diffTexts.noContentChanges}
             </div>
         );
     }

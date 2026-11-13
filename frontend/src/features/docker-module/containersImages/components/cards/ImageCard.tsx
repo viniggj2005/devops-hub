@@ -1,5 +1,6 @@
 import toast from 'react-hot-toast';
 import React, { useState } from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { BookSearch, Copy, Tag, Trash2 } from 'lucide-react';
 import { errorMessage } from '../../../../shared/functions/ErrorMessage';
 import { DockerImageIcon } from '../../../../../features/shared/Icons';
@@ -14,6 +15,8 @@ import { EpochToDateStr, FmtAgo, FormatBytes, ParseNameAndTag } from '../../../.
 const ImageCard: React.FC<ImageProps> = ({ image, onDeleted }) => {
   const id = image?.Id ?? '';
   const confirmToast = useConfirmToast();
+  const { dictionary, formatMessage } = useTranslation();
+  const imageTexts = dictionary.docker.images;
   const { selectedCredentialId } = useDockerClient();
   const { name, tag } = ParseNameAndTag(image?.RepoTags);
   const [isInspectOpen, setIsInspectOpen] = useState(false);
@@ -21,7 +24,7 @@ const ImageCard: React.FC<ImageProps> = ({ image, onDeleted }) => {
 
   const ensureClient = () => {
     if (selectedCredentialId == null) {
-      toast.error('Escolha uma credencial Docker para executar esta ação.');
+      toast.error(dictionary.docker.common.chooseCredentialAction);
       return null;
     }
     return selectedCredentialId;
@@ -32,8 +35,8 @@ const ImageCard: React.FC<ImageProps> = ({ image, onDeleted }) => {
     if (clientId == null) return;
     confirmToast({
       id,
-      title: 'Excluir imagem?',
-      message: `Deseja remover ${name}:${tag}? Esta ação não pode ser desfeita.`,
+      title: imageTexts.deleteTitle,
+      message: formatMessage(imageTexts.deleteMessage, { image: `${name}:${tag}` }),
       onConfirm: async () => {
         const latestClientId = ensureClient();
         if (latestClientId == null) return;
@@ -85,7 +88,7 @@ const ImageCard: React.FC<ImageProps> = ({ image, onDeleted }) => {
             type="button"
             onClick={handleInspect}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer"
-            title="Inspecionar imagem"
+            title={imageTexts.inspect}
           >
             <BookSearch className="h-4 w-4" />
           </button>
@@ -93,7 +96,7 @@ const ImageCard: React.FC<ImageProps> = ({ image, onDeleted }) => {
             type="button"
             onClick={handleDelete}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 cursor-pointer"
-            title="Excluir imagem"
+            title={imageTexts.delete}
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -103,7 +106,7 @@ const ImageCard: React.FC<ImageProps> = ({ image, onDeleted }) => {
       <div className="grid grid-cols-2 gap-4 border-y border-gray-100 py-3 dark:border-white/[0.05]">
         <div className="space-y-0.5">
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-            Tamanho
+            {imageTexts.size}
           </p>
           <p className="text-xs font-semibold text-gray-700 dark:text-zinc-300">
             {FormatBytes(image?.Size || 0)}
@@ -111,7 +114,7 @@ const ImageCard: React.FC<ImageProps> = ({ image, onDeleted }) => {
         </div>
         <div className="space-y-0.5">
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-            Criado
+            {imageTexts.created}
           </p>
           <div className="flex flex-col">
             <span className="text-xs font-semibold text-gray-700 dark:text-zinc-300">
@@ -127,25 +130,25 @@ const ImageCard: React.FC<ImageProps> = ({ image, onDeleted }) => {
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => copyToClipboard(id.replace('sha256:', ''), 'ID da imagem copiado')}
+          onClick={() => copyToClipboard(id.replace('sha256:', ''), imageTexts.idCopied)}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 py-2 text-xs font-medium text-gray-600 transition-all hover:bg-gray-100 dark:border-white/[0.06] dark:bg-zinc-950/60 dark:text-zinc-400 dark:hover:bg-white/5 cursor-pointer"
         >
           <Copy className="h-3.5 w-3.5" />
-          <span>Copiar ID</span>
+          <span>{imageTexts.copyId}</span>
         </button>
         <button
           type="button"
-          onClick={() => copyToClipboard(`${name}:${tag}`, 'Tag copiada')}
+          onClick={() => copyToClipboard(`${name}:${tag}`, imageTexts.tagCopied)}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 py-2 text-xs font-medium text-gray-600 transition-all hover:bg-gray-100 dark:border-white/[0.06] dark:bg-zinc-950/60 dark:text-zinc-400 dark:hover:bg-white/5 cursor-pointer"
         >
           <Copy className="h-3.5 w-3.5" />
-          <span>Copiar Tag</span>
+          <span>{imageTexts.copyTag}</span>
         </button>
       </div>
 
       {isInspectOpen && (
         <InspectModal
-          title="Inspect da imagem"
+          title={imageTexts.inspectTitle}
           name={`${name}:${tag}`}
           data={inspectContent}
           onClose={() => setIsInspectOpen(false)}

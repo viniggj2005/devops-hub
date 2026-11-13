@@ -2,6 +2,7 @@ import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { Modal } from '../../../shared/components/modals/Modal';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { TalpadbServices } from '../../services/TalpadbServices';
 import { ModalButton } from '../../../shared/components/modals/ModalButton';
 import { errorMessage, formatDuration } from '../../functions/TreatmentFunctions';
@@ -47,13 +48,6 @@ const emptyForm = (engine: DatabaseEngine): FormState => {
   };
 };
 
-const engineDescriptions: Record<DatabaseEngine, string> = {
-  postgres: 'Servidor PostgreSQL',
-  mysql: 'Servidor MySQL / MariaDB',
-  oracle: 'Servidor Oracle (service name)',
-  sqlite: 'Arquivo local .db / .sqlite',
-};
-
 const inputClass = `w-full px-4 py-3 rounded-xl border backdrop-blur-sm transition-all outline-none
     bg-white/80 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20
     dark:bg-white/10 dark:border-white/20 dark:text-white dark:placeholder:text-white/40 dark:focus:border-cyan-500/50 dark:focus:ring-cyan-500/20 dark:[color-scheme:dark]`;
@@ -67,7 +61,9 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
   connection,
 }) => {
   const { token } = useAuth();
+  const { dictionary, formatMessage } = useTranslation();
   const isEditing = Boolean(connection);
+  const formTexts = dictionary.talpadb.connectionForm;
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [form, setForm] = useState<FormState>(() => emptyForm('postgres'));
@@ -145,7 +141,7 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
       const result = await TalpadbServices.testConnection(token, connection?.id ?? 0, toPayload());
       setTestResult({
         success: true,
-        message: `Conectado ao ${info.label} ${result.serverVersion} em ${formatDuration(result.latencyMs)}.`,
+        message: formatMessage(formTexts.connectedTo, { engine: info.label, version: result.serverVersion, latency: formatDuration(result.latencyMs) }),
       });
     } catch (error) {
       setTestResult({ success: false, message: errorMessage(error) });
@@ -163,12 +159,12 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
         ? await TalpadbServices.updateConnection(token, connection!.id, toPayload())
         : await TalpadbServices.createConnection(token, toPayload());
       toast.success(
-        isEditing ? 'Conexão atualizada com sucesso.' : `A conexão ${info.label} foi criada.`
+        isEditing ? formTexts.updated : formatMessage(formTexts.created, { engine: info.label })
       );
       onSaved(saved);
       onClose();
     } catch (error) {
-      toast.error(`Erro ao salvar conexão: ${errorMessage(error)}`);
+      toast.error(formatMessage(formTexts.saveFailed, { error: errorMessage(error) }));
     } finally {
       setSaving(false);
     }
@@ -178,8 +174,8 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
     <Modal
       isOpen={open}
       onClose={onClose}
-      title={isEditing ? `Editar conexão ${info.label}` : 'Nova conexão'}
-      description={isEditing ? 'modifique os dados necessários' : 'escolha o banco e preencha os dados'}
+      title={isEditing ? formatMessage(formTexts.editTitle, { engine: info.label }) : formTexts.newTitle}
+      description={isEditing ? formTexts.editDescription : formTexts.newDescription}
       icon={
         isEditing ? (
           <FilePen className="w-5 h-5 text-blue-500" />
@@ -196,10 +192,10 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
             disabled={testing || saving || !form.host.trim()}
             isLoading={testing}
           >
-            Testar conexão
+            {dictionary.talpadb.common.testConnection}
           </ModalButton>
           <ModalButton variant="secondary" onClick={onClose} disabled={saving}>
-            Cancelar
+            {dictionary.app.common.cancel}
           </ModalButton>
           <ModalButton
             variant="primary"
@@ -207,7 +203,7 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
             disabled={saving}
             isLoading={saving}
           >
-            {isEditing ? 'Salvar alterações' : 'Criar Conexão'}
+            {isEditing ? formTexts.saveChanges : formTexts.create}
           </ModalButton>
         </>
       }
@@ -227,7 +223,7 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
                 }`}
               >
                 <span className="block text-sm font-semibold text-gray-900 dark:text-white">{engineInfo(engine).label}</span>
-                <span className="block text-xs text-gray-500 dark:text-gray-400">{engineDescriptions[engine]}</span>
+                <span className="block text-xs text-gray-500 dark:text-gray-400">{formTexts.engineDescriptions[engine]}</span>
               </button>
             ))}
           </div>
@@ -235,14 +231,14 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
 
         <p className="text-sm mb-4 text-gray-600 dark:text-gray-400">
           {isSqlite
-            ? 'O caminho do arquivo é armazenado criptografado no banco local do Devops Hub.'
-            : 'Senha e host são armazenados criptografados no banco local do Devops Hub.'}
+            ? formTexts.sqliteStorageHint
+            : formTexts.storageHint}
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
             <label className={labelClass}>
-              Alias <span className="opacity-60 text-xs">(opcional)</span>
+              {formTexts.alias} <span className="opacity-60 text-xs">{formTexts.optional}</span>
             </label>
             <input
               className={inputClass}
@@ -250,13 +246,13 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
               name="alias"
               value={form.alias}
               onChange={handleChange}
-              placeholder="ex: Produção"
+              placeholder={formTexts.aliasPlaceholder}
             />
           </div>
 
           {isSqlite ? (
             <div className="md:col-span-2">
-              <label className={labelClass}>Arquivo do banco</label>
+              <label className={labelClass}>{formTexts.databaseFile}</label>
               <div className="flex gap-2">
                 <input
                   className={`${inputClass} font-mono text-sm`}
@@ -265,21 +261,21 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
                   value={form.host}
                   onChange={handleChange}
                   required
-                  placeholder="ex: C:\dados\app.db"
+                  placeholder={formTexts.filePlaceholder}
                 />
                 <button
                   type="button"
                   onClick={chooseFile}
                   className="flex items-center gap-2 px-4 rounded-xl border border-gray-200 dark:border-white/20 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/10 whitespace-nowrap"
                 >
-                  <FolderOpen className="w-4 h-4" /> Procurar…
+                  <FolderOpen className="w-4 h-4" /> {formTexts.browse}
                 </button>
               </div>
             </div>
           ) : (
             <>
               <div>
-                <label className={labelClass}>Host</label>
+                <label className={labelClass}>{formTexts.host}</label>
                 <input
                   className={inputClass}
                   type="text"
@@ -287,12 +283,12 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
                   value={form.host}
                   onChange={handleChange}
                   required
-                  placeholder="ex: 192.168.0.10"
+                  placeholder={formTexts.hostPlaceholder}
                 />
               </div>
 
               <div>
-                <label className={labelClass}>Porta</label>
+                <label className={labelClass}>{formTexts.port}</label>
                 <input
                   className={inputClass}
                   type="number"
@@ -306,8 +302,8 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
 
               <div>
                 <label className={labelClass}>
-                  {form.engine === 'oracle' ? 'Service name' : 'Banco padrão'}
-                  {form.engine === 'mysql' && <span className="opacity-60 text-xs"> (opcional)</span>}
+                  {form.engine === 'oracle' ? formTexts.serviceName : formTexts.defaultDatabase}
+                  {form.engine === 'mysql' && <span className="opacity-60 text-xs"> {formTexts.optional}</span>}
                 </label>
                 <input
                   className={inputClass}
@@ -318,16 +314,16 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
                   required={form.engine === 'oracle'}
                   placeholder={
                     form.engine === 'oracle'
-                      ? 'ex: FREEPDB1, ORCL'
+                      ? formatMessage(formTexts.examplePrefix, { value: 'FREEPDB1, ORCL' })
                       : form.engine === 'mysql'
-                        ? 'ex: app_db'
+                        ? formatMessage(formTexts.examplePrefix, { value: 'app_db' })
                         : 'postgres'
                   }
                 />
               </div>
 
               <div>
-                <label className={labelClass}>Usuário</label>
+                <label className={labelClass}>{formTexts.user}</label>
                 <input
                   className={inputClass}
                   type="text"
@@ -337,19 +333,19 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
                   required
                   placeholder={
                     form.engine === 'oracle'
-                      ? 'ex: system'
+                      ? formatMessage(formTexts.examplePrefix, { value: 'system' })
                       : form.engine === 'mysql'
-                        ? 'ex: root'
-                        : 'ex: postgres'
+                        ? formatMessage(formTexts.examplePrefix, { value: 'root' })
+                        : formatMessage(formTexts.examplePrefix, { value: 'postgres' })
                   }
                 />
               </div>
 
               <div>
                 <label className={labelClass}>
-                  Senha{' '}
+                  {formTexts.password}{' '}
                   {isEditing && connection?.hasPassword && (
-                    <span className="opacity-60 text-xs">(em branco mantém a atual)</span>
+                    <span className="opacity-60 text-xs">{formTexts.keepPassword}</span>
                   )}
                 </label>
                 <input
@@ -359,13 +355,13 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
                   value={form.password}
                   onChange={handleChange}
                   disabled={form.clearPassword}
-                  placeholder={isEditing && connection?.hasPassword ? '••••••••' : 'sua senha'}
+                  placeholder={isEditing && connection?.hasPassword ? '••••••••' : formTexts.passwordPlaceholder}
                   autoComplete="new-password"
                 />
               </div>
 
               <div>
-                <label className={labelClass}>SSL</label>
+                <label className={labelClass}>{formTexts.ssl}</label>
                 <select
                   className={inputClass}
                   name="sslMode"
@@ -374,7 +370,7 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
                 >
                   {info.sslModes.map((mode) => (
                     <option key={mode.value} value={mode.value}>
-                      {mode.label}
+                      {mode.value} — {dictionary.talpadb.sslModes[mode.descriptionKey]}
                     </option>
                   ))}
                 </select>
@@ -389,7 +385,7 @@ const ConnectionFormModal: React.FC<ConnectionFormModalProps> = ({
                     onChange={handleChange}
                     className="h-4 w-4 accent-cyan-600"
                   />
-                  Remover a senha salva
+                  {formTexts.clearPassword}
                 </label>
               )}
             </>

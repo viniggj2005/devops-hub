@@ -2,7 +2,6 @@ package cloudSyncFunctions
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"html"
 	"net"
@@ -11,6 +10,8 @@ import (
 	"time"
 
 	"golang.org/x/oauth2"
+
+	"docker-manager-go/src/appErrors"
 )
 
 const loginResultPage = `<!doctype html>
@@ -30,7 +31,7 @@ type callbackResult struct {
 func Login(ctx context.Context, openBrowser func(address string) error) (*oauth2.Token, error) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return nil, fmt.Errorf("não foi possível preparar o retorno do login: %w", err)
+		return nil, appErrors.Wrap("cloudSync.loginCallbackFailed", "não foi possível preparar o retorno do login", err)
 	}
 
 	config := oauthConfig(fmt.Sprintf("http://127.0.0.1:%d/", listener.Addr().(*net.TCPAddr).Port))
@@ -68,22 +69,22 @@ func Login(ctx context.Context, openBrowser func(address string) error) (*oauth2
 		oauth2.SetAuthURLParam("prompt", "consent"),
 	)
 	if err := openBrowser(authURL); err != nil {
-		return nil, fmt.Errorf("não foi possível abrir o navegador: %w", err)
+		return nil, appErrors.Wrap("cloudSync.openBrowserFailed", "não foi possível abrir o navegador", err)
 	}
 
 	select {
 	case <-ctx.Done():
-		return nil, errors.New("o login do Google foi cancelado ou expirou")
+		return nil, appErrors.New("cloudSync.loginCancelled", "o login do Google foi cancelado ou expirou")
 	case result := <-results:
 		if result.err != nil {
 			return nil, result.err
 		}
 		token, err := config.Exchange(ctx, result.code, oauth2.VerifierOption(verifier))
 		if err != nil {
-			return nil, fmt.Errorf("não foi possível concluir o login do Google: %w", err)
+			return nil, appErrors.Wrap("cloudSync.loginFailed", "não foi possível concluir o login do Google", err)
 		}
 		if token.RefreshToken == "" {
-			return nil, errors.New("o Google não liberou o acesso contínuo; tente conectar novamente")
+			return nil, appErrors.New("cloudSync.noRefreshToken", "o Google não liberou o acesso contínuo; tente conectar novamente")
 		}
 		return token, nil
 	}
@@ -92,11 +93,11 @@ func Login(ctx context.Context, openBrowser func(address string) error) (*oauth2
 func parseCallback(query url.Values, expectedState string) callbackResult {
 	switch {
 	case query.Get("error") != "":
-		return callbackResult{err: fmt.Errorf("o Google recusou o login: %s", query.Get("error"))}
+		return callbackResult{err: appErrors.New("cloudSync.loginRefused", "o Google recusou o login: {reason}").With("reason", query.Get("error"))}
 	case query.Get("state") != expectedState:
-		return callbackResult{err: errors.New("resposta de login inválida")}
+		return callbackResult{err: appErrors.New("cloudSync.invalidLoginResponse", "resposta de login inválida")}
 	case query.Get("code") == "":
-		return callbackResult{err: errors.New("o Google não retornou o código de autorização")}
+		return callbackResult{err: appErrors.New("cloudSync.missingAuthorizationCode", "o Google não retornou o código de autorização")}
 	}
 	return callbackResult{code: query.Get("code")}
 }

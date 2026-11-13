@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { memo } from 'react';
 import 'chartjs-adapter-date-fns';
 import { Line } from 'react-chartjs-2';
@@ -16,11 +17,12 @@ import { CpuChartsProps } from '../../../../../interfaces/ContainerInterfaces';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, TimeScale);
 
 function CPUChartBase({ points }: CpuChartsProps) {
+  const { dictionary } = useTranslation();
   const data = {
     labels: points.map((point) => point.time),
     datasets: [
       {
-        label: 'CPU (%)',
+        label: dictionary.docker.stats.cpuLabel,
         data: points.map((point) => point.value),
         borderWidth: 2,
         pointRadius: 3,

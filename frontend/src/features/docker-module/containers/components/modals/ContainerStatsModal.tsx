@@ -3,6 +3,7 @@ import { MemoryChart } from '../charts/MemoryChart';
 import { Modal } from '../../../../../features/shared/components/modals/Modal';
 import { Events } from '@wailsio/runtime';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { BytesToMB } from '../../../../../features/shared/functions/TreatmentFunction';
 import { useDockerClient } from '../../../../../contexts/DockerClientContext';
 import { ContainerStatsProps, StatsPayload } from '../../../../../interfaces/ContainerInterfaces';
@@ -12,6 +13,8 @@ const maxPoints = 10;
 
 const ContainerStatsModal: React.FC<ContainerStatsProps> = ({ id, name, onClose }) => {
   const memoryLimitMBRef = useRef<number | null>(null);
+  const { dictionary, formatMessage, language } = useTranslation();
+  const statsTexts = dictionary.docker.stats;
   const [stats, setStats] = useState<StatsPayload | null>(null);
   const [cpuSeries, setCpuSeries] = useState<{ time: number; value: number }[]>([]);
   const [memoryPercentageSeries, setMemPctSeries] = useState<{ time: number; value: number }[]>([]);
@@ -82,7 +85,7 @@ const ContainerStatsModal: React.FC<ContainerStatsProps> = ({ id, name, onClose 
     <Modal
       isOpen={true}
       onClose={onClose}
-      title="Métricas do contêiner"
+      title={statsTexts.title}
       description={name}
       icon={<span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />}
       size="lg"
@@ -97,15 +100,15 @@ const ContainerStatsModal: React.FC<ContainerStatsProps> = ({ id, name, onClose 
                 <div className="text-2xl">{header.cpu}%</div>
               </div>
               <div className="rounded-lg border border-gray-300 dark:bg-[#0f172a]/95 dark:backdrop-blur-2xl p-3">
-                <div className="font-medium">Memória</div>
+                <div className="font-medium">{dictionary.docker.common.memory}</div>
                 <div className="text-2xl">
                   {header.memoryUsage} / {header.memoryLimit} MB ({header.memoryPercentage}%)
                 </div>
               </div>
               <div className="rounded-lg border border-gray-300 dark:bg-[#0f172a]/95 dark:backdrop-blur-2xl p-3">
-                <div className="font-medium">Rede</div>
+                <div className="font-medium">{dictionary.docker.common.network}</div>
                 <div>
-                  RX {header.rx} MB · TX {header.tx} MB
+                  {formatMessage(statsTexts.network, { rx: header.rx, tx: header.tx })}
                 </div>
               </div>
               <div className="rounded-lg border border-gray-300 dark:bg-[#0f172a]/95 dark:backdrop-blur-2xl p-3">
@@ -114,18 +117,18 @@ const ContainerStatsModal: React.FC<ContainerStatsProps> = ({ id, name, onClose 
               </div>
             </>
           ) : (
-            <div className="col-span-2 text-gray-500">Coletando métricas…</div>
+            <div className="col-span-2 text-gray-500">{statsTexts.collecting}</div>
           )}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 overflow-auto">
           <div className="rounded-xl border border-gray-300 dark:bg-[#0f172a]/95 dark:backdrop-blur-2xl p-3 pb-8 max-h-[280px]">
-            <div className="mb-2 text-sm">CPU em tempo real</div>
+            <div className="mb-2 text-sm">{statsTexts.cpuRealtime}</div>
             <CPUChart points={cpuSeries} />
           </div>
 
           <div className="rounded-xl border border-gray-300 dark:bg-[#0f172a]/95 dark:backdrop-blur-2xl p-3 pb-8 max-h-[280px]">
             <div className="mb-2 text-sm">
-              Memória em tempo real
+              {statsTexts.memoryRealtime}
             </div>
             <MemoryChart
               percentPoints={memoryPercentageSeries}
@@ -137,13 +140,13 @@ const ContainerStatsModal: React.FC<ContainerStatsProps> = ({ id, name, onClose 
         <div className="grid grid-cols-1 place-items-center mt-2">
           <div className="rounded-xl border border-gray-300 dark:bg-[#0f172a]/95 dark:backdrop-blur-2xl p-2 px-4 w-fit h-fit text-xs text-black dark:text-white">
             {header
-              ? new Date(header.t).toLocaleTimeString('pt-BR', {
+              ? new Date(header.t).toLocaleTimeString(language, {
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
                 hour12: false,
               })
-              : 'aguardando primeiras amostras'}
+              : statsTexts.waiting}
           </div>
         </div>
       </div>

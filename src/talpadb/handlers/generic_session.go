@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"docker-manager-go/src/appErrors"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 	talpadbEngines "docker-manager-go/src/talpadb/engines"
 	talpadbFunctions "docker-manager-go/src/talpadb/functions"
@@ -162,7 +163,7 @@ func (session *genericSession) run(ctx context.Context, script string, maxRows i
 	execution := &talpadbDtos.QueryExecutionDto{ResultSets: []talpadbDtos.QueryResultSetDto{}, Notices: []talpadbDtos.QueryMessageDto{}}
 	if err := session.conn.PingContext(ctx); err != nil {
 		if err := session.reconnect(ctx); err != nil {
-			return nil, fmt.Errorf("não foi possível reconectar ao servidor: %w", err)
+			return nil, appErrors.Wrap("talpadb.reconnectFailed", "não foi possível reconectar ao servidor", err)
 		}
 		execution.Reconnected = true
 	}
@@ -278,7 +279,7 @@ func (session *genericSession) editableTable(ctx context.Context, statement talp
 func (session *genericSession) saveChanges(ctx context.Context, changes talpadbDtos.TableChangesDto) (*talpadbDtos.TableSaveResultDto, error) {
 	meta, exists := session.editableTables[changes.TableOid]
 	if !exists {
-		return nil, errors.New("execute a consulta novamente antes de salvar")
+		return nil, appErrors.New("talpadb.runQueryAgainBeforeSave", "execute a consulta novamente antes de salvar")
 	}
 
 	var executor genericExecutor = session.conn
@@ -303,14 +304,14 @@ func (session *genericSession) saveChanges(ctx context.Context, changes talpadbD
 	if err != nil {
 		if ownTransaction {
 			_ = transaction.Rollback()
-			return nil, fmt.Errorf("%s. Nada foi salvo", err.Error())
+			return nil, errors.Join(err, appErrors.New("talpadb.nothingSaved", "Nada foi salvo"))
 		}
-		return nil, fmt.Errorf("%s. A transação aberta nesta aba continua ativa: execute ROLLBACK para desfazer", err.Error())
+		return nil, errors.Join(err, appErrors.New("talpadb.transactionStillActive", "A transação aberta nesta aba continua ativa: execute ROLLBACK para desfazer"))
 	}
 
 	if ownTransaction {
 		if err := transaction.Commit(); err != nil {
-			return nil, fmt.Errorf("erro ao confirmar as alterações: %w", err)
+			return nil, appErrors.Wrap("talpadb.commitFailed", "erro ao confirmar as alterações", err)
 		}
 		result.Committed = true
 	}

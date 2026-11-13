@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Laptop, Terminal, GitBranch, SquareTerminal } from 'lucide-react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { LocalShell, LocalShellKind } from '../../../../interfaces/TerminalInterfaces';
 
 interface LocalShellListProps {
@@ -17,12 +18,15 @@ const shellIcons: Record<LocalShellKind, React.ElementType> = {
 };
 
 const LocalShellList: React.FC<LocalShellListProps> = ({ shells, loading, onOpen }) => {
+  const { dictionary, formatMessage } = useTranslation();
+  const shellTexts = dictionary.ferretShell.localShells;
+
   if (loading) {
-    return <p className="text-sm text-gray-500 dark:text-zinc-400">Detectando terminais locais...</p>;
+    return <p className="text-sm text-gray-500 dark:text-zinc-400">{shellTexts.detecting}</p>;
   }
 
   if (!shells.length) {
-    return <p className="text-sm text-gray-500 dark:text-zinc-400">Nenhum terminal local encontrado.</p>;
+    return <p className="text-sm text-gray-500 dark:text-zinc-400">{shellTexts.notFound}</p>;
   }
 
   return (
@@ -34,7 +38,7 @@ const LocalShellList: React.FC<LocalShellListProps> = ({ shells, loading, onOpen
             key={shell.id}
             type="button"
             onClick={() => onOpen(shell)}
-            title={`Abrir ${shell.name}`}
+            title={formatMessage(shellTexts.openShell, { name: shell.name })}
             className="group flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all duration-300 hover:border-purple-500/40 hover:-translate-y-0.5 hover:shadow-xl dark:border-white/5 dark:bg-[#0f172a]/80"
           >
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
@@ -42,11 +46,11 @@ const LocalShellList: React.FC<LocalShellListProps> = ({ shells, loading, onOpen
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="truncate font-semibold text-gray-900 dark:text-white">{shell.name}</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Abrir em nova aba</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{shellTexts.openInNewTab}</p>
             </div>
             {shell.isDefault && (
               <span className="shrink-0 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
-                Padrão
+                {shellTexts.default}
               </span>
             )}
           </button>

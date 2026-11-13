@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 
+	"docker-manager-go/src/appErrors"
 	auth "docker-manager-go/src/auth/functions"
 	"docker-manager-go/src/desktop"
 	"docker-manager-go/src/models"
@@ -169,7 +169,7 @@ func (handlerStruct *RepositoryHandler) AddRepository(ctx context.Context, token
 
 	topLevel, err := gitTopLevel(folder)
 	if err != nil {
-		return nil, fmt.Errorf("a pasta %s não é um repositório Git", folder)
+		return nil, appErrors.New("octohub.notAGitRepository", "a pasta {folder} não é um repositório Git").With("folder", folder)
 	}
 	return handlerStruct.save(ctx, userID, account, topLevel)
 }
@@ -186,10 +186,10 @@ func (handlerStruct *RepositoryHandler) SelectRepository(ctx context.Context, to
 
 	var repository models.OctohubModel
 	if err := handlerStruct.DataBase.Where("id = ? AND user_id = ? AND github_id = ?", repositoryID, userID, githubID).First(&repository).Error; err != nil {
-		return nil, fmt.Errorf("repositório não encontrado")
+		return nil, appErrors.New("octohub.repositoryNotFound", "repositório não encontrado")
 	}
 	if _, err := os.Stat(repository.LocalPath); err != nil {
-		return nil, fmt.Errorf("a pasta %s não existe mais", repository.LocalPath)
+		return nil, appErrors.New("octohub.folderMissing", "a pasta {folder} não existe mais").With("folder", repository.LocalPath)
 	}
 	return handlerStruct.open(ctx, &repository, account)
 }
@@ -202,7 +202,7 @@ func (handlerStruct *RepositoryHandler) RemoveRepository(token string, repositor
 
 	var repository models.OctohubModel
 	if err := handlerStruct.DataBase.Where("id = ? AND user_id = ?", repositoryID, userID).First(&repository).Error; err != nil {
-		return fmt.Errorf("repositório não encontrado")
+		return appErrors.New("octohub.repositoryNotFound", "repositório não encontrado")
 	}
 	if err := handlerStruct.DataBase.Unscoped().Delete(&repository).Error; err != nil {
 		return err
@@ -221,7 +221,7 @@ func (handlerStruct *RepositoryHandler) ListRemoteRepositories(token string) ([]
 		return nil, err
 	}
 	if account == nil {
-		return nil, fmt.Errorf("conecte uma conta do GitHub para listar os repositórios remotos")
+		return nil, appErrors.New("octohub.listRemoteNeedsGithub", "conecte uma conta do GitHub para listar os repositórios remotos")
 	}
 
 	var remotes []githubRepository
@@ -328,14 +328,14 @@ func (handlerStruct *RepositoryHandler) clone(ctx context.Context, userID uint, 
 	remoteURL = strings.TrimSpace(remoteURL)
 	name := repositoryNameFromURL(remoteURL)
 	if name == "" {
-		return nil, fmt.Errorf("informe a URL do repositório")
+		return nil, appErrors.New("octohub.repositoryUrlRequired", "informe a URL do repositório")
 	}
 	if strings.TrimSpace(parentFolder) == "" {
-		return nil, fmt.Errorf("escolha a pasta de destino")
+		return nil, appErrors.New("octohub.destinationRequired", "escolha a pasta de destino")
 	}
 	destination := filepath.Join(parentFolder, name)
 	if entries, err := os.ReadDir(destination); err == nil && len(entries) > 0 {
-		return nil, fmt.Errorf("a pasta %s já existe e não está vazia", destination)
+		return nil, appErrors.New("octohub.destinationNotEmpty", "a pasta {folder} já existe e não está vazia").With("folder", destination)
 	}
 
 	githubID := int64(0)
@@ -383,9 +383,9 @@ func (handlerStruct *RepositoryHandler) clone(ctx context.Context, userID uint, 
 		message := strings.Join(lastLines, "\n")
 		if isAuthError(message) {
 			host, isSSH := parseRemote(remoteURL)
-			return nil, fmt.Errorf("erro ao clonar %s: %w", remoteURL, authFailure(host, isSSH, message))
+			return nil, appErrors.Wrap("octohub.cloneFailed", "erro ao clonar {url}", authFailure(host, isSSH, message)).With("url", remoteURL)
 		}
-		return nil, fmt.Errorf("erro ao clonar %s: %s", remoteURL, friendlyGitError(message))
+		return nil, appErrors.Wrap("octohub.cloneFailed", "erro ao clonar {url}", gitCommandError(message)).With("url", remoteURL)
 	}
 
 	topLevel, err := gitTopLevel(destination)
@@ -409,7 +409,7 @@ func (handlerStruct *RepositoryHandler) save(ctx context.Context, userID uint, a
 	if repository.ID == 0 {
 		repository = models.OctohubModel{LocalPath: path, UserID: userID, GithubID: githubID, LastOpenedAt: time.Now()}
 		if err := handlerStruct.DataBase.Create(&repository).Error; err != nil {
-			return nil, fmt.Errorf("erro ao salvar repositório: %w", err)
+			return nil, appErrors.Wrap("octohub.saveRepositoryFailed", "erro ao salvar repositório", err)
 		}
 	} else if repository.GithubID != githubID {
 		if err := handlerStruct.DataBase.Model(&repository).Update("github_id", githubID).Error; err != nil {
@@ -431,7 +431,7 @@ func (handlerStruct *RepositoryHandler) open(ctx context.Context, repository *mo
 func gitTopLevel(folder string) (string, error) {
 	out, err := processes.Command("git", "-C", folder, "rev-parse", "--show-toplevel").Output()
 	if err != nil {
-		return "", errors.New("não é um repositório git")
+		return "", appErrors.New("octohub.notGitRepository", "não é um repositório git")
 	}
 	return filepath.Clean(strings.TrimSpace(string(out))), nil
 }

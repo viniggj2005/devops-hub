@@ -1,31 +1,40 @@
 import React from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { AlertTriangle, Loader2, Send } from 'lucide-react';
 import { secondaryButtonClass } from '../editors/FormStyles';
 import type { HeaderEntry } from '../../../../interfaces/VulpesInterfaces';
 
-export const ResponseLoading: React.FC<{ label: string; onCancel?: () => void }> = ({ label, onCancel }) => (
-  <div className="flex-1 flex flex-col items-center justify-center gap-3 text-gray-500 dark:text-zinc-400">
-    <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
-    <span className="text-xs font-semibold">{label}</span>
-    {onCancel && (
-      <button type="button" onClick={onCancel} className={secondaryButtonClass}>
-        Cancelar
-      </button>
-    )}
-  </div>
-);
+export const ResponseLoading: React.FC<{ label: string; onCancel?: () => void }> = ({ label, onCancel }) => {
+  const { dictionary } = useTranslation();
 
-export const ResponseError: React.FC<{ message: string }> = ({ message }) => (
-  <div className="flex-1 overflow-auto p-4">
-    <div className="flex items-start gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3">
-      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-rose-500" />
-      <div className="min-w-0">
-        <p className="text-sm font-bold text-rose-600 dark:text-rose-400">Não foi possível concluir</p>
-        <p className="text-xs text-rose-700/90 dark:text-rose-300/90 whitespace-pre-wrap break-words mt-1">{message}</p>
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-3 text-gray-500 dark:text-zinc-400">
+      <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+      <span className="text-xs font-semibold">{label}</span>
+      {onCancel && (
+        <button type="button" onClick={onCancel} className={secondaryButtonClass}>
+          {dictionary.app.common.cancel}
+        </button>
+      )}
+    </div>
+  );
+};
+
+export const ResponseError: React.FC<{ message: string }> = ({ message }) => {
+  const { dictionary } = useTranslation();
+
+  return (
+    <div className="flex-1 overflow-auto p-4">
+      <div className="flex items-start gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3">
+        <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-rose-500" />
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-rose-600 dark:text-rose-400">{dictionary.vulpes.response.couldNotComplete}</p>
+          <p className="text-xs text-rose-700/90 dark:text-rose-300/90 whitespace-pre-wrap break-words mt-1">{message}</p>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const ResponseEmpty: React.FC<{ hint: string }> = ({ hint }) => (
   <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center px-6">

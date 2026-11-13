@@ -1,6 +1,7 @@
 import { CircleX } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 export interface ModalProps {
     title: string;
@@ -26,6 +27,7 @@ export const Modal: React.FC<ModalProps> = ({
     size = 'md',
     className = '',
 }) => {
+    const { dictionary } = useTranslation();
     const dialogRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -93,8 +95,8 @@ export const Modal: React.FC<ModalProps> = ({
                     <button
                         onClick={onClose}
                         className="ml-auto text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 rounded-lg p-1 transition-colors"
-                        title="Fechar"
-                        aria-label="Fechar modal"
+                        title={dictionary.app.common.close}
+                        aria-label={dictionary.app.common.closeModal}
                     >
                         <CircleX className="h-5 w-5" />
                     </button>

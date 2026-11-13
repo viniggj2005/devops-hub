@@ -1,4 +1,5 @@
 import { Send, X } from 'lucide-react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useState } from 'react';
 import MethodSelect from './MethodSelect';
 import SplitPane from '../editors/SplitPane';
@@ -24,6 +25,8 @@ const countEnabled = (rows: KeyValue[]) => rows.filter((row) => row.enabled && r
 
 const HttpRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variables, inheritedHint, scripts, onSave }) => {
   const http = tab.request.http as HttpRequest;
+  const { dictionary } = useTranslation();
+  const requestTexts = dictionary.vulpes.request;
   const updateRequest = useVulpesStore((state) => state.updateRequest);
   const [section, setSection] = useState<HttpSection>(() => (http.body.mode === 'none' ? 'params' : 'body'));
 
@@ -54,18 +57,18 @@ const HttpRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
             className="flex-1"
             variables={variables}
             onChange={changeUrl}
-            placeholder="https://api.exemplo.com/recurso ou {{baseUrl}}/recurso (Ctrl+Espaço para variáveis)"
+            placeholder={requestTexts.urlPlaceholder}
           />
         </div>
         {runtime.running ? (
           <button type="button" onClick={() => requestActions.cancel(tab.id)} className={secondaryButtonClass}>
             <X className="w-3.5 h-3.5" />
-            Cancelar
+            {dictionary.app.common.cancel}
           </button>
         ) : (
           <button type="button" onClick={send} className={`${primaryButtonClass} px-5`}>
             <Send className="w-3.5 h-3.5" />
-            Enviar
+            {requestTexts.send}
           </button>
         )}
       </div>
@@ -80,10 +83,10 @@ const HttpRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
               onChange={setSection}
               tabs={[
                 { key: 'params', label: 'Params', count: countEnabled(http.params) },
-                { key: 'auth', label: 'Autorização' },
+                { key: 'auth', label: requestTexts.authorization },
                 { key: 'headers', label: 'Headers', count: countEnabled(http.headers) },
-                { key: 'body', label: 'Corpo' },
-                { key: 'settings', label: 'Configurações' },
+                { key: 'body', label: requestTexts.body },
+                { key: 'settings', label: requestTexts.settings },
                 { key: 'scripts', label: 'Scripts', hidden: scripts.length === 0 },
               ]}
             />
@@ -96,7 +99,7 @@ const HttpRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                   </div>
                   {http.pathVariables.length > 0 && (
                     <div>
-                      <h4 className={fieldLabelClass}>Variáveis de caminho</h4>
+                      <h4 className={fieldLabelClass}>{requestTexts.pathVariables}</h4>
                       <KeyValueTable
                         fixedKeys
                         rows={http.pathVariables}
@@ -117,7 +120,7 @@ const HttpRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
                 <div className="space-y-2">
                   <KeyValueTable rows={http.headers} onChange={(headers) => updateHttp((current) => ({ ...current, headers }))} />
                   <p className="text-[11px] text-gray-400 dark:text-zinc-500">
-                    Content-Type, Accept, User-Agent e Authorization são adicionados automaticamente quando não informados aqui.
+                    {requestTexts.autoHeadersHint}
                   </p>
                 </div>
               )}
@@ -131,9 +134,9 @@ const HttpRequestEditor: React.FC<ProtocolEditorProps> = ({ tab, runtime, variab
               )}
               {section === 'settings' && (
                 <SettingsSection>
-                  <SettingRow title="Seguir redirecionamentos" description="Acompanha respostas 3xx automaticamente (até 10).">
+                  <SettingRow title={requestTexts.followRedirects} description={requestTexts.followRedirectsHint}>
                     <ToggleSwitch
-                      label="Seguir redirecionamentos"
+                      label={requestTexts.followRedirects}
                       checked={!http.settings.disableRedirects}
                       onChange={(checked) => updateHttp((current) => ({ ...current, settings: { ...current.settings, disableRedirects: !checked } }))}
                     />

@@ -1,5 +1,6 @@
 import { Box } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import React, { useState, useEffect } from 'react';
 import { PortsSection } from '../create-modal/PortsSection';
 import { errorMessage } from '../../../../shared/functions/ErrorMessage';
@@ -22,6 +23,8 @@ interface CreateContainerModalProps {
 
 export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onClose, onSuccess }) => {
     const { dockerClientId } = useDockerClient();
+    const { dictionary, formatMessage } = useTranslation();
+    const createTexts = dictionary.docker.createContainer;
     const [loading, setLoading] = useState(false);
 
     const [availableVolumes, setAvailableVolumes] = useState<any[]>([]);
@@ -44,7 +47,7 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
             ImagesList(dockerClientId).then((imagesResponse: any) => {
                 setAvailableImages(imagesResponse || []);
             }).catch(() => {
-                toast.error('Falha ao carregar imagens.');
+                toast.error(createTexts.loadImagesFailed);
             });
 
             ListVolumes(dockerClientId).then((volumesJson: any) => {
@@ -52,10 +55,10 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
                     const data = JSON.parse(volumesJson);
                     setAvailableVolumes(data.Volumes || []);
                 } catch {
-                    toast.error('Falha ao processar lista de volumes.');
+                    toast.error(createTexts.parseVolumesFailed);
                 }
             }).catch(() => {
-                toast.error('Falha ao carregar volumes.');
+                toast.error(createTexts.loadVolumesFailed);
             });
 
             ListNetworks(dockerClientId).then((networksJson: any) => {
@@ -63,10 +66,10 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
                     const data = JSON.parse(networksJson);
                     setAvailableNetworks(Array.isArray(data) ? data : []);
                 } catch {
-                    toast.error('Falha ao processar lista de redes.');
+                    toast.error(createTexts.parseNetworksFailed);
                 }
             }).catch(() => {
-                toast.error('Falha ao carregar redes.');
+                toast.error(createTexts.loadNetworksFailed);
             });
         }
     }, [isOpen, dockerClientId]);
@@ -74,7 +77,7 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
     const handleSubmit = async () => {
         if (!dockerClientId) return;
         if (!imageName) {
-            toast.error('O nome da imagem é obrigatório');
+            toast.error(createTexts.imageRequired);
             return;
         }
 
@@ -125,7 +128,7 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
 
             await CreateContainer(dockerClientId, options);
 
-            toast.success('Container criado com sucesso');
+            toast.success(createTexts.created);
             onSuccess();
             onClose();
 
@@ -139,7 +142,7 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
             setPidsLimit('');
         } catch (error) {
             console.error(error);
-            toast.error(`Falha ao criar container: ${errorMessage(error)}`);
+            toast.error(formatMessage(createTexts.createFailed, { error: errorMessage(error) }));
         } finally {
             setLoading(false);
         }
@@ -149,7 +152,7 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title="Criar Novo Container"
+            title={createTexts.title}
             icon={<Box className="w-5 h-5 text-blue-500" />}
             className="max-w-3xl"
         >
@@ -186,14 +189,14 @@ export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOp
                     onClick={onClose}
                     className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors"
                 >
-                    Cancelar
+                    {dictionary.app.common.cancel}
                 </button>
                 <button
                     onClick={handleSubmit}
                     disabled={loading}
                     className="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-lg shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                 >
-                    {loading ? 'Criando...' : 'Criar Container'}
+                    {loading ? dictionary.docker.common.creating : createTexts.create}
                 </button>
             </div>
         </Modal>

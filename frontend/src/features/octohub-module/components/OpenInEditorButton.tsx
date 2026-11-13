@@ -2,11 +2,13 @@ import toast from 'react-hot-toast';
 import React, { useState } from 'react';
 import { VsCodeIcon } from '../../shared/Icons';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
+import { useTranslation } from '../../i18n/useTranslation';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import { OpenRepositoryInEditor } from '../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 
 const OpenInEditorButton: React.FC = () => {
     const { repository } = useOctohubRepository();
+    const { dictionary } = useTranslation();
     const [opening, setOpening] = useState(false);
     const hasRepository = Boolean(repository?.exists);
 
@@ -25,7 +27,7 @@ const OpenInEditorButton: React.FC = () => {
         <button
             onClick={handleOpen}
             disabled={!hasRepository || opening}
-            title="Abrir o repositório no VS Code"
+            title={dictionary.octohub.navbar.openInVsCode}
             className="h-9 px-3 bg-zinc-100/80 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/10 rounded-xl transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
             <VsCodeIcon className="w-4 h-4 text-[#007acc]" />

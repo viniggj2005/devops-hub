@@ -1,3 +1,4 @@
+import { currentDictionary } from '../../i18n/TranslateError';
 import type { HttpResponse, RawLanguage } from '../../../interfaces/VulpesInterfaces';
 
 const maxPrettyPrintLength = 8 * 1024 * 1024;
@@ -62,12 +63,12 @@ export const languageForContentType = (contentType: string): RawLanguage => {
 
 export const responseFileName = (response: HttpResponse) => {
   const mediaType = mediaTypeOf(response.contentType);
-  let baseName = 'resposta';
+  let baseName = currentDictionary().vulpes.variables.defaultFileName;
   try {
     const lastSegment = new URL(response.url).pathname.split('/').filter(Boolean).pop();
     if (lastSegment) baseName = decodeURIComponent(lastSegment);
   } catch {
-    baseName = 'resposta';
+    baseName = currentDictionary().vulpes.variables.defaultFileName;
   }
   const extension = extensionsByMediaType[mediaType] ?? '';
   return baseName.includes('.') || !extension ? baseName : `${baseName}${extension}`;

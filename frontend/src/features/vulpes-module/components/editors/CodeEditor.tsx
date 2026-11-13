@@ -1,4 +1,6 @@
 import { basicSetup } from 'codemirror';
+import { formatMessage } from '../../../i18n/Languages';
+import { currentDictionary } from '../../../i18n/TranslateError';
 import { xml } from '@codemirror/lang-xml';
 import { json } from '@codemirror/lang-json';
 import { html } from '@codemirror/lang-html';
@@ -14,7 +16,7 @@ import { useVariableScope, type VariableScopeValue } from '../../contexts/Variab
 import { Annotation, Compartment, EditorSelection, EditorState, Prec, RangeSetBuilder } from '@codemirror/state';
 import { autocompletion, startCompletion, type Completion, type CompletionResult, type CompletionContext } from '@codemirror/autocomplete';
 import { keymap, Decoration, EditorView, ViewPlugin, ViewUpdate, DecorationSet, hoverTooltip, placeholder as placeholderExtension } from '@codemirror/view';
-import { buildSuggestions, describeVariable, filterSuggestions, findVariableQuery, isResponseVariable, suggestionInsertion } from '../../functions/VariableSuggestions';
+import { buildSuggestions, describeVariable, filterSuggestions, findVariableQuery, isResponseVariable, suggestionKindLabel, variableStatusLabel, suggestionInsertion } from '../../functions/VariableSuggestions';
 import { editorSearch, searchSummary, applySearchTerm, selectSearchMatch, searchSummaryChanged, type SearchSummary, type SearchDirection } from '../../functions/EditorSearch';
 
 export type CodeLanguage = RawLanguage | 'graphql';
@@ -155,14 +157,7 @@ const createVariableHoverTooltip = (scopeRef: React.MutableRefObject<VariableSco
 
             const badge = document.createElement('span');
             badge.className = `cm-vulpes-tooltip-badge cm-vulpes-tooltip-badge-${info.status}`;
-            badge.textContent =
-              info.status === 'defined'
-                ? `✓ ${info.source}`
-                : info.status === 'response'
-                  ? '✓ Resposta vinculada'
-                  : info.status === 'dynamic'
-                    ? '✓ Dinâmica'
-                    : '✕ Não reconhecida';
+            badge.textContent = variableStatusLabel(info);
 
             header.appendChild(title);
             header.appendChild(badge);
@@ -176,7 +171,7 @@ const createVariableHoverTooltip = (scopeRef: React.MutableRefObject<VariableSco
             if (info.preview !== undefined) {
               const preview = document.createElement('div');
               preview.className = 'cm-vulpes-tooltip-preview';
-              preview.textContent = `Valor atual: ${info.preview || '(vazio)'}`;
+              preview.textContent = formatMessage(currentDictionary().vulpes.variables.currentValue, { value: info.preview || currentDictionary().vulpes.variables.empty });
               dom.appendChild(preview);
             }
 
@@ -184,7 +179,7 @@ const createVariableHoverTooltip = (scopeRef: React.MutableRefObject<VariableSco
               const btn = document.createElement('button');
               btn.type = 'button';
               btn.className = 'cm-vulpes-tooltip-btn';
-              btn.textContent = 'Configurar vínculo de resposta…';
+              btn.textContent = currentDictionary().vulpes.variables.configureLink;
               btn.onclick = (event) => {
                 event.preventDefault();
                 scope.openResponseBuilder({
@@ -227,9 +222,9 @@ const createVariableCompletionSource =
 
       if (scope.requests.length > 0) {
         options.push({
-          label: '🔗 Vincular resposta de outra requisição…',
-          detail: 'construtor visual',
-          info: 'Escolher requisição, inspecionar JSON e inserir {{$response ...}}',
+          label: currentDictionary().vulpes.variables.linkResponseOption,
+          detail: currentDictionary().vulpes.variables.visualBuilder,
+          info: currentDictionary().vulpes.variables.linkResponseInfo,
           boost: 99,
           apply: (view, _completion, mappedFrom, mappedTo) => {
             const currentPos = view.state.selection.main.head;
@@ -258,7 +253,7 @@ const createVariableCompletionSource =
       for (const suggestion of filtered) {
         options.push({
           label: suggestion.label,
-          detail: `${suggestion.kind} · ${suggestion.detail}`,
+          detail: `${suggestionKindLabel(suggestion.kind)} · ${suggestion.detail}`,
           apply: (view, _completion, mappedFrom, mappedTo) => {
             const currentPos = view.state.selection.main.head;
             const currentDoc = view.state.doc.toString();

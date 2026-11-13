@@ -1,4 +1,5 @@
 import { fileName } from './DatabaseEngines';
+import { formatMessage } from '../../i18n/Languages';
 import type { SQLNamespace } from '@codemirror/lang-sql';
 import type {
   QueryCell,
@@ -11,6 +12,7 @@ import type {
 } from '../../../interfaces/TalpadbInterfaces';
 
 export { errorMessage } from '../../shared/functions/ErrorMessage';
+import { currentDictionary, currentLanguage } from '../../i18n/TranslateError';
 
 const RESERVED_WORDS = new Set(
   (
@@ -96,7 +98,7 @@ export function qualifiedName(schema: string, name: string, engine: DatabaseEngi
 }
 
 export function connectionLabel(connection?: TalpadbConnection | null): string {
-  if (!connection) return 'Servidor';
+  if (!connection) return currentDictionary().talpadb.common.server;
   if (connection.alias) return connection.alias;
   if (connection.engine === 'sqlite') return fileName(connection.host);
   return `${connection.username}@${connection.host}`;
@@ -116,7 +118,7 @@ export function displayCell(value: QueryCell, dataType: string): string {
 }
 
 export function formatNumber(value: number): string {
-  return value.toLocaleString('pt-BR');
+  return value.toLocaleString(currentLanguage());
 }
 
 export function formatDuration(milliseconds: number): string {
@@ -149,11 +151,13 @@ export function summarizeExecution(execution: QueryExecution): string {
   const lastWithRows = [...execution.resultSets]
     .reverse()
     .find((resultSet) => resultSet.columns.length > 0);
+  const talpadbTexts = currentDictionary().talpadb;
   if (lastWithRows) {
-    return `${formatNumber(lastWithRows.rowCount)} ${lastWithRows.rowCount === 1 ? 'linha' : 'linhas'}`;
+    const rowsTemplate = lastWithRows.rowCount === 1 ? talpadbTexts.results.rowsOne : talpadbTexts.results.rowsOther;
+    return formatMessage(rowsTemplate, { count: formatNumber(lastWithRows.rowCount) });
   }
   const last = execution.resultSets[execution.resultSets.length - 1];
-  return last?.commandTag || 'Nenhum comando executado';
+  return last?.commandTag || talpadbTexts.queryTab.noCommandExecuted;
 }
 
 function uniqueColumnNames(resultSet: QueryResultSet): string[] {

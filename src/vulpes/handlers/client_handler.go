@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/desktop"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 	vulpesFunctions "docker-manager-go/src/vulpes/functions"
@@ -26,7 +26,7 @@ const (
 	realtimeEventPrefix   = "vulpes:realtime:"
 )
 
-var errSessionNotFound = errors.New("conexão não encontrada; conecte novamente")
+var errSessionNotFound = appErrors.New("vulpes.connectionNotFound", "conexão não encontrada; conecte novamente")
 
 var protoFilesFilter = desktop.FileFilter{DisplayName: "Protocol Buffers (*.proto)", Pattern: "*.proto"}
 
@@ -181,20 +181,20 @@ func (handlerStruct *VulpesClientHandlerStruct) responseSource(callContext conte
 	return func(reference vulpesFunctions.ResponseReference) (*vulpesDtos.HttpResponseDto, error) {
 		item := vulpesFunctions.FindRequestItem(content.Items, reference.RequestID)
 		if item == nil || item.Request == nil {
-			return nil, fmt.Errorf("a requisição %q usada em {{$response}} não existe nesta coleção", reference.RequestID)
+			return nil, appErrors.New("vulpes.responseRequestMissing", "a requisição \"{request}\" usada em {{$response}} não existe nesta coleção").With("request", reference.RequestID)
 		}
 		if item.Request.Protocol != vulpesDtos.ProtocolHttp {
-			return nil, fmt.Errorf("{{$response}} só pode usar respostas de requisições HTTP, e %q não é HTTP", item.Name)
+			return nil, appErrors.New("vulpes.responseRequestNotHttp", "{{$response}} só pode usar respostas de requisições HTTP, e \"{request}\" não é HTTP").With("request", item.Name)
 		}
 		stored, found := handlerStruct.latestResponse(responseKey(userID, scope.CollectionID, item.ID))
 		if !reference.ShouldResend(found, stored.receivedAt, time.Now()) {
 			return stored.response, nil
 		}
 		if slices.Contains(chain, item.ID) {
-			return nil, fmt.Errorf("{{$response}} criou uma dependência circular ao reenviar %q", item.Name)
+			return nil, appErrors.New("vulpes.responseCircularDependency", "{{$response}} criou uma dependência circular ao reenviar \"{request}\"").With("request", item.Name)
 		}
 		if len(chain) > maxResponseChainDepth {
-			return nil, fmt.Errorf("{{$response}} encadeou mais de %d requisições", maxResponseChainDepth)
+			return nil, appErrors.New("vulpes.responseChainTooDeep", "{{$response}} encadeou mais de {max} requisições").With("max", maxResponseChainDepth)
 		}
 		requestContext := callContext
 		if requestContext.Err() != nil {
@@ -203,7 +203,7 @@ func (handlerStruct *VulpesClientHandlerStruct) responseSource(callContext conte
 		chainedScope := vulpesDtos.ExecutionScopeDto{ItemID: item.ID, CollectionID: scope.CollectionID, EnvironmentID: scope.EnvironmentID}
 		response, err := handlerStruct.executeHttp(requestContext, userID, vulpesDtos.ExecutionInputDto{Scope: chainedScope, Request: *item.Request}, chain)
 		if err != nil {
-			return nil, fmt.Errorf("falha ao enviar %q para usar a resposta em {{$response}}: %w", item.Name, err)
+			return nil, appErrors.Wrap("vulpes.responseSendFailed", "falha ao enviar \"{request}\" para usar a resposta em {{$response}}", err).With("request", item.Name)
 		}
 		return response, nil
 	}
@@ -364,7 +364,7 @@ func (handlerStruct *VulpesClientHandlerStruct) SaveResponseBody(callContext con
 	if encoding == vulpesDtos.EncodingBase64 {
 		decoded, err := base64.StdEncoding.DecodeString(body)
 		if err != nil {
-			return "", fmt.Errorf("corpo da resposta inválido: %w", err)
+			return "", appErrors.Wrap("vulpes.invalidResponseBody", "corpo da resposta inválido", err)
 		}
 		content = decoded
 	}

@@ -1,5 +1,6 @@
 import { X, Edit3 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface RenameModalProps {
     isOpen: boolean;
@@ -9,7 +10,9 @@ interface RenameModalProps {
 }
 
 const RenameModal: React.FC<RenameModalProps> = ({ isOpen, oldName, onClose, onSave }) => {
+    const { dictionary } = useTranslation();
     const [newName, setNewName] = useState(oldName);
+    const sftpTexts = dictionary.ferretShell.sftp;
 
     useEffect(() => {
         if (isOpen) setNewName(oldName);
@@ -32,7 +35,7 @@ const RenameModal: React.FC<RenameModalProps> = ({ isOpen, oldName, onClose, onS
                 <div className="p-4 border-b border-gray-100 dark:border-white/5 flex items-center justify-between bg-gray-50/50 dark:bg-zinc-800/30">
                     <div className="flex items-center gap-2">
                         <Edit3 className="w-4 h-4 text-blue-500" />
-                        <h3 className="text-sm font-bold">Renomear Item</h3>
+                        <h3 className="text-sm font-bold">{sftpTexts.renameTitle}</h3>
                     </div>
                     <button onClick={onClose} className="p-1 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-colors">
                         <X className="w-4 h-4" />
@@ -41,14 +44,14 @@ const RenameModal: React.FC<RenameModalProps> = ({ isOpen, oldName, onClose, onS
 
                 <div className="p-6 space-y-4">
                     <div className="space-y-2">
-                        <label className="text-[10px] uppercase font-bold text-gray-400">Nome Atual</label>
+                        <label className="text-[10px] uppercase font-bold text-gray-400">{sftpTexts.currentName}</label>
                         <div className="text-xs text-gray-500 truncate bg-gray-100 dark:bg-black/20 p-2 rounded-lg border border-gray-200 dark:border-white/5 italic">
                             {oldName}
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-[10px] uppercase font-bold text-gray-400">Novo Nome</label>
+                        <label className="text-[10px] uppercase font-bold text-gray-400">{sftpTexts.newName}</label>
                         <input
                             autoFocus
                             type="text"
@@ -57,7 +60,7 @@ const RenameModal: React.FC<RenameModalProps> = ({ isOpen, oldName, onClose, onS
                             onKeyDown={(event) => event.key === 'Enter' && handleSave()}
                             onFocus={(event) => event.target.select()}
                             className="w-full bg-white dark:bg-zinc-800 border border-gray-200 dark:border-white/10 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none transition-all shadow-inner"
-                            placeholder="Digite o novo nome..."
+                            placeholder={sftpTexts.newNamePlaceholder}
                         />
                     </div>
                 </div>
@@ -67,14 +70,14 @@ const RenameModal: React.FC<RenameModalProps> = ({ isOpen, oldName, onClose, onS
                         onClick={onClose}
                         className="px-4 py-2 text-xs font-bold text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10 rounded-xl transition-all"
                     >
-                        Cancelar
+                        {dictionary.app.common.cancel}
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={!newName || newName === oldName}
                         className="px-6 py-2 text-xs font-bold text-white bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:grayscale rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-95"
                     >
-                        Salvar Alterações
+                        {sftpTexts.saveChanges}
                     </button>
                 </div>
             </div>

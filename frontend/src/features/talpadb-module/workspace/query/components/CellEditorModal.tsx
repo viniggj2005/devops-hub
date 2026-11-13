@@ -1,4 +1,5 @@
 import { Modal } from '../../../../shared/components/modals/Modal';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { copyToClipboard } from '../../../../shared/functions/clipboard';
 import { Braces, Check, Copy, PencilLine, RotateCcw } from 'lucide-react';
@@ -45,6 +46,8 @@ const initialMode = (target: CellEditTarget): EditMode =>
 
 const CellEditorModal: React.FC<CellEditorModalProps> = ({ target, onApply, onReset, onClose }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { dictionary, formatMessage, language } = useTranslation();
+  const cellTexts = dictionary.talpadb.cell;
   const [draft, setDraft] = useState('');
   const [mode, setMode] = useState<EditMode>('value');
   const [error, setError] = useState<string | null>(null);
@@ -64,11 +67,11 @@ const CellEditorModal: React.FC<CellEditorModalProps> = ({ target, onApply, onRe
 
   const modes = useMemo<{ id: EditMode; label: string }[]>(
     () => [
-      { id: 'value', label: 'Valor' },
+      { id: 'value', label: cellTexts.value },
       { id: 'null', label: 'NULL' },
       ...(target?.isNewRow ? [{ id: 'default' as EditMode, label: 'DEFAULT' }] : []),
     ],
-    [target?.isNewRow]
+    [target?.isNewRow, cellTexts.value]
   );
 
   if (!target) return null;
@@ -79,10 +82,10 @@ const CellEditorModal: React.FC<CellEditorModalProps> = ({ target, onApply, onRe
 
   const handleCopyValue = () => {
     if (mode === 'null') {
-      copyToClipboard('NULL', 'Valor copiado');
+      copyToClipboard('NULL', dictionary.talpadb.common.valueCopied);
       return;
     }
-    copyToClipboard(draft, 'Valor copiado');
+    copyToClipboard(draft, dictionary.talpadb.common.valueCopied);
   };
 
   const apply = () => {
@@ -102,7 +105,7 @@ const CellEditorModal: React.FC<CellEditorModalProps> = ({ target, onApply, onRe
       try {
         JSON.parse(draft);
       } catch (parseError) {
-        setError(`JSON inválido: ${(parseError as Error).message}`);
+        setError(formatMessage(cellTexts.invalidJson, { error: (parseError as Error).message }));
         return;
       }
     }
@@ -130,9 +133,9 @@ const CellEditorModal: React.FC<CellEditorModalProps> = ({ target, onApply, onRe
       footer={
         <>
           {target.modified && (
-            <button onClick={onReset} className={`${secondaryButton} mr-auto`} title="Descartar a alteração pendente desta célula">
+            <button onClick={onReset} className={`${secondaryButton} mr-auto`} title={cellTexts.discardHint}>
               <RotateCcw className="w-4 h-4" />
-              {target.isNewRow ? 'Usar DEFAULT' : 'Restaurar original'}
+              {target.isNewRow ? cellTexts.useDefault : cellTexts.restoreOriginal}
             </button>
           )}
           <button
@@ -140,21 +143,21 @@ const CellEditorModal: React.FC<CellEditorModalProps> = ({ target, onApply, onRe
             onClick={handleCopyValue}
             disabled={!canCopyValue && mode !== 'null'}
             className={secondaryButton}
-            title="Copiar conteúdo da célula"
+            title={cellTexts.copyContent}
           >
             <Copy className="w-4 h-4" />
-            Copiar
+            {dictionary.talpadb.common.copy}
           </button>
           <button onClick={onClose} className={secondaryButton}>
-            Cancelar
+            {dictionary.app.common.cancel}
           </button>
           <button
             onClick={apply}
-            title="Aplicar (Ctrl+Enter)"
+            title={cellTexts.applyHint}
             className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 transition-colors"
           >
             <Check className="w-4 h-4" />
-            Aplicar
+            {cellTexts.apply}
           </button>
         </>
       }
@@ -196,7 +199,7 @@ const CellEditorModal: React.FC<CellEditorModalProps> = ({ target, onApply, onRe
                 }}
                 className="flex items-center gap-1.5 px-2.5 h-7 rounded-md text-xs font-semibold text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
               >
-                <Braces className="w-3.5 h-3.5" /> Formatar
+                <Braces className="w-3.5 h-3.5" /> {cellTexts.format}
               </button>
             )}
             <button
@@ -204,10 +207,10 @@ const CellEditorModal: React.FC<CellEditorModalProps> = ({ target, onApply, onRe
               onClick={handleCopyValue}
               disabled={!canCopyValue && mode !== 'null'}
               className="flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900 text-xs font-semibold text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              title="Copiar valor da coluna"
+              title={cellTexts.copyColumnValue}
             >
               <Copy className="w-3.5 h-3.5 text-cyan-500" />
-              Copiar
+              {dictionary.talpadb.common.copy}
             </button>
           </div>
         </div>
@@ -231,7 +234,7 @@ const CellEditorModal: React.FC<CellEditorModalProps> = ({ target, onApply, onRe
           />
         ) : (
           <div className="min-h-[120px] flex items-center justify-center rounded-xl border border-dashed border-gray-300 dark:border-white/10 text-sm italic text-gray-400 dark:text-zinc-500">
-            {mode === 'null' ? 'A célula ficará NULL.' : 'A coluna usará o valor padrão (DEFAULT) da tabela.'}
+            {mode === 'null' ? cellTexts.nullHint : cellTexts.defaultHint}
           </div>
         )}
 
@@ -239,14 +242,14 @@ const CellEditorModal: React.FC<CellEditorModalProps> = ({ target, onApply, onRe
           <span className="min-w-0 truncate">
             {target.modified && !target.isNewRow && (
               <>
-                Valor no banco:{' '}
+                {cellTexts.databaseValue}{' '}
                 <span className="font-mono text-gray-500 dark:text-zinc-400">
                   {target.original === null ? 'NULL' : target.original}
                 </span>
               </>
             )}
           </span>
-          {mode === 'value' && <span className="flex-shrink-0">{draft.length.toLocaleString('pt-BR')} caracteres · Ctrl+Enter aplica</span>}
+          {mode === 'value' && <span className="flex-shrink-0">{formatMessage(cellTexts.charactersApply, { count: draft.length.toLocaleString(language) })}</span>}
         </div>
 
         {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}

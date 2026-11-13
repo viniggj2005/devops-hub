@@ -22,6 +22,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
+	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 	vulpesFunctions "docker-manager-go/src/vulpes/functions"
 )
@@ -97,7 +98,7 @@ func (handlerStruct *VulpesClientHandlerStruct) prepareGrpcCall(callContext cont
 		return nil, nil, err
 	}
 	if plan.request.Grpc == nil {
-		return nil, nil, errors.New("a requisição não é gRPC")
+		return nil, nil, appErrors.New("vulpes.requestNotGrpc", "a requisição não é gRPC")
 	}
 	grpcRequest := plan.resolver.ResolveGrpcRequest(*plan.request.Grpc)
 	if err := plan.resolver.TakeError(); err != nil {
@@ -128,7 +129,7 @@ func (call *grpcCall) decodeMessage(text string, descriptor protoreflect.Message
 		text = "{}"
 	}
 	if err := (protojson.UnmarshalOptions{Resolver: call.types}).Unmarshal([]byte(text), message); err != nil {
-		return nil, fmt.Errorf("a mensagem não corresponde a %s: %w", descriptor.FullName(), err)
+		return nil, appErrors.Wrap("vulpes.grpcMessageMismatch", "a mensagem não corresponde a {message}", err).With("message", descriptor.FullName())
 	}
 	return message, nil
 }
@@ -196,7 +197,7 @@ func (handlerStruct *VulpesClientHandlerStruct) InvokeGrpc(callContext context.C
 		return nil, err
 	}
 	if method.IsStreamingClient() || method.IsStreamingServer() {
-		return nil, errors.New("este método usa streaming; inicie um stream para utilizá-lo")
+		return nil, appErrors.New("vulpes.grpcMethodIsStreaming", "este método usa streaming; inicie um stream para utilizá-lo")
 	}
 	requestMessage, err := call.decodeMessage(call.request.Message, method.Input())
 	if err != nil {
@@ -242,7 +243,7 @@ func (handlerStruct *VulpesClientHandlerStruct) StartGrpcStream(callContext cont
 	}
 	if !method.IsStreamingClient() && !method.IsStreamingServer() {
 		call.connection.Close()
-		return errors.New("este método é unário; use Invocar")
+		return appErrors.New("vulpes.grpcMethodIsUnary", "este método é unário; use Invocar")
 	}
 	call.method = method
 
@@ -262,7 +263,7 @@ func (handlerStruct *VulpesClientHandlerStruct) StartGrpcStream(callContext cont
 	if err != nil {
 		cancel()
 		call.connection.Close()
-		return fmt.Errorf("não foi possível iniciar o stream: %w", err)
+		return appErrors.Wrap("vulpes.grpcStartStreamFailed", "não foi possível iniciar o stream", err)
 	}
 
 	key, windowName := handlerStruct.sessionKey(callContext, sessionID)
@@ -337,11 +338,11 @@ func (session *grpcStreamSession) send(text string) error {
 	session.sendMutex.Lock()
 	defer session.sendMutex.Unlock()
 	if session.sendClosed {
-		return errors.New("o envio deste stream já foi finalizado")
+		return appErrors.New("vulpes.grpcStreamSendClosed", "o envio deste stream já foi finalizado")
 	}
 	if err := session.stream.SendMsg(message); err != nil {
 		if errors.Is(err, io.EOF) {
-			return errors.New("o servidor já encerrou o stream")
+			return appErrors.New("vulpes.grpcStreamClosedByServer", "o servidor já encerrou o stream")
 		}
 		return err
 	}
@@ -363,11 +364,7 @@ func (session *grpcStreamSession) closeSend() error {
 	if err := session.stream.CloseSend(); err != nil {
 		return err
 	}
-	session.emit(vulpesDtos.RealtimeEventDto{
-		Kind:      vulpesDtos.RealtimeMessage,
-		Data:      "Envio finalizado",
-		Direction: vulpesDtos.DirectionSystem,
-	})
+	session.emit(systemEvent(vulpesDtos.RealtimeMessage, appErrors.New("vulpes.realtimeSendFinished", "Envio finalizado")))
 	return nil
 }
 

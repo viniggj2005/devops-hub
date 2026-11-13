@@ -1,4 +1,6 @@
 import toast from 'react-hot-toast';
+import { useTranslation } from '../../../i18n/useTranslation';
+import { currentDictionary } from '../../../i18n/TranslateError';
 import { useTalpadbStore } from '../../TalpadbStore';
 import { useAuth } from '../../../../contexts/AuthContext';
 import DiagramTableNode from './components/DiagramTableNode';
@@ -9,11 +11,11 @@ import { TalpadbServices } from '../../services/TalpadbServices';
 import ContextMenu, { type ContextMenuItem } from '../components/ContextMenu';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGeneralConfigsStore } from '../../../settings/store/GeneralConfigsStore';
-import CardinalityGlyph, { cardinalityLabels, GLYPH_HEIGHT, GLYPH_WIDTH } from './constants/CardinalityGlyph';
+import CardinalityGlyph, { GLYPH_HEIGHT, GLYPH_WIDTH } from './constants/CardinalityGlyph';
 import type { WorkspaceTab, DatabaseDiagram, DiagramLineStyle, SavedDiagramLayout, DiagramEdgeAnchors } from '../../../../interfaces/TalpadbInterfaces';
 import { Plus, Minus, Slash, Wand2, Undo2, Eraser, Search, Spline, Loader2, KeyRound, Download, Maximize, RefreshCw, CirclePlus, CircleMinus, TriangleAlert, CornerDownRight } from 'lucide-react';
-import { relationKey, edgeGeometry, EdgeGeometry, followWeights, snapToNeighbors, anchorFromPointer, nearestSegmentIndex, RelationEndKind, relationCardinality } from '../../functions/DiagramEdges';
-import { Point, tableKey, roundEdges, DiagramNode, roundAnchors, DiagramBadge, layoutDiagram, roundPositions, parseSavedLayout, buildDiagramNodes, diagramBadgeLabels, mergeSavedPositions } from '../../functions/DiagramLayout';
+import { relationKey, edgeGeometry, EdgeGeometry, followWeights, snapToNeighbors, anchorFromPointer, nearestSegmentIndex, RelationEndKind, relationCardinality, RelationCardinality } from '../../functions/DiagramEdges';
+import { Point, tableKey, roundEdges, DiagramNode, roundAnchors, DiagramBadge, layoutDiagram, roundPositions, parseSavedLayout, buildDiagramNodes, diagramBadges, mergeSavedPositions } from '../../functions/DiagramLayout';
 
 interface EdgeFollower {
   edgeKey: string;
@@ -44,10 +46,10 @@ interface EdgeMenu {
   items: ContextMenuItem[];
 }
 
-const lineStyleOptions: { style: DiagramLineStyle; label: string; icon: React.ElementType }[] = [
-  { style: 'curved', label: 'Linhas curvas', icon: Spline },
-  { style: 'straight', label: 'Linhas retas', icon: Slash },
-  { style: 'orthogonal', label: 'Linhas em ângulo reto', icon: CornerDownRight },
+const lineStyleOptions: { style: DiagramLineStyle; icon: React.ElementType }[] = [
+  { style: 'curved', icon: Spline },
+  { style: 'straight', icon: Slash },
+  { style: 'orthogonal', icon: CornerDownRight },
 ];
 
 interface Viewport {
@@ -67,6 +69,12 @@ const clampScale = (scale: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, sc
 
 const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
   const { token } = useAuth();
+  const { dictionary, formatMessage } = useTranslation();
+  const diagramTexts = dictionary.talpadb.diagram;
+  const cardinalityLabel = (cardinality: RelationCardinality) => {
+    const kindLabel = cardinality.oneToOne ? diagramTexts.oneToOne : diagramTexts.manyToOne;
+    return cardinality.optionalTarget ? formatMessage(diagramTexts.optionalForeignKey, { kind: kindLabel }) : kindLabel;
+  };
   const { theme } = useTheme();
   const pendingFitRef = useRef(false);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -130,7 +138,7 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
     savedLayoutRef.current = layout;
     TalpadbServices.saveDiagramLayout(token, tab.connectionId, tab.database, tab.schema ?? '', layout).catch(
       (saveError) =>
-        toast.error(`Layout não salvo: ${errorMessage(saveError)}`)
+        toast.error(formatMessage(currentDictionary().talpadb.diagram.layoutNotSaved, { error: errorMessage(saveError) }))
     );
   }, [token, tab.connectionId, tab.database, tab.schema]);
 
@@ -327,18 +335,18 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
     setEdgeMenu({
       x: event.clientX,
       y: event.clientY,
-      title: item ? `${item.source.title} → ${item.target.title}` : 'Linha',
+      title: item ? `${item.source.title} → ${item.target.title}` : diagramTexts.line,
       items: [
-        { label: 'Adicionar ponto aqui', icon: CirclePlus, onClick: () => addWaypoint(edgeKey, point) },
+        { label: diagramTexts.addPoint, icon: CirclePlus, onClick: () => addWaypoint(edgeKey, point) },
         { separator: true },
         {
-          label: 'Endireitar linha',
+          label: diagramTexts.straighten,
           icon: Eraser,
           disabled: !edgeWaypointsRef.current[edgeKey]?.length,
           onClick: () => straightenEdge(edgeKey),
         },
         {
-          label: 'Restaurar setas',
+          label: diagramTexts.restoreArrows,
           icon: Undo2,
           disabled: !edgeAnchorsRef.current[edgeKey],
           onClick: () => restoreEdgeAnchors(edgeKey),
@@ -353,8 +361,8 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
     setEdgeMenu({
       x: event.clientX,
       y: event.clientY,
-      title: 'Ponto da linha',
-      items: [{ label: 'Remover ponto', icon: CircleMinus, danger: true, onClick: () => removeWaypoint(edgeKey, index) }],
+      title: diagramTexts.linePoint,
+      items: [{ label: diagramTexts.removePoint, icon: CircleMinus, danger: true, onClick: () => removeWaypoint(edgeKey, index) }],
     });
   };
 
@@ -364,10 +372,10 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
     setEdgeMenu({
       x: event.clientX,
       y: event.clientY,
-      title: end === 'source' ? 'Saída da linha' : 'Seta',
+      title: end === 'source' ? diagramTexts.lineStart : diagramTexts.arrow,
       items: [
         {
-          label: 'Voltar para a posição automática',
+          label: diagramTexts.resetAnchor,
           icon: Undo2,
           disabled: !edgeAnchorsRef.current[edgeKey]?.[end],
           onClick: () => resetAnchor(edgeKey, end),
@@ -586,7 +594,7 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
       Object.keys(nodes).find((key) => nodes[key].table.name.toLowerCase() === query) ??
       Object.keys(nodes).find((key) => key.toLowerCase().includes(query));
     if (match) centerOn(match);
-    else toast(`Nenhuma tabela com "${search.trim()}".`);
+    else toast(formatMessage(diagramTexts.noTableMatch, { search: search.trim() }));
   };
 
   const exportSvg = async () => {
@@ -616,9 +624,9 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
     try {
       const fileName = `${tab.title.replace(/[\\/:*?"<>|]+/g, '_')}.svg`;
       const path = await TalpadbServices.saveTextFile(token, fileName, new XMLSerializer().serializeToString(clone));
-      if (path) toast.success(`Diagrama exportado: ${path}`);
+      if (path) toast.success(formatMessage(diagramTexts.exported, { path }));
     } catch (exportError) {
-      toast.error(`Erro ao exportar: ${errorMessage(exportError)}`);
+      toast.error(formatMessage(diagramTexts.exportFailed, { error: errorMessage(exportError) }));
     }
   };
 
@@ -661,7 +669,7 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
   if (loading && !diagram) {
     return (
       <div className="h-full flex items-center justify-center gap-2 text-sm text-gray-400">
-        <Loader2 className="w-4 h-4 animate-spin" /> Lendo tabelas e relacionamentos…
+        <Loader2 className="w-4 h-4 animate-spin" /> {diagramTexts.loading}
       </div>
     );
   }
@@ -671,7 +679,7 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
       <div className="h-full flex flex-col items-center justify-center gap-3 p-8 text-center">
         <p className="text-sm text-rose-600 dark:text-rose-400 max-w-lg break-words">{error}</p>
         <button onClick={load} className="px-4 py-2 rounded-xl bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 text-sm font-semibold">
-          Tentar novamente
+          {dictionary.talpadb.common.retry}
         </button>
       </div>
     );
@@ -683,15 +691,15 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
     <div className="h-full flex flex-col">
       <div className="flex flex-wrap items-center gap-1 px-3 py-2 border-b border-gray-200 dark:border-white/5 bg-gray-50/80 dark:bg-zinc-950/40 flex-shrink-0">
         <span className="px-2 text-xs text-gray-500 dark:text-zinc-400">
-          {tableCount} {tableCount === 1 ? 'tabela' : 'tabelas'} · {relations.length}{' '}
-          {relations.length === 1 ? 'relacionamento' : 'relacionamentos'}
+          {formatMessage(tableCount === 1 ? diagramTexts.tablesOne : diagramTexts.tablesOther, { count: tableCount })} ·{' '}
+          {formatMessage(relations.length === 1 ? diagramTexts.relationsOne : diagramTexts.relationsOther, { count: relations.length })}
         </span>
         {diagram?.truncated && (
           <span
-            title="O diagrama mostra no máximo 400 tabelas. Abra o diagrama de um schema específico para ver o restante."
+            title={diagramTexts.truncatedHint}
             className="flex items-center gap-1 px-2 text-xs text-amber-600 dark:text-amber-400"
           >
-            <TriangleAlert className="w-3.5 h-3.5" /> limitado a 400
+            <TriangleAlert className="w-3.5 h-3.5" /> {diagramTexts.truncated}
           </span>
         )}
         <div className="relative ml-2">
@@ -700,22 +708,22 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             onKeyDown={(event) => event.key === 'Enter' && findTable()}
-            placeholder="Localizar tabela…"
+            placeholder={diagramTexts.searchPlaceholder}
             className="h-8 w-48 pl-8 pr-2 rounded-lg text-xs outline-none border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-800 dark:text-zinc-200 placeholder:text-gray-400 focus:border-cyan-500"
           />
         </div>
         <button
           onClick={toggleKeysOnly}
-          title="Mostrar só as colunas de chave primária, estrangeira e únicas"
+          title={diagramTexts.keysOnlyHint}
           className={`${toolButton} ${keysOnly ? 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300' : ''}`}
         >
-          <KeyRound className="w-3.5 h-3.5" /> Só chaves
+          <KeyRound className="w-3.5 h-3.5" /> {diagramTexts.keysOnly}
         </button>
         <div className="flex items-center gap-0.5 ml-1 p-0.5 rounded-lg bg-gray-100 dark:bg-white/5">
-          {lineStyleOptions.map(({ style, label, icon: Icon }) => (
+          {lineStyleOptions.map(({ style, icon: Icon }) => (
             <button
               key={style}
-              title={label}
+              title={diagramTexts.lineStyles[style]}
               onClick={() => changeLineStyle(style)}
               className={`h-7 w-8 flex items-center justify-center rounded-md transition-colors ${
                 lineStyle === style
@@ -730,31 +738,31 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
         <button
           onClick={restoreAllEdges}
           disabled={!Object.keys(edgeWaypoints).length && !Object.keys(edgeAnchors).length}
-          title="Remover as dobras e devolver as setas à posição automática em todas as linhas"
+          title={diagramTexts.restoreLinesHint}
           className={toolButton}
         >
-          <Eraser className="w-3.5 h-3.5" /> Restaurar linhas
+          <Eraser className="w-3.5 h-3.5" /> {diagramTexts.restoreLines}
         </button>
         <div className="ml-auto flex items-center gap-1">
-          <button onClick={reorganize} className={toolButton} title="Descartar a organização salva e reorganizar automaticamente">
-            <Wand2 className="w-3.5 h-3.5" /> Reorganizar
+          <button onClick={reorganize} className={toolButton} title={diagramTexts.reorganizeHint}>
+            <Wand2 className="w-3.5 h-3.5" /> {diagramTexts.reorganize}
           </button>
-          <button onClick={() => zoomAt(1 / 1.2)} className={toolButton} title="Diminuir zoom">
+          <button onClick={() => zoomAt(1 / 1.2)} className={toolButton} title={diagramTexts.zoomOut}>
             <Minus className="w-3.5 h-3.5" />
           </button>
           <span className="w-12 text-center text-xs tabular-nums text-gray-500 dark:text-zinc-400">
             {Math.round(viewport.scale * 100)}%
           </span>
-          <button onClick={() => zoomAt(1.2)} className={toolButton} title="Aumentar zoom">
+          <button onClick={() => zoomAt(1.2)} className={toolButton} title={diagramTexts.zoomIn}>
             <Plus className="w-3.5 h-3.5" />
           </button>
-          <button onClick={fitView} className={toolButton} title="Ajustar à tela">
-            <Maximize className="w-3.5 h-3.5" /> Ajustar
+          <button onClick={fitView} className={toolButton} title={diagramTexts.fitHint}>
+            <Maximize className="w-3.5 h-3.5" /> {diagramTexts.fit}
           </button>
-          <button onClick={exportSvg} disabled={!tableCount} className={toolButton} title="Exportar como SVG">
+          <button onClick={exportSvg} disabled={!tableCount} className={toolButton} title={diagramTexts.exportSvg}>
             <Download className="w-3.5 h-3.5" /> SVG
           </button>
-          <button onClick={load} disabled={loading} className={toolButton} title="Ler o banco de novo">
+          <button onClick={load} disabled={loading} className={toolButton} title={diagramTexts.reloadHint}>
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -763,7 +771,7 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
       <div ref={attachCanvas} className="flex-1 min-h-0 relative overflow-hidden select-none">
         {tableCount === 0 ? (
           <div className="h-full flex items-center justify-center text-sm text-gray-400 dark:text-zinc-500">
-            Nenhuma tabela encontrada {tab.schema ? `no schema ${tab.schema}` : 'neste banco'}.
+            {tab.schema ? formatMessage(diagramTexts.noTablesInSchema, { schema: tab.schema }) : diagramTexts.noTablesInDatabase}
           </div>
         ) : (
           <svg
@@ -843,7 +851,12 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                       onContextMenu={(event) => openEdgeMenu(event, key)}
                     >
                       <title>
-                        {`${relation.name} · ${cardinality.label}\n${source.title} (${relation.sourceColumns.join(', ')}): ${cardinalityLabels[cardinality.source]}\n${target.title} (${relation.targetColumns.join(', ')}): ${cardinalityLabels[cardinality.target]}\nBotão direito para adicionar ponto ou endireitar`}
+                        {[
+                          `${relation.name} · ${cardinalityLabel(cardinality)}`,
+                          `${source.title} (${relation.sourceColumns.join(', ')}): ${diagramTexts.cardinality[cardinality.source]}`,
+                          `${target.title} (${relation.targetColumns.join(', ')}): ${diagramTexts.cardinality[cardinality.target]}`,
+                          diagramTexts.edgeHint,
+                        ].join('\n')}
                       </title>
                     </path>
                   </g>
@@ -880,7 +893,7 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                     onMouseDown={(event) => handleWaypointMouseDown(event, selectedEdge, index)}
                     onContextMenu={(event) => openWaypointMenu(event, selectedEdge, index)}
                   >
-                    <title>Arraste para mover o ponto · botão direito para remover</title>
+                    <title>{diagramTexts.pointHint}</title>
                   </circle>
                 ))}
 
@@ -908,7 +921,7 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                       onContextMenu={(event) => openAnchorMenu(event, selectedEdge, end)}
                     >
                       <title>
-                        {`Arraste para mover a ${end === 'source' ? 'saída' : 'seta'} pela borda da tabela${custom ? ' · botão direito volta para o automático' : ''}`}
+                        {`${end === 'source' ? diagramTexts.sourceAnchorHint : diagramTexts.targetAnchorHint}${custom ? diagramTexts.customAnchorSuffix : ''}`}
                       </title>
                     </rect>
                   );
@@ -927,12 +940,12 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
         )}
         <p className="pointer-events-none absolute bottom-3 left-3 text-[11px] text-gray-400 dark:text-zinc-500">
           {selectedEdge
-            ? 'Botão direito na linha para adicionar um ponto · arraste os pontos e os quadradinhos das pontas para ajustar · botão direito num ponto para remover'
-            : 'Botão direito numa linha para adicionar pontos · arraste uma tabela para ver as relações dela · roda rola, Ctrl+roda dá zoom · duplo clique abre as propriedades'}
+            ? diagramTexts.selectedEdgeHelp
+            : diagramTexts.help}
         </p>
         {tableCount > 0 && (
           <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-3 rounded-lg border border-gray-200 dark:border-white/10 bg-white/90 dark:bg-zinc-900/90 px-3 py-1.5 text-[11px] text-gray-500 dark:text-zinc-400">
-            {(Object.keys(diagramBadgeLabels) as DiagramBadge[]).map((badge) => (
+            {diagramBadges.map((badge) => (
               <span key={badge} className="flex items-center gap-1.5">
                 <span
                   style={{ backgroundColor: palette.badges[badge].fill, color: palette.badges[badge].text }}
@@ -940,7 +953,7 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                 >
                   {badge}
                 </span>
-                {diagramBadgeLabels[badge]}
+                {diagramTexts.badges[badge]}
               </span>
             ))}
             <span className="h-3.5 w-px bg-gray-200 dark:bg-white/10" />
@@ -950,7 +963,7 @@ const DiagramTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                   <line x1={-6} y1={GLYPH_HEIGHT / 2} x2={GLYPH_WIDTH} y2={GLYPH_HEIGHT / 2} stroke={palette.edge} strokeWidth={1.4} />
                   <CardinalityGlyph kind={kind} color={palette.edge} background={palette.node} />
                 </svg>
-                {cardinalityLabels[kind]}
+                {diagramTexts.cardinality[kind]}
               </span>
             ))}
           </div>

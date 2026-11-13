@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../i18n/useTranslation';
 import { TerminalThemeConfig } from '../../../interfaces/GeneralConfigsInterfaces';
 
 interface TerminalPreviewProps {
@@ -7,10 +8,12 @@ interface TerminalPreviewProps {
 
 const TerminalPreview: React.FC<TerminalPreviewProps> = ({ theme }) => {
   const { colors, fontSize } = theme;
+  const { dictionary } = useTranslation();
+  const terminalTexts = dictionary.preferences.terminalTheme;
 
   return (
     <div
-      aria-label="Prévia do terminal"
+      aria-label={terminalTexts.previewLabel}
       style={{ backgroundColor: colors.background, color: colors.foreground, fontSize }}
       className="rounded-xl border border-gray-200 dark:border-white/10 p-4 font-mono leading-relaxed overflow-hidden"
     >
@@ -27,10 +30,10 @@ const TerminalPreview: React.FC<TerminalPreviewProps> = ({ theme }) => {
         <span style={{ color: colors.magenta }}>logo.png</span>{'  '}
         <span style={{ color: colors.cyan }}>link</span>
       </p>
-      <p style={{ color: colors.red }}>erro: permissão negada</p>
+      <p style={{ color: colors.red }}>{terminalTexts.sampleError}</p>
       <p>
-        <span style={{ backgroundColor: colors.selectionBackground }}>texto selecionado</span>
-        <span style={{ color: colors.brightBlack }}> # comentário</span>
+        <span style={{ backgroundColor: colors.selectionBackground }}>{terminalTexts.sampleSelection}</span>
+        <span style={{ color: colors.brightBlack }}>{terminalTexts.sampleComment}</span>
       </p>
       <p>
         <span style={{ color: colors.green }}>ferret@servidor</span>

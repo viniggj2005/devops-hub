@@ -1,9 +1,9 @@
 package octohubHandler
 
 import (
-	"fmt"
 	"strings"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/models"
 	octohubDtos "docker-manager-go/src/octohub/dtos"
 	"docker-manager-go/src/types"
@@ -74,7 +74,7 @@ func (handlerStruct *RepositoryHandler) SaveGitCredential(token string, input oc
 	}
 	host := normalizeCredentialHost(input.Host)
 	if host == "" {
-		return nil, fmt.Errorf("informe o servidor, por exemplo gitlab.com")
+		return nil, appErrors.New("octohub.credentialHostRequired", "informe o servidor, por exemplo gitlab.com")
 	}
 
 	var credential models.GitCredentialModel
@@ -96,16 +96,16 @@ func (handlerStruct *RepositoryHandler) SaveGitCredential(token string, input oc
 		credential.Username = username
 	}
 	if credential.Password.Plaintext == "" && credential.PrivateKey.Plaintext == "" {
-		return nil, fmt.Errorf("informe a senha (ou token) ou uma chave SSH")
+		return nil, appErrors.New("octohub.credentialSecretRequired", "informe a senha (ou token) ou uma chave SSH")
 	}
 	if credential.Password.Plaintext != "" && credential.Username == "" {
-		return nil, fmt.Errorf("informe o usuário que acompanha a senha ou o token")
+		return nil, appErrors.New("octohub.credentialUserRequired", "informe o usuário que acompanha a senha ou o token")
 	}
 
 	credential.Host = host
 	credential.UserID = userID
 	if err := handlerStruct.DataBase.Save(&credential).Error; err != nil {
-		return nil, fmt.Errorf("erro ao salvar o login: %w", err)
+		return nil, appErrors.Wrap("octohub.saveCredentialFailed", "erro ao salvar o login", err)
 	}
 	handlerStruct.refreshAuth(userID)
 	return octohubDtos.ToGitCredentialDto(&credential), nil
@@ -118,7 +118,7 @@ func (handlerStruct *RepositoryHandler) RemoveGitCredential(token string, creden
 	}
 	var credential models.GitCredentialModel
 	if err := handlerStruct.DataBase.Where("id = ? AND user_id = ?", credentialID, userID).First(&credential).Error; err != nil {
-		return fmt.Errorf("login não encontrado")
+		return appErrors.New("octohub.credentialNotFound", "login não encontrado")
 	}
 	if err := handlerStruct.DataBase.Unscoped().Delete(&credential).Error; err != nil {
 		return err

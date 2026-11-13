@@ -8,7 +8,10 @@ import { startDrag } from '../../../shared/functions/DragFunctions';
 import { getToken, useAuth } from '../../../../contexts/AuthContext';
 import SqlEditor, { type SqlEditorHandle } from './components/SqlEditor';
 import ResultsPanel, { type ResultsPanelTab } from './components/ResultsPanel';
-import { TalpadbServices, SESSION_NOT_FOUND_MESSAGE } from '../../services/TalpadbServices';
+import { TalpadbServices } from '../../services/TalpadbServices';
+import { formatMessage } from '../../../i18n/Languages';
+import { useTranslation } from '../../../i18n/useTranslation';
+import { currentDictionary, hasErrorCode } from '../../../i18n/TranslateError';
 import {
   syncVariablesWithSql,
   interpolateSqlVariables,
@@ -50,17 +53,21 @@ const safeFileName = (title: string) =>
     .replace(/[\\/:*?"<>|]+/g, '_')
     .trim() || 'query';
 
-const summarizeSave = (result: TableSaveResult) =>
-  [
-    result.inserted && `${result.inserted} inserida(s)`,
-    result.updated && `${result.updated} atualizada(s)`,
-    result.deleted && `${result.deleted} excluída(s)`,
+const summarizeSave = (result: TableSaveResult) => {
+  const queryTexts = currentDictionary().talpadb.queryTab;
+  return [
+    result.inserted && formatMessage(queryTexts.insertedCount, { count: result.inserted }),
+    result.updated && formatMessage(queryTexts.updatedCount, { count: result.updated }),
+    result.deleted && formatMessage(queryTexts.deletedCount, { count: result.deleted }),
   ]
     .filter(Boolean)
     .join(', ');
+};
 
 const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, active }) => {
   const { token } = useAuth();
+  const { dictionary } = useTranslation();
+  const queryTexts = dictionary.talpadb.queryTab;
   const renameTab = useTalpadbStore((state) => state.renameTab);
   const updateTab = useTalpadbStore((state) => state.updateTab);
   const setTabTxStatus = useTalpadbStore((state) => state.setTabTxStatus);
@@ -183,7 +190,7 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
             TalpadbServices.closeQuerySession(token ?? '', opened.sessionId).catch(
               () => undefined
             );
-            throw new Error('A aba foi fechada');
+            throw new Error(queryTexts.tabClosed);
           }
           sessionRef.current = opened.sessionId;
           setSession(opened);
@@ -216,7 +223,7 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
     const useSelection = rerunText === undefined && selection.text.trim().length > 0;
     const text = rerunText ?? (useSelection ? selection.text : editor.getValue());
     if (!text.trim()) {
-      toast('Digite uma consulta para executar.');
+      toast(queryTexts.emptyQuery);
       return;
     }
 
@@ -241,7 +248,7 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       try {
         result = await execute();
       } catch (error) {
-        if (!errorMessage(error).includes(SESSION_NOT_FOUND_MESSAGE)) throw error;
+        if (!hasErrorCode(error, 'talpadb.querySessionNotFound')) throw error;
         sessionRef.current = null;
         result = await execute();
       }
@@ -305,7 +312,7 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       setVariables((previous) => syncVariablesWithSql(file.content, previous));
       renameTab(tab.id, file.name);
     } catch (error) {
-      toast.error(`Erro ao abrir arquivo: ${errorMessage(error)}`);
+      toast.error(formatMessage(queryTexts.openFileFailed, { error: errorMessage(error) }));
     }
   };
 
@@ -317,9 +324,9 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
         `${safeFileName(tab.title)}.sql`,
         editorRef.current?.getValue() ?? ''
       );
-      if (path) toast.success(`Arquivo salvo: ${path}`);
+      if (path) toast.success(formatMessage(queryTexts.fileSaved, { path }));
     } catch (error) {
-      toast.error(`Erro ao salvar: ${errorMessage(error)}`);
+      toast.error(formatMessage(queryTexts.saveFailed, { error: errorMessage(error) }));
     }
   };
 
@@ -327,13 +334,13 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
     if (!token) return;
     const currentSql = editorRef.current?.getValue() ?? sqlText;
     if (!currentSql.trim()) {
-      toast('Digite uma consulta SQL antes de salvar.');
+      toast(queryTexts.emptySql);
       return;
     }
 
     const trimmedName = name.trim();
     if (!trimmedName) {
-      toast('Informe um nome para salvar a query.');
+      toast(queryTexts.nameRequired);
       return;
     }
 
@@ -369,9 +376,9 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
         return [saved, ...filtered];
       });
 
-      toast.success(`Query "${saved.name}" salva com suas variáveis!`);
+      toast.success(formatMessage(queryTexts.querySaved, { name: saved.name }));
     } catch (error) {
-      toast.error(`Erro ao salvar query: ${errorMessage(error)}`);
+      toast.error(formatMessage(queryTexts.saveQueryFailed, { error: errorMessage(error) }));
     } finally {
       setSavingQuery(false);
     }
@@ -403,9 +410,14 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       run('run', savedItem.sql, syncedVariables);
     } else if (syncedVariables.length > 0) {
       setPanel('variables');
-      toast.success(`Query "${savedItem.name}" carregada (${syncedVariables.length} variável(is)).`);
+      toast.success(
+        formatMessage(syncedVariables.length === 1 ? queryTexts.queryLoadedOne : queryTexts.queryLoadedOther, {
+          name: savedItem.name,
+          count: syncedVariables.length,
+        })
+      );
     } else {
-      toast.success(`Query "${savedItem.name}" carregada.`);
+      toast.success(formatMessage(queryTexts.queryLoaded, { name: savedItem.name }));
     }
   };
 
@@ -418,9 +430,9 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
         setActiveSavedQueryId(null);
         setSavedQueryName('');
       }
-      toast.success('Query salva excluída.');
+      toast.success(queryTexts.queryDeleted);
     } catch (error) {
-      toast.error(`Erro ao excluir query: ${errorMessage(error)}`);
+      toast.error(formatMessage(queryTexts.deleteQueryFailed, { error: errorMessage(error) }));
     }
   };
 
@@ -437,13 +449,16 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       if (!path) return;
       if (resultSet.truncated) {
         toast(
-          `Exportação parcial: foram exportadas ${formatNumber(resultSet.rows.length)} de ${formatNumber(resultSet.rowCount)} linhas (aumente o limite para exportar mais).`
+          formatMessage(queryTexts.partialExport, {
+            shown: formatNumber(resultSet.rows.length),
+            total: formatNumber(resultSet.rowCount),
+          })
         );
       } else {
-        toast.success(`Exportado: ${path}`);
+        toast.success(formatMessage(queryTexts.exported, { path }));
       }
     } catch (error) {
-      toast.error(`Erro ao exportar: ${errorMessage(error)}`);
+      toast.error(formatMessage(queryTexts.exportFailed, { error: errorMessage(error) }));
     }
   };
 
@@ -455,14 +470,14 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
       setTxStatus(result.txStatus);
       toast.success(
         result.committed
-          ? `Alterações salvas: ${summarizeSave(result)}`
-          : `Alterações na transação: ${summarizeSave(result)}. Execute COMMIT para confirmar ou ROLLBACK para desfazer.`
+          ? formatMessage(queryTexts.changesSaved, { summary: summarizeSave(result) })
+          : formatMessage(queryTexts.changesInTransaction, { summary: summarizeSave(result) })
       );
       const lastRun = lastRunRef.current;
       if (lastRun) run(lastRun.mode, lastRun.text);
       return true;
     } catch (error) {
-      toast.error(`Erro ao salvar: ${errorMessage(error)}`);
+      toast.error(formatMessage(queryTexts.saveFailed, { error: errorMessage(error) }));
       return false;
     }
   };
@@ -513,7 +528,7 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
             initialValue={tab.initialSql ?? ''}
             defaultSchema={defaultSchemaFor(engine, connection)}
             onExplain={(analyze) => run(analyze ? 'explain-analyze' : 'explain')}
-            placeholder="-- Escreva sua consulta (use $1, $2 para variáveis). Ctrl+Enter ou F5 executa."
+            placeholder={queryTexts.editorPlaceholder}
           />
         </div>
         <div
@@ -560,12 +575,12 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
         {running ? (
           <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400">
             <Loader2 className="w-3 h-3 animate-spin" />
-            Executando… {formatDuration(elapsed)}
+            {formatMessage(queryTexts.runningFor, { duration: formatDuration(elapsed) })}
           </span>
         ) : hasError ? (
           <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
             <CircleX className="w-3.5 h-3.5" />
-            Erro na execução
+            {queryTexts.executionError}
           </span>
         ) : execution ? (
           <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
@@ -573,7 +588,7 @@ const QueryTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, activ
             {summarizeExecution(execution)} · {formatDuration(execution.durationMs)}
           </span>
         ) : (
-          <span>Pronto</span>
+          <span>{queryTexts.ready}</span>
         )}
         <span className="ml-auto truncate">
           {tab.database} @ {tab.connectionName}

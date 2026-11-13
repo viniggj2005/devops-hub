@@ -1,6 +1,7 @@
 import toast from 'react-hot-toast';
 import { useExplorerStore } from './ExplorerStore';
 import { useTalpadbStore } from '../../TalpadbStore';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { useAuth } from '../../../../contexts/AuthContext';
 import type { ContextMenuItem } from '../components/ContextMenu';
 import { TalpadbServices } from '../../services/TalpadbServices';
@@ -68,6 +69,10 @@ export function useExplorerActions({
 }: ExplorerActionsOptions) {
   const { token } = useAuth();
   const confirmToast = useConfirmToast();
+  const { dictionary, formatMessage } = useTranslation();
+  const talpadbTexts = dictionary.talpadb;
+  const explorerTexts = talpadbTexts.explorer;
+  const menuTexts = explorerTexts.menu;
   const { openTab, connections, openQueryTab, closeConnectionTabs } = useTalpadbStore();
 
   const showError = (error: unknown) => toast.error(errorMessage(error));
@@ -111,7 +116,7 @@ export function useExplorerActions({
       database: node.database as string,
       connectionName: nameOf(node.connectionId),
       key: `diagram:${node.connectionId}:${node.database}:${node.schema ?? '*'}`,
-      title: node.schema ? `Diagrama ${node.schema}` : `Diagrama ${node.database}`,
+      title: formatMessage(explorerTexts.diagramTitle, { name: node.schema ?? node.database }),
     });
 
   const openDashboard = (node: ExplorerNode) => {
@@ -140,10 +145,14 @@ export function useExplorerActions({
         username: connection.username,
       });
       toast.success(
-        `Conexão OK: ${engineInfo(engineOf(connection)).label} ${result.serverVersion} · ${formatDuration(result.latencyMs)}`
+        formatMessage(talpadbTexts.home.connectionOk, {
+          version: result.serverVersion,
+          engine: engineInfo(engineOf(connection)).label,
+          latency: formatDuration(result.latencyMs),
+        })
       );
     } catch (error) {
-      toast.error(`Falha na conexão: ${errorMessage(error)}`);
+      toast.error(formatMessage(talpadbTexts.home.connectionFailed, { error: errorMessage(error) }));
     }
   };
 
@@ -153,8 +162,8 @@ export function useExplorerActions({
     const label = connectionLabel(connection);
     confirmToast({
       id: `talpadb-connection-${connection.id}`,
-      title: `Conexão ${label} deletada!`,
-      message: `Deseja deletar a conexão: ${label}?`,
+      title: formatMessage(talpadbTexts.home.deleteTitle, { name: label }),
+      message: formatMessage(talpadbTexts.home.deleteMessage, { name: label }),
       onConfirm: async () => {
         await TalpadbServices.deleteConnection(token ?? '', connection.id);
         closeConnectionTabs(connection.id);
@@ -224,7 +233,7 @@ export function useExplorerActions({
         node.schema as string,
         node.name as string
       );
-      toast.success(`${name}: ${formatNumber(count)} ${count === 1 ? 'linha' : 'linhas'}`);
+      toast.success(formatMessage(count === 1 ? explorerTexts.rowsOne : explorerTexts.rowsOther, { name, count: formatNumber(count) }));
     } catch (error) {
       showError(error);
     }
@@ -232,13 +241,13 @@ export function useExplorerActions({
 
   const copyName = (node: ExplorerNode) => {
     const engine = engineFor(node);
-    if (node.kind === 'column') return copyToClipboard(quoteIdent(node.label, engine), 'Nome copiado');
+    if (node.kind === 'column') return copyToClipboard(quoteIdent(node.label, engine), talpadbTexts.common.nameCopied);
     if (node.kind === 'schema')
-      return copyToClipboard(quoteIdent(node.schema as string, engine), 'Nome copiado');
-    if (node.kind === 'database') return copyToClipboard(node.label, 'Nome copiado');
+      return copyToClipboard(quoteIdent(node.schema as string, engine), talpadbTexts.common.nameCopied);
+    if (node.kind === 'database') return copyToClipboard(node.label, talpadbTexts.common.nameCopied);
     if (node.schema && node.name)
-      return copyToClipboard(qualifiedName(node.schema, node.name, engine), 'Nome copiado');
-    return copyToClipboard(node.label, 'Nome copiado');
+      return copyToClipboard(qualifiedName(node.schema, node.name, engine), talpadbTexts.common.nameCopied);
+    return copyToClipboard(node.label, talpadbTexts.common.nameCopied);
   };
 
   const disconnect = async (node: ExplorerNode) => {
@@ -246,7 +255,7 @@ export function useExplorerActions({
     try {
       await TalpadbServices.disconnectServer(token, node.connectionId);
       useExplorerStore.getState().resetServer(node.connectionId);
-      toast(`Desconectado: ${node.label}`);
+      toast(formatMessage(explorerTexts.disconnected, { name: node.label }));
     } catch (error) {
       showError(error);
     }
@@ -268,25 +277,25 @@ END;`;
     const info = engineInfo(engineFor(node));
     const copy: ContextMenuItem = {
       icon: Copy,
-      label: 'Copiar nome',
+      label: menuTexts.copyName,
       onClick: () => copyName(node),
     };
     const refreshItem: ContextMenuItem = {
       icon: RefreshCw,
-      label: 'Atualizar',
+      label: menuTexts.refresh,
       onClick: () => refresh(node),
     };
     const separator: ContextMenuItem = { separator: true };
     const createDatabase: ContextMenuItem = {
       icon: DatabaseZap,
-      label: 'Criar banco de dados…',
+      label: menuTexts.createDatabase,
       onClick: () => onCreateDatabase(node.connectionId),
     };
-    const diagram: ContextMenuItem = { label: 'Diagrama ER', icon: Network, onClick: () => openDiagram(node) };
+    const diagram: ContextMenuItem = { label: menuTexts.erDiagram, icon: Network, onClick: () => openDiagram(node) };
     const dropItem = (type: DropObjectType, name: string): ContextMenuItem => ({
       icon: Trash2,
       danger: true,
-      label: 'Excluir…',
+      label: menuTexts.drop,
       onClick: () =>
         onDropObject({
           type,
@@ -309,16 +318,16 @@ END;`;
       case 'server': {
         const connection = findConnection(node.connectionId);
         return [
-          { label: 'Nova query', icon: FileCode2, onClick: () => newQuery(node) },
+          { label: talpadbTexts.common.newQuery, icon: FileCode2, onClick: () => newQuery(node) },
           ...dashboardItems,
           ...createDatabaseItems,
           separator,
-          { label: 'Testar conexão', icon: Zap, onClick: () => testServerConnection(node) },
+          { label: talpadbTexts.common.testConnection, icon: Zap, onClick: () => testServerConnection(node) },
           ...(connection
             ? [
                 {
                   icon: Pencil,
-                  label: 'Editar conexão…',
+                  label: menuTexts.editConnection,
                   onClick: () => onEditConnection(connection),
                 },
               ]
@@ -327,21 +336,21 @@ END;`;
           separator,
           {
             icon: Unplug,
-            label: 'Desconectar',
+            label: menuTexts.disconnect,
             disabled: !useExplorerStore.getState().connected[node.connectionId],
             onClick: () => disconnect(node),
           },
           {
             icon: Trash2,
             danger: true,
-            label: 'Excluir conexão…',
+            label: menuTexts.deleteConnection,
             onClick: () => removeServerConnection(node),
           },
         ];
       }
       case 'database':
         return [
-          { label: 'Nova query', icon: FileCode2, onClick: () => newQuery(node) },
+          { label: talpadbTexts.common.newQuery, icon: FileCode2, onClick: () => newQuery(node) },
           diagram,
           ...createDatabaseItems,
           separator,
@@ -351,7 +360,7 @@ END;`;
         ];
       case 'schema':
         return [
-          { label: 'Nova query', icon: FileCode2, onClick: () => newQuery(node) },
+          { label: talpadbTexts.common.newQuery, icon: FileCode2, onClick: () => newQuery(node) },
           diagram,
           { label: 'Script CREATE', icon: ScrollText, onClick: () => scriptCreate(node) },
           separator,
@@ -365,11 +374,11 @@ END;`;
       case 'view':
       case 'matview':
         return [
-          { label: 'Ver dados (1000 linhas)', icon: Rows3, onClick: () => viewData(node) },
+          { label: menuTexts.viewData, icon: Rows3, onClick: () => viewData(node) },
           ...(node.kind === 'table'
-            ? [{ label: 'Contar linhas', icon: Hash, onClick: () => countRows(node) }]
+            ? [{ label: menuTexts.countRows, icon: Hash, onClick: () => countRows(node) }]
             : []),
-          { label: 'Propriedades', icon: TableProperties, onClick: () => openProperties(node) },
+          { label: menuTexts.properties, icon: TableProperties, onClick: () => openProperties(node) },
           separator,
           { label: 'Script CREATE', icon: ScrollText, onClick: () => scriptCreate(node) },
           {

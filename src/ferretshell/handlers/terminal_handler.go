@@ -3,6 +3,7 @@ package ferretshellHandlers
 import (
 	"context"
 
+	"docker-manager-go/src/appErrors"
 	auth "docker-manager-go/src/auth/functions"
 	"docker-manager-go/src/desktop"
 	ferretShellDtos "docker-manager-go/src/ferretshell/dtos"
@@ -85,7 +86,7 @@ func (handlerStruct *TerminalHandlerStruct) createSshClient(configure ferretShel
 	} else if configure.InsecureIgnoreHostKey {
 		hostKeyCallBack = ssh.InsecureIgnoreHostKey()
 	} else {
-		return nil, errors.New("sem KnownHostsPath e InsecureIgnoreHostKey=false")
+		return nil, appErrors.New("ferretShell.knownHostsRequired", "sem KnownHostsPath e InsecureIgnoreHostKey=false")
 	}
 
 	methods := []ssh.AuthMethod{}
@@ -112,7 +113,7 @@ func (handlerStruct *TerminalHandlerStruct) createSshClient(configure ferretShel
 	} else if configure.Password != "" {
 		methods = append(methods, ssh.Password(configure.Password))
 	} else {
-		return nil, errors.New("nenhum método de autenticação fornecido")
+		return nil, appErrors.New("ferretShell.noAuthMethod", "nenhum método de autenticação fornecido")
 	}
 
 	if configure.Timeout == 0 {
@@ -278,7 +279,7 @@ func (handlerStruct *TerminalHandlerStruct) Send(ctx context.Context, sessionId 
 func (handlerStruct *TerminalHandlerStruct) send(sessionKey string, data string) error {
 	connection, ok := handlerStruct.getSession(sessionKey)
 	if !ok {
-		return errors.New("sessão não encontrada")
+		return appErrors.New("ferretShell.sessionNotFound", "sessão não encontrada")
 	}
 	_, err := connection.stdin.Write([]byte(data))
 	return err
@@ -289,7 +290,7 @@ func (handlerStruct *TerminalHandlerStruct) Broadcast(ctx context.Context, sessi
 	for _, sessionId := range sessionIds {
 		err := handlerStruct.send(desktop.ScopedKey(windowName, sessionId), data)
 		if err != nil {
-			return errors.New("Erro de broadcast")
+			return appErrors.New("ferretShell.broadcastFailed", "Erro de broadcast")
 		}
 	}
 	return nil
@@ -298,7 +299,7 @@ func (handlerStruct *TerminalHandlerStruct) Broadcast(ctx context.Context, sessi
 func (handlerStruct *TerminalHandlerStruct) Resize(ctx context.Context, sessionId string, cols, rows int) error {
 	connection, ok := handlerStruct.getSession(desktop.ScopedKey(desktop.CallingWindowName(ctx), sessionId))
 	if !ok {
-		return errors.New("sessão não encontrada")
+		return appErrors.New("ferretShell.sessionNotFound", "sessão não encontrada")
 	}
 	return connection.session.WindowChange(rows, cols)
 }
@@ -306,7 +307,7 @@ func (handlerStruct *TerminalHandlerStruct) Resize(ctx context.Context, sessionI
 func (handlerStruct *TerminalHandlerStruct) Attach(ctx context.Context, sessionId string) error {
 	connection, ok := handlerStruct.getSession(desktop.ScopedKey(desktop.CallingWindowName(ctx), sessionId))
 	if !ok {
-		return errors.New("sessão não encontrada")
+		return appErrors.New("ferretShell.sessionNotFound", "sessão não encontrada")
 	}
 	connection.output.resume()
 	return nil

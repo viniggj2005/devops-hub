@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -17,6 +16,7 @@ import (
 	"regexp"
 	"strings"
 
+	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 )
 
@@ -44,7 +44,7 @@ type preparedBody struct {
 func BuildHttpRequest(ctx context.Context, httpRequest vulpesDtos.HttpRequestDto, auth vulpesDtos.AuthDto) (*http.Request, error) {
 	method := strings.ToUpper(strings.TrimSpace(httpRequest.Method))
 	if !methodPattern.MatchString(method) {
-		return nil, fmt.Errorf("método HTTP inválido: %q", httpRequest.Method)
+		return nil, appErrors.New("vulpes.invalidHttpMethod", "método HTTP inválido: \"{method}\"").With("method", httpRequest.Method)
 	}
 
 	targetUrl, err := NormalizeUrl(ApplyPathVariables(httpRequest.Url, httpRequest.PathVariables), "http")
@@ -52,7 +52,7 @@ func BuildHttpRequest(ctx context.Context, httpRequest vulpesDtos.HttpRequestDto
 		return nil, err
 	}
 	if scheme := strings.ToLower(targetUrl[:strings.Index(targetUrl, "://")]); scheme != "http" && scheme != "https" {
-		return nil, fmt.Errorf("protocolo %q não suportado em requisições HTTP", scheme)
+		return nil, appErrors.New("vulpes.unsupportedHttpScheme", "protocolo \"{scheme}\" não suportado em requisições HTTP").With("scheme", scheme)
 	}
 	authEntries := BuildAuthEntries(auth)
 	targetUrl = AppendQuery(targetUrl, authEntries.Query)
@@ -67,7 +67,7 @@ func BuildHttpRequest(ctx context.Context, httpRequest vulpesDtos.HttpRequestDto
 		if closer, ok := body.reader.(io.Closer); ok {
 			closer.Close()
 		}
-		return nil, fmt.Errorf("não foi possível montar a requisição: %w", err)
+		return nil, appErrors.Wrap("vulpes.buildRequestFailed", "não foi possível montar a requisição", err)
 	}
 	if body.reopen != nil {
 		request.ContentLength = body.length
@@ -166,11 +166,11 @@ func buildMultipartBody(fields []vulpesDtos.FormFieldDto) (preparedBody, error) 
 
 func writeFilePart(writer *multipart.Writer, field vulpesDtos.FormFieldDto) error {
 	if strings.TrimSpace(field.FilePath) == "" {
-		return fmt.Errorf("selecione o arquivo do campo %q", field.Key)
+		return appErrors.New("vulpes.formFileRequired", "selecione o arquivo do campo \"{field}\"").With("field", field.Key)
 	}
 	file, err := os.Open(field.FilePath)
 	if err != nil {
-		return fmt.Errorf("não foi possível abrir o arquivo do campo %q: %w", field.Key, err)
+		return appErrors.Wrap("vulpes.openFormFileFailed", "não foi possível abrir o arquivo do campo \"{field}\"", err).With("field", field.Key)
 	}
 	defer file.Close()
 
@@ -195,11 +195,11 @@ func writeFilePart(writer *multipart.Writer, field vulpesDtos.FormFieldDto) erro
 
 func buildBinaryBody(path string) (preparedBody, error) {
 	if strings.TrimSpace(path) == "" {
-		return preparedBody{}, errors.New("selecione o arquivo do corpo binário")
+		return preparedBody{}, appErrors.New("vulpes.binaryBodyFileRequired", "selecione o arquivo do corpo binário")
 	}
 	file, err := os.Open(path)
 	if err != nil {
-		return preparedBody{}, fmt.Errorf("não foi possível abrir o arquivo do corpo: %w", err)
+		return preparedBody{}, appErrors.Wrap("vulpes.openBodyFileFailed", "não foi possível abrir o arquivo do corpo", err)
 	}
 	info, err := file.Stat()
 	if err != nil {
@@ -219,7 +219,7 @@ func buildGraphqlBody(query string, variables string) (preparedBody, error) {
 	if strings.TrimSpace(variables) != "" {
 		var parsedVariables any
 		if err := json.Unmarshal([]byte(variables), &parsedVariables); err != nil {
-			return preparedBody{}, fmt.Errorf("as variáveis GraphQL não são um JSON válido: %w", err)
+			return preparedBody{}, appErrors.Wrap("vulpes.invalidGraphqlVariables", "as variáveis GraphQL não são um JSON válido", err)
 		}
 		payload["variables"] = parsedVariables
 	}

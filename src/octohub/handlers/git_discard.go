@@ -2,18 +2,20 @@ package octohubHandler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"docker-manager-go/src/appErrors"
 	octohubStructs "docker-manager-go/src/octohub/structs"
 )
 
 func (handlerStruct *GitCommitsHandler) DiscardChanges(ctx context.Context, files []octohubStructs.CommitFileSelection) error {
 	if len(files) == 0 {
-		return fmt.Errorf("selecione ao menos uma alteração para descartar")
+		return appErrors.New("octohub.discardChangesRequired", "selecione ao menos uma alteração para descartar")
 	}
 
 	var patches, backupPaths, restorePaths, removePaths []string
@@ -33,11 +35,11 @@ func (handlerStruct *GitCommitsHandler) DiscardChanges(ctx context.Context, file
 				return err
 			}
 			if hashDiff(diff) != file.DiffHash {
-				return fmt.Errorf("o arquivo %s mudou depois que as linhas foram selecionadas, revise a seleção", file.FileName)
+				return appErrors.New("octohub.selectionOutdated", "o arquivo {file} mudou depois que as linhas foram selecionadas, revise a seleção").With("file", file.FileName)
 			}
 			patch, err := buildDiscardPatch(diff, file.Lines)
 			if err != nil {
-				return fmt.Errorf("erro ao montar as linhas de %s: %w", file.FileName, err)
+				return appErrors.Wrap("octohub.buildLinesFailed", "erro ao montar as linhas de {file}", err).With("file", file.FileName)
 			}
 			if patch != "" {
 				patches = append(patches, patch)
@@ -56,18 +58,20 @@ func (handlerStruct *GitCommitsHandler) DiscardChanges(ctx context.Context, file
 	}
 
 	hasHead := handlerStruct.hasHead(ctx)
-	backupNote := ""
+	withBackupNote := func(err error) error { return err }
 	if hasHead {
 		if err := handlerStruct.backupChanges(ctx, backupPaths); err != nil {
-			return fmt.Errorf("não foi possível guardar uma cópia das alterações, nada foi descartado: %w", err)
+			return appErrors.Wrap("octohub.backupChangesFailed", "não foi possível guardar uma cópia das alterações, nada foi descartado", err)
 		}
-		backupNote = " Uma cópia das alterações ficou guardada nos stashes."
+		withBackupNote = func(err error) error {
+			return errors.Join(err, appErrors.New("octohub.changesBackedUp", "Uma cópia das alterações ficou guardada nos stashes."))
+		}
 	}
 
 	for _, patch := range patches {
 		args := []string{"apply", "--unidiff-zero", "--whitespace=nowarn", "-"}
 		if _, err := handlerStruct.gitHandler.runGitCommandWithInput(ctx, args, patch); err != nil {
-			return fmt.Errorf("erro ao descartar as linhas selecionadas: %w.%s", err, backupNote)
+			return withBackupNote(appErrors.Wrap("octohub.discardLinesFailed", "erro ao descartar as linhas selecionadas", err))
 		}
 	}
 
@@ -78,12 +82,12 @@ func (handlerStruct *GitCommitsHandler) DiscardChanges(ctx context.Context, file
 			removePaths = append(removePaths, restorePaths...)
 		}
 		if _, err := handlerStruct.gitHandler.runGitCommandWithInput(ctx, args, strings.Join(restorePaths, "\x00")); err != nil {
-			return fmt.Errorf("erro ao descartar alterações: %w.%s", err, backupNote)
+			return withBackupNote(appErrors.Wrap("octohub.discardChangesFailed", "erro ao descartar alterações", err))
 		}
 	}
 
 	if err := handlerStruct.removeFiles(ctx, removePaths); err != nil {
-		return fmt.Errorf("%w.%s", err, backupNote)
+		return withBackupNote(err)
 	}
 	return nil
 }
@@ -143,10 +147,10 @@ func (handlerStruct *GitCommitsHandler) removeFiles(ctx context.Context, paths [
 	for _, path := range paths {
 		fullPath := filepath.Join(root, filepath.FromSlash(path))
 		if !strings.HasPrefix(fullPath, root+string(filepath.Separator)) {
-			return fmt.Errorf("caminho fora do repositório: %s", path)
+			return appErrors.New("octohub.pathOutsideRepository", "caminho fora do repositório: {path}").With("path", path)
 		}
 		if err := os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("erro ao apagar %s: %w", path, err)
+			return appErrors.Wrap("octohub.deleteFileFailed", "erro ao apagar {path}", err).With("path", path)
 		}
 		for folder := filepath.Dir(fullPath); folder != root && strings.HasPrefix(folder, root); folder = filepath.Dir(folder) {
 			if os.Remove(folder) != nil {

@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import RichMessage from '../../features/i18n/RichMessage';
+import { useTranslation } from '../../features/i18n/useTranslation';
 import ContextMenu from '../../features/shared/components/menus/ContextMenu';
 import * as octohubDtos from '../../../bindings/docker-manager-go/src/octohub/dtos/models';
 import { useOctohubRepository } from '../../features/octohub-module/contexts/OctohubRepositoryContext';
@@ -27,7 +29,9 @@ const OctohubHomePage: React.FC<OctohubHomePageProps> = ({
     isLoggedIn,
 }) => {
     const navigate = useNavigate();
+    const { dictionary, formatMessage } = useTranslation();
     const [search, setSearch] = useState('');
+    const homeTexts = dictionary.octohub.home;
     const { menu, entries, openMenu, closeMenu } = useRepositoryContextMenu();
     const {
         repository,
@@ -60,7 +64,7 @@ const OctohubHomePage: React.FC<OctohubHomePageProps> = ({
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                     <p className="text-gray-500 dark:text-zinc-400 font-medium">
-                        Autenticando no GitHub...
+                        {homeTexts.authenticating}
                     </p>
                 </div>
             </div>
@@ -81,10 +85,9 @@ const OctohubHomePage: React.FC<OctohubHomePageProps> = ({
                     </div>
                 </div>
                 <div>
-                    <h1 className="text-3xl font-extrabold mb-3">Conecte sua conta</h1>
+                    <h1 className="text-3xl font-extrabold mb-3">{homeTexts.connectTitle}</h1>
                     <p className="text-gray-500 dark:text-zinc-400">
-                        O OctoHub precisa de acesso para gerenciar seus repositórios, chaves SSH e
-                        configurações do GitHub.
+                        {homeTexts.connectDescription}
                     </p>
                 </div>
                 <button
@@ -92,7 +95,7 @@ const OctohubHomePage: React.FC<OctohubHomePageProps> = ({
                     className="w-full sm:w-auto px-10 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-3"
                 >
                     <img src="/gitoctocat.svg" alt="" className="w-5 h-5 brightness-0 invert" />
-                    Conectar agora
+                    {homeTexts.connectNow}
                 </button>
             </div>
         );
@@ -124,19 +127,19 @@ const OctohubHomePage: React.FC<OctohubHomePageProps> = ({
                         <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                                 <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate">
-                                    {githubUser?.name || githubUser?.login || 'Desenvolvedor'}
+                                    {githubUser?.name || githubUser?.login || homeTexts.developer}
                                 </h1>
                                 <span className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                                     @{githubUser?.login}
                                 </span>
                                 {githubUser?.public_repos !== undefined && (
                                     <span className="px-2 py-0.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-zinc-400">
-                                        {githubUser.public_repos} públicos
+                                        {formatMessage(homeTexts.publicRepos, { count: githubUser.public_repos })}
                                     </span>
                                 )}
                             </div>
                             <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">
-                                Selecione um repositório abaixo ou use o seletor da barra superior.
+                                {homeTexts.selectHint}
                             </p>
                         </div>
                     </div>
@@ -148,7 +151,7 @@ const OctohubHomePage: React.FC<OctohubHomePageProps> = ({
                             className="shrink-0 px-4 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-bold transition-colors flex items-center gap-2.5 self-start sm:self-auto"
                         >
                             <GitCommitHorizontal className="w-4 h-4" />
-                            <span>Abrir {repository.name}</span>
+                            <span>{formatMessage(homeTexts.openRepository, { name: repository.name })}</span>
                             {currentBranch && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 text-[11px]">
                                     <GitBranch className="w-3 h-3" />
@@ -164,8 +167,8 @@ const OctohubHomePage: React.FC<OctohubHomePageProps> = ({
                         <div className="flex items-center gap-2.5">
                             <h2 className="text-base font-bold text-gray-900 dark:text-white">
                                 {githubAccount
-                                    ? `Repositórios de @${githubAccount.login}`
-                                    : 'Repositórios locais'}
+                                    ? formatMessage(homeTexts.accountRepositories, { login: githubAccount.login })
+                                    : homeTexts.localRepositories}
                             </h2>
                             <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-zinc-400">
                                 {repositories.length}
@@ -179,7 +182,7 @@ const OctohubHomePage: React.FC<OctohubHomePageProps> = ({
                                     type="text"
                                     value={search}
                                     onChange={(event) => setSearch(event.target.value)}
-                                    placeholder="Filtrar repositórios..."
+                                    placeholder={homeTexts.filterPlaceholder}
                                     className="w-full h-9 pl-9 pr-8 rounded-xl text-xs outline-none border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900/60 text-zinc-800 dark:text-zinc-200 focus:border-emerald-500"
                                 />
                                 {search && (
@@ -198,16 +201,15 @@ const OctohubHomePage: React.FC<OctohubHomePageProps> = ({
                         <div className="flex flex-col items-center justify-center gap-3 p-10 rounded-2xl border border-dashed border-gray-200 dark:border-white/10 text-center bg-white/50 dark:bg-zinc-900/20">
                             <FolderGit2 className="w-10 h-10 text-emerald-500/70" />
                             <p className="font-semibold text-sm">
-                                Nenhum repositório vinculado a esta conta ainda
+                                {homeTexts.emptyTitle}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-zinc-400 max-w-md">
-                                Clique no seletor <b>Repositório</b> na barra superior para clonar
-                                do GitHub, criar um novo repositório ou adicionar uma pasta local.
+                                <RichMessage template={homeTexts.emptyHint} values={{ selector: <b>{homeTexts.repositorySelector}</b> }} />
                             </p>
                         </div>
                     ) : filteredRepositories.length === 0 ? (
                         <p className="py-10 text-center text-xs text-zinc-400">
-                            Nenhum repositório corresponde ao filtro.
+                            {homeTexts.noMatch}
                         </p>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -250,18 +252,18 @@ const OctohubHomePage: React.FC<OctohubHomePageProps> = ({
                                                 </h3>
                                                 {repositoryItem.isCurrent && (
                                                     <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-lg uppercase tracking-wider shrink-0">
-                                                        Atual
+                                                        {homeTexts.current}
                                                     </span>
                                                 )}
                                             </div>
                                             <p className="text-xs text-gray-500 dark:text-zinc-400 truncate mt-1">
                                                 {repositoryItem.exists
                                                     ? repositoryItem.path
-                                                    : 'Pasta não encontrada'}
+                                                    : dictionary.octohub.common.folderNotFound}
                                             </p>
                                         </div>
                                         <button
-                                            title="Remover da lista"
+                                            title={dictionary.octohub.common.removeFromList}
                                             onClick={(event) => {
                                                 event.stopPropagation();
                                                 removeRepository(repositoryItem);
@@ -273,7 +275,7 @@ const OctohubHomePage: React.FC<OctohubHomePageProps> = ({
                                     </div>
                                     {repositoryItem.exists && (
                                         <div className="flex items-center gap-1 mt-4 text-xs font-bold text-emerald-600 dark:text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            Abrir alterações
+                                            {homeTexts.openChanges}
                                             <ArrowRight className="w-3.5 h-3.5" />
                                         </div>
                                     )}

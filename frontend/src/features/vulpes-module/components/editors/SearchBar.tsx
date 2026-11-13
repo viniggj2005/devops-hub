@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { iconButtonClass } from './FormStyles';
 import { ChevronDown, ChevronUp, Search, X } from 'lucide-react';
 import type { SearchSummary } from '../../functions/EditorSearch';
@@ -13,13 +14,15 @@ interface SearchBarProps {
   inputRef?: React.Ref<HTMLInputElement>;
 }
 
-const summaryLabel = ({ total, capped, current }: SearchSummary) => {
-  if (total === 0) return 'Nenhum resultado';
+const summaryLabel = ({ total, capped, current }: SearchSummary, noResultsLabel: string) => {
+  if (total === 0) return noResultsLabel;
   return `${current || '–'}/${total}${capped ? '+' : ''}`;
 };
 
 const SearchBar: React.FC<SearchBarProps> = ({ value, onNext, placeholder, onPrevious, summary, onChange, inputRef }) => {
   const hasMatches = summary.total > 0;
+  const { dictionary } = useTranslation();
+  const editorTexts = dictionary.vulpes.editors;
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Escape') {
@@ -51,15 +54,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ value, onNext, placeholder, onPre
               hasMatches ? 'text-gray-500 dark:text-zinc-400' : 'text-red-500 dark:text-red-400'
             }`}
           >
-            {summaryLabel(summary)}
+            {summaryLabel(summary, editorTexts.noResults)}
           </span>
-          <button type="button" title="Anterior (Shift+Enter)" disabled={!hasMatches} onClick={onPrevious} className={iconButtonClass}>
+          <button type="button" title={editorTexts.previousMatch} disabled={!hasMatches} onClick={onPrevious} className={iconButtonClass}>
             <ChevronUp className="w-3.5 h-3.5" />
           </button>
-          <button type="button" title="Próximo (Enter)" disabled={!hasMatches} onClick={onNext} className={iconButtonClass}>
+          <button type="button" title={editorTexts.nextMatch} disabled={!hasMatches} onClick={onNext} className={iconButtonClass}>
             <ChevronDown className="w-3.5 h-3.5" />
           </button>
-          <button type="button" title="Limpar (Esc)" onClick={() => onChange('')} className={iconButtonClass}>
+          <button type="button" title={editorTexts.clearSearch} onClick={() => onChange('')} className={iconButtonClass}>
             <X className="w-3.5 h-3.5" />
           </button>
         </>

@@ -1,5 +1,7 @@
 package vulpesDtos
 
+import "docker-manager-go/src/appErrors"
+
 const (
 	RealtimeAck        = "ack"
 	RealtimeError      = "error"
@@ -106,15 +108,16 @@ type GrpcResponseDto struct {
 }
 
 type RealtimeEventDto struct {
-	Kind      string `json:"kind"`
-	Data      string `json:"data"`
-	AckID     int64  `json:"ackId"`
-	Event     string `json:"event"`
-	HasAck    bool   `json:"hasAck"`
-	Encoding  string `json:"encoding"`
-	Direction string `json:"direction"`
-	SizeBytes int    `json:"sizeBytes"`
-	Timestamp int64  `json:"timestamp"`
+	Kind      string             `json:"kind"`
+	Data      string             `json:"data"`
+	AckID     int64              `json:"ackId"`
+	Event     string             `json:"event"`
+	HasAck    bool               `json:"hasAck"`
+	Message   *appErrors.Payload `json:"message,omitempty"`
+	Encoding  string             `json:"encoding"`
+	Direction string             `json:"direction"`
+	SizeBytes int                `json:"sizeBytes"`
+	Timestamp int64              `json:"timestamp"`
 }
 
 type RealtimeMessageInputDto struct {

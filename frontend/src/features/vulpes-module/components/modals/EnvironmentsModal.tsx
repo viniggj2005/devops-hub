@@ -1,5 +1,6 @@
 import toast from 'react-hot-toast';
 import { quickImportFiles } from './ImportModal';
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useVulpesStore } from '../../VulpesStore';
@@ -22,6 +23,8 @@ interface EnvironmentsModalProps {
 
 const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }) => {
   const confirm = useConfirmToast();
+  const { dictionary, formatMessage } = useTranslation();
+  const environmentTexts = dictionary.vulpes.environments;
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<Environment | null>(null);
   const [exportMenu, setExportMenu] = useState<{ x: number; y: number } | null>(null);
@@ -44,7 +47,7 @@ const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }
   useEffect(() => setDraft(selected ? structuredClone(selected) : null), [selected]);
 
   const createEnvironment = async () => {
-    const environment = await runWithToast(() => collectionActions.createEnvironment('Novo ambiente'));
+    const environment = await runWithToast(() => collectionActions.createEnvironment(environmentTexts.newName));
     if (environment) setSelectedId(environment.id);
   };
 
@@ -53,9 +56,9 @@ const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }
     if (!result) return;
     if (result.environments.length) {
       setSelectedId(result.environments[0].id);
-      toast.success(`${result.environments.length} ambiente(s) importado(s)`);
+      toast.success(formatMessage(environmentTexts.importedEnvironments, { count: result.environments.length }));
     }
-    if (result.collections.length) toast.success(`${result.collections.length} coleção(ões) importada(s)`);
+    if (result.collections.length) toast.success(formatMessage(environmentTexts.importedCollections, { count: result.collections.length }));
   };
 
   const save = async () => {
@@ -63,7 +66,7 @@ const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }
     setSaving(true);
     try {
       await collectionActions.updateEnvironment(draft);
-      toast.success('Ambiente salvo');
+      toast.success(environmentTexts.saved);
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
@@ -72,12 +75,12 @@ const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }
   };
 
   const exportEnvironment = async (environment: Environment, format: ExportFormat) =>
-    announceExport(await runWithToast(() => collectionActions.exportEnvironment(environment, format)), 'Ambiente');
+    announceExport(await runWithToast(() => collectionActions.exportEnvironment(environment, format)), 'environment');
 
   const removeEnvironment = (environment: Environment) =>
     confirm({
-      title: 'Excluir ambiente?',
-      message: `O ambiente "${environment.name}" e suas variáveis serão removidos.`,
+      title: environmentTexts.deleteTitle,
+      message: formatMessage(environmentTexts.deleteMessage, { name: environment.name }),
       onConfirm: async () => {
         await collectionActions.deleteEnvironment(environment);
         setSelectedId(null);
@@ -89,8 +92,8 @@ const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }
       size="xl"
       isOpen={isOpen}
       onClose={onClose}
-      title="Ambientes"
-      description="Variáveis usadas como {{nome}} nas requisições"
+      title={environmentTexts.title}
+      description={environmentTexts.description}
       icon={<Globe2 className="w-4 h-4 text-amber-500" />}
     >
       <VariableScopeProvider environmentVariablesOverride={draft?.variables}>
@@ -99,14 +102,14 @@ const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }
             <div className="flex gap-2">
               <button type="button" onClick={createEnvironment} className={`flex-1 ${secondaryButtonClass}`}>
                 <Plus className="w-3.5 h-3.5" />
-                Novo
+                {environmentTexts.create}
               </button>
-              <button type="button" onClick={importEnvironments} title="Importar do Postman ou do Insomnia" className={secondaryButtonClass}>
+              <button type="button" onClick={importEnvironments} title={dictionary.vulpes.importer.title} className={secondaryButtonClass}>
                 <Upload className="w-3.5 h-3.5" />
               </button>
             </div>
             <div className="flex-1 overflow-auto rounded-xl border border-gray-200 dark:border-white/10 divide-y divide-gray-100 dark:divide-white/5">
-              {environments.length === 0 && <p className="p-3 text-xs text-gray-500 dark:text-zinc-400">Nenhum ambiente criado.</p>}
+              {environments.length === 0 && <p className="p-3 text-xs text-gray-500 dark:text-zinc-400">{environmentTexts.empty}</p>}
               {environments.map((environment) => (
                 <button
                   type="button"
@@ -126,13 +129,13 @@ const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }
           <section className="flex-1 min-w-0 flex flex-col gap-4">
             {!draft ? (
               <div className="flex-1 flex items-center justify-center text-xs text-gray-500 dark:text-zinc-400">
-                Selecione ou crie um ambiente para editar suas variáveis.
+                {environmentTexts.selectHint}
               </div>
             ) : (
               <>
                 <div className="flex items-end gap-3">
                   <div className="flex-1">
-                    <label className={fieldLabelClass}>Nome</label>
+                    <label className={fieldLabelClass}>{dictionary.vulpes.common.name}</label>
                     <input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} className={fieldInputClass} />
                   </div>
                   <button
@@ -140,11 +143,11 @@ const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }
                     onClick={() => setActiveEnvironment(draft.id === activeEnvironmentId ? null : draft.id)}
                     className={secondaryButtonClass}
                   >
-                    {draft.id === activeEnvironmentId ? 'Desativar' : 'Usar este ambiente'}
+                    {draft.id === activeEnvironmentId ? environmentTexts.deactivate : environmentTexts.useThis}
                   </button>
                   <button
                     type="button"
-                    title="Exportar para Postman ou Insomnia"
+                    title={environmentTexts.exportHint}
                     onClick={(event) => {
                       const bounds = event.currentTarget.getBoundingClientRect();
                       setExportMenu({ x: bounds.left, y: bounds.bottom + 4 });
@@ -161,14 +164,14 @@ const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }
                       onClose={() => setExportMenu(null)}
                       entries={exportFormats.map(({ format, label }) => ({
                         icon: Download,
-                        label: `Exportar para ${label}`,
+                        label: formatMessage(environmentTexts.exportTo, { format: label }),
                         onClick: () => exportEnvironment(draft, format),
                       }))}
                     />
                   )}
                   <button
                     type="button"
-                    title="Excluir ambiente"
+                    title={environmentTexts.deleteHint}
                     onClick={() => selected && removeEnvironment(selected)}
                     className={`${iconButtonClass} hover:text-rose-500`}
                   >
@@ -179,10 +182,10 @@ const EnvironmentsModal: React.FC<EnvironmentsModalProps> = ({ isOpen, onClose }
                   <VariablesTable variables={draft.variables} onChange={(variables) => setDraft({ ...draft, variables })} />
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-[11px] text-gray-400 dark:text-zinc-500">Valores secretos ficam ocultos na tela; tudo é salvo criptografado.</p>
+                  <p className="text-[11px] text-gray-400 dark:text-zinc-500">{environmentTexts.secretsHint}</p>
                   <button type="button" onClick={save} disabled={saving || !dirty} className={primaryButtonClass}>
                     {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                    Salvar alterações
+                    {environmentTexts.saveChanges}
                   </button>
                 </div>
               </>

@@ -1,4 +1,5 @@
 import toast from 'react-hot-toast';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { useTalpadbStore } from '../../TalpadbStore';
 import SqlEditor from '../query/components/SqlEditor';
 import IndexesEditor from './components/IndexesEditor';
@@ -38,19 +39,14 @@ import {
 
 type Section = 'columns' | 'indexes' | 'constraints' | 'triggers' | 'sql';
 
-const kindLabels: Record<string, string> = {
-  r: 'Tabela',
-  p: 'Tabela particionada',
-  f: 'Tabela estrangeira',
-  v: 'View',
-  m: 'View materializada',
-};
-
 const formatExecutionError = (error: { message: string; detail: string; hint: string }) =>
   [error.message, error.detail, error.hint].filter(Boolean).join(' — ');
 
 const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
   const { token } = useAuth();
+  const { dictionary, formatMessage } = useTranslation();
+  const commonTexts = dictionary.talpadb.common;
+  const tableTexts = dictionary.talpadb.table;
   const updateTab = useTalpadbStore((state) => state.updateTab);
   const openQueryTab = useTalpadbStore((state) => state.openQueryTab);
   const engine = useTalpadbStore((state) => engineOf(state.connections.find((connection) => connection.id === tab.connectionId)));
@@ -94,7 +90,7 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
   if (loading && !details) {
     return (
       <div className="h-full flex items-center justify-center gap-2 text-sm text-gray-400">
-        <Loader2 className="w-4 h-4 animate-spin" /> Carregando propriedades…
+        <Loader2 className="w-4 h-4 animate-spin" /> {tableTexts.loading}
       </div>
     );
   }
@@ -107,7 +103,7 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
           onClick={() => load()}
           className="px-4 py-2 rounded-xl bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 text-sm font-semibold"
         >
-          Tentar novamente
+          {commonTexts.retry}
         </button>
       </div>
     );
@@ -126,9 +122,9 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
     draft.newConstraints.some((constraint) => !isConstraintDraftComplete(constraint));
 
   const sections: { id: Section; label: string; count?: number }[] = [
-    { id: 'columns', label: 'Colunas', count: details.columns.length },
+    { id: 'columns', label: tableTexts.columns, count: details.columns.length },
     ...(!isView || details.kind === 'm'
-      ? [{ id: 'indexes' as Section, label: 'Índices', count: details.indexes.length }]
+      ? [{ id: 'indexes' as Section, label: tableTexts.indexes, count: details.indexes.length }]
       : []),
     ...(!isView
       ? [{ id: 'constraints' as Section, label: 'Constraints', count: details.constraints.length }]
@@ -137,10 +133,10 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
     { id: 'sql', label: 'SQL' },
   ];
   const stats = [
-    { label: 'Linhas (estimativa)', value: formatNumber(details.estimatedRows) },
-    { label: 'Tamanho total', value: FormatBytes(details.totalSizeBytes) || '0 B' },
-    { label: 'Dados', value: FormatBytes(details.tableSizeBytes) || '0 B' },
-    { label: 'Índices', value: FormatBytes(details.indexSizeBytes) || '0 B' },
+    { label: tableTexts.estimatedRows, value: formatNumber(details.estimatedRows) },
+    { label: tableTexts.totalSize, value: FormatBytes(details.totalSizeBytes) || '0 B' },
+    { label: tableTexts.data, value: FormatBytes(details.tableSizeBytes) || '0 B' },
+    { label: tableTexts.indexes, value: FormatBytes(details.indexSizeBytes) || '0 B' },
   ];
 
   const changeDraft = (changes: Partial<TableDraft>) => setDraft((current) => (current ? { ...current, ...changes } : current));
@@ -179,13 +175,13 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
           key: `table:${tab.connectionId}:${tab.database}:${tab.schema}:${newName}`,
         });
       }
-      toast.success(`Tabela alterada: ${details.schema}.${newName}`);
+      toast.success(formatMessage(tableTexts.altered, { name: `${details.schema}.${newName}` }));
       setPreviewOpen(false);
       refreshExplorer();
       await load(newName);
     } catch (applyError) {
       toast.error(
-        `${info.supportsAtomicAlter ? 'Nada foi alterado' : 'Erro ao alterar (comandos anteriores ao erro já foram aplicados)'}: ${errorMessage(applyError)}`
+        formatMessage(info.supportsAtomicAlter ? tableTexts.nothingChanged : tableTexts.partialFailure, { error: errorMessage(applyError) })
       );
     } finally {
       if (sessionId) TalpadbServices.closeQuerySession(token, sessionId).catch(() => undefined);
@@ -210,8 +206,8 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                   {details.schema}.{details.name}
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-zinc-400">
-                  {kindLabels[details.kind] ?? details.kind}
-                  {details.owner && ` · dono ${details.owner}`} · {tab.database} @{' '}
+                  {tableTexts.kinds[details.kind as keyof typeof tableTexts.kinds] ?? details.kind}
+                  {details.owner && formatMessage(tableTexts.ownerSuffix, { owner: details.owner })} · {tab.database} @{' '}
                   {tab.connectionName}
                 </p>
               </div>
@@ -229,7 +225,7 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                   })
                 }
               >
-                <Rows3 className="w-4 h-4" /> Ver dados
+                <Rows3 className="w-4 h-4" /> {tableTexts.viewData}
               </button>
               <button
                 className={actionButton}
@@ -242,15 +238,15 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                   })
                 }
               >
-                <FileCode2 className="w-4 h-4" /> Abrir SQL no editor
+                <FileCode2 className="w-4 h-4" /> {tableTexts.openSqlInEditor}
               </button>
               <button
                 className={actionButton}
                 onClick={() => load()}
                 disabled={loading || hasChanges}
-                title={hasChanges ? 'Aplique ou descarte as alterações antes de atualizar' : 'Recarregar do servidor'}
+                title={hasChanges ? tableTexts.refreshBlockedHint : tableTexts.reloadHint}
               >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> {tableTexts.refresh}
               </button>
             </div>
           </div>
@@ -270,7 +266,7 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
           {editable ? (
             <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-3">
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-gray-500 dark:text-zinc-400">Nome da tabela</span>
+                <span className="text-xs font-semibold text-gray-500 dark:text-zinc-400">{tableTexts.tableName}</span>
                 <input
                   value={draft.name}
                   onChange={(event) => changeDraft({ name: event.target.value })}
@@ -278,11 +274,11 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                 />
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-gray-500 dark:text-zinc-400">Comentário</span>
+                <span className="text-xs font-semibold text-gray-500 dark:text-zinc-400">{commonTexts.comment}</span>
                 <input
                   value={draft.comment}
                   disabled={engine === 'sqlite'}
-                  placeholder={engine === 'sqlite' ? 'SQLite não guarda comentários' : 'Sem comentário'}
+                  placeholder={engine === 'sqlite' ? tableTexts.sqliteNoComments : tableTexts.noComment}
                   onChange={(event) => changeDraft({ comment: event.target.value })}
                   className={`${fieldClass} h-9 text-sm`}
                 />
@@ -322,11 +318,11 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                   <thead className={tableHead}>
                     <tr>
                       <th className={headerCell}>#</th>
-                      <th className={headerCell}>Nome</th>
-                      <th className={headerCell}>Tipo</th>
-                      <th className={headerCell}>Nulo</th>
-                      <th className={headerCell}>Padrão</th>
-                      <th className={headerCell}>Comentário</th>
+                      <th className={headerCell}>{commonTexts.name}</th>
+                      <th className={headerCell}>{commonTexts.type}</th>
+                      <th className={headerCell}>{tableTexts.nullable}</th>
+                      <th className={headerCell}>{tableTexts.defaultValue}</th>
+                      <th className={headerCell}>{commonTexts.comment}</th>
                     </tr>
                   </thead>
                   <tbody className="text-gray-700 dark:text-zinc-300">
@@ -341,7 +337,7 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                           </span>
                         </td>
                         <td className={`${bodyCell} font-mono text-xs`}>{column.dataType}</td>
-                        <td className={bodyCell}>{column.notNull ? 'não' : 'sim'}</td>
+                        <td className={bodyCell}>{column.notNull ? commonTexts.no : commonTexts.yes}</td>
                         <td className={`${bodyCell} font-mono text-xs break-all`}>{column.defaultValue ?? ''}</td>
                         <td className={`${bodyCell} text-xs text-gray-500`}>{column.comment ?? ''}</td>
                       </tr>
@@ -377,9 +373,9 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
               <table className="w-full text-sm">
                 <thead className={tableHead}>
                   <tr>
-                    <th className={headerCell}>Nome</th>
-                    <th className={headerCell}>Definição</th>
-                    <th className={headerCell}>Ativo</th>
+                    <th className={headerCell}>{commonTexts.name}</th>
+                    <th className={headerCell}>{commonTexts.definition}</th>
+                    <th className={headerCell}>{tableTexts.active}</th>
                   </tr>
                 </thead>
                 <tbody className="text-gray-700 dark:text-zinc-300">
@@ -387,7 +383,7 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
                     <tr key={trigger.name}>
                       <td className={`${bodyCell} font-medium`}>{trigger.name}</td>
                       <td className={`${bodyCell} font-mono text-xs break-all`}>{trigger.definition}</td>
-                      <td className={`${bodyCell} text-xs`}>{trigger.enabled ? 'sim' : 'não'}</td>
+                      <td className={`${bodyCell} text-xs`}>{trigger.enabled ? commonTexts.yes : commonTexts.no}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -395,17 +391,17 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
             )}
 
             {section === 'triggers' && details.triggers.length === 0 && (
-              <p className="px-4 py-6 text-sm text-gray-400">Nada cadastrado.</p>
+              <p className="px-4 py-6 text-sm text-gray-400">{commonTexts.nothingRegistered}</p>
             )}
 
             {section === 'sql' && (
               <div className="relative h-[60vh]">
                 <SqlEditor engine={engine} initialValue={details.ddl} key={details.ddl} readOnly />
                 <button
-                  onClick={() => copyToClipboard(details.ddl, 'SQL copiado')}
+                  onClick={() => copyToClipboard(details.ddl, commonTexts.sqlCopied)}
                   className="absolute top-3 right-4 flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-white/90 dark:bg-zinc-800/90 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-zinc-300 hover:text-cyan-700 dark:hover:text-cyan-300 shadow"
                 >
-                  <Copy className="w-3.5 h-3.5" /> Copiar
+                  <Copy className="w-3.5 h-3.5" /> {commonTexts.copy}
                 </button>
               </div>
             )}
@@ -417,23 +413,23 @@ const TablePropertiesTab: React.FC<{ tab: WorkspaceTab }> = ({ tab }) => {
       {hasChanges && (
         <div className="flex-shrink-0 flex items-center gap-3 px-6 py-3 border-t border-gray-200 dark:border-white/5 bg-amber-500/5">
           <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-            {script.split('\n').length} {script.split('\n').length === 1 ? 'comando pendente' : 'comandos pendentes'}
+            {formatMessage(script.split('\n').length === 1 ? tableTexts.pendingOne : tableTexts.pendingOther, { count: script.split('\n').length })}
           </span>
           {incomplete && (
             <span className="text-xs text-rose-600 dark:text-rose-400">
-              Preencha nome e tipo das colunas novas e as definições de índices/constraints.
+              {tableTexts.incomplete}
             </span>
           )}
           <div className="ml-auto flex items-center gap-2">
             <button onClick={() => setDraft(createTableDraft(details))} disabled={applying} className={actionButton}>
-              <Undo2 className="w-4 h-4" /> Descartar
+              <Undo2 className="w-4 h-4" /> {tableTexts.discard}
             </button>
             <button
               onClick={() => setPreviewOpen(true)}
               disabled={incomplete || applying}
               className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <ScrollText className="w-4 h-4" /> Revisar e aplicar
+              <ScrollText className="w-4 h-4" /> {tableTexts.reviewAndApply}
             </button>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { useAuth } from '../../../../contexts/AuthContext';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { TalpadbServices } from '../../services/TalpadbServices';
 import { FormatBytes } from '../../../shared/functions/TreatmentFunction';
 import { DashboardChart, type DashboardSample } from './components/DashboardChart';
@@ -86,6 +87,8 @@ const bodyCell = 'px-3 py-2 align-top border-t border-gray-100 dark:border-white
 const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, active }) => {
   const { token } = useAuth();
   const confirmToast = useConfirmToast();
+  const { dictionary, formatMessage } = useTranslation();
+  const dashboardTexts = dictionary.talpadb.dashboard;
   const loadingRef = useRef(false);
   const previousRef = useRef<{ sampledAt: number; counters: Record<CounterKey, number> } | null>(
     null
@@ -178,17 +181,20 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
     confirmToast({
       id: `pg-signal-${session.pid}`,
       title: terminate
-        ? `Sessão ${session.pid} encerrada`
-        : `Consulta da sessão ${session.pid} cancelada`,
+        ? formatMessage(dashboardTexts.sessionTerminated, { pid: session.pid })
+        : formatMessage(dashboardTexts.queryCancelled, { pid: session.pid }),
       message: terminate
-        ? `Encerrar a conexão ${session.pid} (${session.user ?? '?'}@${session.database ?? '?'})?`
-        : `Cancelar a consulta em execução na sessão ${session.pid}?`,
+        ? formatMessage(dashboardTexts.terminateConfirm, {
+            pid: session.pid,
+            target: `${session.user ?? '?'}@${session.database ?? '?'}`,
+          })
+        : formatMessage(dashboardTexts.cancelConfirm, { pid: session.pid }),
       onConfirm: async () => {
         const signaled = terminate
           ? await TalpadbServices.terminateBackend(token, tab.connectionId, session.pid)
           : await TalpadbServices.cancelBackend(token, tab.connectionId, session.pid);
         if (!signaled)
-          throw new Error('O servidor não sinalizou o processo (ele pode já ter terminado).');
+          throw new Error(dashboardTexts.notSignaled);
         refresh(false);
       },
     });
@@ -204,12 +210,12 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
               onClick={() => refresh(true)}
               className="px-4 py-2 rounded-xl bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 text-sm font-semibold"
             >
-              Tentar novamente
+              {dictionary.talpadb.common.retry}
             </button>
           </>
         ) : (
           <span className="flex items-center gap-2 text-sm text-gray-400">
-            <Loader2 className="w-4 h-4 animate-spin" /> Carregando dashboard…
+            <Loader2 className="w-4 h-4 animate-spin" /> {dashboardTexts.loading}
           </span>
         )}
       </div>
@@ -221,19 +227,19 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
   const lastSample = samples[samples.length - 1];
   const stats = [
     {
-      label: 'Sessões ativas',
+      label: dashboardTexts.activeSessions,
       value: `${counts.active} / ${counts.total}`,
       icon: Users,
       color: 'from-emerald-400 to-emerald-600',
     },
     {
-      label: 'Conexões',
+      label: dashboardTexts.connections,
       value: `${dashboard.sessions.length} / ${dashboard.maxConnections}`,
       icon: Activity,
       color: 'from-cyan-400 to-cyan-600',
     },
     {
-      label: 'Transações/s',
+      label: dashboardTexts.transactionsPerSecond,
       value: lastSample ? (lastSample.commits + lastSample.rollbacks).toFixed(1) : '—',
       icon: Zap,
       color: 'from-orange-400 to-orange-600',
@@ -258,7 +264,7 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
               </span>
               {dashboard.inRecovery && (
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400">
-                  réplica (somente leitura)
+                  {dashboardTexts.readOnlyReplica}
                 </span>
               )}
             </h2>
@@ -266,8 +272,11 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
               className="text-sm text-gray-500 dark:text-zinc-400 truncate"
               title={dashboard.version}
             >
-              No ar há {formatSeconds(dashboard.uptimeSeconds)} · usuário {dashboard.currentUser}
-              {dashboard.isSuperuser ? ' (superusuário)' : ''}
+              {formatMessage(dashboardTexts.uptime, {
+                uptime: formatSeconds(dashboard.uptimeSeconds),
+                user: dashboard.currentUser,
+              })}
+              {dashboard.isSuperuser ? dashboardTexts.superuser : ''}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -283,13 +292,13 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
                 onChange={(event) => setAutoRefresh(event.target.checked)}
                 className="h-4 w-4 accent-cyan-600"
               />
-              Atualizar a cada {REFRESH_INTERVAL / 1000}s
+              {formatMessage(dashboardTexts.autoRefresh, { seconds: REFRESH_INTERVAL / 1000 })}
             </label>
             <button
               onClick={() => refresh(true)}
               className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold border border-gray-200 dark:border-white/10 text-gray-600 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-white/5"
             >
-              <RefreshCw className="w-4 h-4" /> Atualizar
+              <RefreshCw className="w-4 h-4" /> {dashboardTexts.refresh}
             </button>
           </div>
         </div>
@@ -317,17 +326,17 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <DashboardChart
-            title="Sessões"
+            title={dashboardTexts.sessions}
             samples={samples}
             series={[
-              { key: 'total', label: 'Total', color: '#06b6d4' },
-              { key: 'active', label: 'Ativas', color: '#10b981' },
-              { key: 'idle', label: 'Ociosas', color: '#a1a1aa' },
-              { key: 'idleInTransaction', label: 'Ociosas em transação', color: '#f59e0b' },
+              { key: 'total', label: dashboardTexts.total, color: '#06b6d4' },
+              { key: 'active', label: dashboardTexts.active, color: '#10b981' },
+              { key: 'idle', label: dashboardTexts.idle, color: '#a1a1aa' },
+              { key: 'idleInTransaction', label: dashboardTexts.idleInTransaction, color: '#f59e0b' },
             ]}
           />
           <DashboardChart
-            title="Transações por segundo"
+            title={dashboardTexts.transactionsChart}
             decimals={1}
             samples={samples}
             series={[
@@ -336,22 +345,22 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
             ]}
           />
           <DashboardChart
-            title="Tuplas escritas por segundo"
+            title={dashboardTexts.tuplesChart}
             decimals={1}
             samples={samples}
             series={[
-              { key: 'inserted', label: 'Inseridas', color: '#10b981' },
-              { key: 'updated', label: 'Atualizadas', color: '#f59e0b' },
-              { key: 'deleted', label: 'Removidas', color: '#f43f5e' },
+              { key: 'inserted', label: dashboardTexts.inserted, color: '#10b981' },
+              { key: 'updated', label: dashboardTexts.updated, color: '#f59e0b' },
+              { key: 'deleted', label: dashboardTexts.deleted, color: '#f43f5e' },
             ]}
           />
           <DashboardChart
-            title="Blocos lidos por segundo"
+            title={dashboardTexts.blocksChart}
             decimals={1}
             samples={samples}
             series={[
               { key: 'blocksHit', label: 'Cache (shared buffers)', color: '#8b5cf6' },
-              { key: 'blocksRead', label: 'Disco', color: '#f97316' },
+              { key: 'blocksRead', label: dashboardTexts.disk, color: '#f97316' },
             ]}
           />
         </div>
@@ -359,15 +368,15 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
         <section className="rounded-2xl border border-gray-200 dark:border-white/5 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-white/5 bg-gray-50/60 dark:bg-white/[0.02]">
             <Database className="w-4 h-4 text-amber-500" />
-            <h3 className="text-sm font-bold text-gray-800 dark:text-zinc-100">Bancos de dados</h3>
+            <h3 className="text-sm font-bold text-gray-800 dark:text-zinc-100">{dashboardTexts.databases}</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-[11px] uppercase tracking-wider text-gray-400">
                 <tr>
-                  <th className={headerCell}>Nome</th>
-                  <th className={headerCell}>Tamanho</th>
-                  <th className={headerCell}>Conexões</th>
+                  <th className={headerCell}>{dictionary.talpadb.common.name}</th>
+                  <th className={headerCell}>{dictionary.talpadb.tableEditors.size}</th>
+                  <th className={headerCell}>{dashboardTexts.connections}</th>
                   <th className={headerCell}>Commits</th>
                   <th className={headerCell}>Rollbacks</th>
                   <th className={headerCell}>Cache hit</th>
@@ -399,7 +408,7 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
           <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-white/5 bg-gray-50/60 dark:bg-white/[0.02]">
             <Users className="w-4 h-4 text-cyan-500" />
             <h3 className="text-sm font-bold text-gray-800 dark:text-zinc-100">
-              Sessões ({sessions.length})
+              {formatMessage(dashboardTexts.sessionsCount, { count: sessions.length })}
             </h3>
             <label className="ml-auto flex items-center gap-2 text-xs text-gray-600 dark:text-zinc-300 cursor-pointer select-none">
               <input
@@ -408,7 +417,7 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
                 onChange={(event) => setShowBackground(event.target.checked)}
                 className="h-4 w-4 accent-cyan-600"
               />
-              Mostrar processos em segundo plano
+              {dashboardTexts.showBackground}
             </label>
           </div>
           <div className="overflow-x-auto">
@@ -416,14 +425,14 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
               <thead className="text-[11px] uppercase tracking-wider text-gray-400">
                 <tr>
                   <th className={headerCell}>PID</th>
-                  <th className={headerCell}>Usuário</th>
-                  <th className={headerCell}>Banco</th>
-                  <th className={headerCell}>Aplicação</th>
-                  <th className={headerCell}>Cliente</th>
-                  <th className={headerCell}>Estado</th>
-                  <th className={headerCell}>Espera</th>
-                  <th className={headerCell}>Duração</th>
-                  <th className={headerCell}>Consulta</th>
+                  <th className={headerCell}>{dashboardTexts.user}</th>
+                  <th className={headerCell}>{dashboardTexts.bank}</th>
+                  <th className={headerCell}>{dashboardTexts.application}</th>
+                  <th className={headerCell}>{dashboardTexts.client}</th>
+                  <th className={headerCell}>{dashboardTexts.state}</th>
+                  <th className={headerCell}>{dashboardTexts.waiting}</th>
+                  <th className={headerCell}>{dashboardTexts.duration}</th>
+                  <th className={headerCell}>{dashboardTexts.query}</th>
                   <th className={headerCell} />
                 </tr>
               </thead>
@@ -440,7 +449,7 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
                       <td className={`${bodyCell} tabular-nums`}>
                         {session.pid}
                         {session.isCurrent && (
-                          <span className="ml-1 text-[10px] text-cyan-500">(esta)</span>
+                          <span className="ml-1 text-[10px] text-cyan-500">{dashboardTexts.current}</span>
                         )}
                       </td>
                       <td className={bodyCell}>{session.user ?? '—'}</td>
@@ -483,7 +492,7 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
                         {!session.isCurrent && isClientSession(session) && (
                           <div className="flex gap-1">
                             <button
-                              title="Cancelar consulta (pg_cancel_backend)"
+                              title={dashboardTexts.cancelHint}
                               disabled={session.state !== 'active'}
                               onClick={() => signalBackend(session, false)}
                               className="p-1.5 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-500/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
@@ -491,7 +500,7 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
                               <Ban className="w-4 h-4" />
                             </button>
                             <button
-                              title="Encerrar sessão (pg_terminate_backend)"
+                              title={dashboardTexts.terminateHint}
                               onClick={() => signalBackend(session, true)}
                               className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-500/10"
                             >

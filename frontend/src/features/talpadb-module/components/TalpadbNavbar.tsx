@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTalpadbStore } from '../TalpadbStore';
 import { useAppStore } from '../../appFrame/AppStore';
+import { useTranslation } from '../../i18n/useTranslation';
 import { Server, LayoutPanelLeft, LogOut } from 'lucide-react';
 import { TALPADB_MODULE, TalpadbModuleIcon } from '../moduleInfo';
 import type { TalpadbView } from '../../../interfaces/TalpadbInterfaces';
@@ -9,10 +10,11 @@ import ToggleThemeButton from '../../shared/components/buttons/ToggleThemeButton
 const TalpadbNavbar: React.FC = () => {
   const { setActiveTab } = useAppStore();
   const { view, setView, tabs, connections } = useTalpadbStore();
+  const { dictionary } = useTranslation();
 
   const links: { view: TalpadbView; label: string; icon: typeof Server; badge?: number }[] = [
-    { view: 'workspace', label: 'Workspace', icon: LayoutPanelLeft, badge: tabs.length },
-    { view: 'home', label: 'Servidores', icon: Server, badge: connections.length },
+    { view: 'workspace', label: dictionary.talpadb.navbar.workspace, icon: LayoutPanelLeft, badge: tabs.length },
+    { view: 'home', label: dictionary.talpadb.navbar.servers, icon: Server, badge: connections.length },
   ];
 
   return (
@@ -62,10 +64,10 @@ const TalpadbNavbar: React.FC = () => {
         <button
           onClick={() => setActiveTab('home')}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 transition-all group"
-          title="Voltar ao Console"
+          title={dictionary.docker.navigation.backToConsole}
         >
           <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span className="hidden xl:inline">Voltar</span>
+          <span className="hidden xl:inline">{dictionary.app.common.back}</span>
         </button>
       </div>
     </nav>

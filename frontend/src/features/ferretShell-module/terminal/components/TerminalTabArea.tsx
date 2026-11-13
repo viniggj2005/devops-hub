@@ -2,11 +2,14 @@ import React from 'react';
 import { Radio } from 'lucide-react';
 import SplitLayout from './SplitLayout';
 import SnapOverlay from '../../../shared/components/split/SnapOverlay';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { maxInstancesPerTab, useTerminalStore } from '../TerminalStore';
 import { useGeneralConfigsStore } from '../../../settings/store/GeneralConfigsStore';
 
 const TerminalTabArea: React.FC = () => {
+    const { dictionary } = useTranslation();
     const tabs = useTerminalStore(state => state.tabs);
+    const terminalTexts = dictionary.ferretShell.terminal;
     const activeTabId = useTerminalStore(state => state.activeTabId);
     const mergeTabInto = useTerminalStore(state => state.mergeTabInto);
     const draggingTabId = useTerminalStore(state => state.draggingTabId);
@@ -40,10 +43,10 @@ const TerminalTabArea: React.FC = () => {
                                     ? 'bg-purple-500 text-white ring-2 ring-purple-500/50 shadow-purple-500/20'
                                     : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 border border-white/10'
                                 }`}
-                            title="Digitar em todos os terminais desta tela ao mesmo tempo"
+                            title={terminalTexts.broadcastHint}
                         >
                             <Radio className={`w-4 h-4 ${broadcastActive ? 'animate-pulse' : ''}`} />
-                            Broadcast
+                            {terminalTexts.broadcast}
                         </button>
                     </div>
                 )}
@@ -51,7 +54,7 @@ const TerminalTabArea: React.FC = () => {
                 {isDraggingOtherTab && draggedTab && (
                     <SnapOverlay
                         accent="purple"
-                        itemNoun="terminais"
+                        itemNoun={terminalTexts.terminalsNoun}
                         draggedTitle={draggedTab.title}
                         resultingCount={resultingCount}
                         onCancel={() => setDraggingTabId(null)}

@@ -1,12 +1,11 @@
 package vulpesFunctions
 
 import (
-	"errors"
-	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
 
+	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 )
 
@@ -21,10 +20,10 @@ func HasScheme(rawUrl string) bool {
 func NormalizeUrl(rawUrl string, defaultScheme string) (string, error) {
 	trimmed := strings.TrimSpace(rawUrl)
 	if trimmed == "" {
-		return "", errors.New("informe a URL")
+		return "", appErrors.New("vulpes.urlRequired", "informe a URL")
 	}
 	if match := variablePattern.FindString(trimmed); match != "" {
-		return "", fmt.Errorf("a variável %s não está definida na coleção nem no ambiente selecionado", match)
+		return "", appErrors.New("vulpes.undefinedVariable", "a variável {variable} não está definida na coleção nem no ambiente selecionado").With("variable", match)
 	}
 	if !HasScheme(trimmed) {
 		trimmed = defaultScheme + "://" + trimmed
@@ -41,10 +40,10 @@ func NormalizeUrl(rawUrl string, defaultScheme string) (string, error) {
 
 	parsed, err := url.Parse(normalized)
 	if err != nil {
-		return "", fmt.Errorf("URL inválida: %w", err)
+		return "", appErrors.Wrap("vulpes.invalidUrl", "URL inválida", err)
 	}
 	if parsed.Host == "" {
-		return "", fmt.Errorf("URL inválida: %q não possui host", rawUrl)
+		return "", appErrors.New("vulpes.urlWithoutHost", "URL inválida: \"{url}\" não possui host").With("url", rawUrl)
 	}
 	return normalized, nil
 }

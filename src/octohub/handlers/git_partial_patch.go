@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"docker-manager-go/src/appErrors"
 )
 
 var hunkHeaderRegex = regexp.MustCompile(`^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@`)
@@ -62,13 +64,13 @@ func buildSelectionPatch(diff string, selectedLines []int, discard bool) (string
 		switch {
 		case strings.HasPrefix(line, "diff "):
 			if current != nil {
-				return "", fmt.Errorf("o diff contém mais de um arquivo")
+				return "", appErrors.New("octohub.diffMultipleFiles", "o diff contém mais de um arquivo")
 			}
 			header = append(header, line)
 		case strings.HasPrefix(line, "@@"):
 			match := hunkHeaderRegex.FindStringSubmatch(line)
 			if match == nil {
-				return "", fmt.Errorf("cabeçalho de hunk inválido: %s", line)
+				return "", appErrors.New("octohub.invalidHunkHeader", "cabeçalho de hunk inválido: {header}").With("header", line)
 			}
 			start := match[1]
 			if discard {

@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useMemo } from 'react';
 import { ChevronRight, Save } from 'lucide-react';
 import HttpRequestEditor from '../http/HttpRequestEditor';
@@ -31,6 +32,8 @@ interface RequestViewProps {
 
 const RequestView: React.FC<RequestViewProps> = ({ tab, onSave, paneControls }) => {
   const renameTab = useVulpesStore((state) => state.renameTab);
+  const { dictionary } = useTranslation();
+  const workspaceTexts = dictionary.vulpes.workspace;
   const runtime = useVulpesStore((state) => state.runtimes[tab.id]) ?? fallbackRuntime;
   const collection = useVulpesStore((state) => state.collections.find((candidate) => candidate.id === tab.collectionId));
   const environment = useVulpesStore((state) => state.environments.find((candidate) => candidate.id === state.activeEnvironmentId));
@@ -45,7 +48,7 @@ const RequestView: React.FC<RequestViewProps> = ({ tab, onSave, paneControls }) 
       <div className="h-full flex flex-col min-h-0">
         <div className="flex items-center gap-2 px-4 pt-3 flex-shrink-0">
           <div className="flex items-center gap-1 min-w-0 text-xs text-gray-400 dark:text-zinc-500">
-            <span className="truncate max-w-[180px]">{collection?.name ?? 'Não salva'}</span>
+            <span className="truncate max-w-[180px]">{collection?.name ?? workspaceTexts.notSaved}</span>
             {folders.map((folder) => (
               <React.Fragment key={folder.id}>
                 <ChevronRight className="w-3 h-3 flex-shrink-0" />
@@ -57,13 +60,13 @@ const RequestView: React.FC<RequestViewProps> = ({ tab, onSave, paneControls }) 
           <input
             value={tab.name}
             spellCheck={false}
-            aria-label="Nome da requisição"
+            aria-label={workspaceTexts.requestName}
             onChange={(event) => renameTab(tab.id, event.target.value)}
             className="flex-1 min-w-0 bg-transparent text-sm font-bold text-gray-900 dark:text-white rounded-md px-1.5 py-0.5 -ml-1 hover:bg-gray-100 dark:hover:bg-white/5 focus:bg-gray-100 dark:focus:bg-white/5 focus:outline-none"
           />
-          <button type="button" onClick={onSave} title="Salvar (Ctrl+S)" className={secondaryButtonClass}>
+          <button type="button" onClick={onSave} title={workspaceTexts.saveHint} className={secondaryButtonClass}>
             <Save className={`w-3.5 h-3.5 ${tab.dirty ? 'text-amber-500' : ''}`} />
-            {tab.itemId ? 'Salvar' : 'Salvar em…'}
+            {tab.itemId ? dictionary.vulpes.common.save : workspaceTexts.saveAs}
           </button>
           {paneControls}
         </div>

@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import 'chartjs-adapter-date-fns';
 import { Line } from 'react-chartjs-2';
 import {
@@ -39,6 +40,7 @@ interface DashboardChartProps {
 
 function DashboardChartBase({ title, samples, series, decimals = 0 }: DashboardChartProps) {
   const { theme } = useTheme();
+  const { dictionary } = useTranslation();
   const textColor = theme === 'dark' ? '#a1a1aa' : '#6b7280';
 
   const data = {
@@ -99,7 +101,7 @@ function DashboardChartBase({ title, samples, series, decimals = 0 }: DashboardC
       <div className="flex-1 min-h-0">
         {samples.length < 2 ? (
           <div className="h-full flex items-center justify-center text-xs text-gray-400">
-            Coletando amostras…
+            {dictionary.talpadb.dashboard.collecting}
           </div>
         ) : (
           <Line data={data} options={options} />

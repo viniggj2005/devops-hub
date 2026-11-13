@@ -7,10 +7,13 @@ import { Modal } from '../../../shared/components/modals/Modal';
 import { TerminalServices } from '../services/TerminalServices';
 import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import { ModalButton } from '../../../shared/components/modals/ModalButton';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { CreateSshConnectionInterface, ModalProps } from '../../../../interfaces/TerminalInterfaces';
 
 const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreated }) => {
   const fileTypes = ['PEM', 'TXT'];
+  const { dictionary, formatMessage } = useTranslation();
+  const formTexts = dictionary.ferretShell.connectionForm;
   const { token, user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [fileName, setFileName] = useState<string>('');
@@ -51,7 +54,7 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!formData.key && !formData.password) {
-      toast.error('Você deve fornecer uma senha ou um arquivo de chave.');
+      toast.error(formTexts.credentialsRequired);
       return;
     }
     setSubmitting(true);
@@ -61,7 +64,7 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
         payload.password = btoa(payload.password);
       }
       await TerminalServices.createSshConnection(token ? token : '', payload);
-      toast.success('A conexão SSH foi criada.');
+      toast.success(formTexts.created);
       onClose();
       onCreated?.();
       setFormData({
@@ -76,7 +79,7 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
       });
       setFileName('');
     } catch (error) {
-      toast.error(`Erro ao criar conexão: ${errorMessage(error)}`);
+      toast.error(formatMessage(formTexts.createFailed, { error: errorMessage(error) }));
     } finally {
       setSubmitting(false);
     }
@@ -92,29 +95,29 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
     <Modal
       isOpen={open}
       onClose={onClose}
-      title="Nova conexão SSH"
-      description="preencha os dados"
+      title={formTexts.createTitle}
+      description={formTexts.createDescription}
       icon={<TerminalSquare className="w-5 h-5 text-emerald-500" />}
       footer={
         <>
           <ModalButton variant="secondary" onClick={onClose} disabled={submitting}>
-            Cancelar
+            {dictionary.app.common.cancel}
           </ModalButton>
           <ModalButton variant="primary" onClick={handleSubmit} disabled={submitting} isLoading={submitting}>
-            Criar Conexão
+            {formTexts.create}
           </ModalButton>
         </>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <p className="text-sm mb-4 text-gray-600 dark:text-gray-400">
-          Preencha os dados abaixo para criar uma nova conexão SSH.
+          {formTexts.createIntro}
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
             <label className={labelClass}>
-              Alias <span className="opacity-60 text-xs">(opcional)</span>
+              {formTexts.alias} <span className="opacity-60 text-xs">{formTexts.optional}</span>
             </label>
             <input
               className={inputClass}
@@ -122,12 +125,12 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
               name="alias"
               value={formData.alias}
               onChange={handleChange}
-              placeholder="alias"
+              placeholder={formTexts.aliasPlaceholder}
             />
           </div>
 
           <div>
-            <label className={labelClass}>Host</label>
+            <label className={labelClass}>{formTexts.host}</label>
             <input
               className={inputClass}
               type="text"
@@ -135,12 +138,12 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
               value={formData.host}
               onChange={handleChange}
               required
-              placeholder="ex: 192.168.0.10"
+              placeholder={formTexts.hostPlaceholder}
             />
           </div>
 
           <div>
-            <label className={labelClass}>Usuário</label>
+            <label className={labelClass}>{formTexts.user}</label>
             <input
               className={inputClass}
               type="text"
@@ -148,12 +151,12 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
               value={formData.systemUser}
               onChange={handleChange}
               required
-              placeholder="ex: ubuntu"
+              placeholder={formTexts.userPlaceholder}
             />
           </div>
 
           <div>
-            <label className={labelClass}>Porta</label>
+            <label className={labelClass}>{formTexts.port}</label>
             <input
               className={inputClass}
               type="number"
@@ -166,19 +169,19 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
           </div>
 
           <div>
-            <label className={labelClass}>Senha <span className="opacity-60 text-xs">(opcional se usar chave)</span></label>
+            <label className={labelClass}>{formTexts.password} <span className="opacity-60 text-xs">{formTexts.passwordOptional}</span></label>
             <input
               className={inputClass}
               type="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="sua senha"
+              placeholder={formTexts.passwordPlaceholder}
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className={labelClass}>Arquivo da chave (.pem, .txt)</label>
+            <label className={labelClass}>{formTexts.keyFile}</label>
             <div className={`rounded-xl border border-dashed p-4 transition-all
               ${fileName
                 ? 'border-emerald-500/50 bg-emerald-500/10'
@@ -187,10 +190,10 @@ const CreateSshConnectionModal: React.FC<ModalProps> = ({ open, onClose, onCreat
               <FileUploader handleChange={handleFileChange} name="key" types={fileTypes}>
                 <div className="flex cursor-pointer items-center justify-between">
                   <span className={`text-sm ${fileName ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {fileName ? `Selecionado: ${fileName}` : 'Arraste e solte ou clique para enviar'}
+                    {fileName ? formatMessage(formTexts.selectedFile, { name: fileName }) : formTexts.dropKey}
                   </span>
                   <span className="rounded-lg border border-gray-300 dark:border-white/20 px-3 py-1.5 text-xs bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 shadow-sm">
-                    Procurar
+                    {formTexts.browse}
                   </span>
                 </div>
               </FileUploader>

@@ -1,4 +1,6 @@
 import React from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
+import type { Dictionary } from '../../../i18n/Languages';
 import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { ChevronRight, FileText, Plus, Minus, SquareDot, SquareArrowRight } from 'lucide-react';
 
@@ -20,12 +22,12 @@ const getStatusIcon = (status: string) => {
     }
 };
 
-const getStatusLabel = (status: string) => {
+const getStatusLabel = (status: string, statusTexts: Dictionary['octohub']['modifiedFiles']['status']) => {
     switch (status[0]) {
-        case 'A': return 'Adicionado';
-        case 'M': return 'Modificado';
-        case 'D': return 'Deletado';
-        case 'R': return 'Renomeado';
+        case 'A': return statusTexts.added;
+        case 'M': return statusTexts.modified;
+        case 'D': return statusTexts.deleted;
+        case 'R': return statusTexts.renamed;
         default: return status;
     }
 };
@@ -37,11 +39,13 @@ const ModifiedFileList: React.FC<ModifiedFileListProps> = ({
     modifications,
     onFileDoubleClick,
 }) => {
+    const { dictionary, formatMessage } = useTranslation();
+    const filesTexts = dictionary.octohub.modifiedFiles;
     return (
         <div className="flex-1 flex flex-col min-h-0 bg-transparent">
             <div className="p-4 border-b border-zinc-200 dark:border-white/5">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-                    Arquivos Alterados ({modifications.length})
+                    {formatMessage(filesTexts.title, { count: modifications.length })}
                 </h3>
             </div>
 
@@ -49,7 +53,7 @@ const ModifiedFileList: React.FC<ModifiedFileListProps> = ({
                 {loadingFiles ? (
                     <div className="flex items-center gap-2 text-zinc-500 italic text-xs p-4">
                         <div className="w-3 h-3 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
-                        Buscando arquivos...
+                        {filesTexts.loading}
                     </div>
                 ) : modifications.length > 0 ? (
                     <div className="space-y-0.5">
@@ -59,12 +63,12 @@ const ModifiedFileList: React.FC<ModifiedFileListProps> = ({
                                 className={`flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors group cursor-pointer ${selectedFile === modifiedFile.File ? 'bg-zinc-200 dark:bg-white/10 ring-1 ring-zinc-300 dark:ring-white/10' : ''}`}
                                 onClick={() => onFileClick(modifiedFile.File)}
                                 onDoubleClick={() => onFileDoubleClick?.(modifiedFile.File)}
-                                title={onFileDoubleClick ? 'Clique duas vezes para abrir no VS Code' : undefined}
+                                title={onFileDoubleClick ? filesTexts.doubleClickHint : undefined}
                             >
                                 <div className="flex items-center gap-2.5 min-w-0">
                                     <div
                                         className="shrink-0"
-                                        title={getStatusLabel(modifiedFile.Status)}
+                                        title={getStatusLabel(modifiedFile.Status, filesTexts.status)}
                                     >
                                         {getStatusIcon(modifiedFile.Status)}
                                     </div>
@@ -78,7 +82,7 @@ const ModifiedFileList: React.FC<ModifiedFileListProps> = ({
                     </div>
                 ) : (
                     <div className="p-8 text-center text-zinc-400 italic text-xs">
-                        Nenhuma modificação encontrada.
+                        {filesTexts.empty}
                     </div>
                 )}
             </div>

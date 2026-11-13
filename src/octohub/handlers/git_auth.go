@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"golang.org/x/crypto/ssh"
+
+	"docker-manager-go/src/appErrors"
 )
 
 type httpCredential struct {
@@ -156,9 +158,9 @@ func normalizeCredentialHost(value string) string {
 
 func authFailure(host string, isSSH bool, message string) error {
 	if host == "" || (host == "github.com" && !isSSH) {
-		return errors.New(friendlyGitError(message))
+		return gitCommandError(message)
 	}
-	return fmt.Errorf("%s recusou o acesso: configure usuário e senha (ou token) ou uma chave SSH para esse servidor. [auth:%s]\n%s", host, host, message)
+	return appErrors.Wrap("octohub.authRejected", "{host} recusou o acesso: configure usuário e senha (ou token) ou uma chave SSH para esse servidor", errors.New(message)).With("host", host)
 }
 
 func decodePrivateKey(privateKey, passphrase string) ([]byte, error) {
@@ -172,12 +174,12 @@ func decodePrivateKey(privateKey, passphrase string) ([]byte, error) {
 	if err != nil {
 		var missing *ssh.PassphraseMissingError
 		if errors.As(err, &missing) {
-			return nil, fmt.Errorf("essa chave SSH é protegida por senha: informe a senha da chave")
+			return nil, appErrors.New("octohub.sshKeyNeedsPassphrase", "essa chave SSH é protegida por senha: informe a senha da chave")
 		}
 		if passphrase != "" {
-			return nil, fmt.Errorf("não foi possível abrir a chave SSH, confira a senha: %w", err)
+			return nil, appErrors.Wrap("octohub.sshKeyWrongPassphrase", "não foi possível abrir a chave SSH, confira a senha", err)
 		}
-		return nil, fmt.Errorf("chave SSH inválida: %w", err)
+		return nil, appErrors.Wrap("octohub.invalidSshKey", "chave SSH inválida", err)
 	}
 	if key, isPointer := raw.(*ed25519.PrivateKey); isPointer {
 		raw = *key

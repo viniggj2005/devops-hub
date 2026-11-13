@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 )
 
@@ -191,7 +192,7 @@ func ParseInsomniaFile(content []byte, sourceName string) (*ImportedData, error)
 		Resources []json.RawMessage `json:"resources"`
 	}
 	if err := json.Unmarshal(content, &probe); err != nil {
-		return nil, fmt.Errorf("não foi possível ler o arquivo do Insomnia %s: %w", sourceName, err)
+		return nil, appErrors.Wrap("vulpes.readInsomniaFailed", "não foi possível ler o arquivo do Insomnia {source}", err).With("source", sourceName)
 	}
 
 	importer := &insomniaImporter{warnings: newWarningCollector()}
@@ -207,7 +208,7 @@ func ParseInsomniaFile(content []byte, sourceName string) (*ImportedData, error)
 
 	imported := importer.build()
 	if len(imported.Collections) == 0 && len(imported.Environments) == 0 {
-		return nil, fmt.Errorf("%s não contém coleções nem ambientes do Insomnia", sourceName)
+		return nil, appErrors.New("vulpes.emptyInsomniaImport", "{source} não contém coleções nem ambientes do Insomnia").With("source", sourceName)
 	}
 	imported.Warnings = importer.warnings.list()
 	return imported, nil
@@ -229,10 +230,10 @@ func (importer *insomniaImporter) decodeResources(rawResources []json.RawMessage
 func (importer *insomniaImporter) convertV5Document(content []byte, sourceName string) ([]insomniaResource, error) {
 	var document insomniaV5Document
 	if err := json.Unmarshal(content, &document); err != nil {
-		return nil, fmt.Errorf("não foi possível ler o arquivo do Insomnia %s: %w", sourceName, err)
+		return nil, appErrors.Wrap("vulpes.readInsomniaFailed", "não foi possível ler o arquivo do Insomnia {source}", err).With("source", sourceName)
 	}
 	if strings.HasPrefix(document.Type, "mock.") {
-		return nil, fmt.Errorf("%s é um servidor mock do Insomnia, que não é suportado", sourceName)
+		return nil, appErrors.New("vulpes.insomniaMockUnsupported", "{source} é um servidor mock do Insomnia, que não é suportado").With("source", sourceName)
 	}
 
 	scope := "collection"

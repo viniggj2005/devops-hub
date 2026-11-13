@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { errorMessage } from '../../functions/ErrorMessage';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 type ConfirmOpts = {
   id?: string;
@@ -15,6 +16,7 @@ const ConfirmToastCard: React.FC<{
   toastId: string;
   options: ConfirmOpts;
 }> = ({ toastId, options }) => {
+  const { dictionary } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
 
   const handleConfirm = async () => {
@@ -61,7 +63,7 @@ const ConfirmToastCard: React.FC<{
           disabled={submitting}
           className="px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-700 dark:text-zinc-300 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 disabled:opacity-50 transition-colors cursor-pointer"
         >
-          Não
+          {dictionary.app.common.no}
         </button>
         <button
           type="button"
@@ -70,7 +72,7 @@ const ConfirmToastCard: React.FC<{
           className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 flex items-center gap-1.5 transition-colors cursor-pointer"
         >
           {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-          <span>Sim</span>
+          <span>{dictionary.app.common.yes}</span>
         </button>
       </div>
     </div>

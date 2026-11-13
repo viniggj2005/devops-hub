@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"docker-manager-go/src/appErrors"
 	octohubStructs "docker-manager-go/src/octohub/structs"
 )
 
@@ -41,10 +42,10 @@ func (handlerStruct *GitBranchHandler) GetOriginURL(ctx context.Context) string 
 
 func (handlerStruct *GitBranchHandler) validateBranchName(ctx context.Context, branchName string) error {
 	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"check-ref-format", "--branch", branchName}); err != nil {
-		return fmt.Errorf("nome de branch inválido: %s", branchName)
+		return appErrors.New("octohub.invalidBranchName", "nome de branch inválido: {name}").With("name", branchName)
 	}
 	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--verify", "--quiet", "refs/heads/" + branchName}); err == nil {
-		return fmt.Errorf("já existe uma branch chamada %s", branchName)
+		return appErrors.New("octohub.branchExists", "já existe uma branch chamada {name}").With("name", branchName)
 	}
 	return nil
 }
@@ -67,7 +68,7 @@ func (handlerStruct *GitBranchHandler) CreateBranchFrom(ctx context.Context, bra
 		startPoint = "HEAD"
 	}
 	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--verify", "--quiet", startPoint + "^{commit}"}); err != nil {
-		return fmt.Errorf("branch de origem não encontrada: %s", startPoint)
+		return appErrors.New("octohub.startPointNotFound", "branch de origem não encontrada: {branch}").With("branch", startPoint)
 	}
 
 	args := []string{"branch", "--no-track", branchName, startPoint}
@@ -75,7 +76,7 @@ func (handlerStruct *GitBranchHandler) CreateBranchFrom(ctx context.Context, bra
 		args = []string{"checkout", "--no-track", "-b", branchName, startPoint}
 	}
 	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, args); err != nil {
-		return fmt.Errorf("erro ao criar branch: %v", err)
+		return appErrors.Wrap("octohub.createBranchFailed", "erro ao criar branch", err)
 	}
 	return nil
 }
@@ -102,14 +103,14 @@ func (handlerStruct *GitBranchHandler) ChangeBranch(ctx context.Context, targetB
 	var args []string
 	hasChanges, err := handlerStruct.HasUncommittedChanges(ctx)
 	if err != nil {
-		return fmt.Errorf("erro ao verificar alterações: %v", err)
+		return appErrors.Wrap("octohub.checkChangesFailed", "erro ao verificar alterações", err)
 	}
 
 	if hasChanges {
 		args = []string{"stash", "push", "-u", "-m", "OctoHub: Auto-stash antes de mudar para " + targetBranch}
 		_, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 		if err != nil {
-			return fmt.Errorf("erro ao guardar alterações temporárias: %v", err)
+			return appErrors.Wrap("octohub.stashTemporaryFailed", "erro ao guardar alterações temporárias", err)
 		}
 	}
 
@@ -123,14 +124,14 @@ func (handlerStruct *GitBranchHandler) ChangeBranch(ctx context.Context, targetB
 			args = []string{"stash", "pop"}
 			_, _ = handlerStruct.gitHandler.runGitCommand(ctx, args)
 		}
-		return fmt.Errorf("erro ao trocar branch: %v", err)
+		return appErrors.Wrap("octohub.checkoutFailed", "erro ao trocar branch", err)
 	}
 
 	if hasChanges && !leaveChanges {
 		args := []string{"stash", "pop"}
 		_, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 		if err != nil {
-			return fmt.Errorf("trocou de branch, mas houve conflito ao trazer as mudanças: %v", err)
+			return appErrors.Wrap("octohub.checkoutStashConflict", "trocou de branch, mas houve conflito ao trazer as mudanças", err)
 		}
 	}
 

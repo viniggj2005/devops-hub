@@ -27,8 +27,6 @@ import type {
   TalpadbConnectionInput,
 } from '../../../interfaces/TalpadbInterfaces';
 
-export const SESSION_NOT_FOUND_MESSAGE = 'sessão de consulta não encontrada';
-
 const completionCache = new Map<
   string,
   { loadedAt: number; promise: Promise<CompletionTable[]> }

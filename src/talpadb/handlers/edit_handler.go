@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"docker-manager-go/src/appErrors"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 )
 
@@ -167,11 +168,11 @@ func loadTableMeta(ctx context.Context, conn *pgconn.PgConn, tableOid uint32) (*
 		return nil, err
 	}
 	if len(result.Rows) == 0 {
-		return nil, errors.New("a tabela não existe mais")
+		return nil, appErrors.New("talpadb.tableNoLongerExists", "a tabela não existe mais")
 	}
 	row := result.Rows[0]
 	if !isEditableRelation(string(row[1])) {
-		return nil, errors.New("só é possível editar dados de tabelas")
+		return nil, appErrors.New("talpadb.onlyTablesEditable", "só é possível editar dados de tabelas")
 	}
 
 	meta := &tableMeta{qualifiedName: string(row[0]), columns: map[uint16]string{}}
@@ -181,7 +182,7 @@ func loadTableMeta(ctx context.Context, conn *pgconn.PgConn, tableOid uint32) (*
 		}
 	}
 	if len(meta.keys) == 0 {
-		return nil, errors.New("a tabela não tem chave primária, então as linhas não podem ser identificadas com segurança")
+		return nil, appErrors.New("talpadb.tableWithoutPrimaryKey", "a tabela não tem chave primária, então as linhas não podem ser identificadas com segurança")
 	}
 
 	columnsResult, err := execParams(ctx, conn, tableColumnsQuery, oidParam)
@@ -198,7 +199,7 @@ func loadTableMeta(ctx context.Context, conn *pgconn.PgConn, tableOid uint32) (*
 
 func (meta *tableMeta) whereClause(key []talpadbDtos.CellValueDto, params []*string) (string, []*string, error) {
 	if len(key) != len(meta.keys) {
-		return "", nil, errors.New("a linha não traz todas as colunas da chave primária")
+		return "", nil, appErrors.New("talpadb.rowMissingPrimaryKey", "a linha não traz todas as colunas da chave primária")
 	}
 	values := map[uint16]*string{}
 	for _, cell := range key {
@@ -209,7 +210,7 @@ func (meta *tableMeta) whereClause(key []talpadbDtos.CellValueDto, params []*str
 	for _, column := range meta.keys {
 		value, found := values[column]
 		if !found || value == nil {
-			return "", nil, errors.New("a linha não traz todas as colunas da chave primária")
+			return "", nil, appErrors.New("talpadb.rowMissingPrimaryKey", "a linha não traz todas as colunas da chave primária")
 		}
 		params = append(params, value)
 		conditions = append(conditions, fmt.Sprintf("%s = %s", meta.columns[column], meta.bind(len(params))))
@@ -224,10 +225,10 @@ func (meta *tableMeta) assignments(values []talpadbDtos.CellValueDto) ([]string,
 	for _, cell := range values {
 		name, found := meta.columns[cell.Column]
 		if !found {
-			return nil, nil, fmt.Errorf("a coluna %d não existe mais na tabela", cell.Column)
+			return nil, nil, appErrors.New("talpadb.columnNoLongerExists", "a coluna {column} não existe mais na tabela").With("column", cell.Column)
 		}
 		if seen[cell.Column] {
-			return nil, nil, fmt.Errorf("a coluna %s foi informada mais de uma vez", name)
+			return nil, nil, appErrors.New("talpadb.duplicateColumn", "a coluna {column} foi informada mais de uma vez").With("column", name)
 		}
 		seen[cell.Column] = true
 		names = append(names, name)
@@ -250,7 +251,7 @@ func (meta *tableMeta) updateStatement(change talpadbDtos.RowChangeDto) (string,
 		return "", nil, err
 	}
 	if len(names) == 0 {
-		return "", nil, errors.New("nenhuma coluna alterada")
+		return "", nil, appErrors.New("talpadb.noColumnsChanged", "nenhuma coluna alterada")
 	}
 	setClauses := make([]string, len(names))
 	for index, name := range names {
@@ -283,31 +284,35 @@ func (meta *tableMeta) insertStatement(change talpadbDtos.RowChangeDto) (string,
 }
 
 type tableOperation struct {
-	label      string
+	failure    *appErrors.AppError
 	expectsRow bool
 	counter    *int
 	changes    []talpadbDtos.RowChangeDto
 	buildSQL   func(talpadbDtos.RowChangeDto) (string, []*string, error)
 }
 
+func (operation tableOperation) rowError(position int, cause error) error {
+	return appErrors.Wrap(operation.failure.Code, operation.failure.Message, cause).With("row", position+1)
+}
+
 func applyTableChanges(meta *tableMeta, changes talpadbDtos.TableChangesDto, result *talpadbDtos.TableSaveResultDto, execute func(sql string, params []*string) (int64, error)) error {
 	operations := []tableOperation{
-		{label: "excluir", expectsRow: true, counter: &result.Deleted, changes: changes.Deletes, buildSQL: meta.deleteStatement},
-		{label: "atualizar", expectsRow: true, counter: &result.Updated, changes: changes.Updates, buildSQL: meta.updateStatement},
-		{label: "inserir", counter: &result.Inserted, changes: changes.Inserts, buildSQL: meta.insertStatement},
+		{failure: appErrors.New("talpadb.deleteRowFailed", "erro ao excluir a linha {row}"), expectsRow: true, counter: &result.Deleted, changes: changes.Deletes, buildSQL: meta.deleteStatement},
+		{failure: appErrors.New("talpadb.updateRowFailed", "erro ao atualizar a linha {row}"), expectsRow: true, counter: &result.Updated, changes: changes.Updates, buildSQL: meta.updateStatement},
+		{failure: appErrors.New("talpadb.insertRowFailed", "erro ao inserir a linha {row}"), counter: &result.Inserted, changes: changes.Inserts, buildSQL: meta.insertStatement},
 	}
 	for _, operation := range operations {
 		for position, change := range operation.changes {
 			sql, params, err := operation.buildSQL(change)
 			if err != nil {
-				return fmt.Errorf("erro ao %s a linha %d: %w", operation.label, position+1, err)
+				return operation.rowError(position, err)
 			}
 			affected, err := execute(sql, params)
 			if err != nil {
-				return fmt.Errorf("erro ao %s a linha %d: %s", operation.label, position+1, describeError(err))
+				return operation.rowError(position, errors.New(describeError(err)))
 			}
 			if operation.expectsRow && affected != 1 {
-				return fmt.Errorf("erro ao %s a linha %d: a linha não foi encontrada (pode ter sido alterada ou excluída por outra sessão)", operation.label, position+1)
+				return operation.rowError(position, appErrors.New("talpadb.rowNotFound", "a linha não foi encontrada (pode ter sido alterada ou excluída por outra sessão)"))
 			}
 			*operation.counter++
 		}
@@ -321,17 +326,17 @@ func (handlerStruct *TalpadbClientHandlerStruct) SaveTableChanges(token string, 
 		return nil, err
 	}
 	if len(changes.Updates)+len(changes.Deletes)+len(changes.Inserts) == 0 {
-		return nil, errors.New("não há alterações para salvar")
+		return nil, appErrors.New("talpadb.noChangesToSave", "não há alterações para salvar")
 	}
 	if !session.executionMutex.TryLock() {
-		return nil, errors.New("já existe uma consulta em execução nesta aba")
+		return nil, appErrors.New("talpadb.queryAlreadyRunning", "já existe uma consulta em execução nesta aba")
 	}
 	defer session.executionMutex.Unlock()
 
 	runContext, cancelRun := context.WithCancel(handlerStruct.baseContext())
 	defer cancelRun()
 	if !session.beginRun(cancelRun) {
-		return nil, errors.New(sessionNotFoundMessage)
+		return nil, errQuerySessionNotFound
 	}
 	defer session.endRun()
 
@@ -341,10 +346,10 @@ func (handlerStruct *TalpadbClientHandlerStruct) SaveTableChanges(token string, 
 
 	conn := session.currentConn()
 	if conn == nil || conn.IsClosed() {
-		return nil, errors.New("a conexão foi encerrada: execute a consulta novamente antes de salvar")
+		return nil, appErrors.New("talpadb.connectionClosedRunAgain", "a conexão foi encerrada: execute a consulta novamente antes de salvar")
 	}
 	if conn.TxStatus() == 'E' {
-		return nil, errors.New("a transação atual falhou: execute ROLLBACK antes de salvar")
+		return nil, appErrors.New("talpadb.transactionFailedRollbackFirst", "a transação atual falhou: execute ROLLBACK antes de salvar")
 	}
 
 	ownTransaction := conn.TxStatus() == 'I'
@@ -357,9 +362,9 @@ func (handlerStruct *TalpadbClientHandlerStruct) SaveTableChanges(token string, 
 	fail := func(err error) (*talpadbDtos.TableSaveResultDto, error) {
 		if ownTransaction {
 			_, _ = execParams(runContext, conn, "ROLLBACK", nil)
-			return nil, fmt.Errorf("%s. Nada foi salvo", err.Error())
+			return nil, errors.Join(err, appErrors.New("talpadb.nothingSaved", "Nada foi salvo"))
 		}
-		return nil, fmt.Errorf("%s. A transação aberta nesta aba falhou: execute ROLLBACK", err.Error())
+		return nil, errors.Join(err, appErrors.New("talpadb.transactionFailedRollback", "A transação aberta nesta aba falhou: execute ROLLBACK"))
 	}
 
 	meta, err := loadTableMeta(runContext, conn, changes.TableOid)
@@ -380,7 +385,7 @@ func (handlerStruct *TalpadbClientHandlerStruct) SaveTableChanges(token string, 
 
 	if ownTransaction {
 		if _, err := execParams(runContext, conn, "COMMIT", nil); err != nil {
-			return nil, fmt.Errorf("erro ao confirmar as alterações: %s", describeError(err))
+			return nil, appErrors.Wrap("talpadb.commitFailed", "erro ao confirmar as alterações", errors.New(describeError(err)))
 		}
 		result.Committed = true
 	}

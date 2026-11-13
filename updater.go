@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
@@ -14,6 +13,8 @@ import (
 
 	"github.com/blang/semver"
 	"github.com/inconshreveable/go-update"
+
+	"docker-manager-go/src/appErrors"
 )
 
 type releaseAsset struct {
@@ -74,7 +75,7 @@ func detectLatestRelease(repositorySlug string) (*availableUpdate, bool, error) 
 		return nil, false, nil
 	}
 	if response.StatusCode != http.StatusOK {
-		return nil, false, fmt.Errorf("GitHub respondeu %s ao buscar a última versão", response.Status)
+		return nil, false, appErrors.New("update.githubResponded", "GitHub respondeu {status} ao buscar a última versão").With("status", response.Status)
 	}
 
 	var release githubRelease
@@ -100,7 +101,7 @@ func applyUpdate(assetURL string) error {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return errors.New("falha ao baixar a nova versão: " + response.Status)
+		return appErrors.New("update.downloadFailed", "falha ao baixar a nova versão: {status}").With("status", response.Status)
 	}
 
 	updateErr := update.Apply(response.Body, update.Options{})
@@ -108,9 +109,5 @@ func applyUpdate(assetURL string) error {
 		return updateErr
 	}
 	executable, _ := os.Executable()
-	return fmt.Errorf(
-		"sem permissão para substituir o executável em %s; mova o devops-hub para uma pasta do seu usuário ou execute-o como administrador (%w)",
-		filepath.Dir(executable),
-		updateErr,
-	)
+	return appErrors.Wrap("update.permissionDenied", "sem permissão para substituir o executável em {folder}; mova o devops-hub para uma pasta do seu usuário ou execute-o como administrador", updateErr).With("folder", filepath.Dir(executable))
 }

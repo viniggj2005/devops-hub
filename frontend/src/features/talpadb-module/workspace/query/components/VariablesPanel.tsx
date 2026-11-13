@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import RichMessage from '../../../../i18n/RichMessage';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { copyToClipboard } from '../../../../shared/functions/clipboard';
 import {
   Eye,
@@ -31,14 +33,7 @@ interface VariablesPanelProps {
   onChangeVariables: (nextVariables: QueryVariable[]) => void;
 }
 
-const VARIABLE_TYPE_OPTIONS: { value: QueryVariableType; label: string }[] = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'text', label: "Texto ('...')" },
-  { value: 'number', label: 'Número' },
-  { value: 'boolean', label: 'Booleano' },
-  { value: 'null', label: 'NULL' },
-  { value: 'raw', label: 'SQL Bruto' },
-];
+const VARIABLE_TYPE_OPTIONS: QueryVariableType[] = ['auto', 'text', 'number', 'boolean', 'null', 'raw'];
 
 const toolButtonClass =
   'inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900 text-[11px] font-semibold text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors whitespace-nowrap';
@@ -53,6 +48,8 @@ const VariablesPanel: React.FC<VariablesPanelProps> = ({
   onChangeVariables,
 }) => {
   const [showPreview, setShowPreview] = useState(true);
+  const { dictionary, formatMessage } = useTranslation();
+  const variableTexts = dictionary.talpadb.variables;
   const [nameDraft, setNameDraft] = useState(savedQueryName);
 
   React.useEffect(() => {
@@ -156,18 +153,18 @@ const VariablesPanel: React.FC<VariablesPanelProps> = ({
             className={toolButtonClass}
           >
             <Plus className="h-3.5 w-3.5 text-cyan-500" />
-            Adicionar ${nextAvailableIndex}
+            {formatMessage(variableTexts.addVariable, { index: nextAvailableIndex })}
           </button>
 
           {variables.length > 0 && (
             <button
               type="button"
               onClick={handleClearAllValues}
-              title="Limpar todos os valores das variáveis"
+              title={variableTexts.clearHint}
               className={toolButtonClass}
             >
               <Eraser className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-400" />
-              Limpar
+              {variableTexts.clear}
             </button>
           )}
 
@@ -181,7 +178,7 @@ const VariablesPanel: React.FC<VariablesPanelProps> = ({
             }`}
           >
             <Eye className="h-3.5 w-3.5" />
-            Preview SQL
+            {variableTexts.previewSql}
           </button>
         </div>
 
@@ -195,7 +192,7 @@ const VariablesPanel: React.FC<VariablesPanelProps> = ({
               type="text"
               value={nameDraft}
               onChange={(event) => setNameDraft(event.target.value)}
-              placeholder="Salvar query + variáveis com nome..."
+              placeholder={variableTexts.saveNamePlaceholder}
               className="h-7 w-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900 pl-8 pr-2.5 text-xs text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-cyan-500"
             />
           </div>
@@ -205,14 +202,14 @@ const VariablesPanel: React.FC<VariablesPanelProps> = ({
             className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 px-3 text-[11px] font-bold text-white shadow-sm shadow-cyan-500/15 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
           >
             <Save className="h-3.5 w-3.5" />
-            {savingQuery ? 'Salvando...' : 'Salvar'}
+            {savingQuery ? dictionary.talpadb.common.saving : dictionary.talpadb.common.save}
           </button>
           <button
             type="button"
             onClick={onOpenSavedTab}
             className={toolButtonClass}
           >
-            Salvas
+            {dictionary.talpadb.toolbar.saved}
           </button>
         </form>
       </div>
@@ -226,12 +223,17 @@ const VariablesPanel: React.FC<VariablesPanelProps> = ({
               </div>
               <div className="max-w-md">
                 <p className="font-semibold text-gray-800 dark:text-zinc-200">
-                  Nenhuma variável na consulta atual
+                  {variableTexts.emptyTitle}
                 </p>
                 <p className="mt-1 text-[11px] text-gray-500 dark:text-zinc-400 leading-relaxed">
-                  Use <code className="rounded bg-amber-500/15 px-1.5 py-0.5 font-mono font-semibold text-amber-600 dark:text-amber-400">$1</code>,{' '}
-                  <code className="rounded bg-amber-500/15 px-1.5 py-0.5 font-mono font-semibold text-amber-600 dark:text-amber-400">$2</code> no SQL (ex:{' '}
-                  <code className="font-mono text-gray-700 dark:text-zinc-300">WHERE id = $1</code>) para preencher valores temporários aqui.
+                  <RichMessage
+                    template={variableTexts.emptyHint}
+                    values={{
+                      first: <code className="rounded bg-amber-500/15 px-1.5 py-0.5 font-mono font-semibold text-amber-600 dark:text-amber-400">$1</code>,
+                      second: <code className="rounded bg-amber-500/15 px-1.5 py-0.5 font-mono font-semibold text-amber-600 dark:text-amber-400">$2</code>,
+                      example: <code className="font-mono text-gray-700 dark:text-zinc-300">WHERE id = $1</code>,
+                    }}
+                  />
                 </p>
               </div>
               <button
@@ -240,7 +242,7 @@ const VariablesPanel: React.FC<VariablesPanelProps> = ({
                 className={`${toolButtonClass} mt-1`}
               >
                 <Plus className="h-3.5 w-3.5 text-cyan-500" />
-                Adicionar $1 manualmente
+                {variableTexts.addFirst}
               </button>
             </div>
           ) : (
@@ -266,8 +268,8 @@ const VariablesPanel: React.FC<VariablesPanelProps> = ({
                         }`}
                         title={
                           isUsedInSql
-                            ? 'Variável detectada no SQL atual'
-                            : 'Variável extra (não encontrada no SQL atual)'
+                            ? variableTexts.detectedHint
+                            : variableTexts.extraHint
                         }
                       >
                         <span
@@ -275,7 +277,7 @@ const VariablesPanel: React.FC<VariablesPanelProps> = ({
                             isUsedInSql ? 'bg-emerald-500' : 'bg-gray-400 dark:bg-zinc-500'
                           }`}
                         />
-                        {isUsedInSql ? 'Na query' : 'Extra'}
+                        {isUsedInSql ? variableTexts.inQuery : variableTexts.extra}
                       </span>
                     </div>
 
@@ -289,9 +291,9 @@ const VariablesPanel: React.FC<VariablesPanelProps> = ({
                       }
                       className="h-8 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900 px-2.5 text-xs font-medium text-gray-700 dark:text-zinc-200 outline-none focus:border-cyan-500 dark:[color-scheme:dark]"
                     >
-                      {VARIABLE_TYPE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
+                      {VARIABLE_TYPE_OPTIONS.map((variableType) => (
+                        <option key={variableType} value={variableType}>
+                          {variableTexts.types[variableType]}
                         </option>
                       ))}
                     </select>
@@ -303,12 +305,12 @@ const VariablesPanel: React.FC<VariablesPanelProps> = ({
                       onChange={(event) =>
                         handleUpdateValue(variableItem.index, event.target.value)
                       }
-                      placeholder={`Valor para $${variableItem.index}...`}
+                      placeholder={formatMessage(variableTexts.valuePlaceholder, { index: variableItem.index })}
                       className="h-8 min-w-[160px] flex-1 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900/90 px-3 font-mono text-xs text-gray-800 dark:text-zinc-100 placeholder:font-sans placeholder:text-gray-400 dark:placeholder:text-zinc-500 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 disabled:cursor-not-allowed disabled:opacity-50"
                     />
 
                     <div
-                      title={`Valor SQL substituído: ${formattedPreview}`}
+                      title={formatMessage(variableTexts.substitutedValue, { value: formattedPreview })}
                       className="flex items-center gap-1.5 max-w-[200px] truncate rounded-lg border border-gray-200/60 dark:border-white/5 bg-gray-100/80 dark:bg-black/30 px-2.5 py-1 font-mono text-[11px] text-gray-500 dark:text-zinc-400"
                     >
                       <Braces className="h-3 w-3 flex-shrink-0 text-cyan-500" />
@@ -320,7 +322,7 @@ const VariablesPanel: React.FC<VariablesPanelProps> = ({
                     <button
                       type="button"
                       onClick={() => handleRemoveVariable(variableItem.index)}
-                      title={isUsedInSql ? 'Limpar valor da variável' : 'Remover variável'}
+                      title={isUsedInSql ? variableTexts.clearValue : variableTexts.remove}
                       className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 dark:text-zinc-500 transition-colors hover:bg-rose-500/10 hover:text-rose-500"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -335,19 +337,19 @@ const VariablesPanel: React.FC<VariablesPanelProps> = ({
         {showPreview && (
           <div className="flex w-full flex-col border-t border-gray-200 dark:border-white/5 bg-gray-50/40 dark:bg-zinc-950/30 md:w-2/5 md:border-l md:border-t-0 min-h-0">
             <div className="flex items-center justify-between border-b border-gray-200 dark:border-white/5 px-3 py-1.5 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">
-              <span>SQL Resolvido</span>
+              <span>{variableTexts.resolvedSql}</span>
               <button
                 type="button"
                 disabled={!resolvedSqlPreview.trim()}
-                onClick={() => copyToClipboard(resolvedSqlPreview, 'SQL resolvido copiado')}
+                onClick={() => copyToClipboard(resolvedSqlPreview, variableTexts.resolvedCopied)}
                 className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold text-gray-500 hover:bg-gray-200/60 hover:text-gray-800 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-white disabled:opacity-40 transition-colors"
               >
                 <Copy className="h-3 w-3 text-cyan-500" />
-                Copiar
+                {dictionary.talpadb.common.copy}
               </button>
             </div>
             <pre className="flex-1 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-[11px] leading-relaxed text-gray-800 dark:text-zinc-200">
-              {resolvedSqlPreview.trim() || '-- Digite sua consulta SQL no editor acima'}
+              {resolvedSqlPreview.trim() || variableTexts.resolvedEmpty}
             </pre>
           </div>
         )}

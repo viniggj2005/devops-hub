@@ -2,6 +2,7 @@ import toast from 'react-hot-toast';
 import { Clipboard } from '@wailsio/runtime';
 import { VsCodeIcon } from '../../features/shared/Icons';
 import { errorMessage } from '../../features/shared/functions/ErrorMessage';
+import { useTranslation } from '../../features/i18n/useTranslation';
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useConfirmToast } from '../../features/shared/components/toasts/ConfirmToast';
 import { DiffHunk, parseDiff } from '../../features/octohub-module/functions/diffParser';
@@ -35,6 +36,8 @@ const commitsKey = (commits: octohubStructs.Commit[]) =>
 const CommitHistoryPage: React.FC = () => {
     const [, setPage] = useState(0);
     const confirmToast = useConfirmToast();
+    const { dictionary, formatMessage } = useTranslation();
+    const historyTexts = dictionary.octohub.history;
     const [summary, setSummary] = useState('');
     const [loading, setLoading] = useState(true);
     const [hasMore, setHasMore] = useState(true);
@@ -293,10 +296,10 @@ const CommitHistoryPage: React.FC = () => {
 
     const continueOperation = () => {
         const message = [summary.trim(), description.trim()].filter(Boolean).join('\n\n');
-        runOperation(() => ContinueOperation(message), 'Operação concluída.');
+        runOperation(() => ContinueOperation(message), historyTexts.operationDone);
     };
 
-    const skipRebaseCommit = () => runOperation(SkipRebaseCommit, 'Commit pulado.');
+    const skipRebaseCommit = () => runOperation(SkipRebaseCommit, historyTexts.commitSkipped);
 
     const checkoutCommit = async (commit: octohubStructs.Commit) => {
         const short = commit.Hash.slice(0, 7);
@@ -306,8 +309,8 @@ const CommitHistoryPage: React.FC = () => {
         }
         confirmToast({
             id: 'octohub-checkout-commit',
-            title: `Checkout para ${short}?`,
-            message: `Ir para o commit ${short}? Você vai ficar em "HEAD destacado": para fazer commits a partir dele, crie uma branch.`,
+            title: formatMessage(historyTexts.checkoutTitle, { hash: short }),
+            message: formatMessage(historyTexts.checkoutMessage, { hash: short }),
             onConfirm: async () => {
                 await CheckoutCommit(commit.Hash, false);
                 notifyChange();
@@ -320,7 +323,7 @@ const CommitHistoryPage: React.FC = () => {
         setCheckoutBusy(true);
         try {
             await CheckoutCommit(checkoutTarget.Hash, action === 'leave');
-            toast.success(`Agora em ${checkoutTarget.Hash.slice(0, 7)} (HEAD destacado).`);
+            toast.success(formatMessage(historyTexts.nowOnDetached, { hash: checkoutTarget.Hash.slice(0, 7) }));
         } catch (err) {
             if (isConflictError(err)) openConflicts();
             else toast.error(errorMessage(err));
@@ -335,8 +338,8 @@ const CommitHistoryPage: React.FC = () => {
         const short = commit.Hash.slice(0, 7);
         confirmToast({
             id: 'octohub-revert-commit',
-            title: `Reverter ${short}?`,
-            message: `Criar um commit novo que desfaz "${commit.Title}" (${short})?`,
+            title: formatMessage(historyTexts.revertTitle, { hash: short }),
+            message: formatMessage(historyTexts.revertMessage, { title: commit.Title, hash: short }),
             onConfirm: async () => {
                 const state = await RevertCommit(commit.Hash);
                 notifyChange();
@@ -347,8 +350,8 @@ const CommitHistoryPage: React.FC = () => {
 
     const copySha = (commit: octohubStructs.Commit) => {
         Clipboard.SetText(commit.Hash)
-            .then(() => toast.success(`SHA ${commit.Hash.slice(0, 7)} copiado.`))
-            .catch(() => toast.error('Não foi possível copiar o SHA.'));
+            .then(() => toast.success(formatMessage(historyTexts.shaCopied, { hash: commit.Hash.slice(0, 7) })))
+            .catch(() => toast.error(historyTexts.shaCopyFailed));
     };
 
     const runFileAction = (action: () => Promise<unknown>, success?: string, refresh = false) => {
@@ -381,17 +384,17 @@ const CommitHistoryPage: React.FC = () => {
         const exists = file.Kind !== 'deleted';
         const extension = extensionOf(file.FileName);
         const included = selectionOf(file.FileName).kind !== 'none';
-        const onlyNew = isNew ? undefined : 'Só para arquivos novos: um arquivo já versionado continua rastreado mesmo no .gitignore';
+        const onlyNew = isNew ? undefined : historyTexts.onlyNewFiles;
         const entries: ContextMenuEntry[] = [
-            { label: 'Descartar alterações...', icon: Undo2, onClick: () => discardFile(file) },
-            { label: included ? 'Tirar do commit' : 'Incluir no commit', icon: included ? Square : SquareCheck, onClick: () => setFileIncluded(file.FileName, !included) },
+            { label: historyTexts.discardChangesMenu, icon: Undo2, onClick: () => discardFile(file) },
+            { label: included ? historyTexts.removeFromCommit : historyTexts.includeInCommit, icon: included ? Square : SquareCheck, onClick: () => setFileIncluded(file.FileName, !included) },
             'separator',
             {
                 icon: EyeOff,
                 hint: onlyNew,
                 disabled: !isNew,
-                label: 'Ignorar arquivo (adicionar ao .gitignore)',
-                onClick: () => runFileAction(() => IgnoreFile(file.FileName), `${file.FileName} adicionado ao .gitignore.`, true),
+                label: historyTexts.ignoreFile,
+                onClick: () => runFileAction(() => IgnoreFile(file.FileName), formatMessage(historyTexts.addedToGitignore, { name: file.FileName }), true),
             },
         ];
         if (extension) {
@@ -399,43 +402,43 @@ const CommitHistoryPage: React.FC = () => {
                 icon: EyeOff,
                 hint: onlyNew,
                 disabled: !isNew,
-                label: `Ignorar todos os arquivos .${extension}`,
-                onClick: () => runFileAction(() => IgnoreExtension(extension), `*.${extension} adicionado ao .gitignore.`, true),
+                label: formatMessage(historyTexts.ignoreExtension, { extension }),
+                onClick: () => runFileAction(() => IgnoreExtension(extension), formatMessage(historyTexts.addedToGitignore, { name: `*.${extension}` }), true),
             });
         }
         entries.push(
             'separator',
-            { label: 'Copiar caminho do arquivo', icon: ClipboardCopy, onClick: () => copyText(absolutePath(file.FileName), 'Caminho copiado.') },
-            { label: 'Copiar caminho relativo', icon: ClipboardCopy, onClick: () => copyText(file.FileName, 'Caminho relativo copiado.') },
+            { label: historyTexts.copyFilePath, icon: ClipboardCopy, onClick: () => copyText(absolutePath(file.FileName), dictionary.octohub.common.pathCopied) },
+            { label: historyTexts.copyRelativePath, icon: ClipboardCopy, onClick: () => copyText(file.FileName, historyTexts.relativePathCopied) },
             'separator',
-            { label: 'Mostrar no Explorer', icon: FolderSearch, onClick: () => runFileAction(() => RevealInExplorer(file.FileName)) },
-            { label: 'Abrir no VS Code', icon: VsCodeIcon, disabled: !exists, onClick: () => openInEditor(file.FileName) },
-            { label: 'Abrir com o programa padrão', icon: ExternalLink, disabled: !exists, onClick: () => runFileAction(() => OpenWithDefaultProgram(file.FileName)) },
+            { label: dictionary.octohub.common.showInExplorer, icon: FolderSearch, onClick: () => runFileAction(() => RevealInExplorer(file.FileName)) },
+            { label: dictionary.octohub.common.openInVsCode, icon: VsCodeIcon, disabled: !exists, onClick: () => openInEditor(file.FileName) },
+            { label: historyTexts.openWithDefault, icon: ExternalLink, disabled: !exists, onClick: () => runFileAction(() => OpenWithDefaultProgram(file.FileName)) },
         );
         return entries;
     };
 
     const commitMenuEntries = (commit: octohubStructs.Commit): ContextMenuEntry[] => {
         const blocked = Boolean(operation?.Kind);
-        const hint = blocked ? 'Conclua ou aborte a operação em andamento antes' : undefined;
+        const hint = blocked ? historyTexts.operationBlocked : undefined;
         const canCancelUnpushed = Boolean(undoableCommit && commit.Hash === undoableCommit.Hash);
         const entries: ContextMenuEntry[] = [];
         if (canCancelUnpushed) {
             entries.push(
-                { label: 'Cancelar commit não enviado', icon: Undo2, disabled: blocked || undoing, hint, onClick: handleUndoCommit },
+                { label: historyTexts.undoUnpushed, icon: Undo2, disabled: blocked || undoing, hint, onClick: handleUndoCommit },
                 'separator',
             );
         }
         entries.push(
-            { label: 'Fazer checkout do commit', icon: GitCommitHorizontal, disabled: blocked, hint, onClick: () => checkoutCommit(commit) },
-            { label: 'Reordenar commits...', icon: ArrowUpDown, disabled: blocked, hint, onClick: () => setCommitAction({ action: 'reorder', commit }) },
-            { label: 'Reverter alterações do commit', icon: Undo2, disabled: blocked, hint, onClick: () => revertCommit(commit) },
+            { label: historyTexts.checkoutCommit, icon: GitCommitHorizontal, disabled: blocked, hint, onClick: () => checkoutCommit(commit) },
+            { label: historyTexts.reorderCommits, icon: ArrowUpDown, disabled: blocked, hint, onClick: () => setCommitAction({ action: 'reorder', commit }) },
+            { label: historyTexts.revertChanges, icon: Undo2, disabled: blocked, hint, onClick: () => revertCommit(commit) },
             'separator',
-            { label: 'Criar branch a partir do commit...', icon: GitBranchPlus, onClick: () => setCommitAction({ action: 'branch', commit }) },
-            { label: 'Criar tag...', icon: Tag, onClick: () => setCommitAction({ action: 'tag', commit }) },
-            { label: 'Cherry-pick do commit...', icon: Cherry, disabled: blocked, hint, onClick: () => setCommitAction({ action: 'cherry-pick', commit }) },
+            { label: historyTexts.branchFromCommit, icon: GitBranchPlus, onClick: () => setCommitAction({ action: 'branch', commit }) },
+            { label: historyTexts.createTag, icon: Tag, onClick: () => setCommitAction({ action: 'tag', commit }) },
+            { label: historyTexts.cherryPick, icon: Cherry, disabled: blocked, hint, onClick: () => setCommitAction({ action: 'cherry-pick', commit }) },
             'separator',
-            { label: 'Copiar SHA', icon: Copy, onClick: () => copySha(commit) },
+            { label: historyTexts.copySha, icon: Copy, onClick: () => copySha(commit) },
         );
         return entries;
     };
@@ -444,8 +447,8 @@ const CommitHistoryPage: React.FC = () => {
         if (!operation?.Kind) return;
         confirmToast({
             id: 'octohub-abort-operation',
-            title: `Abortar ${operation.Kind}?`,
-            message: `Abortar o ${operation.Kind}? A branch volta a ficar como estava antes de começar.`,
+            title: formatMessage(historyTexts.abortTitle, { operation: operation.Kind }),
+            message: formatMessage(historyTexts.abortMessage, { operation: operation.Kind }),
             onConfirm: async () => {
                 await AbortOperation();
                 setSummary('');
@@ -466,21 +469,21 @@ const CommitHistoryPage: React.FC = () => {
         try {
             await PopStash(stashID);
             notifyChange();
-            toast.success('Stash restaurado.');
+            toast.success(historyTexts.stashRestored);
         } catch (err: any) {
             if (isConflictError(err) && (await showConflicts()).length > 0) {
                 notifyChange();
                 return;
             }
-            toast.error('Erro ao restaurar stash: ' + err);
+            toast.error(formatMessage(historyTexts.stashRestoreFailed, { error: errorMessage(err) }));
         }
     };
 
     const handleDropStash = (stashID: string) =>
         confirmToast({
             id: `drop-stash-${stashID.replace(/\W/g, '')}`,
-            title: 'Descartar stash?',
-            message: 'Tem certeza que deseja descartar este stash permanentemente?',
+            title: historyTexts.dropStashTitle,
+            message: historyTexts.dropStashMessage,
             onConfirm: async () => {
                 await DropStash(stashID);
                 fetchGitStatus();
@@ -501,7 +504,7 @@ const CommitHistoryPage: React.FC = () => {
             if (requestId !== diffRequest.current) return;
             setFileDiff(null);
             setFileDiffHash(null);
-            toast.error(`Erro ao carregar o diff de ${filePath}: ${errorMessage(err)}`);
+            toast.error(formatMessage(historyTexts.diffLoadFailed, { file: filePath, error: errorMessage(err) }));
         } finally {
             if (requestId === diffRequest.current) setLoadingDiff(false);
         }
@@ -513,7 +516,7 @@ const CommitHistoryPage: React.FC = () => {
             const selection = selectionsRef.current[file.FileName];
             if (selection?.kind === 'partial' && selection.diffHash !== result.Hash) {
                 setSelections(previous => ({ ...previous, [file.FileName]: ALL_SELECTED }));
-                toast(`${file.FileName} mudou, então o arquivo voltou a entrar inteiro no commit.`);
+                toast(formatMessage(historyTexts.fileChangedReset, { file: file.FileName }));
             }
             return { diff: result.Diff, hash: result.Hash };
         });
@@ -659,10 +662,11 @@ const CommitHistoryPage: React.FC = () => {
     const describeFiles = (files: octohubStructs.CommitFileSelection[]) => {
         if (files.length === 1) {
             const name = files[0].FileName;
-            return files[0].All ? `as alterações de ${name}` : `as linhas selecionadas de ${name}`;
+            return formatMessage(files[0].All ? historyTexts.changesOf : historyTexts.selectedLinesOf, { name });
         }
         const partial = files.filter(file => !file.All).length;
-        return `as alterações de ${files.length} arquivos${partial > 0 ? ` (${partial} só nas linhas selecionadas)` : ''}`;
+        const partialSuffix = partial > 0 ? formatMessage(historyTexts.partialSuffix, { count: partial }) : '';
+        return formatMessage(historyTexts.changesOfFiles, { count: files.length }) + partialSuffix;
     };
 
     const discard = (files: octohubStructs.CommitFileSelection[], what: string) => {
@@ -670,10 +674,8 @@ const CommitHistoryPage: React.FC = () => {
         const hasBackup = commits.length > 0;
         confirmToast({
             id: 'octohub-discard',
-            title: 'Descartar alterações?',
-            message: `Descartar ${what}? ${hasBackup
-                ? 'Uma cópia fica guardada nos stashes desta branch, de onde dá para restaurar.'
-                : 'Este repositório ainda não tem commits, então isso não pode ser desfeito.'}`,
+            title: historyTexts.discardTitle,
+            message: formatMessage(historyTexts.discardMessage, { what, consequence: hasBackup ? historyTexts.backupKept : historyTexts.cannotUndo }),
             onConfirm: async () => {
                 await DiscardChanges(files);
                 setSelections(previous => {
@@ -697,7 +699,7 @@ const CommitHistoryPage: React.FC = () => {
     };
 
     const discardAll = () => {
-        discard(changedFiles.map(file => toRequest(file, ALL_SELECTED)), `todas as ${changedFiles.length} alterações`);
+        discard(changedFiles.map(file => toRequest(file, ALL_SELECTED)), formatMessage(historyTexts.allChanges, { count: changedFiles.length }));
     };
 
     const discardHunk = (hunk: DiffHunk) => {
@@ -706,7 +708,7 @@ const CommitHistoryPage: React.FC = () => {
         const selection: FileSelection = hunk.changeIndexes.length === parsedDiff.changeIndexes.length
             ? ALL_SELECTED
             : { kind: 'partial', diffHash: fileDiffHash, lines: hunk.changeIndexes };
-        discard([toRequest(file, selection)], `este trecho de ${file.FileName}`);
+        discard([toRequest(file, selection)], formatMessage(historyTexts.hunkOf, { file: file.FileName }));
     };
 
     const handleCommit = async () => {
@@ -730,7 +732,7 @@ const CommitHistoryPage: React.FC = () => {
             setSelections({});
             notifyChange();
         } catch (err: any) {
-            toast.error(`Erro ao fazer commit: ${errorMessage(err)}`);
+            toast.error(formatMessage(historyTexts.commitFailed, { error: errorMessage(err) }));
         } finally {
             setCommitting(false);
         }
@@ -746,13 +748,13 @@ const CommitHistoryPage: React.FC = () => {
             if (undone) {
                 setSummary(previous => previous.trim() ? previous : undone.Summary);
                 setDescription(previous => previous.trim() ? previous : undone.Description);
-                toast.success(`Commit ${undone.ShortHash} cancelado.`);
+                toast.success(formatMessage(historyTexts.commitUndone, { hash: undone.ShortHash }));
             }
             setActiveTab('changes');
             notifyChange();
         } catch (err: any) {
             setUndoableCommit(previousUndoable);
-            toast.error(`Erro ao cancelar commit: ${errorMessage(err)}`);
+            toast.error(formatMessage(historyTexts.undoFailed, { error: errorMessage(err) }));
         } finally {
             setUndoing(false);
         }
@@ -769,7 +771,7 @@ const CommitHistoryPage: React.FC = () => {
         return (
             <div className="flex flex-col items-center justify-center h-full gap-4">
                 <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-zinc-500 font-medium">Carregando repositório...</p>
+                <p className="text-zinc-500 font-medium">{historyTexts.loadingRepository}</p>
             </div>
         );
     }
@@ -782,12 +784,12 @@ const CommitHistoryPage: React.FC = () => {
                 </div>
                 <div className="max-w-md space-y-2">
                     <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
-                        {repository ? 'Pasta do repositório não encontrada' : 'Nenhum repositório aberto'}
+                        {repository ? historyTexts.folderNotFound : historyTexts.noRepository}
                     </h2>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">
                         {repository
-                            ? `${repository.path} não existe mais. Escolha outro repositório no seletor da barra superior ou adicione um novo.`
-                            : 'Adicione a pasta de um repositório Git para ver as alterações, o histórico e fazer commits.'}
+                            ? formatMessage(historyTexts.folderMissing, { path: repository.path })
+                            : historyTexts.addRepositoryHint}
                     </p>
                 </div>
                 <button
@@ -795,7 +797,7 @@ const CommitHistoryPage: React.FC = () => {
                     className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center gap-2 transition-colors"
                 >
                     <FolderPlus className="w-5 h-5" />
-                    Adicionar repositório local
+                    {historyTexts.addLocalRepository}
                 </button>
             </div>
         );
@@ -805,7 +807,7 @@ const CommitHistoryPage: React.FC = () => {
         return (
             <div className="flex flex-col items-center justify-center h-full gap-4">
                 <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-zinc-500 font-medium">Carregando histórico de commits...</p>
+                <p className="text-zinc-500 font-medium">{historyTexts.loadingHistory}</p>
             </div>
         );
     }
@@ -848,7 +850,7 @@ const CommitHistoryPage: React.FC = () => {
                                 }`}
                         >
                             <FileCode className="w-3.5 h-3.5" />
-                            Changes <span className="px-1.5 py-0.5 bg-zinc-200 dark:bg-white/10 rounded-full text-[10px]">{changedFiles.length}</span>
+                            {historyTexts.changesTab} <span className="px-1.5 py-0.5 bg-zinc-200 dark:bg-white/10 rounded-full text-[10px]">{changedFiles.length}</span>
                         </button>
                         <button
                             onClick={() => {
@@ -863,7 +865,7 @@ const CommitHistoryPage: React.FC = () => {
                                 }`}
                         >
                             <Clock className="w-3.5 h-3.5" />
-                            History
+                            {historyTexts.historyTab}
                         </button>
                     </div>
 
@@ -901,9 +903,9 @@ const CommitHistoryPage: React.FC = () => {
                                     selectedCount={selectedFilesCount}
                                     onDescriptionChange={setDescription}
                                     committing={committing || operationBusy}
-                                    branch={currentBranch === 'HEAD' ? 'HEAD destacado' : currentBranch}
+                                    branch={currentBranch === 'HEAD' ? dictionary.octohub.common.detachedHead : currentBranch}
                                     onCommit={commitMode === 'commit' ? handleCommit : continueOperation}
-                                    disabledReason={commitMode === 'commit' && conflicts.length > 0 ? 'Resolva os conflitos antes de fazer o commit' : undefined}
+                                    disabledReason={commitMode === 'commit' && conflicts.length > 0 ? historyTexts.resolveConflictsFirst : undefined}
                                 />
                             )}
                         </ChangesSidebar>
@@ -944,7 +946,7 @@ const CommitHistoryPage: React.FC = () => {
                                     <div className="flex items-center gap-2 min-w-0">
                                         <FileCode className="w-4 h-4 text-emerald-500 shrink-0" />
                                         <h2 className="text-xs font-mono font-bold text-zinc-900 dark:text-white truncate">
-                                            {selectedFile || 'Selecione um arquivo'}
+                                            {selectedFile || historyTexts.selectFile}
                                         </h2>
                                         {diffSource === 'stash' && selectedFile && (
                                             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-500 shrink-0">stash</span>
@@ -952,14 +954,14 @@ const CommitHistoryPage: React.FC = () => {
                                     </div>
                                     {canSelectLines && (
                                         <div className="flex items-center gap-3 shrink-0 text-[11px]">
-                                            <span className="text-zinc-500" title="Clique nas caixas ao lado das linhas, arraste por várias ou use Shift+clique para um intervalo">
-                                                {selectedLines.size} de {parsedDiff.changeIndexes.length} linhas selecionadas
+                                            <span className="text-zinc-500" title={historyTexts.lineSelectionHint}>
+                                                {formatMessage(historyTexts.linesSelected, { selected: selectedLines.size, total: parsedDiff.changeIndexes.length })}
                                             </span>
                                             <button onClick={() => setDiffLines(parsedDiff.changeIndexes, true)} className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline">
-                                                Selecionar tudo
+                                                {historyTexts.selectAll}
                                             </button>
                                             <button onClick={() => setDiffLines(parsedDiff.changeIndexes, false)} className="font-bold text-zinc-500 hover:underline">
-                                                Desmarcar tudo
+                                                {historyTexts.unselectAll}
                                             </button>
                                         </div>
                                     )}
@@ -977,7 +979,7 @@ const CommitHistoryPage: React.FC = () => {
                                         </div>
                                     ) : (
                                         <div className="flex-1 flex flex-col items-center justify-center h-full text-zinc-400 p-8 text-center italic">
-                                            Selecione um arquivo para ver as mudanças
+                                            {historyTexts.selectFileToView}
                                         </div>
                                     )}
                                 </div>
@@ -987,7 +989,7 @@ const CommitHistoryPage: React.FC = () => {
                                 <div className="p-8 bg-zinc-100 dark:bg-white/5 rounded-full border border-zinc-200 dark:border-white/5">
                                     <FileCode className="w-16 h-16 opacity-10" />
                                 </div>
-                                <p className="text-sm font-medium italic">Nenhuma alteração pendente no momento</p>
+                                <p className="text-sm font-medium italic">{historyTexts.noPendingChanges}</p>
                             </div>
                         )
                     ) : selectedCommit ? (
@@ -1019,7 +1021,7 @@ const CommitHistoryPage: React.FC = () => {
                                         </>
                                     ) : (
                                         <div className="flex-1 flex flex-col items-center justify-center h-full text-zinc-400 p-8 text-center italic">
-                                            Selecione um arquivo para ver as mudanças
+                                            {historyTexts.selectFileToView}
                                         </div>
                                     )}
                                 </div>
@@ -1032,10 +1034,10 @@ const CommitHistoryPage: React.FC = () => {
                             </div>
                             <p className="text-sm font-medium italic">
                                 {commits.length > 0
-                                    ? 'Selecione um commit para ver os detalhes'
+                                    ? historyTexts.selectCommit
                                     : compareBranch
-                                        ? 'Nenhum commit nesta comparação'
-                                        : 'Este repositório ainda não tem commits'}
+                                        ? historyTexts.noCommitsInComparison
+                                        : historyTexts.noCommitsYet}
                             </p>
                         </div>
                     )}
@@ -1070,7 +1072,7 @@ const CommitHistoryPage: React.FC = () => {
                 isOpen={checkoutTarget !== null}
                 currentBranch={currentBranch || ''}
                 onClose={() => setCheckoutTarget(null)}
-                targetBranch={checkoutTarget ? `commit ${checkoutTarget.Hash.slice(0, 7)}` : null}
+                targetBranch={checkoutTarget ? formatMessage(historyTexts.commitTarget, { hash: checkoutTarget.Hash.slice(0, 7) }) : null}
             />
         </div>
     );

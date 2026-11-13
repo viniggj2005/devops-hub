@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2, CircleX, Copy, CornerUpLeft } from 'lucide-react';
 import { formatDuration } from '../../../functions/TreatmentFunctions';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import { copyToClipboard } from '../../../../shared/functions/clipboard';
 import type { QueryHistoryEntry } from '../../../../../interfaces/TalpadbInterfaces';
 
@@ -10,10 +11,13 @@ interface HistoryPanelProps {
 }
 
 const HistoryPanel: React.FC<HistoryPanelProps> = ({ entries, onLoad }) => {
+  const { dictionary, language } = useTranslation();
+  const historyTexts = dictionary.talpadb.history;
+
   if (!entries.length) {
     return (
       <div className="h-full flex items-center justify-center text-sm text-gray-400 dark:text-zinc-500">
-        As consultas executadas nesta aba aparecem aqui.
+        {historyTexts.empty}
       </div>
     );
   }
@@ -29,7 +33,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ entries, onLoad }) => {
               <CircleX className="w-4 h-4 text-rose-500 flex-shrink-0" />
             )}
             <span className="font-medium text-gray-700 dark:text-zinc-200">
-              {new Date(entry.executedAt).toLocaleTimeString('pt-BR')}
+              {new Date(entry.executedAt).toLocaleTimeString(language)}
             </span>
             <span className="text-gray-400">· {formatDuration(entry.durationMs)}</span>
             <span
@@ -39,14 +43,14 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ entries, onLoad }) => {
             </span>
             <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
-                title="Copiar SQL"
-                onClick={() => copyToClipboard(entry.sql, 'SQL copiado')}
+                title={historyTexts.copySql}
+                onClick={() => copyToClipboard(entry.sql, dictionary.talpadb.common.sqlCopied)}
                 className="p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-white dark:hover:bg-white/10"
               >
                 <Copy className="w-3.5 h-3.5" />
               </button>
               <button
-                title="Abrir no editor"
+                title={historyTexts.openInEditor}
                 onClick={() => onLoad(entry.sql)}
                 className="p-1 rounded-md text-gray-400 hover:text-cyan-700 hover:bg-cyan-500/10 dark:hover:text-cyan-300"
               >

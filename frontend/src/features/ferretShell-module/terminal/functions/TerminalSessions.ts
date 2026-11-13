@@ -5,7 +5,10 @@ import { Events } from '@wailsio/runtime';
 import { useTerminalStore } from '../TerminalStore';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { attachTerminalShortcuts } from './TerminalShortcuts';
+import { formatMessage } from '../../../i18n/Languages';
 import { resolveTerminalTransport } from './TerminalTransports';
+import { currentDictionary } from '../../../i18n/TranslateError';
+import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import { registerModuleHandoff } from '../../../appFrame/ModuleHandoff';
 import { useGeneralConfigsStore } from '../../../settings/store/GeneralConfigsStore';
 import { TerminalThemeConfig } from '../../../../interfaces/GeneralConfigsInterfaces';
@@ -14,6 +17,8 @@ import { TerminalTab, TerminalInstance } from '../../../../interfaces/TerminalIn
 const ANSI_RED = '31';
 const ANSI_DIM = '2';
 const ANSI_YELLOW = '33';
+
+const sessionTexts = () => currentDictionary().ferretShell.session;
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 
@@ -71,6 +76,8 @@ function createTerminalSession(instance: TerminalInstance): TerminalSession {
   element.style.height = '100%';
 
   const transport = resolveTerminalTransport(instance);
+  const exitLabel = () => sessionTexts()[transport.kind].exitLabel;
+  const restartAction = () => sessionTexts()[transport.kind].restartAction;
 
   let opened = false;
   let isDisposed = false;
@@ -83,7 +90,7 @@ function createTerminalSession(instance: TerminalInstance): TerminalSession {
 
   const markDisconnected = () => {
     connectionStatus = 'disconnected';
-    writeNotice(ANSI_DIM, 'ferret', `pressione Enter para ${transport.restartAction}`);
+    writeNotice(ANSI_DIM, 'ferret', formatMessage(sessionTexts().pressEnter, { action: restartAction() }));
   };
 
   const fitToHost = () => {
@@ -102,7 +109,7 @@ function createTerminalSession(instance: TerminalInstance): TerminalSession {
       })
       .catch((connectError: unknown) => {
         if (isDisposed) return;
-        writeNotice(ANSI_RED, 'erro', String(connectError));
+        writeNotice(ANSI_RED, sessionTexts().errorLabel, errorMessage(connectError));
         markDisconnected();
       });
   };
@@ -115,13 +122,13 @@ function createTerminalSession(instance: TerminalInstance): TerminalSession {
       })
       .catch(() => {
         if (isDisposed) return;
-        writeNotice(ANSI_RED, transport.exitLabel, 'a sessão terminou durante a troca de janela');
+        writeNotice(ANSI_RED, exitLabel(), sessionTexts().endedDuringTransfer);
         markDisconnected();
       });
   };
 
   const reconnect = () => {
-    writeNotice(ANSI_YELLOW, 'ferret', `${transport.restartAction}...`);
+    writeNotice(ANSI_YELLOW, 'ferret', `${restartAction()}...`);
     connect();
   };
 
@@ -150,7 +157,7 @@ function createTerminalSession(instance: TerminalInstance): TerminalSession {
   const offData = Events.On(transport.dataEvent, ({ data: chunk }) => terminal.write(chunk));
   const offExit = Events.On(transport.exitEvent, ({ data: reason }) => {
     if (connectionStatus === 'disconnected') return;
-    writeNotice(ANSI_RED, transport.exitLabel, reason || 'sessão finalizada');
+    writeNotice(ANSI_RED, exitLabel(), reason || sessionTexts().sessionEnded);
     markDisconnected();
   });
 

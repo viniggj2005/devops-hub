@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"docker-manager-go/src/appErrors"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 	talpadbFunctions "docker-manager-go/src/talpadb/functions"
 )
@@ -450,7 +451,7 @@ func (engine *PostgresEngine) TableColumns(ctx context.Context, db Querier, sche
 func (engine *PostgresEngine) DropStatement(ctx context.Context, db Querier, input talpadbDtos.DropObjectInputDto) (string, error) {
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
-		return "", errors.New("informe o objeto a excluir")
+		return "", appErrors.New("talpadb.dropObjectRequired", "informe o objeto a excluir")
 	}
 	switch input.Kind {
 	case "database":
@@ -469,14 +470,14 @@ FROM pg_catalog.pg_class c
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = $1 AND c.relname = $2`, input.Schema, name).Scan(&kind)
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", fmt.Errorf("objeto %s.%s não encontrado", input.Schema, name)
+			return "", appErrors.New("talpadb.objectNotFound", "objeto {object} não encontrado").With("object", input.Schema+"."+name)
 		}
 		if err != nil {
 			return "", err
 		}
 		return engine.BuildRelationDropSql(input.Schema, name, kind, input.Cascade)
 	}
-	return "", fmt.Errorf("tipo de objeto desconhecido: %s", input.Kind)
+	return "", appErrors.New("talpadb.unknownObjectKind", "tipo de objeto desconhecido: {kind}").With("kind", input.Kind)
 }
 
 func PostgresCascadeClause(cascade bool) string {
@@ -489,7 +490,7 @@ func PostgresCascadeClause(cascade bool) string {
 func (engine *PostgresEngine) BuildRelationDropSql(schema string, name string, kind string, cascade bool) (string, error) {
 	keyword, supported := postgresRelationDropKeywords[kind]
 	if !supported {
-		return "", fmt.Errorf("%s.%s não é uma tabela ou view", schema, name)
+		return "", appErrors.New("talpadb.notTableOrView", "{object} não é uma tabela ou view").With("object", schema+"."+name)
 	}
 	qualified := engine.QuoteIdentifier(schema) + "." + engine.QuoteIdentifier(name)
 	return "DROP " + keyword + " " + qualified + PostgresCascadeClause(cascade) + ";", nil
@@ -498,10 +499,10 @@ func (engine *PostgresEngine) BuildRelationDropSql(schema string, name string, k
 func (engine *PostgresEngine) BuildCreateDatabaseSql(input talpadbDtos.CreateDatabaseInputDto) (string, string, error) {
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
-		return "", "", errors.New("informe o nome do banco")
+		return "", "", appErrors.New("talpadb.databaseNameRequired", "informe o nome do banco")
 	}
 	if input.ConnectionLimit < -1 {
-		return "", "", errors.New("o limite de conexões deve ser -1 (ilimitado) ou maior")
+		return "", "", appErrors.New("talpadb.invalidConnectionLimit", "o limite de conexões deve ser -1 (ilimitado) ou maior")
 	}
 
 	options := []string{}
@@ -700,7 +701,7 @@ FROM pg_catalog.pg_class c
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = $1 AND c.relname = $2`, schema, relation).Scan(&oid, &kind)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, "", fmt.Errorf("objeto %s.%s não encontrado", schema, relation)
+		return 0, "", appErrors.New("talpadb.objectNotFound", "objeto {object} não encontrado").With("object", schema+"."+relation)
 	}
 	return oid, kind, err
 }
@@ -748,7 +749,7 @@ func (engine *PostgresEngine) PoolTableDetails(ctx context.Context, pool *pgxpoo
 	switch kind {
 	case "r", "p", "f", "v", "m":
 	default:
-		return nil, fmt.Errorf("%s.%s não é uma tabela ou view", schema, relation)
+		return nil, appErrors.New("talpadb.notTableOrView", "{object} não é uma tabela ou view").With("object", schema+"."+relation)
 	}
 
 	info, err := engine.loadRelationSummary(ctx, pool, versionNumber, oid)
@@ -842,7 +843,7 @@ func (engine *PostgresEngine) PoolObjectDdl(ctx context.Context, pool *pgxpool.P
 	case "schema":
 		return engine.schemaDdl(ctx, pool, object.Name)
 	}
-	return "", fmt.Errorf("tipo de objeto não suportado: %s", object.Kind)
+	return "", appErrors.New("talpadb.unsupportedObjectKind", "tipo de objeto não suportado: {kind}").With("kind", object.Kind)
 }
 
 func (engine *PostgresEngine) PoolCompletionSchema(ctx context.Context, pool *pgxpool.Pool) ([]talpadbDtos.CompletionTableDto, error) {
@@ -974,14 +975,14 @@ WHERE c.oid = $1`, partitionKeyExpression), oid).Scan(
 
 func (engine *PostgresEngine) sequenceDdl(ctx context.Context, pool *pgxpool.Pool, versionNumber int, schema string, name string) (string, error) {
 	if versionNumber < 100000 {
-		return "", errors.New("script de sequências requer PostgreSQL 10 ou superior")
+		return "", appErrors.New("talpadb.sequenceScriptRequiresPg10", "script de sequências requer PostgreSQL 10 ou superior")
 	}
 	oid, kind, err := engine.RelationOid(ctx, pool, schema, name)
 	if err != nil {
 		return "", err
 	}
 	if kind != "S" {
-		return "", fmt.Errorf("%s.%s não é uma sequência", schema, name)
+		return "", appErrors.New("talpadb.notASequence", "{object} não é uma sequência").With("object", schema+"."+name)
 	}
 
 	var sequence talpadbFunctions.SequenceDdlInfo
@@ -1032,7 +1033,7 @@ WHERE p.oid = $1`, isProcedureExpression), oid).Scan(
 		&function.Definition,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", errors.New("função não encontrada")
+		return "", appErrors.New("talpadb.functionNotFound", "função não encontrada")
 	}
 	if err != nil {
 		return "", err
@@ -1050,7 +1051,7 @@ SELECT pg_catalog.quote_ident(n.nspname),
 FROM pg_catalog.pg_namespace n
 WHERE n.nspname = $1`, name).Scan(&quotedName, &quotedOwner, &comment)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", fmt.Errorf("schema %s não encontrado", name)
+		return "", appErrors.New("talpadb.schemaNotFound", "schema {schema} não encontrado").With("schema", name)
 	}
 	if err != nil {
 		return "", err

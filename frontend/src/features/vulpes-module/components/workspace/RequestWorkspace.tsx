@@ -15,6 +15,8 @@ import { workspaceTabLabel } from '../../functions/WorkspaceTabs';
 import { startDrag } from '../../../shared/functions/DragFunctions';
 import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import SnapOverlay from '../../../shared/components/split/SnapOverlay';
+import { currentDictionary } from '../../../i18n/TranslateError';
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { maxSplitPanes } from '../../../shared/constants/SplitDropZones';
 import { useConfirmToast } from '../../../shared/components/toasts/ConfirmToast';
@@ -44,6 +46,8 @@ const runActiveTab = (tab: RequestTab) => {
 
 const RequestWorkspace: React.FC = () => {
   const confirm = useConfirmToast();
+  const { dictionary, formatMessage } = useTranslation();
+  const workspaceTexts = dictionary.vulpes.workspace;
   const contentRef = useRef<HTMLDivElement>(null);
   const [saveTargetId, setSaveTargetId] = useState<string | null>(null);
   const [groupRatios, setGroupRatios] = useState<Record<string, GroupRatios>>({});
@@ -84,7 +88,7 @@ const RequestWorkspace: React.FC = () => {
     try {
       const outcome = await requestActions.save(tabId);
       if (outcome === 'needs-location') setSaveTargetId(tabId);
-      else toast.success('Requisição salva');
+      else toast.success(currentDictionary().vulpes.workspace.requestSaved);
     } catch (error) {
       toast.error(errorMessage(error));
     }
@@ -101,11 +105,11 @@ const RequestWorkspace: React.FC = () => {
       return;
     }
     confirm({
-      title: 'Descartar alterações?',
+      title: workspaceTexts.discardTitle,
       message:
         dirtyTabs.length === 1
-          ? `"${dirtyTabs[0].name}" tem alterações não salvas. Fechar mesmo assim?`
-          : `${dirtyTabs.length} abas têm alterações não salvas. Fechar mesmo assim?`,
+          ? formatMessage(workspaceTexts.discardOne, { name: dirtyTabs[0].name })
+          : formatMessage(workspaceTexts.discardOther, { count: dirtyTabs.length }),
       onConfirm: discard,
     });
   };
@@ -152,10 +156,10 @@ const RequestWorkspace: React.FC = () => {
 
   const paneControls = (tab: WorkspaceTab) => (
     <div className="flex items-center gap-0.5 flex-shrink-0 pl-1 ml-1 border-l border-gray-200 dark:border-white/10">
-      <button type="button" title="Separar em uma nova aba" onClick={() => detachPane(tab.id)} className={iconButtonClass}>
+      <button type="button" title={workspaceTexts.detachPane} onClick={() => detachPane(tab.id)} className={iconButtonClass}>
         <SquareArrowOutUpRight className="w-3.5 h-3.5" />
       </button>
-      <button type="button" title="Fechar este painel" onClick={() => closeTabs([tab])} className={`${iconButtonClass} hover:text-rose-500`}>
+      <button type="button" title={workspaceTexts.closePane} onClick={() => closeTabs([tab])} className={`${iconButtonClass} hover:text-rose-500`}>
         <X className="w-3.5 h-3.5" />
       </button>
     </div>
@@ -224,7 +228,7 @@ const RequestWorkspace: React.FC = () => {
         {isDraggingOtherGroup && activeGroup && draggedGroup && (
           <SnapOverlay
             accent="amber"
-            itemNoun="painéis"
+            itemNoun={workspaceTexts.panesNoun}
             resultingCount={resultingCount}
             onCancel={() => setDraggingGroup(null)}
             canDrop={resultingCount <= maxSplitPanes}

@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../../i18n/useTranslation';
 import React from 'react';
 import { Cpu, HardDrive, LayoutList } from 'lucide-react';
 
@@ -18,17 +19,20 @@ export const ResourceLimitsSection: React.FC<ResourceLimitsSectionProps> = ({
     pidsLimit,
     setPidsLimit
 }) => {
+    const { dictionary } = useTranslation();
+    const createTexts = dictionary.docker.createContainer;
+
     return (
         <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <Cpu className="w-5 h-5 text-purple-500" />
-                Limites de Recursos (Opcional)
+                {createTexts.limits}
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Memória RAM (MB)
+                        {createTexts.memoryLimit}
                     </label>
                     <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -47,7 +51,7 @@ export const ResourceLimitsSection: React.FC<ResourceLimitsSectionProps> = ({
 
                 <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        CPUs (Cores)
+                        {createTexts.cpus}
                     </label>
                     <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -67,7 +71,7 @@ export const ResourceLimitsSection: React.FC<ResourceLimitsSectionProps> = ({
 
                 <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Limite de Processos
+                        {createTexts.pidsLimit}
                     </label>
                     <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

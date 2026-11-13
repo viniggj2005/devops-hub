@@ -2,9 +2,10 @@ package vulpesFunctions
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
+
+	"docker-manager-go/src/appErrors"
 )
 
 type jsonPathSelector int
@@ -31,15 +32,15 @@ func ExtractJsonPath(document string, path string) (string, error) {
 	decoder := json.NewDecoder(strings.NewReader(document))
 	decoder.UseNumber()
 	if err := decoder.Decode(&root); err != nil {
-		return "", fmt.Errorf("a resposta não é um JSON válido para aplicar o filtro %s", path)
+		return "", appErrors.New("vulpes.filterOnInvalidJson", "a resposta não é um JSON válido para aplicar o filtro {filter}").With("filter", path)
 	}
 
 	results := evaluateJsonPath(root, steps)
 	switch {
 	case len(results) == 0:
-		return "", fmt.Errorf("o filtro %s não encontrou nenhum valor na resposta", path)
+		return "", appErrors.New("vulpes.filterNoMatch", "o filtro {filter} não encontrou nenhum valor na resposta").With("filter", path)
 	case len(results) > 1:
-		return "", fmt.Errorf("o filtro %s retornou %d valores; ajuste-o para retornar apenas um", path, len(results))
+		return "", appErrors.New("vulpes.filterMultipleMatches", "o filtro {filter} retornou {count} valores; ajuste-o para retornar apenas um").With("filter", path).With("count", len(results))
 	}
 	if text, isText := results[0].(string); isText {
 		return text, nil
@@ -54,7 +55,7 @@ func ExtractJsonPath(document string, path string) (string, error) {
 func parseJsonPath(path string) ([]jsonPathStep, error) {
 	trimmed := strings.TrimSpace(path)
 	if !strings.HasPrefix(trimmed, "$") {
-		return nil, fmt.Errorf("o filtro JSONPath %q precisa começar com $", path)
+		return nil, appErrors.New("vulpes.jsonPathMissingRoot", "o filtro JSONPath \"{filter}\" precisa começar com $").With("filter", path)
 	}
 	steps := []jsonPathStep{}
 	position := 1
@@ -70,7 +71,7 @@ func parseJsonPath(path string) ([]jsonPathStep, error) {
 		case trimmed[position] == '[':
 			step, position, err = parseJsonPathBracket(trimmed, position)
 		default:
-			err = fmt.Errorf("o filtro JSONPath %q é inválido perto de %q", path, trimmed[position:])
+			err = appErrors.New("vulpes.jsonPathInvalidNear", "o filtro JSONPath \"{filter}\" é inválido perto de \"{near}\"").With("filter", path).With("near", trimmed[position:])
 		}
 		if err != nil {
 			return nil, err
@@ -91,7 +92,7 @@ func parseJsonPathSegment(path string, start int) (jsonPathStep, int, error) {
 	name := path[start:end]
 	switch name {
 	case "":
-		return jsonPathStep{}, end, fmt.Errorf("o filtro JSONPath %q tem um segmento vazio", path)
+		return jsonPathStep{}, end, appErrors.New("vulpes.jsonPathEmptySegment", "o filtro JSONPath \"{filter}\" tem um segmento vazio").With("filter", path)
 	case "*":
 		return jsonPathStep{selector: selectWildcard}, end, nil
 	}
@@ -114,7 +115,7 @@ func parseJsonPathBracket(path string, start int) (jsonPathStep, int, error) {
 			return step, end + 1, err
 		}
 	}
-	return jsonPathStep{}, len(path), fmt.Errorf("o filtro JSONPath %q tem um colchete sem fechamento", path)
+	return jsonPathStep{}, len(path), appErrors.New("vulpes.jsonPathUnclosedBracket", "o filtro JSONPath \"{filter}\" tem um colchete sem fechamento").With("filter", path)
 }
 
 func jsonPathBracketStep(path string, content string) (jsonPathStep, error) {
@@ -127,7 +128,7 @@ func jsonPathBracketStep(path string, content string) (jsonPathStep, error) {
 	if index, err := strconv.Atoi(content); err == nil {
 		return jsonPathStep{index: index, selector: selectIndex}, nil
 	}
-	return jsonPathStep{}, fmt.Errorf("o filtro JSONPath %q usa a expressão [%s], que não é suportada (use chaves, índices, * ou ..)", path, content)
+	return jsonPathStep{}, appErrors.New("vulpes.jsonPathUnsupportedExpression", "o filtro JSONPath \"{filter}\" usa a expressão [{expression}], que não é suportada (use chaves, índices, * ou ..)").With("filter", path).With("expression", content)
 }
 
 func unescapeQuoted(text string) string {

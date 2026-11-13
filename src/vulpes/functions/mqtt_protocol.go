@@ -3,13 +3,12 @@ package vulpesFunctions
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/url"
 	"strings"
 
+	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 )
 
@@ -64,14 +63,14 @@ type MqttIncomingPublish struct {
 func ParseMqttEndpoint(rawUrl string) (MqttEndpoint, error) {
 	trimmed := strings.TrimSpace(rawUrl)
 	if trimmed == "" {
-		return MqttEndpoint{}, errors.New("informe a URL do broker MQTT")
+		return MqttEndpoint{}, appErrors.New("vulpes.mqttUrlRequired", "informe a URL do broker MQTT")
 	}
 	if !HasScheme(trimmed) {
 		trimmed = "mqtt://" + trimmed
 	}
 	parsed, err := url.Parse(trimmed)
 	if err != nil || parsed.Host == "" {
-		return MqttEndpoint{}, errors.New("URL do broker MQTT inválida")
+		return MqttEndpoint{}, appErrors.New("vulpes.invalidMqttUrl", "URL do broker MQTT inválida")
 	}
 
 	scheme := strings.ToLower(parsed.Scheme)
@@ -113,7 +112,7 @@ func ParseMqttEndpoint(rawUrl string) (MqttEndpoint, error) {
 			DisplayUrl: parsed.String(),
 		}, nil
 	default:
-		return MqttEndpoint{}, fmt.Errorf("protocolo %q não suportado; use mqtt://, mqtts://, ws:// ou wss://", scheme)
+		return MqttEndpoint{}, appErrors.New("vulpes.unsupportedMqttScheme", "protocolo \"{scheme}\" não suportado; use mqtt://, mqtts://, ws:// ou wss://").With("scheme", scheme)
 	}
 }
 
@@ -172,7 +171,7 @@ func EncodeMqttConnect(options MqttConnectOptions) []byte {
 
 func ParseMqttConnack(body []byte) (bool, byte, error) {
 	if len(body) < 2 {
-		return false, 0, errors.New("resposta CONNACK inválida do broker MQTT")
+		return false, 0, appErrors.New("vulpes.invalidConnack", "resposta CONNACK inválida do broker MQTT")
 	}
 	sessionPresent := (body[0] & 0x01) != 0
 	return sessionPresent, body[1], nil
@@ -183,27 +182,27 @@ func MqttConnackError(returnCode byte) error {
 	case 0:
 		return nil
 	case 1:
-		return errors.New("o broker recusou a conexão: versão de protocolo MQTT não suportada")
+		return appErrors.New("vulpes.mqttRefusedProtocol", "o broker recusou a conexão: versão de protocolo MQTT não suportada")
 	case 2:
-		return errors.New("o broker recusou a conexão: Client ID rejeitado")
+		return appErrors.New("vulpes.mqttRefusedClientId", "o broker recusou a conexão: Client ID rejeitado")
 	case 3:
-		return errors.New("o broker recusou a conexão: serviço MQTT indisponível")
+		return appErrors.New("vulpes.mqttRefusedUnavailable", "o broker recusou a conexão: serviço MQTT indisponível")
 	case 4:
-		return errors.New("o broker recusou a conexão: usuário ou senha inválidos")
+		return appErrors.New("vulpes.mqttRefusedCredentials", "o broker recusou a conexão: usuário ou senha inválidos")
 	case 5:
-		return errors.New("o broker recusou a conexão: cliente não autorizado")
+		return appErrors.New("vulpes.mqttRefusedUnauthorized", "o broker recusou a conexão: cliente não autorizado")
 	default:
-		return fmt.Errorf("o broker recusou a conexão (código %d)", returnCode)
+		return appErrors.New("vulpes.mqttRefusedCode", "o broker recusou a conexão (código {code})").With("code", returnCode)
 	}
 }
 
 func EncodeMqttPublish(packetID uint16, topic string, payload []byte, qos byte, retain bool) ([]byte, error) {
 	trimmedTopic := strings.TrimSpace(topic)
 	if trimmedTopic == "" {
-		return nil, errors.New("informe o tópico MQTT para publicar")
+		return nil, appErrors.New("vulpes.mqttPublishTopicRequired", "informe o tópico MQTT para publicar")
 	}
 	if strings.ContainsAny(trimmedTopic, "+#") {
-		return nil, errors.New("o tópico de publicação não pode conter curingas (+ ou #)")
+		return nil, appErrors.New("vulpes.mqttPublishWildcard", "o tópico de publicação não pode conter curingas (+ ou #)")
 	}
 
 	var flags byte
@@ -230,7 +229,7 @@ func ParseMqttPublish(flags byte, body []byte) (MqttIncomingPublish, error) {
 	var packetID uint16
 	if qos > 0 {
 		if len(body) < offset+2 {
-			return MqttIncomingPublish{}, errors.New("pacote PUBLISH sem identificador")
+			return MqttIncomingPublish{}, appErrors.New("vulpes.mqttPublishWithoutId", "pacote PUBLISH sem identificador")
 		}
 		packetID = binary.BigEndian.Uint16(body[offset : offset+2])
 		offset += 2
@@ -254,7 +253,7 @@ func EncodeMqttPacketAck(packetType byte, flags byte, packetID uint16) []byte {
 
 func ParseMqttPacketID(body []byte) (uint16, error) {
 	if len(body) < 2 {
-		return 0, errors.New("pacote MQTT sem identificador")
+		return 0, appErrors.New("vulpes.mqttPacketWithoutId", "pacote MQTT sem identificador")
 	}
 	return binary.BigEndian.Uint16(body[:2]), nil
 }
@@ -274,7 +273,7 @@ func EncodeMqttSubscribe(packetID uint16, subscriptions []vulpesDtos.MqttSubscri
 		count++
 	}
 	if count == 0 {
-		return nil, errors.New("informe ao menos um tópico para assinar")
+		return nil, appErrors.New("vulpes.mqttSubscribeTopicRequired", "informe ao menos um tópico para assinar")
 	}
 	return wrapMqttPacket(MqttSubscribe, 0x02, body.Bytes()), nil
 }
@@ -292,7 +291,7 @@ func EncodeMqttUnsubscribe(packetID uint16, topics []string) ([]byte, error) {
 		count++
 	}
 	if count == 0 {
-		return nil, errors.New("informe o tópico para cancelar a inscrição")
+		return nil, appErrors.New("vulpes.mqttUnsubscribeTopicRequired", "informe o tópico para cancelar a inscrição")
 	}
 	return wrapMqttPacket(MqttUnsubscribe, 0x02, body.Bytes()), nil
 }
@@ -314,7 +313,7 @@ func ReadMqttPacket(reader io.Reader) (byte, byte, []byte, error) {
 		return 0, 0, nil, err
 	}
 	if remainingLength > maxMqttPacketBytes {
-		return 0, 0, nil, fmt.Errorf("pacote MQTT excedeu o limite de %d MB", maxMqttPacketBytes>>20)
+		return 0, 0, nil, appErrors.New("vulpes.mqttPacketTooLarge", "pacote MQTT excedeu o limite de {megabytes} MB").With("megabytes", maxMqttPacketBytes>>20)
 	}
 	body := make([]byte, remainingLength)
 	if remainingLength > 0 {
@@ -363,7 +362,7 @@ func readRemainingLength(reader io.Reader) (int, error) {
 		}
 		multiplier *= 128
 		if multiplier > 128*128*128 {
-			return 0, errors.New("comprimento de pacote MQTT inválido")
+			return 0, appErrors.New("vulpes.mqttInvalidLength", "comprimento de pacote MQTT inválido")
 		}
 	}
 }
@@ -381,12 +380,12 @@ func writeMqttString(buffer *bytes.Buffer, value string) {
 
 func readMqttString(data []byte, offset int) (string, int, error) {
 	if len(data) < offset+2 {
-		return "", offset, errors.New("string MQTT truncada")
+		return "", offset, appErrors.New("vulpes.mqttTruncatedString", "string MQTT truncada")
 	}
 	length := int(binary.BigEndian.Uint16(data[offset : offset+2]))
 	offset += 2
 	if len(data) < offset+length {
-		return "", offset, errors.New("conteúdo da string MQTT truncado")
+		return "", offset, appErrors.New("vulpes.mqttTruncatedContent", "conteúdo da string MQTT truncado")
 	}
 	return string(data[offset : offset+length]), offset + length, nil
 }

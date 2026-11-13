@@ -1,23 +1,27 @@
 import React from 'react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { Play } from 'lucide-react';
 import { useVulpesStore } from '../../VulpesStore';
 import { VULPES_MODULE, VulpesModuleIcon } from '../../moduleInfo';
 import { PROTOCOLS, protocolLabels } from '../../functions/RequestDefaults';
 
-const shortcuts = [
-  ['Ctrl+S', 'Salvar a requisição'],
-  ['Botão do meio', 'Fechar uma aba'],
-  ['Ctrl+Enter', 'Enviar, invocar ou emitir'],
-  ['{{variavel}}', 'Usar variáveis do ambiente'],
-  ['Botão direito', 'Ações de coleções e pastas'],
-  ['Arrastar / ↑↓', 'Ordenar requisições e pastas'],
-  ['Arrastar aba', 'Reordenar ou soltar na tela para dividir'],
-];
-
 const EmptyWorkspace: React.FC = () => {
   const openScratch = useVulpesStore((state) => state.openScratch);
   const openRunner = useVulpesStore((state) => state.openRunner);
   const collections = useVulpesStore((state) => state.collections);
+  const { dictionary } = useTranslation();
+  const workspaceTexts = dictionary.vulpes.workspace;
+  const shortcutKeys = workspaceTexts.shortcutKeys;
+  const shortcutTexts = workspaceTexts.shortcuts;
+  const shortcuts = [
+    ['Ctrl+S', shortcutTexts.save],
+    [shortcutKeys.middleClick, shortcutTexts.closeTab],
+    ['Ctrl+Enter', shortcutTexts.send],
+    [shortcutKeys.variable, shortcutTexts.variables],
+    [shortcutKeys.rightClick, shortcutTexts.actions],
+    [shortcutKeys.drag, shortcutTexts.reorder],
+    [shortcutKeys.dragTab, shortcutTexts.split],
+  ];
 
   return (
     <div className="h-full overflow-auto flex items-center justify-center p-8">
@@ -26,9 +30,9 @@ const EmptyWorkspace: React.FC = () => {
           <VulpesModuleIcon className="w-9 h-9 text-white" />
         </div>
         <div className="space-y-2">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Nenhuma requisição aberta</h3>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">{workspaceTexts.emptyTitle}</h3>
           <p className="text-sm text-gray-500 dark:text-zinc-400">
-            Abra uma requisição pela barra lateral, execute uma coleção em lote pelo Runner ou comece uma nova:
+            {workspaceTexts.emptyDescription}
           </p>
         </div>
         <div className="flex flex-wrap justify-center gap-2">

@@ -3,13 +3,17 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { FolderOpen, FolderPlus } from 'lucide-react';
 import { Modal } from '../../shared/components/modals/Modal';
+import RichMessage from '../../i18n/RichMessage';
+import { useTranslation } from '../../i18n/useTranslation';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import { ChooseCloneFolder, GetCloneFolder } from '../../../../bindings/docker-manager-go/src/octohub/handlers/repositoryhandler';
 
 const CreateRepositoryModal: React.FC = () => {
     const { token } = useAuth();
     const navigate = useNavigate();
+    const { dictionary } = useTranslation();
     const [name, setName] = useState('');
+    const createTexts = dictionary.octohub.createRepository;
     const [folder, setFolder] = useState('');
     const [creating, setCreating] = useState(false);
     const [withReadme, setWithReadme] = useState(true);
@@ -51,7 +55,7 @@ const CreateRepositoryModal: React.FC = () => {
             size="md"
             onClose={close}
             isOpen={createModalOpen}
-            title="Criar repositório local"
+            title={createTexts.title}
             icon={<FolderPlus className="w-5 h-5 text-emerald-500" />}
             footer={
                 <>
@@ -60,7 +64,7 @@ const CreateRepositoryModal: React.FC = () => {
                         disabled={creating}
                         className="px-4 py-2 rounded-lg text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 disabled:opacity-50"
                     >
-                        Cancelar
+                        {dictionary.app.common.cancel}
                     </button>
                     <button
                         onClick={handleCreate}
@@ -72,20 +76,20 @@ const CreateRepositoryModal: React.FC = () => {
                         ) : (
                             <FolderPlus className="w-4 h-4" />
                         )}
-                        {creating ? 'Criando...' : 'Criar'}
+                        {creating ? createTexts.creating : createTexts.create}
                     </button>
                 </>
             }
         >
             <div className="space-y-5">
                 <div className="space-y-2">
-                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Nome</label>
+                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{dictionary.octohub.common.name}</label>
                     <input
                         autoFocus
                         type="text"
                         value={name}
                         disabled={creating}
-                        placeholder="meu-projeto"
+                        placeholder={createTexts.namePlaceholder}
                         onChange={(event) => setName(event.target.value)}
                         onKeyDown={(event) => event.key === 'Enter' && handleCreate()}
                         className="w-full px-3 py-2 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-lg text-xs font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
@@ -93,10 +97,10 @@ const CreateRepositoryModal: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Pasta de destino</label>
+                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{dictionary.octohub.common.destinationFolder}</label>
                     <div className="flex gap-2">
                         <div className="flex-1 min-w-0 px-3 py-2 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-lg text-xs font-mono truncate" title={folder}>
-                            {folder || 'Escolha uma pasta'}
+                            {folder || dictionary.octohub.common.chooseFolder}
                         </div>
                         <button
                             onClick={chooseFolder}
@@ -104,12 +108,12 @@ const CreateRepositoryModal: React.FC = () => {
                             className="shrink-0 px-3 py-2 rounded-lg text-xs font-bold bg-zinc-100 dark:bg-white/10 hover:bg-zinc-200 dark:hover:bg-white/20 flex items-center gap-2 disabled:opacity-50"
                         >
                             <FolderOpen className="w-4 h-4" />
-                            Alterar
+                            {dictionary.octohub.common.change}
                         </button>
                     </div>
                     {destination && (
                         <p className="text-[11px] text-zinc-500">
-                            Será criado em <span className="font-mono text-zinc-700 dark:text-zinc-300">{destination}</span>
+                            <RichMessage template={createTexts.willBeCreatedIn} values={{ path: <span className="font-mono text-zinc-700 dark:text-zinc-300">{destination}</span> }} />
                         </p>
                     )}
                 </div>
@@ -122,7 +126,7 @@ const CreateRepositoryModal: React.FC = () => {
                         className="accent-emerald-600"
                         onChange={(event) => setWithReadme(event.target.checked)}
                     />
-                    Criar README.md e fazer o commit inicial
+                    {createTexts.withReadme}
                 </label>
             </div>
         </Modal>

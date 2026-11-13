@@ -4,18 +4,18 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"os/exec"
 	"strings"
 	"sync"
 
+	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/desktop"
 	"docker-manager-go/src/processes"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-var errNoRepository = errors.New("nenhum repositório selecionado no OctoHub")
+var errNoRepository = appErrors.New("octohub.noRepository", "nenhum repositório selecionado no OctoHub")
 
 type repositoryWorkspace struct {
 	auth gitAuth
@@ -172,11 +172,11 @@ func (handlerStruct *GitHandler) workspace(ctx context.Context) repositoryWorksp
 	return repositoryWorkspace{path: handlerStruct.initialPath}
 }
 
-func friendlyGitError(message string) string {
+func gitCommandError(message string) error {
 	if strings.Contains(message, "user interactivity has been disabled") || strings.Contains(message, "Authentication failed") {
-		return "o GitHub recusou o acesso da conta ativa (token inválido ou sem permissão neste repositório). Reconecte a conta e tente de novo.\n" + message
+		return appErrors.Wrap("octohub.githubAccessDenied", "o GitHub recusou o acesso da conta ativa (token inválido ou sem permissão neste repositório). Reconecte a conta e tente de novo", errors.New(message))
 	}
-	return message
+	return errors.New(message)
 }
 
 func (handlerStruct *GitHandler) repositoryPath(ctx context.Context) string {
@@ -222,7 +222,7 @@ func (handlerStruct *GitHandler) runGit(ctx context.Context, args []string, inpu
 
 	if err := command.Run(); err != nil {
 		if handlerStruct.appContext.Err() == context.DeadlineExceeded {
-			return nil, -1, fmt.Errorf("o comando git expirou")
+			return nil, -1, appErrors.New("octohub.gitTimeout", "o comando git expirou")
 		}
 		exitCode := -1
 		var exitError *exec.ExitError
@@ -237,7 +237,7 @@ func (handlerStruct *GitHandler) runGit(ctx context.Context, args []string, inpu
 			host, isSSH := parseRemote(originURL(workspace.path))
 			return stdout.Bytes(), exitCode, authFailure(host, isSSH, message)
 		}
-		return stdout.Bytes(), exitCode, errors.New(friendlyGitError(message))
+		return stdout.Bytes(), exitCode, gitCommandError(message)
 	}
 	return stdout.Bytes(), 0, nil
 }

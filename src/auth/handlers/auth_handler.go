@@ -3,12 +3,12 @@ package authHandlers
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
+	"docker-manager-go/src/appErrors"
 	authDtos "docker-manager-go/src/auth/dtos"
 	authFunctions "docker-manager-go/src/auth/functions"
 	"docker-manager-go/src/desktop"
@@ -46,11 +46,11 @@ func (handlerStruct *AuthHandlerStruct) ServiceStartup(context context.Context, 
 func (handlerStruct *AuthHandlerStruct) Login(body authDtos.LoginInputDto) (*authDtos.LoginResponseDto, error) {
 	var userModel models.UserModel
 	if err := handlerStruct.DataBase.WithContext(handlerStruct.context).Where("email = ?", body.Email).First(&userModel).Error; err != nil {
-		return nil, errors.New("credenciais inválidas")
+		return nil, appErrors.New("auth.invalidCredentials", "credenciais inválidas")
 	}
 
 	if bcrypt.CompareHashAndPassword([]byte(userModel.Password), []byte(body.Password)) != nil {
-		return nil, errors.New("credenciais inválidas")
+		return nil, appErrors.New("auth.invalidCredentials", "credenciais inválidas")
 	}
 
 	key := deriveSessionKey(body.Password, userModel.Email)
@@ -84,7 +84,7 @@ func (handlerStruct *AuthHandlerStruct) Logout(token string) {
 func (handlerStruct *AuthHandlerStruct) ClaimWindowSession(ctx context.Context) (*authDtos.LoginResponseDto, error) {
 	windowName := desktop.CallingWindowName(ctx)
 	if windowName == "" {
-		return nil, errors.New("janela de origem desconhecida")
+		return nil, appErrors.New("auth.unknownWindow", "janela de origem desconhecida")
 	}
 
 	token, session, err := handlerStruct.Session.ClaimForWindow(windowName)

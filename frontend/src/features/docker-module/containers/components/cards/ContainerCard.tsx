@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from '../../../../i18n/useTranslation';
 import LogsModal from '../modals/LogsModal';
 import StatusBadge from '../badges/StatusBadge';
 import ContainersMenuModal from '../modals/MenuModal';
@@ -28,6 +29,8 @@ const ContainerCard: React.FC<ContainerCardProps> = ({
   onOpenTerminal,
 }) => {
   const [loading, setLoading] = useState(false);
+  const { dictionary } = useTranslation();
+  const containerTexts = dictionary.docker.containers;
   const canPauseOrResume = container.State === 'running' || container.State === 'paused';
 
   return (
@@ -43,7 +46,7 @@ const ContainerCard: React.FC<ContainerCardProps> = ({
               type="button"
               onClick={onOpenEdit}
               className="opacity-0 transition-opacity group-hover:opacity-100 p-1 rounded-md text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 cursor-pointer"
-              title="Renomear container"
+              title={containerTexts.rename}
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>
@@ -70,7 +73,7 @@ const ContainerCard: React.FC<ContainerCardProps> = ({
       <div className="grid grid-cols-2 gap-4 py-2 border-t border-gray-100 dark:border-white/[0.05]">
         <div className="space-y-0.5">
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-            Criado
+            {containerTexts.created}
           </p>
           <p className="text-xs font-medium text-gray-700 dark:text-zinc-300">
             {FmtAgo(container.Created)}
@@ -78,7 +81,7 @@ const ContainerCard: React.FC<ContainerCardProps> = ({
         </div>
         <div className="space-y-0.5">
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-            Status
+            {containerTexts.status}
           </p>
           <p className="truncate text-xs font-medium text-gray-700 dark:text-zinc-300" title={container.Status}>
             {container.Status || '—'}
@@ -89,7 +92,7 @@ const ContainerCard: React.FC<ContainerCardProps> = ({
       {container?.Ports && container.Ports.length > 0 && (
         <div className="space-y-1.5 border-t border-gray-100 pt-3 dark:border-white/[0.05]">
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-            Portas Mapeadas
+            {containerTexts.mappedPorts}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {container.Ports.map((port, index) => (
@@ -130,19 +133,19 @@ const ContainerCard: React.FC<ContainerCardProps> = ({
                 ? 'bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 dark:text-rose-400'
                 : 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 dark:text-emerald-400'
             }`}
-            title={container.State === 'running' ? 'Parar container' : 'Iniciar container'}
+            title={container.State === 'running' ? containerTexts.stopHint : containerTexts.startHint}
           >
             {loading ? (
               <LoaderCircle className="w-3.5 h-3.5 animate-spin" />
             ) : container.State === 'running' ? (
               <>
                 <Square className="w-3.5 h-3.5" />
-                <span>Parar</span>
+                <span>{containerTexts.stop}</span>
               </>
             ) : (
               <>
                 <Play className="w-3.5 h-3.5" />
-                <span>Iniciar</span>
+                <span>{containerTexts.start}</span>
               </>
             )}
           </button>
@@ -152,7 +155,7 @@ const ContainerCard: React.FC<ContainerCardProps> = ({
               type="button"
               onClick={() => onTogglePause(container.Id, container.State)}
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition-all hover:bg-amber-500/15 hover:text-amber-600 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-amber-500/20 dark:hover:text-amber-400 cursor-pointer"
-              title={container.State === 'paused' ? 'Retomar container' : 'Pausar container'}
+              title={container.State === 'paused' ? containerTexts.resumeHint : containerTexts.pauseHint}
             >
               {container.State === 'paused' ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
             </button>
@@ -163,7 +166,7 @@ const ContainerCard: React.FC<ContainerCardProps> = ({
               type="button"
               onClick={onOpenTerminal}
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition-all hover:bg-blue-500/15 hover:text-blue-600 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-blue-500/20 dark:hover:text-blue-400 cursor-pointer"
-              title="Abrir terminal interativo"
+              title={containerTexts.terminalHint}
             >
               <SquareTerminal className="w-3.5 h-3.5" />
             </button>
@@ -173,7 +176,7 @@ const ContainerCard: React.FC<ContainerCardProps> = ({
             type="button"
             onClick={() => copyToClipboard(container.Id.slice(0, 12), 'ID do container copiado')}
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition-all hover:bg-blue-500/15 hover:text-blue-600 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-blue-500/20 dark:hover:text-blue-400 cursor-pointer"
-            title="Copiar ID"
+            title={containerTexts.copyId}
           >
             <Copy className="w-3.5 h-3.5" />
           </button>
@@ -184,7 +187,7 @@ const ContainerCard: React.FC<ContainerCardProps> = ({
             type="button"
             onClick={() => (isOpened ? onCloseMenu() : onOpenMenu())}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer"
-            title="Mais opções"
+            title={containerTexts.moreOptions}
           >
             <EllipsisVertical className="w-4 h-4" />
           </button>

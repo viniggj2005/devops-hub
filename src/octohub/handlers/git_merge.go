@@ -3,13 +3,13 @@ package octohubHandler
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"docker-manager-go/src/appErrors"
 	octohubStructs "docker-manager-go/src/octohub/structs"
 )
 
@@ -81,10 +81,10 @@ func (handlerStruct *GitBranchHandler) PullCurrentBranch(ctx context.Context) (o
 		return state, err
 	}
 	if state.Kind != "" {
-		return state, fmt.Errorf("conclua ou aborte o %s em andamento antes", operationNames[state.Kind])
+		return state, appErrors.New("octohub.operationInProgress", "conclua ou aborte o {operation} em andamento antes").With("operation", operationNames[state.Kind])
 	}
 	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"}); err != nil {
-		return state, fmt.Errorf("a branch atual não acompanha nenhuma branch remota; publique-a antes")
+		return state, appErrors.New("octohub.noUpstream", "a branch atual não acompanha nenhuma branch remota; publique-a antes")
 	}
 
 	args := []string{"pull", "--no-edit"}
@@ -98,7 +98,7 @@ func (handlerStruct *GitBranchHandler) PullCurrentBranch(ctx context.Context) (o
 		if err == nil && len(state.ConflictingFiles) > 0 {
 			return state, nil
 		}
-		return state, fmt.Errorf("erro ao trazer as alterações do remoto: %w", runErr)
+		return state, appErrors.Wrap("octohub.pullFailed", "erro ao trazer as alterações do remoto", runErr)
 	}
 	return state, err
 }
@@ -113,7 +113,7 @@ func (handlerStruct *GitBranchHandler) revCount(ctx context.Context, revisionRan
 
 func validBranchArgument(branch string) error {
 	if branch == "" || strings.HasPrefix(branch, "-") {
-		return fmt.Errorf("branch inválida: %q", branch)
+		return appErrors.New("octohub.invalidBranch", "branch inválida: \"{branch}\"").With("branch", branch)
 	}
 	return nil
 }
@@ -173,10 +173,10 @@ func (handlerStruct *GitBranchHandler) MergeBranch(ctx context.Context, branch, 
 		return state, err
 	}
 	if state.Kind != "" {
-		return state, fmt.Errorf("conclua ou aborte o %s em andamento antes", operationNames[state.Kind])
+		return state, appErrors.New("octohub.operationInProgress", "conclua ou aborte o {operation} em andamento antes").With("operation", operationNames[state.Kind])
 	}
 	if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--verify", "-q", "HEAD"}); err != nil {
-		return state, fmt.Errorf("faça o primeiro commit antes de mesclar outra branch")
+		return state, appErrors.New("octohub.mergeNeedsFirstCommit", "faça o primeiro commit antes de mesclar outra branch")
 	}
 
 	if stashChanges {
@@ -187,7 +187,7 @@ func (handlerStruct *GitBranchHandler) MergeBranch(ctx context.Context, branch, 
 		if dirty {
 			stashMessage := "OctoHub: alterações guardadas antes de mesclar " + branch
 			if _, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"stash", "push", "-u", "-m", stashMessage}); err != nil {
-				return state, fmt.Errorf("erro ao guardar as alterações em stash: %w", err)
+				return state, appErrors.Wrap("octohub.stashFailed", "erro ao guardar as alterações em stash", err)
 			}
 		}
 	}
@@ -210,7 +210,7 @@ func (handlerStruct *GitBranchHandler) MergeBranch(ctx context.Context, branch, 
 	case octohubStructs.MergeStrategyRebase:
 		args = []string{"rebase", branch}
 	default:
-		return state, fmt.Errorf("estratégia de merge desconhecida: %s", strategy)
+		return state, appErrors.New("octohub.unknownMergeStrategy", "estratégia de merge desconhecida: {strategy}").With("strategy", strategy)
 	}
 
 	runErr := handlerStruct.runNonInteractive(ctx, args, "")
@@ -224,7 +224,7 @@ func (handlerStruct *GitBranchHandler) MergeBranch(ctx context.Context, branch, 
 			}
 			return state, nil
 		}
-		return state, fmt.Errorf("erro ao mesclar %s: %w", branch, runErr)
+		return state, appErrors.Wrap("octohub.mergeFailed", "erro ao mesclar {branch}", runErr).With("branch", branch)
 	}
 
 	if strategy == octohubStructs.MergeStrategySquash {
@@ -236,7 +236,7 @@ func (handlerStruct *GitBranchHandler) MergeBranch(ctx context.Context, branch, 
 			summary = "Squash de " + branch
 		}
 		if err := handlerStruct.runNonInteractive(ctx, []string{"commit", "-F", "-"}, summary); err != nil {
-			return state, fmt.Errorf("erro ao criar o commit do squash: %w", err)
+			return state, appErrors.Wrap("octohub.squashCommitFailed", "erro ao criar o commit do squash", err)
 		}
 	}
 	return handlerStruct.GetOperationState(ctx)
@@ -375,7 +375,7 @@ func (handlerStruct *GitBranchHandler) ContinueOperation(ctx context.Context, me
 		return state, err
 	}
 	if len(pending) > 0 {
-		return state, fmt.Errorf("ainda há conflitos para resolver em: %s", strings.Join(pending, ", "))
+		return state, appErrors.New("octohub.pendingConflicts", "ainda há conflitos para resolver em: {files}").With("files", strings.Join(pending, ", "))
 	}
 
 	args, input := []string{}, ""
@@ -400,7 +400,7 @@ func (handlerStruct *GitBranchHandler) ContinueOperation(ctx context.Context, me
 		if err == nil && next.Kind != "" && len(next.ConflictingFiles) > 0 {
 			return next, nil
 		}
-		return next, fmt.Errorf("erro ao continuar o %s: %w", operationNames[state.Kind], runErr)
+		return next, appErrors.Wrap("octohub.continueOperationFailed", "erro ao continuar o {operation}", runErr).With("operation", operationNames[state.Kind])
 	}
 	return next, err
 }
@@ -424,7 +424,7 @@ func (handlerStruct *GitBranchHandler) SkipRebaseCommit(ctx context.Context) (oc
 		if err == nil && len(state.ConflictingFiles) > 0 {
 			return state, nil
 		}
-		return state, fmt.Errorf("erro ao pular o commit: %w", runErr)
+		return state, appErrors.Wrap("octohub.skipCommitFailed", "erro ao pular o commit", runErr)
 	}
 	return state, err
 }

@@ -1,6 +1,9 @@
 import toast from 'react-hot-toast';
 import { useAuth } from '../../../contexts/AuthContext';
-import { authHostFromError, gitErrorMessage } from '../functions/gitStatus';
+import { authHostFromError } from '../functions/gitStatus';
+import { errorMessage } from '../../shared/functions/ErrorMessage';
+import { formatMessage } from '../../i18n/Languages';
+import { currentDictionary } from '../../i18n/TranslateError';
 import { useConfirmToast } from '../../shared/components/toasts/ConfirmToast';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import * as octohubDtos from '../../../../bindings/docker-manager-go/src/octohub/dtos/models';
@@ -74,7 +77,9 @@ const OctohubRepositoryContext =
     createContext<OctohubRepositoryContextValue | undefined>(undefined);
 globalScope[globalContextKey] = OctohubRepositoryContext;
 
-const showError = (error: unknown) => toast.error(gitErrorMessage(error));
+const showError = (error: unknown) => toast.error(errorMessage(error));
+
+const repositoryTexts = () => currentDictionary().octohub.repository;
 
 export const OctohubRepositoryProvider: React.FC<OctohubRepositoryProviderProps> = ({
     children,
@@ -132,10 +137,10 @@ export const OctohubRepositoryProvider: React.FC<OctohubRepositoryProviderProps>
             const host = authHostFromError(error);
             if (host) {
                 openCredentials(host, retry);
-                toast(`${host} pediu usuário e senha (ou chave SSH).`);
+                toast(formatMessage(repositoryTexts().credentialsRequested, { host }));
                 return;
             }
-            toast.error(`${prefix}: ${gitErrorMessage(error)}`);
+            toast.error(`${prefix}: ${errorMessage(error)}`);
         },
         [openCredentials]
     );
@@ -162,7 +167,7 @@ export const OctohubRepositoryProvider: React.FC<OctohubRepositoryProviderProps>
             if (!added) return false;
             setRepository(added);
             setRepositories(await ListRepositories(token));
-            toast.success(`Repositório ${added.name} aberto.`);
+            toast.success(formatMessage(repositoryTexts().opened, { name: added.name }));
             return true;
         } catch (error) {
             showError(error);
@@ -177,10 +182,10 @@ export const OctohubRepositoryProvider: React.FC<OctohubRepositoryProviderProps>
                 const cloned = await CloneRepository(token, remoteUrl, parentFolder);
                 setRepository(cloned);
                 setRepositories(await ListRepositories(token));
-                toast.success(`Repositório ${cloned?.name ?? remoteUrl} clonado.`);
+                toast.success(formatMessage(repositoryTexts().cloned, { name: cloned?.name ?? remoteUrl }));
                 return true;
             } catch (error) {
-                handleGitError(error, 'Erro ao clonar', retry);
+                handleGitError(error, repositoryTexts().cloneFailed, retry);
                 return false;
             }
         },
@@ -194,7 +199,7 @@ export const OctohubRepositoryProvider: React.FC<OctohubRepositoryProviderProps>
                 const created = await CreateRepository(token, parentFolder, name, withReadme);
                 setRepository(created);
                 setRepositories(await ListRepositories(token));
-                toast.success(`Repositório ${created?.name ?? name} criado.`);
+                toast.success(formatMessage(repositoryTexts().created, { name: created?.name ?? name }));
                 return true;
             } catch (error) {
                 showError(error);
@@ -216,10 +221,10 @@ export const OctohubRepositoryProvider: React.FC<OctohubRepositoryProviderProps>
                     input.description,
                     input.private
                 );
-                toast.success(`Repositório publicado em ${input.owner}/${input.name}.`);
+                toast.success(formatMessage(repositoryTexts().published, { repository: `${input.owner}/${input.name}` }));
                 return true;
             } catch (error) {
-                handleGitError(error, 'Erro ao publicar');
+                handleGitError(error, repositoryTexts().publishFailed);
                 return false;
             } finally {
                 notifyChange();
@@ -232,8 +237,8 @@ export const OctohubRepositoryProvider: React.FC<OctohubRepositoryProviderProps>
         if (!token) return;
         confirmToast({
             id: `repository-${target.id}`,
-            title: `Remover ${target.name} da lista?`,
-            message: `Remover ${target.name} do OctoHub? A pasta e os arquivos não serão apagados.`,
+            title: formatMessage(repositoryTexts().removeTitle, { name: target.name }),
+            message: formatMessage(repositoryTexts().removeMessage, { name: target.name }),
             onConfirm: async () => {
                 await RemoveRepository(token, target.id);
                 await refresh();

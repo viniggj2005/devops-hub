@@ -1,4 +1,7 @@
 import { iconButtonClass } from '../editors/FormStyles';
+import { useTranslation } from '../../../i18n/useTranslation';
+import { formatMessage } from '../../../i18n/Languages';
+import { currentDictionary, translatePayload } from '../../../i18n/TranslateError';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { copyToClipboard } from '../../../shared/functions/clipboard';
 import { formatBytes, formatClock, prettyJson } from '../../functions/Formatters';
@@ -14,12 +17,6 @@ interface RealtimeMessageLogProps {
   events: LoggedRealtimeEvent[];
 }
 
-const filters: { key: DirectionFilter; label: string }[] = [
-  { key: 'all', label: 'Todas' },
-  { key: 'outgoing', label: 'Enviadas' },
-  { key: 'incoming', label: 'Recebidas' },
-];
-
 const eventIcon = (event: LoggedRealtimeEvent) => {
   if (event.kind === 'metadata') return <Tags className="w-3.5 h-3.5 text-sky-500" />;
   if (event.kind === 'closed') return <Unplug className="w-3.5 h-3.5 text-gray-400" />;
@@ -31,18 +28,29 @@ const eventIcon = (event: LoggedRealtimeEvent) => {
   return <Tags className="w-3.5 h-3.5 text-gray-400" />;
 };
 
+const eventText = (event: LoggedRealtimeEvent) => (event.message ? translatePayload(event.message) : null) ?? event.data;
+
 const eventSummary = (event: LoggedRealtimeEvent) => {
-  if (event.kind === 'connecting') return `Conectando em ${event.data}`;
-  if (event.kind === 'connected') return event.data ? `Conectado · ${event.data}` : 'Conectado';
-  if (event.kind === 'metadata') return event.event === 'SUBSCRIBE' || event.event === 'UNSUBSCRIBE' ? event.data : `Metadata (${event.event}) recebida`;
-  if (event.kind === 'closed' && event.event) return `Stream encerrado · ${event.event}${event.data ? `: ${event.data}` : ''}`;
-  if (event.encoding === 'base64') return `[binário] ${event.data}`;
-  return event.data || '(vazio)';
+  const text = eventText(event);
+  const realtimeTexts = currentDictionary().vulpes.realtime;
+  if (event.kind === 'connecting') return formatMessage(realtimeTexts.connectingTo, { text });
+  if (event.kind === 'connected') return text ? formatMessage(realtimeTexts.connectedTo, { text }) : realtimeTexts.connected;
+  if (event.kind === 'metadata') return event.event === 'SUBSCRIBE' || event.event === 'UNSUBSCRIBE' ? text : formatMessage(realtimeTexts.metadataReceived, { event: event.event });
+  if (event.kind === 'closed' && event.event) return formatMessage(text ? realtimeTexts.streamClosedWith : realtimeTexts.streamClosed, { event: event.event, text });
+  if (event.encoding === 'base64') return formatMessage(realtimeTexts.binaryPrefix, { text });
+  return text || realtimeTexts.empty;
 };
 
-const detailText = (event: LoggedRealtimeEvent) => prettyJson(event.data) ?? event.data;
+const detailText = (event: LoggedRealtimeEvent) => prettyJson(event.data) ?? eventText(event);
 
 const RealtimeMessageLog: React.FC<RealtimeMessageLogProps> = ({ events, emptyHint, onClear, showEventNames = false }) => {
+  const { language, dictionary } = useTranslation();
+  const realtimeTexts = dictionary.vulpes.realtime;
+  const filters: { key: DirectionFilter; label: string }[] = [
+    { key: 'all', label: realtimeTexts.all },
+    { key: 'outgoing', label: realtimeTexts.sent },
+    { key: 'incoming', label: realtimeTexts.received },
+  ];
   const [search, setSearch] = useState('');
   const [autoScroll, setAutoScroll] = useState(true);
   const [filter, setFilter] = useState<DirectionFilter>('all');
@@ -54,9 +62,9 @@ const RealtimeMessageLog: React.FC<RealtimeMessageLogProps> = ({ events, emptyHi
     return events.filter((event) => {
       if (filter !== 'all' && event.direction !== filter) return false;
       if (!normalizedSearch) return true;
-      return `${event.event} ${event.data}`.toLowerCase().includes(normalizedSearch);
+      return `${event.event} ${eventText(event)}`.toLowerCase().includes(normalizedSearch);
     });
-  }, [events, filter, search]);
+  }, [events, filter, search, language]);
 
   useEffect(() => {
     if (autoScroll && listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
@@ -85,7 +93,7 @@ const RealtimeMessageLog: React.FC<RealtimeMessageLogProps> = ({ events, emptyHi
           <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
-            placeholder="Filtrar mensagens"
+            placeholder={realtimeTexts.filterPlaceholder}
             onChange={(event) => setSearch(event.target.value)}
             className="w-full rounded-md bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-white/10 pl-7 pr-2 py-1 text-xs focus:outline-none focus:border-amber-500"
           />
@@ -93,20 +101,20 @@ const RealtimeMessageLog: React.FC<RealtimeMessageLogProps> = ({ events, emptyHi
         <span className="ml-auto text-[11px] text-gray-400 dark:text-zinc-500">{events.length} eventos</span>
         <button
           type="button"
-          title="Rolar automaticamente"
+          title={realtimeTexts.autoScroll}
           onClick={() => setAutoScroll((current) => !current)}
           className={`${iconButtonClass} ${autoScroll ? 'text-amber-500' : ''}`}
         >
           <ArrowDownToLine className="w-3.5 h-3.5" />
         </button>
-        <button type="button" title="Limpar mensagens" onClick={onClear} className={iconButtonClass}>
+        <button type="button" title={realtimeTexts.clearMessages} onClick={onClear} className={iconButtonClass}>
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
 
       <div ref={listRef} className="flex-1 min-h-0 overflow-auto font-mono text-xs">
         {visibleEvents.length === 0 && (
-          <p className="p-6 text-center font-sans text-xs text-gray-500 dark:text-zinc-400">{events.length ? 'Nenhuma mensagem corresponde ao filtro.' : emptyHint}</p>
+          <p className="p-6 text-center font-sans text-xs text-gray-500 dark:text-zinc-400">{events.length ? realtimeTexts.noMatch : emptyHint}</p>
         )}
         {visibleEvents.map((event) => {
           const isExpanded = expanded === event.sequence;
@@ -148,7 +156,7 @@ const RealtimeMessageLog: React.FC<RealtimeMessageLogProps> = ({ events, emptyHi
                 <div className="relative mx-3 mb-2 rounded-lg bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-white/10">
                   <button
                     type="button"
-                    title="Copiar"
+                    title={realtimeTexts.copy}
                     onClick={() => copyToClipboard(event.data)}
                     className={`absolute right-1 top-1 ${iconButtonClass}`}
                   >

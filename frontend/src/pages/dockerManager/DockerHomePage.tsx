@@ -1,5 +1,7 @@
 import toast from 'react-hot-toast';
+import { useTranslation } from '../../features/i18n/useTranslation';
 import { useNavigate } from 'react-router-dom';
+import { currentDictionary } from '../../features/i18n/TranslateError';
 import { Key, RefreshCcw, Server } from 'lucide-react';
 import { useDockerClient } from '../../contexts/DockerClientContext';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -12,6 +14,8 @@ import { GetInfo } from '../../../bindings/docker-manager-go/src/dockermanager/h
 
 const DockerHomePage: React.FC = () => {
   const navigate = useNavigate();
+  const { dictionary, formatMessage } = useTranslation();
+  const homeTexts = dictionary.docker.home;
   const [loadingInfo, setLoadingInfo] = useState(false);
   const [info, setInfo] = useState<dockerDtos.SystemInfoDto | null>(null);
   const { connecting, credentials, dockerClientId, selectedCredentialId } = useDockerClient();
@@ -30,7 +34,7 @@ const DockerHomePage: React.FC = () => {
       setInfo(data);
     } catch (error) {
       setInfo(null);
-      toast.error(`Falha ao buscar informações do sistema: ${errorMessage(error)}`);
+      toast.error(formatMessage(currentDictionary().docker.home.infoFailed, { error: errorMessage(error) }));
     } finally {
       setLoadingInfo(false);
     }
@@ -46,7 +50,7 @@ const DockerHomePage: React.FC = () => {
         <div className="space-y-1">
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
-              Visão Geral do Ambiente
+              {homeTexts.title}
             </h1>
             {activeCredential && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
@@ -57,10 +61,10 @@ const DockerHomePage: React.FC = () => {
           </div>
           <p className="text-xs text-gray-500 dark:text-zinc-400">
             {info
-              ? `Host ${info.Name} • ${info.OperatingSystem} • Docker Engine v${info.ServerVersion} (${info.Architecture})`
+              ? formatMessage(homeTexts.hostSummary, { name: info.Name, os: info.OperatingSystem, version: info.ServerVersion, architecture: info.Architecture })
               : connecting
-                ? 'Estabelecendo conexão TLS com o daemon Docker...'
-                : 'Acompanhe recursos, contêineres, imagens, volumes e redes do seu host Docker.'}
+                ? homeTexts.connectingTls
+                : homeTexts.description}
           </p>
         </div>
 
@@ -71,7 +75,7 @@ const DockerHomePage: React.FC = () => {
             className="px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/10 hover:border-blue-500/40 text-xs font-semibold text-gray-700 dark:text-zinc-200 flex items-center gap-2 transition-all cursor-pointer"
           >
             <Key className="w-3.5 h-3.5 text-blue-500" />
-            <span>Credenciais</span>
+            <span>{dictionary.docker.navigation.credentials}</span>
           </button>
 
           <button
@@ -81,7 +85,7 @@ const DockerHomePage: React.FC = () => {
             className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-semibold text-white flex items-center gap-2 shadow-sm transition-all cursor-pointer"
           >
             <RefreshCcw className={`w-3.5 h-3.5 ${loadingInfo ? 'animate-spin' : ''}`} />
-            <span>Atualizar</span>
+            <span>{dictionary.docker.common.refresh}</span>
           </button>
         </div>
       </div>
@@ -90,10 +94,10 @@ const DockerHomePage: React.FC = () => {
         <div className="rounded-2xl border border-dashed border-gray-300 dark:border-white/10 bg-white/50 dark:bg-zinc-900/40 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-              Nenhuma credencial Docker ativa
+              {homeTexts.noActiveCredential}
             </h3>
             <p className="text-xs text-gray-500 dark:text-zinc-400">
-              Cadastre ou selecione uma credencial TLS para conectar ao seu daemon Docker remoto ou local.
+              {homeTexts.noActiveCredentialHint}
             </p>
           </div>
           <button
@@ -101,7 +105,7 @@ const DockerHomePage: React.FC = () => {
             onClick={() => navigate('/docker/credentials')}
             className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white shrink-0 transition-colors cursor-pointer"
           >
-            Configurar Credencial
+            {homeTexts.configureCredential}
           </button>
         </div>
       )}

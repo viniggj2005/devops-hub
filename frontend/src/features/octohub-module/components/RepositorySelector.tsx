@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useDismiss } from '../../shared/hooks/useDismiss';
+import { useTranslation } from '../../i18n/useTranslation';
 import ContextMenu from '../../shared/components/menus/ContextMenu';
 import { useListNavigation } from '../hooks/useListNavigation';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
@@ -18,8 +19,10 @@ import {
 } from 'lucide-react';
 
 const RepositorySelector: React.FC = () => {
+    const { dictionary, formatMessage } = useTranslation();
     const [filter, setFilter] = useState('');
     const query = filter.trim().toLowerCase();
+    const selectorTexts = dictionary.octohub.repositorySelector;
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const {
@@ -107,10 +110,10 @@ const RepositorySelector: React.FC = () => {
                     <FolderGit2 className="w-4 h-4 text-emerald-500 shrink-0" />
                     <div className="flex flex-col items-start leading-none min-w-0">
                         <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">
-                            Repositório
+                            {selectorTexts.label}
                         </span>
                         <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate max-w-[150px]">
-                            {repository?.name ?? 'Selecionar...'}
+                            {repository?.name ?? selectorTexts.select}
                         </span>
                     </div>
                     <ChevronDown
@@ -129,8 +132,8 @@ const RepositorySelector: React.FC = () => {
                     <div className="p-3 border-b border-zinc-100 dark:border-white/5 space-y-2">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                             {githubAccount
-                                ? `Repositórios de @${githubAccount.login}`
-                                : 'Repositórios sem conta do GitHub'}
+                                ? formatMessage(selectorTexts.accountRepositories, { login: githubAccount.login })
+                                : selectorTexts.noAccountRepositories}
                         </div>
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
@@ -139,7 +142,7 @@ const RepositorySelector: React.FC = () => {
                                 autoFocus
                                 value={filter}
                                 onKeyDown={onKeyDown}
-                                placeholder="Filtrar repositórios..."
+                                placeholder={dictionary.octohub.home.filterPlaceholder}
                                 onChange={(event) => {
                                     setFilter(event.target.value);
                                     setActiveIndex(0);
@@ -153,8 +156,8 @@ const RepositorySelector: React.FC = () => {
                         {filtered.length === 0 && (
                             <p className="px-3 py-4 text-center text-xs text-zinc-500 italic">
                                 {repositories.length === 0
-                                    ? 'Nenhum repositório adicionado ainda.'
-                                    : 'Nenhum repositório corresponde ao filtro.'}
+                                    ? selectorTexts.noneAdded
+                                    : dictionary.octohub.home.noMatch}
                             </p>
                         )}
                         {filtered.map((item, index) => (
@@ -189,14 +192,14 @@ const RepositorySelector: React.FC = () => {
                                         {item.name}
                                     </div>
                                     <div className="text-[10px] text-zinc-500 truncate">
-                                        {item.exists ? item.path : 'Pasta não encontrada'}
+                                        {item.exists ? item.path : dictionary.octohub.common.folderNotFound}
                                     </div>
                                 </div>
                                 {item.isCurrent && (
                                     <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                                 )}
                                 <button
-                                    title="Remover da lista"
+                                    title={dictionary.octohub.common.removeFromList}
                                     onClick={(event) => {
                                         event.stopPropagation();
                                         close();
@@ -218,7 +221,7 @@ const RepositorySelector: React.FC = () => {
                             onMouseEnter={() => setActiveIndex(cloneIndex)}
                         >
                             <CloudDownload className="w-4 h-4" />
-                            Clonar repositório...
+                            {selectorTexts.clone}
                         </div>
                         <div
                             onClick={() => choose(createIndex)}
@@ -227,7 +230,7 @@ const RepositorySelector: React.FC = () => {
                             onMouseEnter={() => setActiveIndex(createIndex)}
                         >
                             <FolderPlus className="w-4 h-4" />
-                            Criar repositório local...
+                            {selectorTexts.createLocal}
                         </div>
                         <div
                             onClick={() => choose(addIndex)}
@@ -236,7 +239,7 @@ const RepositorySelector: React.FC = () => {
                             onMouseEnter={() => setActiveIndex(addIndex)}
                         >
                             <FolderInput className="w-4 h-4" />
-                            Adicionar repositório local...
+                            {selectorTexts.addLocal}
                         </div>
                         <div
                             onClick={() => choose(credentialsIndex)}
@@ -245,7 +248,7 @@ const RepositorySelector: React.FC = () => {
                             onMouseEnter={() => setActiveIndex(credentialsIndex)}
                         >
                             <KeyRound className="w-4 h-4" />
-                            Credenciais Git (GitLab e outros)...
+                            {selectorTexts.credentials}
                         </div>
                     </div>
                 </div>

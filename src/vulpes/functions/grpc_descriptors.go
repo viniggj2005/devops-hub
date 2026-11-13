@@ -2,8 +2,6 @@ package vulpesFunctions
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"net"
 	"path/filepath"
 	"sort"
@@ -15,6 +13,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/dynamicpb"
+
+	"docker-manager-go/src/appErrors"
 )
 
 var reflectionServices = map[string]bool{
@@ -35,7 +35,7 @@ func newDescriptorSource() *GrpcDescriptorSource {
 func ParseGrpcTarget(rawUrl string, useTls bool) (string, bool, error) {
 	target := strings.TrimSpace(rawUrl)
 	if target == "" {
-		return "", false, errors.New("informe o endereço do servidor gRPC")
+		return "", false, appErrors.New("vulpes.grpcAddressRequired", "informe o endereço do servidor gRPC")
 	}
 	secure := useTls
 	if scheme, rest, found := strings.Cut(target, "://"); found {
@@ -45,13 +45,13 @@ func ParseGrpcTarget(rawUrl string, useTls bool) (string, bool, error) {
 		case "grpc", "http":
 			secure = false
 		default:
-			return "", false, fmt.Errorf("esquema %q não suportado; use grpc:// ou grpcs://", scheme)
+			return "", false, appErrors.New("vulpes.unsupportedGrpcScheme", "esquema \"{scheme}\" não suportado; use grpc:// ou grpcs://").With("scheme", scheme)
 		}
 		target = rest
 	}
 	target, _, _ = strings.Cut(target, "/")
 	if target == "" {
-		return "", false, errors.New("informe o host do servidor gRPC")
+		return "", false, appErrors.New("vulpes.grpcHostRequired", "informe o host do servidor gRPC")
 	}
 	if _, _, err := net.SplitHostPort(target); err != nil {
 		defaultPort := "80"
@@ -69,7 +69,7 @@ func LoadReflectionDescriptors(ctx context.Context, connection grpc.ClientConnIn
 
 	serviceNames, err := client.ListServices()
 	if err != nil {
-		return nil, fmt.Errorf("o servidor não respondeu ao reflection (habilite-o no servidor ou use arquivos .proto): %w", err)
+		return nil, appErrors.Wrap("vulpes.reflectionUnavailable", "o servidor não respondeu ao reflection (habilite-o no servidor ou use arquivos .proto)", err)
 	}
 	sort.Strings(serviceNames)
 
@@ -80,19 +80,19 @@ func LoadReflectionDescriptors(ctx context.Context, connection grpc.ClientConnIn
 		}
 		service, err := client.ResolveService(serviceName)
 		if err != nil {
-			return nil, fmt.Errorf("não foi possível carregar o serviço %s: %w", serviceName, err)
+			return nil, appErrors.Wrap("vulpes.loadServiceFailed", "não foi possível carregar o serviço {service}", err).With("service", serviceName)
 		}
 		source.addService(service.UnwrapService())
 	}
 	if len(source.services) == 0 {
-		return nil, errors.New("o servidor não expõe nenhum serviço via reflection")
+		return nil, appErrors.New("vulpes.noReflectionServices", "o servidor não expõe nenhum serviço via reflection")
 	}
 	return source, nil
 }
 
 func LoadProtoFiles(protoFiles []string, importPaths []string) (*GrpcDescriptorSource, error) {
 	if len(protoFiles) == 0 {
-		return nil, errors.New("adicione ao menos um arquivo .proto ou use o reflection do servidor")
+		return nil, appErrors.New("vulpes.protoFilesRequired", "adicione ao menos um arquivo .proto ou use o reflection do servidor")
 	}
 
 	searchPaths := []string{}
@@ -119,7 +119,7 @@ func LoadProtoFiles(protoFiles []string, importPaths []string) (*GrpcDescriptorS
 	parser := protoparse.Parser{ImportPaths: searchPaths}
 	descriptors, err := parser.ParseFiles(fileNames...)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao interpretar os arquivos .proto: %w", err)
+		return nil, appErrors.Wrap("vulpes.parseProtoFailed", "erro ao interpretar os arquivos .proto", err)
 	}
 
 	source := newDescriptorSource()
@@ -135,7 +135,7 @@ func LoadProtoFiles(protoFiles []string, importPaths []string) (*GrpcDescriptorS
 		}
 	}
 	if len(source.services) == 0 {
-		return nil, errors.New("nenhum serviço foi encontrado nos arquivos .proto")
+		return nil, appErrors.New("vulpes.noProtoServices", "nenhum serviço foi encontrado nos arquivos .proto")
 	}
 	return source, nil
 }
@@ -183,13 +183,13 @@ func (source *GrpcDescriptorSource) Types() *dynamicpb.Types {
 func (source *GrpcDescriptorSource) FindMethod(fullMethod string) (protoreflect.MethodDescriptor, error) {
 	trimmed := strings.TrimPrefix(strings.TrimSpace(fullMethod), "/")
 	if trimmed == "" {
-		return nil, errors.New("selecione o método gRPC")
+		return nil, appErrors.New("vulpes.grpcMethodRequired", "selecione o método gRPC")
 	}
 	serviceName, methodName, found := strings.Cut(trimmed, "/")
 	if !found {
 		separator := strings.LastIndex(trimmed, ".")
 		if separator < 0 {
-			return nil, fmt.Errorf("método gRPC inválido: %q", fullMethod)
+			return nil, appErrors.New("vulpes.invalidGrpcMethod", "método gRPC inválido: \"{method}\"").With("method", fullMethod)
 		}
 		serviceName, methodName = trimmed[:separator], trimmed[separator+1:]
 	}
@@ -201,7 +201,7 @@ func (source *GrpcDescriptorSource) FindMethod(fullMethod string) (protoreflect.
 			return method, nil
 		}
 	}
-	return nil, fmt.Errorf("o método %s não foi encontrado no servidor", trimmed)
+	return nil, appErrors.New("vulpes.grpcMethodNotFound", "o método {method} não foi encontrado no servidor").With("method", trimmed)
 }
 
 func MethodPath(method protoreflect.MethodDescriptor) string {

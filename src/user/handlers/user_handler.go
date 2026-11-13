@@ -3,16 +3,18 @@ package userHandlers
 import (
 	"context"
 
+	"docker-manager-go/src/appErrors"
 	auth "docker-manager-go/src/auth/functions"
 
 	"docker-manager-go/src/models"
 	userDtos "docker-manager-go/src/user/dtos"
-	"errors"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
+
+var errInvalidLanguage = appErrors.New("user.invalidLanguage", "idioma inválido")
 
 type UserHandlerStruct struct {
 	DataBase *gorm.DB
@@ -30,13 +32,20 @@ func (handlerStruct *UserHandlerStruct) ServiceStartup(context context.Context, 
 
 func (handlerStruct *UserHandlerStruct) Create(body userDtos.CreateUserInputDto) (*userDtos.UserDTO, error) {
 	if body.Name == "" || body.Email == "" || body.Password == "" {
-		return nil, errors.New("nome, email e password são obrigatórios")
+		return nil, appErrors.New("user.requiredFields", "nome, email e password são obrigatórios")
+	}
+	language := body.Language
+	if language == "" {
+		language = models.DefaultLanguage
+	}
+	if !language.IsValid() {
+		return nil, errInvalidLanguage
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
-	user := &models.UserModel{Name: body.Name, Email: body.Email, Password: string(hash)}
+	user := &models.UserModel{Name: body.Name, Email: body.Email, Password: string(hash), Language: language}
 	if err := handlerStruct.DataBase.WithContext(handlerStruct.context).Create(user).Error; err != nil {
 		return nil, err
 	}
@@ -69,6 +78,12 @@ func (handlerStruct *UserHandlerStruct) Update(token string, id uint, body userD
 	if body.Email != nil {
 		userModel.Email = *body.Email
 	}
+	if body.Language != nil {
+		if !body.Language.IsValid() {
+			return nil, errInvalidLanguage
+		}
+		userModel.Language = *body.Language
+	}
 	if body.Password != nil && *body.Password != "" {
 		hash, err := bcrypt.GenerateFromPassword([]byte(*body.Password), bcrypt.DefaultCost)
 		if err != nil {
@@ -79,6 +94,27 @@ func (handlerStruct *UserHandlerStruct) Update(token string, id uint, body userD
 	if err := handlerStruct.DataBase.WithContext(handlerStruct.context).Save(&userModel).Error; err != nil {
 		return nil, err
 	}
+	return userDtos.ToDTO(&userModel), nil
+}
+
+func (handlerStruct *UserHandlerStruct) UpdateLanguage(token string, language models.Language) (*userDtos.UserDTO, error) {
+	session, err := handlerStruct.Session.Validate(token)
+	if err != nil {
+		return nil, err
+	}
+	if !language.IsValid() {
+		return nil, errInvalidLanguage
+	}
+
+	var userModel models.UserModel
+	dataBase := handlerStruct.DataBase.WithContext(handlerStruct.context)
+	if err := dataBase.First(&userModel, session.UserID).Error; err != nil {
+		return nil, err
+	}
+	if err := dataBase.Model(&userModel).Update("language", language).Error; err != nil {
+		return nil, err
+	}
+	userModel.Language = language
 	return userDtos.ToDTO(&userModel), nil
 }
 

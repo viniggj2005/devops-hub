@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Events } from '@wailsio/runtime';
+import { formatMessage } from '../../i18n/Languages';
+import { currentDictionary } from '../../i18n/TranslateError';
 import { useConfirmToast } from '../components/toasts/ConfirmToast';
 import { ApplyAvailableUpdate, GetAvailableUpdate } from '../../../../bindings/docker-manager-go/app';
 
@@ -15,8 +17,8 @@ export function useUpdateNotifier() {
       promptedVersion.current = version;
       confirmToast({
         id: 'app-update-available',
-        title: 'Aplicativo atualizado. Reinicie para usar a nova versão.',
-        message: `Uma nova versão (${version}) está disponível. Deseja atualizar agora?`,
+        title: currentDictionary().app.update.readyTitle,
+        message: formatMessage(currentDictionary().app.update.availableMessage, { version }),
         onConfirm: () => ApplyAvailableUpdate(),
       });
     };

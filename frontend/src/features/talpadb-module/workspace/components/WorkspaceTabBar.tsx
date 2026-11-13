@@ -1,6 +1,7 @@
 import React from 'react';
 import { tabIcons } from '../constants/TabIcons';
 import { useTalpadbStore } from '../../TalpadbStore';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { GripVertical, LayoutGrid, X } from 'lucide-react';
 import { useCloseWorkspaceTabs } from '../hooks/useCloseWorkspaceTabs';
 import type { WorkspaceGroup, WorkspaceTab } from '../../../../interfaces/TalpadbInterfaces';
@@ -10,6 +11,8 @@ const paneSubtitle = (tab: WorkspaceTab) =>
 
 const WorkspaceTabBar: React.FC = () => {
   const { closeWholeGroup } = useCloseWorkspaceTabs();
+  const { dictionary, formatMessage } = useTranslation();
+  const workspaceTexts = dictionary.talpadb.workspace;
   const { tabs, groups, activeGroupId, tabTxStatus, setActiveGroup, setDraggingGroup } = useTalpadbStore();
 
   if (!groups.length) return null;
@@ -48,7 +51,7 @@ const WorkspaceTabBar: React.FC = () => {
             onClick={() => setActiveGroup(group.id)}
             onMouseDown={(event) => event.button === 1 && event.preventDefault()}
             onAuxClick={(event) => event.button === 1 && closeWholeGroup(group)}
-            title={canDrag ? `${title} — arraste até a área aberta para dividir a tela` : `${title} — ${isSplit ? `${panes.length} painéis` : paneSubtitle(panes[0])}`}
+            title={canDrag ? formatMessage(workspaceTexts.dragToSplit, { title }) : `${title} — ${isSplit ? formatMessage(workspaceTexts.panesCount, { count: panes.length }) : paneSubtitle(panes[0])}`}
             className={`group relative flex items-center gap-2 pl-3 pr-2 min-w-[150px] max-w-[280px] flex-shrink-0 text-xs border-r border-gray-200 dark:border-white/5 transition-colors ${canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} ${
               active
                 ? 'bg-white dark:bg-zinc-900 text-gray-900 dark:text-white'
@@ -68,12 +71,12 @@ const WorkspaceTabBar: React.FC = () => {
             <div className="flex flex-col min-w-0 flex-1 leading-tight">
               <span className="truncate font-semibold">{title}</span>
               <span className="truncate text-[10px] text-gray-400 dark:text-zinc-500">
-                {isSplit ? `${panes.length} painéis` : paneSubtitle(panes[0])}
+                {isSplit ? formatMessage(workspaceTexts.panesCount, { count: panes.length }) : paneSubtitle(panes[0])}
               </span>
             </div>
             {inTransaction && (
               <span
-                title={failed ? 'Transação com erro' : 'Transação aberta'}
+                title={failed ? workspaceTexts.transactionFailed : workspaceTexts.transactionOpen}
                 className={`h-2 w-2 rounded-full flex-shrink-0 ${failed ? 'bg-rose-500' : 'bg-amber-500'}`}
               />
             )}
@@ -82,7 +85,7 @@ const WorkspaceTabBar: React.FC = () => {
                 event.stopPropagation();
                 closeWholeGroup(group);
               }}
-              title={isSplit ? 'Fechar todos os painéis' : 'Fechar aba'}
+              title={isSplit ? workspaceTexts.closeAllPanes : workspaceTexts.closeTab}
               className={`p-0.5 rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition-opacity ${
                 active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
               }`}

@@ -10,6 +10,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
+	"docker-manager-go/src/appErrors"
 	talpadbDtos "docker-manager-go/src/talpadb/dtos"
 	talpadbFunctions "docker-manager-go/src/talpadb/functions"
 )
@@ -511,7 +512,7 @@ func (engine *MysqlEngine) TableDetails(ctx context.Context, db Querier, schema 
 		&comment,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("objeto %s.%s não encontrado", schema, relation)
+		return nil, appErrors.New("talpadb.objectNotFound", "objeto {object} não encontrado").With("object", schema+"."+relation)
 	}
 	if err != nil {
 		return nil, err
@@ -751,7 +752,7 @@ ORDER BY r.routine_type`, object.Schema, object.Name)
 		return "", err
 	}
 	if selectedType != "FUNCTION" && selectedType != "PROCEDURE" {
-		return "", fmt.Errorf("rotina %s.%s não encontrada", object.Schema, object.Name)
+		return "", appErrors.New("talpadb.routineNotFound", "rotina {routine} não encontrada").With("routine", object.Schema+"."+object.Name)
 	}
 
 	qualified := engine.QuoteIdentifier(object.Schema) + "." + engine.QuoteIdentifier(object.Name)
@@ -920,7 +921,7 @@ func (engine *MysqlEngine) TableColumns(ctx context.Context, db Querier, schema 
 func (engine *MysqlEngine) DropStatement(ctx context.Context, db Querier, input talpadbDtos.DropObjectInputDto) (string, error) {
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
-		return "", errors.New("informe o objeto a excluir")
+		return "", appErrors.New("talpadb.dropObjectRequired", "informe o objeto a excluir")
 	}
 
 	switch input.Kind {
@@ -933,7 +934,7 @@ SELECT t.table_type
 FROM information_schema.tables t
 WHERE t.table_schema = ? AND t.table_name = ?`, input.Schema, name).Scan(&tableType)
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", fmt.Errorf("objeto %s.%s não encontrado", input.Schema, name)
+			return "", appErrors.New("talpadb.objectNotFound", "objeto {object} não encontrado").With("object", input.Schema+"."+name)
 		}
 		if err != nil {
 			return "", err
@@ -960,7 +961,7 @@ func readShowCreate(ctx context.Context, db Querier, query string, columnIndex i
 		return "", err
 	}
 	if columnIndex >= len(columns) {
-		return "", fmt.Errorf("resposta inesperada para %s", query)
+		return "", appErrors.New("talpadb.unexpectedResponse", "resposta inesperada para {query}").With("query", query)
 	}
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {

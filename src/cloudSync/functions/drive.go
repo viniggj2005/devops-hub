@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"golang.org/x/oauth2"
+
+	"docker-manager-go/src/appErrors"
 )
 
 const (
@@ -180,7 +182,7 @@ func startResumableUpload(ctx context.Context, client *http.Client, existingID s
 	}
 	sessionURL := response.Header.Get("Location")
 	if sessionURL == "" {
-		return "", errors.New("o Google Drive não iniciou o envio do arquivo")
+		return "", appErrors.New("cloudSync.uploadNotStarted", "o Google Drive não iniciou o envio do arquivo")
 	}
 	return sessionURL, nil
 }
@@ -206,5 +208,5 @@ func checkResponse(response *http.Response) error {
 		return nil
 	}
 	detail, _ := io.ReadAll(io.LimitReader(response.Body, 2048))
-	return fmt.Errorf("o Google respondeu %s: %s", response.Status, strings.TrimSpace(string(detail)))
+	return appErrors.Wrap("cloudSync.googleResponded", "o Google respondeu {status}", errors.New(strings.TrimSpace(string(detail)))).With("status", response.Status)
 }

@@ -3,6 +3,7 @@ import { FilePen } from 'lucide-react';
 import { toBase64 } from '../functions/TreatmentFunctions';
 import EditSshConnectionForm from './EditSshConnectionForm';
 import { Modal } from '../../../shared/components/modals/Modal';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { EditSshConnectionModalProps, CreateSshConnectionInterface } from '../../../../interfaces/TerminalInterfaces';
 
 const EditSshConnectionModal: React.FC<EditSshConnectionModalProps> = ({
@@ -11,6 +12,8 @@ const EditSshConnectionModal: React.FC<EditSshConnectionModalProps> = ({
   onCreated,
   connection,
 }) => {
+  const { dictionary } = useTranslation();
+  const formTexts = dictionary.ferretShell.connectionForm;
 
   const normalized: CreateSshConnectionInterface | null = useMemo(() => {
     if (!connection) return null;
@@ -32,8 +35,8 @@ const EditSshConnectionModal: React.FC<EditSshConnectionModalProps> = ({
     <Modal
       isOpen={open}
       onClose={onClose}
-      title="Editar conexão SSH"
-      description="modifique os dados necessários"
+      title={formTexts.editTitle}
+      description={formTexts.editDescription}
       icon={<FilePen className="w-5 h-5 text-blue-500" />}
     >
       <div className="pb-2">

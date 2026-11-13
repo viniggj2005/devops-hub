@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -18,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 	vulpesFunctions "docker-manager-go/src/vulpes/functions"
 )
@@ -97,7 +97,7 @@ func (handlerStruct *VulpesClientHandlerStruct) httpClient(settings vulpesDtos.H
 				return http.ErrUseLastResponse
 			}
 			if len(previous) >= maxRedirects {
-				return fmt.Errorf("a requisição foi redirecionada mais de %d vezes", maxRedirects)
+				return appErrors.New("vulpes.tooManyRedirects", "a requisição foi redirecionada mais de {max} vezes").With("max", maxRedirects)
 			}
 			return nil
 		},
@@ -118,7 +118,7 @@ func (handlerStruct *VulpesClientHandlerStruct) executeHttp(callContext context.
 		return nil, err
 	}
 	if plan.request.Http == nil {
-		return nil, errors.New("a requisição não é HTTP")
+		return nil, appErrors.New("vulpes.requestNotHttp", "a requisição não é HTTP")
 	}
 	httpRequest := plan.resolver.ResolveHttpRequest(*plan.request.Http)
 	if err := plan.resolver.TakeError(); err != nil {
@@ -240,9 +240,9 @@ func responseCookies(response *http.Response) []vulpesDtos.CookieDto {
 func describeRequestError(err error, requestContext context.Context) error {
 	switch {
 	case errors.Is(requestContext.Err(), context.DeadlineExceeded):
-		return errors.New("o tempo limite da requisição foi excedido")
+		return appErrors.New("vulpes.requestTimeout", "o tempo limite da requisição foi excedido")
 	case errors.Is(err, context.Canceled):
-		return errors.New("requisição cancelada")
+		return appErrors.New("vulpes.requestCancelled", "requisição cancelada")
 	}
 
 	var unknownAuthority x509.UnknownAuthorityError
@@ -250,7 +250,7 @@ func describeRequestError(err error, requestContext context.Context) error {
 	var invalidCertificate x509.CertificateInvalidError
 	var verificationError *tls.CertificateVerificationError
 	if errors.As(err, &verificationError) || errors.As(err, &unknownAuthority) || errors.As(err, &hostnameMismatch) || errors.As(err, &invalidCertificate) {
-		return fmt.Errorf("o certificado TLS do servidor não é confiável (%v); desative a verificação de certificado nas configurações da requisição para ignorar", unwrapUrlError(err))
+		return appErrors.Wrap("vulpes.untrustedCertificate", "o certificado TLS do servidor não é confiável; desative a verificação de certificado nas configurações da requisição para ignorar", unwrapUrlError(err))
 	}
 	return unwrapUrlError(err)
 }

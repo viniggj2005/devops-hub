@@ -1,5 +1,6 @@
 import React from 'react';
 import SftpFileRow from './SftpFileRow';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { Monitor, ArrowUp, Trash2, Edit3 } from 'lucide-react';
 import * as ferretshellHandlers from '../../../../../bindings/docker-manager-go/src/ferretshell/handlers/models';
 
@@ -30,6 +31,8 @@ const SftpLocalPanel: React.FC<SftpLocalPanelProps> = ({
     onSetSelection,
     selectedIndices
 }) => {
+    const { dictionary } = useTranslation();
+    const sftpTexts = dictionary.ferretShell.sftp;
     return (
         <div
             className="flex-1 flex flex-col bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-lg"
@@ -39,10 +42,10 @@ const SftpLocalPanel: React.FC<SftpLocalPanelProps> = ({
             <div className="p-4 border-b border-gray-200 dark:border-white/5 flex items-center justify-between bg-gray-50/30 dark:bg-zinc-800/20">
                 <div className="flex items-center gap-2">
                     <Monitor className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-bold">Local</span>
+                    <span className="text-sm font-bold">{sftpTexts.local}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button onClick={onUp} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg"><ArrowUp className="w-4 h-4" /></button>
+                    <button onClick={onUp} title={sftpTexts.goUp} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg"><ArrowUp className="w-4 h-4" /></button>
                     <input type="text" readOnly value={localPath} className="bg-transparent border-none text-xs font-mono w-40 outline-none text-right" title={localPath} />
                 </div>
             </div>
@@ -79,14 +82,14 @@ const SftpLocalPanel: React.FC<SftpLocalPanelProps> = ({
                                         <button
                                             onClick={(event) => { event.stopPropagation(); onRename(index); }}
                                             className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-white/10 rounded transition-all"
-                                            title="Renomear"
+                                            title={sftpTexts.rename}
                                         >
                                             <Edit3 className="w-3 h-3 text-gray-400" />
                                         </button>
                                         <button
                                             onClick={(event) => { event.stopPropagation(); onSetSelection([index]); onDelete(); }}
                                             className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all"
-                                            title="Excluir"
+                                            title={sftpTexts.delete}
                                         >
                                             <Trash2 className="w-3 h-3 text-red-500" />
                                         </button>

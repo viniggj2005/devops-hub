@@ -1,5 +1,6 @@
 import React from 'react';
 import { Undo2, GitCommitHorizontal } from 'lucide-react';
+import { useTranslation } from '../../../i18n/useTranslation';
 import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models.js';
 
 interface CommitBoxProps {
@@ -33,9 +34,14 @@ const CommitBox: React.FC<CommitBoxProps> = ({
     onSummaryChange,
     onDescriptionChange,
 }) => {
+    const { dictionary, formatMessage } = useTranslation();
+    const boxTexts = dictionary.octohub.commitBox;
     const reason = disabledReason
-        || (mode === 'commit' && selectedCount === 0 ? 'Selecione ao menos uma alteração' : '')
-        || (!summary.trim() ? 'Escreva um resumo para o commit' : '');
+        || (mode === 'commit' && selectedCount === 0 ? boxTexts.selectChange : '')
+        || (!summary.trim() ? boxTexts.writeSummary : '');
+    const commitFilesLabel = selectedCount === 0
+        ? boxTexts.commitOn
+        : formatMessage(selectedCount === 1 ? boxTexts.commitFilesOne : boxTexts.commitFilesOther, { count: selectedCount });
     const canCommit = !reason && !committing && !undoing;
 
     const onKeyDown = (event: React.KeyboardEvent) => {
@@ -51,7 +57,7 @@ const CommitBox: React.FC<CommitBoxProps> = ({
                 type="text"
                 value={summary}
                 onKeyDown={onKeyDown}
-                placeholder="Resumo (obrigatório)"
+                placeholder={boxTexts.summaryPlaceholder}
                 onChange={(event) => onSummaryChange(event.target.value)}
                 className="w-full px-3 py-2 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-zinc-900 dark:text-white"
             />
@@ -59,7 +65,7 @@ const CommitBox: React.FC<CommitBoxProps> = ({
                 rows={3}
                 value={description}
                 onKeyDown={onKeyDown}
-                placeholder="Descrição"
+                placeholder={dictionary.octohub.common.description}
                 onChange={(event) => onDescriptionChange(event.target.value)}
                 className="w-full px-3 py-2 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-lg text-xs resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500 text-zinc-900 dark:text-white"
             />
@@ -76,8 +82,8 @@ const CommitBox: React.FC<CommitBoxProps> = ({
                 )}
                 <span className="truncate">
                     {mode === 'commit'
-                        ? `Commit ${selectedCount > 0 ? `de ${selectedCount} arquivo${selectedCount > 1 ? 's' : ''} ` : ''}em `
-                        : `Concluir ${mode} em `}
+                        ? commitFilesLabel
+                        : formatMessage(boxTexts.concludeOn, { operation: mode })}
                     <b>{branch || '...'}</b>
                 </span>
             </button>
@@ -86,7 +92,7 @@ const CommitBox: React.FC<CommitBoxProps> = ({
                 <div className="pt-2 mt-1 border-t border-zinc-200/80 dark:border-white/5 flex items-center justify-between gap-2">
                     <div className="min-w-0 flex-1">
                         <p className="text-[10px] uppercase tracking-wider font-semibold text-zinc-400 dark:text-zinc-500">
-                            Commit não enviado · {undoableCommit.ShortHash}
+                            {formatMessage(boxTexts.unpushedCommit, { hash: undoableCommit.ShortHash })}
                         </p>
                         <p
                             title={undoableCommit.Summary}
@@ -99,7 +105,7 @@ const CommitBox: React.FC<CommitBoxProps> = ({
                         type="button"
                         onClick={onUndoCommit}
                         disabled={undoing || committing}
-                        title="Cancelar último commit não enviado e devolver alterações para a árvore de trabalho"
+                        title={boxTexts.undoHint}
                         className="shrink-0 px-3 py-1.5 rounded-lg border border-red-500/20 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
                     >
                         {undoing ? (
@@ -107,7 +113,7 @@ const CommitBox: React.FC<CommitBoxProps> = ({
                         ) : (
                             <Undo2 className="w-3.5 h-3.5" />
                         )}
-                        Cancelar
+                        {dictionary.app.common.cancel}
                     </button>
                 </div>
             )}

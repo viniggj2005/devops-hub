@@ -1,7 +1,6 @@
 package vulpesFunctions
 
 import (
-	"errors"
 	"math/rand/v2"
 	"regexp"
 	"strconv"
@@ -9,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 
 	"github.com/google/uuid"
@@ -128,7 +128,7 @@ func (resolver *VariableResolver) fetchResponseValue(expression string) (string,
 		return "", err
 	}
 	if resolver.responses == nil {
-		return "", errors.New("{{$response}} só pode ser usado em requisições salvas em uma coleção")
+		return "", appErrors.New("vulpes.responseOutsideCollection", "{{$response}} só pode ser usado em requisições salvas em uma coleção")
 	}
 	response, err := resolver.responses(reference)
 	if err != nil {

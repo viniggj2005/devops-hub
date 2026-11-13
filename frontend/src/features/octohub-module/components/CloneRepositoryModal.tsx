@@ -4,6 +4,8 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
 import * as octohubDtos from '../../../../bindings/docker-manager-go/src/octohub/dtos/models';
 import { Modal } from '../../shared/components/modals/Modal';
+import RichMessage from '../../i18n/RichMessage';
+import { useTranslation } from '../../i18n/useTranslation';
 import { Events } from '@wailsio/runtime';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
@@ -24,7 +26,9 @@ const nameFromUrl = (value: string) =>
 const CloneRepositoryModal: React.FC = () => {
     const { token } = useAuth();
     const navigate = useNavigate();
+    const { dictionary, formatMessage } = useTranslation();
     const [url, setUrl] = useState('');
+    const cloneTexts = dictionary.octohub.clone;
     const openAddedServer = useRef(false);
     const [tab, setTab] = useState('github');
     const [filter, setFilter] = useState('');
@@ -126,7 +130,7 @@ const CloneRepositoryModal: React.FC = () => {
     const handleClone = async () => {
         if (!cloneUrl || !folder || cloning) return;
         setCloning(true);
-        setProgress('Iniciando...');
+        setProgress(cloneTexts.starting);
         const cloned = await cloneRepository(cloneUrl, folder, handleClone);
         setCloning(false);
         if (cloned) {
@@ -162,7 +166,7 @@ const CloneRepositoryModal: React.FC = () => {
                         type="text"
                         value={filter}
                         disabled={cloning}
-                        placeholder="Buscar repositório..."
+                        placeholder={cloneTexts.searchPlaceholder}
                         onChange={(event) => setFilter(event.target.value)}
                         className="w-full pl-9 pr-4 py-2 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     />
@@ -171,7 +175,7 @@ const CloneRepositoryModal: React.FC = () => {
                     {listState.loading ? (
                         <div className="h-full flex items-center justify-center gap-2 text-xs text-zinc-500">
                             <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                            Buscando repositórios em {source}...
+                            {formatMessage(cloneTexts.loadingFrom, { source })}
                         </div>
                     ) : listState.error ? (
                         <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
@@ -180,18 +184,18 @@ const CloneRepositoryModal: React.FC = () => {
                                 <div className="flex items-center gap-2">
                                     <button onClick={() => openCredentials(serverHost)} className={`${smallButton} text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20`}>
                                         <KeyRound className="w-3.5 h-3.5" />
-                                        Configurar login
+                                        {cloneTexts.configureLogin}
                                     </button>
                                     <button onClick={() => loadServer(serverHost)} className={`${smallButton} text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-white/10 hover:bg-zinc-200 dark:hover:bg-white/20`}>
                                         <RefreshCw className="w-3.5 h-3.5" />
-                                        Tentar de novo
+                                        {cloneTexts.retry}
                                     </button>
                                 </div>
                             )}
                         </div>
                     ) : filtered.length === 0 ? (
                         <p className="p-6 text-center text-xs text-zinc-500 italic">
-                            {listState.items.length === 0 ? `Nenhum repositório encontrado em ${source}.` : 'Nenhum repositório corresponde à busca.'}
+                            {listState.items.length === 0 ? formatMessage(cloneTexts.noneFoundIn, { source }) : cloneTexts.noneMatching}
                         </p>
                     ) : (
                         filtered.map((remote) => {
@@ -215,14 +219,14 @@ const CloneRepositoryModal: React.FC = () => {
                                                 <span className="text-zinc-400 font-normal">{remote.owner}/</span>{remote.name}
                                             </span>
                                             {remote.fork && <GitFork className="w-3 h-3 shrink-0 text-zinc-400" aria-label="Fork" />}
-                                            {remote.archived && <Archive className="w-3 h-3 shrink-0 text-zinc-400" aria-label="Arquivado" />}
+                                            {remote.archived && <Archive className="w-3 h-3 shrink-0 text-zinc-400" aria-label={cloneTexts.archived} />}
                                         </div>
                                         {remote.description && (
                                             <p className="text-[11px] text-zinc-500 truncate mt-0.5">{remote.description}</p>
                                         )}
                                         {isLocal && (
                                             <p className="text-[10px] text-emerald-600 dark:text-emerald-400 truncate mt-0.5" title={remote.localPath}>
-                                                Já clonado em {remote.localPath}
+                                                {formatMessage(cloneTexts.alreadyClonedIn, { path: remote.localPath })}
                                             </p>
                                         )}
                                     </div>
@@ -231,7 +235,7 @@ const CloneRepositoryModal: React.FC = () => {
                                             onClick={() => openLocal(remote)}
                                             className="shrink-0 px-2.5 py-1 rounded-md text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20"
                                         >
-                                            Abrir
+                                            {dictionary.octohub.common.open}
                                         </button>
                                     ) : (
                                         isSelected && <Check className="w-4 h-4 shrink-0 text-emerald-500" />
@@ -243,7 +247,7 @@ const CloneRepositoryModal: React.FC = () => {
                 </div>
                 {selected && (
                     <p className="text-[11px] text-zinc-500 truncate" title={selected.cloneUrl}>
-                        Via {selected.cloneUrl.startsWith('http') ? 'HTTPS' : 'SSH'}: <span className="font-mono">{selected.cloneUrl}</span>
+                        <RichMessage template={cloneTexts.via} values={{ protocol: selected.cloneUrl.startsWith('http') ? 'HTTPS' : 'SSH', url: <span className="font-mono">{selected.cloneUrl}</span> }} />
                     </p>
                 )}
             </div>
@@ -255,7 +259,7 @@ const CloneRepositoryModal: React.FC = () => {
             size="lg"
             onClose={close}
             isOpen={cloneModalOpen}
-            title="Clonar repositório"
+            title={cloneTexts.title}
             description={githubAccount ? `@${githubAccount.login}` : undefined}
             icon={<CloudDownload className="w-5 h-5 text-emerald-500" />}
             footer={
@@ -270,7 +274,7 @@ const CloneRepositoryModal: React.FC = () => {
                         disabled={cloning}
                         className="px-4 py-2 rounded-lg text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 disabled:opacity-50"
                     >
-                        Cancelar
+                        {dictionary.app.common.cancel}
                     </button>
                     <button
                         onClick={handleClone}
@@ -282,7 +286,7 @@ const CloneRepositoryModal: React.FC = () => {
                         ) : (
                             <CloudDownload className="w-4 h-4" />
                         )}
-                        {cloning ? 'Clonando...' : 'Clonar'}
+                        {cloning ? cloneTexts.cloning : cloneTexts.clone}
                     </button>
                 </>
             }
@@ -291,7 +295,7 @@ const CloneRepositoryModal: React.FC = () => {
                 <div className="flex flex-wrap gap-1 p-1 bg-zinc-100 dark:bg-white/5 rounded-xl">
                     <button className={tabClass('github')} disabled={!githubAccount || cloning} onClick={() => changeTab('github')}>
                         <img src="/gitoctocat.svg" alt="" className="w-3.5 h-3.5 brightness-0 dark:invert" />
-                        {githubAccount ? `@${githubAccount.login}` : 'GitHub (sem conta)'}
+                        {githubAccount ? `@${githubAccount.login}` : cloneTexts.githubWithoutAccount}
                     </button>
                     {servers.map((host) => (
                         <button key={host} className={tabClass(`server:${host}`)} disabled={cloning} onClick={() => changeTab(`server:${host}`)}>
@@ -309,7 +313,7 @@ const CloneRepositoryModal: React.FC = () => {
                             openAddedServer.current = true;
                             openCredentials('gitlab.com');
                         }}
-                        title="Cadastrar um servidor GitLab (gitlab.com ou o da sua empresa) para listar os projetos aqui"
+                        title={cloneTexts.addGitlabHint}
                         className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-zinc-500 hover:text-emerald-600 dark:hover:text-emerald-400 disabled:opacity-40"
                     >
                         <Plus className="w-3.5 h-3.5" />
@@ -319,13 +323,13 @@ const CloneRepositoryModal: React.FC = () => {
 
                 {tab === 'url' ? (
                     <div className="space-y-2">
-                        <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">URL do repositório</label>
+                        <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{cloneTexts.repositoryUrl}</label>
                         <input
                             autoFocus
                             type="text"
                             value={url}
                             disabled={cloning}
-                            placeholder="https://gitlab.com/grupo/projeto.git ou git@gitlab.com:grupo/projeto.git"
+                            placeholder={cloneTexts.urlPlaceholder}
                             onChange={(event) => setUrl(event.target.value)}
                             onKeyDown={(event) => event.key === 'Enter' && handleClone()}
                             className="w-full px-3 py-2 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-lg text-xs font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
@@ -333,21 +337,21 @@ const CloneRepositoryModal: React.FC = () => {
                         {urlHost && urlHost !== 'github.com' ? (
                             <div className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10">
                                 <p className="text-[11px] text-zinc-500">
-                                    {urlHost} usa o login salvo nas Credenciais Git (usuário e senha/token para HTTPS, chave SSH para git@...).
+                                    {formatMessage(cloneTexts.hostUsesCredentials, { host: urlHost })}
                                 </p>
                                 <button
                                     onClick={() => openCredentials(urlHost)}
                                     className={`shrink-0 ${smallButton} text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20`}
                                 >
                                     <KeyRound className="w-3.5 h-3.5" />
-                                    Configurar login
+                                    {cloneTexts.configureLogin}
                                 </button>
                             </div>
                         ) : (
                             <p className="text-[11px] text-zinc-500">
                                 {githubAccount
-                                    ? `Repositórios do github.com são clonados com o acesso de @${githubAccount.login}.`
-                                    : 'Sem conta do GitHub conectada, repositórios privados vão pedir o login do git.'}
+                                    ? formatMessage(cloneTexts.githubAccess, { login: githubAccount.login })
+                                    : cloneTexts.noGithubAccount}
                             </p>
                         )}
                     </div>
@@ -356,10 +360,10 @@ const CloneRepositoryModal: React.FC = () => {
                 )}
 
                 <div className="space-y-2">
-                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Pasta de destino</label>
+                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{dictionary.octohub.common.destinationFolder}</label>
                     <div className="flex gap-2">
                         <div className="flex-1 min-w-0 px-3 py-2 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-lg text-xs font-mono truncate" title={folder}>
-                            {folder || 'Escolha uma pasta'}
+                            {folder || dictionary.octohub.common.chooseFolder}
                         </div>
                         <button
                             onClick={chooseFolder}
@@ -367,12 +371,12 @@ const CloneRepositoryModal: React.FC = () => {
                             className="shrink-0 px-3 py-2 rounded-lg text-xs font-bold bg-zinc-100 dark:bg-white/10 hover:bg-zinc-200 dark:hover:bg-white/20 flex items-center gap-2 disabled:opacity-50"
                         >
                             <FolderOpen className="w-4 h-4" />
-                            Alterar
+                            {dictionary.octohub.common.change}
                         </button>
                     </div>
                     {destination && (
                         <p className="text-[11px] text-zinc-500">
-                            Será clonado em <span className="font-mono text-zinc-700 dark:text-zinc-300">{destination}</span>
+                            <RichMessage template={cloneTexts.willBeClonedIn} values={{ path: <span className="font-mono text-zinc-700 dark:text-zinc-300">{destination}</span> }} />
                         </p>
                     )}
                 </div>

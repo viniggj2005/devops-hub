@@ -1,8 +1,6 @@
 package vulpesFunctions
 
 import (
-	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -11,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
 )
 
@@ -131,19 +130,19 @@ func ValidateCookies(cookies []vulpesDtos.CookieDto) error {
 	for _, cookie := range cookies {
 		name := strings.TrimSpace(cookie.Name)
 		if name == "" {
-			return errors.New("informe o nome de todos os cookies")
+			return appErrors.New("vulpes.cookieNameRequired", "informe o nome de todos os cookies")
 		}
 		if !isCookieToken(name) {
-			return fmt.Errorf("o nome do cookie %q contém caracteres inválidos", name)
+			return appErrors.New("vulpes.invalidCookieName", "o nome do cookie \"{name}\" contém caracteres inválidos").With("name", name)
 		}
 		if !isCookieValue(cookie.Value) {
-			return fmt.Errorf("o valor do cookie %q não pode conter aspas, ponto e vírgula, barra invertida ou caracteres de controle", name)
+			return appErrors.New("vulpes.invalidCookieValue", "o valor do cookie \"{name}\" não pode conter aspas, ponto e vírgula, barra invertida ou caracteres de controle").With("name", name)
 		}
 		if normalizeCookieDomain(cookie.Domain) == "" {
-			return fmt.Errorf("informe o domínio do cookie %q", name)
+			return appErrors.New("vulpes.cookieDomainRequired", "informe o domínio do cookie \"{name}\"").With("name", name)
 		}
 		if _, valid := parseCookieTime(cookie.Expires); !valid {
-			return fmt.Errorf("a data de expiração do cookie %q é inválida", name)
+			return appErrors.New("vulpes.invalidCookieExpiration", "a data de expiração do cookie \"{name}\" é inválida").With("name", name)
 		}
 	}
 	return nil

@@ -1,5 +1,6 @@
 import React from 'react';
 import SftpFileRow from './SftpFileRow';
+import { useTranslation } from '../../../i18n/useTranslation';
 import { Link2, ArrowUp, Loader2 } from 'lucide-react';
 import * as ferretshellHandlers from '../../../../../bindings/docker-manager-go/src/ferretshell/handlers/models';
 
@@ -34,6 +35,8 @@ const SftpRemotePanel: React.FC<SftpRemotePanelProps> = ({
     connectingHost,
     selectedIndices
 }) => {
+    const { dictionary } = useTranslation();
+    const sftpTexts = dictionary.ferretShell.sftp;
     return (
         <div
             className="relative flex-1 flex flex-col bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-lg"
@@ -51,16 +54,17 @@ const SftpRemotePanel: React.FC<SftpRemotePanelProps> = ({
                     ) : (
                         <Link2 className="w-4 h-4 text-purple-500" />
                     )}
-                    <span className="text-sm font-bold">Remoto</span>
+                    <span className="text-sm font-bold">{sftpTexts.remote}</span>
                     {connecting && (
                         <span className="rounded-full bg-purple-500/15 px-2 py-0.5 text-[10px] font-semibold text-purple-600 dark:text-purple-400">
-                            Conectando...
+                            {sftpTexts.connectingEllipsis}
                         </span>
                     )}
                 </div>
                 <div className="flex items-center gap-2">
                     <button
                         onClick={onUp}
+                        title={sftpTexts.goUp}
                         disabled={connecting || loadingFiles || !sessionId || remotePath === '/'}
                         className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg disabled:opacity-30"
                     >
@@ -82,7 +86,7 @@ const SftpRemotePanel: React.FC<SftpRemotePanelProps> = ({
                         </div>
                         <div>
                             <p className="text-sm font-semibold text-gray-800 dark:text-zinc-100">
-                                Conectando ao servidor SFTP...
+                                {sftpTexts.connectingToServer}
                             </p>
                             {connectingHost && (
                                 <p className="mt-0.5 font-mono text-xs text-purple-600 dark:text-purple-400">
@@ -90,13 +94,13 @@ const SftpRemotePanel: React.FC<SftpRemotePanelProps> = ({
                                 </p>
                             )}
                             <p className="mt-1 text-[11px] text-gray-400 dark:text-zinc-500">
-                                Estabelecendo sessão segura e listando diretório remoto
+                                {sftpTexts.establishingSession}
                             </p>
                         </div>
                     </div>
                 ) : !sessionId ? (
                     <div className="h-full flex items-center justify-center text-gray-400 text-xs italic">
-                        {error || 'Selecione um servidor'}
+                        {error || sftpTexts.selectServer}
                     </div>
                 ) : (
                     <table className="w-full text-left text-xs select-none">

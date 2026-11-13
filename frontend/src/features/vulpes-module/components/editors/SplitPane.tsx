@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../i18n/useTranslation';
 import React, { useEffect, useRef, useState } from 'react';
 import { startDrag } from '../../../shared/functions/DragFunctions';
 
@@ -24,6 +25,7 @@ const readRatio = (storageKey: string, fallback: number) => {
 
 const SplitPane: React.FC<SplitPaneProps> = ({ top, bottom, storageKey, defaultRatio = 0.5 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { dictionary } = useTranslation();
   const [ratio, setRatio] = useState(() => readRatio(storageKey, defaultRatio));
 
   useEffect(() => {
@@ -50,7 +52,7 @@ const SplitPane: React.FC<SplitPaneProps> = ({ top, bottom, storageKey, defaultR
       <div
         onMouseDown={startResize}
         onDoubleClick={() => setRatio(defaultRatio)}
-        title="Arraste para redimensionar · duplo clique restaura"
+        title={dictionary.vulpes.common.resizeRestoreHint}
         className="h-2 flex-shrink-0 cursor-row-resize group flex items-center justify-center border-y border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-zinc-950/40"
       >
         <div className="w-10 h-0.5 rounded-full bg-gray-300 dark:bg-white/10 group-hover:bg-amber-500/70 transition-colors" />

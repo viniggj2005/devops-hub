@@ -2,6 +2,7 @@ import ColorField from './ColorField';
 import { RotateCcw } from 'lucide-react';
 import React, { useCallback } from 'react';
 import { useDebouncedDraft } from '../hooks/useDebouncedDraft';
+import { useTranslation } from '../../i18n/useTranslation';
 import { useGeneralConfigsStore } from '../store/GeneralConfigsStore';
 import { OctohubColorKey } from '../../../interfaces/GeneralConfigsInterfaces';
 import { octohubColorGroups, defaultOctohubColors } from '../constants/OctohubColorDefaults';
@@ -16,7 +17,10 @@ const statusBadges: { key: OctohubColorKey; label: string; fileName: string }[] 
 ];
 
 const OctohubColorsSettings: React.FC = () => {
+  const { dictionary } = useTranslation();
   const savedColors = useGeneralConfigsStore(state => state.octohubColors);
+  const { common } = dictionary.preferences;
+  const colorsTexts = dictionary.preferences.octohubColors;
   const setOctohubColors = useGeneralConfigsStore(state => state.setOctohubColors);
   const saveColors = useCallback(setOctohubColors, [setOctohubColors]);
   const [draftColors, setDraftColors] = useDebouncedDraft(savedColors, saveColors);
@@ -25,9 +29,9 @@ const OctohubColorsSettings: React.FC = () => {
     <section className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Cores do OctoHub</h2>
+          <h2 className="text-2xl font-bold">{colorsTexts.title}</h2>
           <p className="text-gray-500 dark:text-zinc-400 mt-1">
-            Cores do diff e das etiquetas de status dos arquivos.
+            {colorsTexts.description}
           </p>
         </div>
         <button
@@ -36,22 +40,22 @@ const OctohubColorsSettings: React.FC = () => {
           className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-white/5"
         >
           <RotateCcw className="w-4 h-4" />
-          Restaurar padrão
+          {common.restoreDefault}
         </button>
       </header>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <div className="space-y-6">
           {octohubColorGroups.map(group => (
-            <div key={group.title}>
-              <h3 className="text-sm font-semibold">{group.title}</h3>
-              <p className="text-xs text-gray-500 dark:text-zinc-400 mb-3">{group.description}</p>
+            <div key={group.id}>
+              <h3 className="text-sm font-semibold">{colorsTexts.groups[group.id].title}</h3>
+              <p className="text-xs text-gray-500 dark:text-zinc-400 mb-3">{colorsTexts.groups[group.id].description}</p>
               <div className="grid gap-3 grid-cols-2">
-                {group.keys.map(({ key, label, hint }) => (
+                {group.keys.map(key => (
                   <ColorField
                     key={key}
-                    hint={hint}
-                    label={label}
+                    hint={colorsTexts.colors[key].hint}
+                    label={colorsTexts.colors[key].label}
                     value={draftColors[key]}
                     onChange={color => setDraftColors(current => ({ ...current, [key]: color }))}
                   />
@@ -62,7 +66,7 @@ const OctohubColorsSettings: React.FC = () => {
         </div>
 
         <div className="xl:sticky xl:top-4 self-start space-y-4">
-          <h3 className="text-sm font-semibold">Prévia</h3>
+          <h3 className="text-sm font-semibold">{common.preview}</h3>
           <div className="rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden font-mono text-xs bg-white dark:bg-zinc-900">
             <p className="px-3 py-1 text-gray-500 dark:text-zinc-400">@@ -12,3 +12,3 @@</p>
             <p className="px-3 py-1 text-gray-700 dark:text-zinc-300">  func main() {'{'}</p>

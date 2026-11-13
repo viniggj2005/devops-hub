@@ -4,14 +4,6 @@ export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'O
 
 export const PROTOCOLS: VulpesProtocol[] = ['http', 'grpc', 'websocket', 'socketio', 'mqtt'];
 
-export const authLabels: Record<AuthType, string> = {
-  apikey: 'API Key',
-  basic: 'Basic Auth',
-  bearer: 'Bearer Token',
-  none: 'Sem autenticação',
-  inherit: 'Herdar do pai',
-};
-
 export const protocolLabels: Record<VulpesProtocol, string> = {
   http: 'HTTP',
   grpc: 'gRPC',
