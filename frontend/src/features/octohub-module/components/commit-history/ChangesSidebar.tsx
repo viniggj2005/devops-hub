@@ -6,13 +6,15 @@ import { useDismiss } from '../../../shared/hooks/useDismiss';
 import { SelectionState } from '../../functions/lineSelection';
 import * as octohubStructs from '../../../../../bindings/docker-manager-go/src/octohub/structs/models';
 import { GetStashModifications } from '../../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
-import { Search, RotateCcw, FileCode, Package, ArchiveRestore, Trash2, ChevronDown, ChevronUp, Undo2 } from 'lucide-react';
+import { Undo2, Search, Trash2, Archive, Package, FileCode, RotateCcw, ChevronUp, ChevronDown, ArchiveRestore } from 'lucide-react';
 
 interface ChangesSidebarProps {
     searchTerm: string;
     onRefresh: () => void;
+    onStashAll: () => void;
     selectedCount: number;
     onDiscardAll: () => void;
+    onStashSelected: () => void;
     children?: React.ReactNode;
     selectedFile: string | null;
     onDiscardSelected: () => void;
@@ -61,6 +63,7 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
     stashes,
     children,
     onRefresh,
+    onStashAll,
     searchTerm,
     onPopStash,
     onDropStash,
@@ -70,6 +73,7 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
     onDiscardAll,
     selectedCount,
     onDiscardFile,
+    onStashSelected,
     onStashFileClick,
     onFileDoubleClick,
     onFileContextMenu,
@@ -168,6 +172,36 @@ const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                                             className="w-full text-left px-3 py-2 rounded-lg hover:bg-rose-500/10"
                                         >
                                             <div className="text-xs font-semibold text-rose-600 dark:text-rose-400">{changesTexts.discardAll}</div>
+                                            <div className="text-[10px] text-zinc-500">{formatMessage(files.length === 1 ? changesTexts.filesOne : changesTexts.filesOther, { count: files.length })}</div>
+                                        </button>
+                                        <div className="my-1 border-t border-zinc-200 dark:border-white/10" />
+                                        <button
+                                            disabled={selectedCount === 0}
+                                            onClick={() => {
+                                                setDiscardMenuOpen(false);
+                                                onStashSelected();
+                                            }}
+                                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-amber-500/10 disabled:opacity-40 disabled:hover:bg-transparent"
+                                        >
+                                            <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                                                <Archive className="w-3.5 h-3.5 text-amber-500" />
+                                                {changesTexts.stashSelected}
+                                            </div>
+                                            <div className="text-[10px] text-zinc-500">
+                                                {formatMessage(selectedCount === 1 ? changesTexts.stashSelectedOne : changesTexts.stashSelectedOther, { count: selectedCount })}
+                                            </div>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setDiscardMenuOpen(false);
+                                                onStashAll();
+                                            }}
+                                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-amber-500/10"
+                                        >
+                                            <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                                <Archive className="w-3.5 h-3.5" />
+                                                {changesTexts.stashAll}
+                                            </div>
                                             <div className="text-[10px] text-zinc-500">{formatMessage(files.length === 1 ? changesTexts.filesOne : changesTexts.filesOther, { count: files.length })}</div>
                                         </button>
                                     </div>

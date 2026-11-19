@@ -27,7 +27,13 @@ export type RealtimeDirection = 'incoming' | 'outgoing' | 'system';
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'closed';
 
-export type AuthType = 'inherit' | 'none' | 'bearer' | 'basic' | 'apikey';
+export type AuthType = 'inherit' | 'none' | 'bearer' | 'basic' | 'apikey' | 'digest' | 'oauth2' | 'jwt' | 'awsv4';
+
+export type OAuth2GrantType = 'client_credentials' | 'password';
+
+export type OAuth2ClientAuth = 'header' | 'body';
+
+export type JwtAlgorithm = 'HS256' | 'HS384' | 'HS512';
 
 export type RawLanguage = 'json' | 'text' | 'xml' | 'html' | 'javascript';
 
@@ -63,9 +69,23 @@ export interface Auth {
   type: AuthType;
   token: string;
   value: string;
+  scope: string;
+  region: string;
+  secret: string;
+  payload: string;
+  service: string;
+  clientId: string;
   location: string;
   username: string;
   password: string;
+  tokenUrl: string;
+  accessKey: string;
+  secretKey: string;
+  algorithm: JwtAlgorithm;
+  grantType: OAuth2GrantType;
+  clientAuth: OAuth2ClientAuth;
+  clientSecret: string;
+  sessionToken: string;
 }
 
 export interface HttpBody {

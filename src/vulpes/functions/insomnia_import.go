@@ -81,15 +81,26 @@ type insomniaBody struct {
 }
 
 type insomniaAuth struct {
-	Key      flexibleText `json:"key"`
-	Type     string       `json:"type"`
-	AddTo    string       `json:"addTo"`
-	Token    flexibleText `json:"token"`
-	Value    flexibleText `json:"value"`
-	Prefix   flexibleText `json:"prefix"`
-	Disabled bool         `json:"disabled"`
-	Username flexibleText `json:"username"`
-	Password flexibleText `json:"password"`
+	Key               flexibleText `json:"key"`
+	Type              string       `json:"type"`
+	AddTo             string       `json:"addTo"`
+	Token             flexibleText `json:"token"`
+	Value             flexibleText `json:"value"`
+	Scope             flexibleText `json:"scope"`
+	Prefix            flexibleText `json:"prefix"`
+	Region            flexibleText `json:"region"`
+	Service           flexibleText `json:"service"`
+	Disabled          bool         `json:"disabled"`
+	ClientId          flexibleText `json:"clientId"`
+	Username          flexibleText `json:"username"`
+	Password          flexibleText `json:"password"`
+	GrantType         string       `json:"grantType"`
+	AccessKeyId       flexibleText `json:"accessKeyId"`
+	ClientSecret      flexibleText `json:"clientSecret"`
+	SessionToken      flexibleText `json:"sessionToken"`
+	AccessTokenUrl    flexibleText `json:"accessTokenUrl"`
+	SecretAccessKey   flexibleText `json:"secretAccessKey"`
+	CredentialsInBody bool         `json:"credentialsInBody"`
 }
 
 type insomniaCookie struct {
@@ -721,7 +732,40 @@ func (importer *insomniaImporter) parseAuth(raw json.RawMessage, ownerID string)
 			return vulpesDtos.AuthDto{Type: vulpesDtos.AuthApiKey, Key: "Cookie", Value: key + "=" + value, Location: "header"}
 		}
 		return vulpesDtos.AuthDto{Type: vulpesDtos.AuthApiKey, Key: key, Value: value, Location: "header"}
+	case "digest":
+		return vulpesDtos.AuthDto{
+			Type:     vulpesDtos.AuthDigest,
+			Username: importer.template(string(auth.Username)),
+			Password: importer.template(string(auth.Password)),
+		}
+	case "iam":
+		return vulpesDtos.AuthDto{
+			Type:         vulpesDtos.AuthAwsV4,
+			Region:       importer.template(string(auth.Region)),
+			Service:      importer.template(string(auth.Service)),
+			AccessKey:    importer.template(string(auth.AccessKeyId)),
+			SecretKey:    importer.template(string(auth.SecretAccessKey)),
+			SessionToken: importer.template(string(auth.SessionToken)),
+		}
 	case "oauth2":
+		grantTypes := map[string]string{"client_credentials": vulpesDtos.GrantClientCredentials, "password": vulpesDtos.GrantPassword}
+		if grantType, supported := grantTypes[auth.GrantType]; supported && strings.TrimSpace(string(auth.AccessTokenUrl)) != "" {
+			clientAuth := vulpesDtos.ClientAuthHeader
+			if auth.CredentialsInBody {
+				clientAuth = vulpesDtos.ClientAuthBody
+			}
+			return vulpesDtos.AuthDto{
+				Type:         vulpesDtos.AuthOAuth2,
+				Scope:        importer.template(string(auth.Scope)),
+				ClientId:     importer.template(string(auth.ClientId)),
+				Username:     importer.template(string(auth.Username)),
+				Password:     importer.template(string(auth.Password)),
+				TokenUrl:     importer.template(string(auth.AccessTokenUrl)),
+				GrantType:    grantType,
+				ClientAuth:   clientAuth,
+				ClientSecret: importer.template(string(auth.ClientSecret)),
+			}
+		}
 		if token := importer.oauthTokens[ownerID]; token != "" {
 			importer.warnings.add("Autenticações OAuth 2.0 foram convertidas em Bearer Token com o access token salvo")
 			return vulpesDtos.AuthDto{Type: vulpesDtos.AuthBearer, Token: token}

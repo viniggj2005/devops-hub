@@ -159,8 +159,19 @@ func (resolver *VariableResolver) ResolveAuth(auth vulpesDtos.AuthDto) vulpesDto
 	auth.Key = resolver.Resolve(auth.Key)
 	auth.Token = resolver.Resolve(auth.Token)
 	auth.Value = resolver.Resolve(auth.Value)
+	auth.Scope = resolver.Resolve(auth.Scope)
+	auth.Region = resolver.Resolve(auth.Region)
+	auth.Secret = resolver.Resolve(auth.Secret)
+	auth.Payload = resolver.Resolve(auth.Payload)
+	auth.Service = resolver.Resolve(auth.Service)
+	auth.ClientId = resolver.Resolve(auth.ClientId)
 	auth.Username = resolver.Resolve(auth.Username)
 	auth.Password = resolver.Resolve(auth.Password)
+	auth.TokenUrl = resolver.Resolve(auth.TokenUrl)
+	auth.AccessKey = resolver.Resolve(auth.AccessKey)
+	auth.SecretKey = resolver.Resolve(auth.SecretKey)
+	auth.ClientSecret = resolver.Resolve(auth.ClientSecret)
+	auth.SessionToken = resolver.Resolve(auth.SessionToken)
 	return auth
 }
 

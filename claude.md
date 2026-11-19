@@ -1,5 +1,6 @@
 # Não seja programador abc, variáveis bem definidas, nomes intendiveis, se entrar em um arquivo e ver variaveis abc corrija, nada de i no forn é index, nada de k no for é key, ou de preferencia algo melhor.
 
+# sempre que for fazer o front-end, mantenha o mesmo padrão, para as três linguas
 ## sempre busque boas praticas.
 
 ### evite ficar deixando comentários nos códigos.

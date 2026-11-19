@@ -657,6 +657,38 @@ func (exporter *insomniaExporter) authentication(auth vulpesDtos.AuthDto, inheri
 			addTo = "queryParams"
 		}
 		return map[string]any{"type": "apikey", "key": exporter.template(auth.Key), "value": exporter.template(auth.Value), "addTo": addTo, "disabled": false}
+	case vulpesDtos.AuthDigest:
+		return map[string]any{
+			"type":     "digest",
+			"username": exporter.template(auth.Username),
+			"password": exporter.template(auth.Password),
+			"disabled": false,
+		}
+	case vulpesDtos.AuthAwsV4:
+		return map[string]any{
+			"type":            "iam",
+			"region":          exporter.template(auth.Region),
+			"service":         exporter.template(auth.Service),
+			"disabled":        false,
+			"accessKeyId":     exporter.template(auth.AccessKey),
+			"sessionToken":    exporter.template(auth.SessionToken),
+			"secretAccessKey": exporter.template(auth.SecretKey),
+		}
+	case vulpesDtos.AuthOAuth2:
+		return map[string]any{
+			"type":              "oauth2",
+			"scope":             exporter.template(auth.Scope),
+			"clientId":          exporter.template(auth.ClientId),
+			"username":          exporter.template(auth.Username),
+			"password":          exporter.template(auth.Password),
+			"disabled":          false,
+			"grantType":         auth.GrantType,
+			"clientSecret":      exporter.template(auth.ClientSecret),
+			"accessTokenUrl":    exporter.template(auth.TokenUrl),
+			"credentialsInBody": auth.ClientAuth == vulpesDtos.ClientAuthBody,
+		}
+	case vulpesDtos.AuthJwt:
+		exporter.warnings.add("Autenticação JWT não existe no Insomnia e ficou de fora; configure um Bearer Token com o JWT gerado")
 	}
 	return map[string]any{}
 }

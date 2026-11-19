@@ -69,6 +69,7 @@ type VulpesClientHandlerStruct struct {
 	context           context.Context
 	sessions          map[string]realtimeSession
 	responses         map[string]storedResponse
+	oauth2Tokens      *oauth2TokenCache
 	emitToWindow      func(windowName string, name string, data any)
 	sessionsMutex     sync.Mutex
 	responsesMutex    sync.Mutex
@@ -81,6 +82,7 @@ func NewVulpesClientHandler(vulpesHandler *VulpesHandlerStruct) *VulpesClientHan
 		vulpes:            vulpesHandler,
 		sessions:          map[string]realtimeSession{},
 		responses:         map[string]storedResponse{},
+		oauth2Tokens:      newOAuth2TokenCache(),
 		emitToWindow:      desktop.EmitToWindow,
 		httpTransports:    newTransportPair(true),
 		upgradeTransports: newTransportPair(false),
@@ -144,8 +146,12 @@ func (handlerStruct *VulpesClientHandlerStruct) planExecution(callContext contex
 	}
 	request := input.Request
 	vulpesFunctions.NormalizeRequest(&request)
+	auth, err := handlerStruct.materializeAuth(callContext, resolver.ResolveAuth(vulpesFunctions.EffectiveAuth(content, input.Scope.ItemID, request.Auth)))
+	if err != nil {
+		return nil, err
+	}
 	plan := &executionPlan{
-		auth:         resolver.ResolveAuth(vulpesFunctions.EffectiveAuth(content, input.Scope.ItemID, request.Auth)),
+		auth:         auth,
 		userID:       userID,
 		request:      request,
 		resolver:     resolver,

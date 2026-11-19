@@ -29,12 +29,18 @@ var supportedProtocols = map[string]bool{
 }
 
 var supportedAuthTypes = map[string]bool{
+	vulpesDtos.AuthJwt:     true,
 	vulpesDtos.AuthNone:    true,
+	vulpesDtos.AuthAwsV4:   true,
 	vulpesDtos.AuthBasic:   true,
+	vulpesDtos.AuthOAuth2:  true,
 	vulpesDtos.AuthApiKey:  true,
 	vulpesDtos.AuthBearer:  true,
+	vulpesDtos.AuthDigest:  true,
 	vulpesDtos.AuthInherit: true,
 }
+
+var supportedJwtAlgorithms = map[string]bool{"HS256": true, "HS384": true, "HS512": true}
 
 var supportedBodyModes = map[string]bool{
 	vulpesDtos.BodyRaw:        true,
@@ -91,6 +97,20 @@ func NormalizeAuth(auth *vulpesDtos.AuthDto, fallback string) {
 	}
 	if auth.Type == vulpesDtos.AuthApiKey && auth.Location != "query" {
 		auth.Location = "header"
+	}
+	if auth.Type == vulpesDtos.AuthOAuth2 {
+		if auth.GrantType != vulpesDtos.GrantPassword {
+			auth.GrantType = vulpesDtos.GrantClientCredentials
+		}
+		if auth.ClientAuth != vulpesDtos.ClientAuthBody {
+			auth.ClientAuth = vulpesDtos.ClientAuthHeader
+		}
+	}
+	if auth.Type == vulpesDtos.AuthJwt {
+		auth.Algorithm = strings.ToUpper(strings.TrimSpace(auth.Algorithm))
+		if !supportedJwtAlgorithms[auth.Algorithm] {
+			auth.Algorithm = "HS256"
+		}
 	}
 }
 

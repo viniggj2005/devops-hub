@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"docker-manager-go/src/appErrors"
 	vulpesDtos "docker-manager-go/src/vulpes/dtos"
@@ -92,6 +93,11 @@ func BuildHttpRequest(ctx context.Context, httpRequest vulpesDtos.HttpRequestDto
 	}
 	setHeaderIfMissing(request.Header, "Accept", "*/*")
 	setHeaderIfMissing(request.Header, "User-Agent", DefaultUserAgent)
+	if auth.Type == vulpesDtos.AuthAwsV4 {
+		if err := SignAwsV4(request, auth, time.Now()); err != nil {
+			return nil, err
+		}
+	}
 	return request, nil
 }
 

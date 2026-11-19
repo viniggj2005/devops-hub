@@ -54,9 +54,23 @@ export const emptyAuth = (type: AuthType): Auth => ({
   type,
   token: '',
   value: '',
+  scope: '',
+  region: '',
+  secret: '',
+  payload: '',
+  service: '',
+  clientId: '',
   username: '',
   password: '',
+  tokenUrl: '',
   location: 'header',
+  accessKey: '',
+  secretKey: '',
+  algorithm: 'HS256',
+  clientAuth: 'header',
+  grantType: 'client_credentials',
+  clientSecret: '',
+  sessionToken: '',
 });
 
 export const createRequest = (protocol: VulpesProtocol): VulpesRequest => {

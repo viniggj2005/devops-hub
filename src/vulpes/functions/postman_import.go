@@ -564,7 +564,40 @@ func (importer postmanImporter) parseAuth(raw json.RawMessage, fallback string) 
 			location = "query"
 		}
 		return vulpesDtos.AuthDto{Type: vulpesDtos.AuthApiKey, Key: params["key"], Value: params["value"], Location: location}
+	case "digest":
+		return vulpesDtos.AuthDto{Type: vulpesDtos.AuthDigest, Username: params["username"], Password: params["password"]}
+	case "awsv4":
+		return vulpesDtos.AuthDto{
+			Type:         vulpesDtos.AuthAwsV4,
+			Region:       params["region"],
+			Service:      params["service"],
+			AccessKey:    params["accessKey"],
+			SecretKey:    params["secretKey"],
+			SessionToken: params["sessionToken"],
+		}
+	case "jwt":
+		if params["addTokenTo"] == "" || params["addTokenTo"] == "header" {
+			auth := vulpesDtos.AuthDto{Type: vulpesDtos.AuthJwt, Secret: params["secret"], Payload: params["payload"], Algorithm: params["algorithm"]}
+			NormalizeAuth(&auth, vulpesDtos.AuthNone)
+			return auth
+		}
 	case "oauth2":
+		grantTypes := map[string]string{"client_credentials": vulpesDtos.GrantClientCredentials, "password_credentials": vulpesDtos.GrantPassword}
+		if grantType, supported := grantTypes[params["grant_type"]]; supported && params["accessTokenUrl"] != "" {
+			auth := vulpesDtos.AuthDto{
+				Type:         vulpesDtos.AuthOAuth2,
+				Scope:        params["scope"],
+				ClientId:     params["clientId"],
+				Username:     params["username"],
+				Password:     params["password"],
+				TokenUrl:     params["accessTokenUrl"],
+				GrantType:    grantType,
+				ClientAuth:   params["client_authentication"],
+				ClientSecret: params["clientSecret"],
+			}
+			NormalizeAuth(&auth, vulpesDtos.AuthNone)
+			return auth
+		}
 		if token := params["accessToken"]; token != "" {
 			importer.warnings.add("Autenticações OAuth 2.0 foram convertidas em Bearer Token com o access token salvo")
 			return vulpesDtos.AuthDto{Type: vulpesDtos.AuthBearer, Token: token}

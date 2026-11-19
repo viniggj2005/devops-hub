@@ -138,8 +138,12 @@ func (handlerStruct *VulpesClientHandlerStruct) executeHttp(callContext context.
 		return nil, err
 	}
 
+	client := handlerStruct.httpClient(httpRequest.Settings, plan.httpCookieJar())
+	if plan.auth.Type == vulpesDtos.AuthDigest {
+		client.Transport = digestTransport{base: client.Transport, username: plan.auth.Username, password: plan.auth.Password}
+	}
 	started := time.Now()
-	response, err := handlerStruct.httpClient(httpRequest.Settings, plan.httpCookieJar()).Do(built)
+	response, err := client.Do(built)
 	collectionCookies := handlerStruct.persistReceivedCookies(plan)
 	if err != nil {
 		return nil, describeRequestError(err, requestContext)

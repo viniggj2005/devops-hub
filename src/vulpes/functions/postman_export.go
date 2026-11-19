@@ -341,6 +341,47 @@ func exportAuth(auth vulpesDtos.AuthDto) map[string]any {
 			stringEntry("value", auth.Value),
 			stringEntry("in", auth.Location),
 		}}
+	case vulpesDtos.AuthDigest:
+		return map[string]any{"type": "digest", "digest": []exportEntry{
+			stringEntry("username", auth.Username),
+			stringEntry("password", auth.Password),
+		}}
+	case vulpesDtos.AuthAwsV4:
+		return map[string]any{"type": "awsv4", "awsv4": []exportEntry{
+			stringEntry("region", auth.Region),
+			stringEntry("service", auth.Service),
+			stringEntry("accessKey", auth.AccessKey),
+			stringEntry("secretKey", auth.SecretKey),
+			stringEntry("sessionToken", auth.SessionToken),
+		}}
+	case vulpesDtos.AuthJwt:
+		return map[string]any{"type": "jwt", "jwt": []exportEntry{
+			stringEntry("secret", auth.Secret),
+			stringEntry("payload", auth.Payload),
+			stringEntry("algorithm", auth.Algorithm),
+			stringEntry("addTokenTo", "header"),
+			stringEntry("headerPrefix", "Bearer"),
+		}}
+	case vulpesDtos.AuthOAuth2:
+		grantType := "client_credentials"
+		if auth.GrantType == vulpesDtos.GrantPassword {
+			grantType = "password_credentials"
+		}
+		clientAuthentication := "header"
+		if auth.ClientAuth == vulpesDtos.ClientAuthBody {
+			clientAuthentication = "body"
+		}
+		return map[string]any{"type": "oauth2", "oauth2": []exportEntry{
+			stringEntry("scope", auth.Scope),
+			stringEntry("clientId", auth.ClientId),
+			stringEntry("username", auth.Username),
+			stringEntry("password", auth.Password),
+			stringEntry("grant_type", grantType),
+			stringEntry("addTokenTo", "header"),
+			stringEntry("clientSecret", auth.ClientSecret),
+			stringEntry("accessTokenUrl", auth.TokenUrl),
+			stringEntry("client_authentication", clientAuthentication),
+		}}
 	}
 	return nil
 }
