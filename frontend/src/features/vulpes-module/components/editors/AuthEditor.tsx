@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import CodeEditor from './CodeEditor';
 import VariableInput from './VariableInput';
-import VariableShortcutHint from './VariableShortcutHint';
-import { useTranslation } from '../../../i18n/useTranslation';
 import { Eye, EyeOff, Info } from 'lucide-react';
 import VariableShortcutHint from './VariableShortcutHint';
 import { useTranslation } from '../../../i18n/useTranslation';
