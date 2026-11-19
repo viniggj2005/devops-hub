@@ -192,29 +192,27 @@ const CommitHistoryPage: React.FC = () => {
 
     const fetchGitStatus = async () => {
         const requestId = ++statusRequest.current;
-        try {
-            const [filesResult, stashesList, operationState, undoableState] = await Promise.all([
-                GetGitStatus().catch(() => []),
-                ListStashes().catch(() => []),
-                GetOperationState().catch(() => null),
-                GetUndoableCommit().catch(() => null),
-            ]);
-            if (requestId !== statusRequest.current) return false;
+        const isCurrentRequest = () => requestId === statusRequest.current;
 
-            const files = filesResult || [];
-            const changed = statusKey(files) !== statusKey(changedFilesRef.current);
-            setChangedFiles(previous => statusKey(previous) === statusKey(files) ? previous : files);
-            setSelections(previous => Object.fromEntries(
-                files.filter(file => previous[file.FileName]).map(file => [file.FileName, previous[file.FileName]])
-            ));
-            setStashes(stashesList || []);
-            setOperation(operationState);
-            setUndoableCommit(undoableState);
-            return changed;
-        } catch (err: any) {
-            console.error('Erro ao buscar status do git:', err);
-            return false;
-        }
+        ListStashes()
+            .catch(() => [])
+            .then(stashesList => isCurrentRequest() && setStashes(stashesList || []));
+        GetOperationState()
+            .catch(() => null)
+            .then(operationState => isCurrentRequest() && setOperation(operationState));
+        GetUndoableCommit()
+            .catch(() => null)
+            .then(undoableState => isCurrentRequest() && setUndoableCommit(undoableState));
+
+        const files = (await GetGitStatus().catch(() => [])) || [];
+        if (!isCurrentRequest()) return false;
+
+        const changed = statusKey(files) !== statusKey(changedFilesRef.current);
+        setChangedFiles(previous => statusKey(previous) === statusKey(files) ? previous : files);
+        setSelections(previous => Object.fromEntries(
+            files.filter(file => previous[file.FileName]).map(file => [file.FileName, previous[file.FileName]])
+        ));
+        return changed;
     };
 
     const refreshSelectedDiff = async () => {

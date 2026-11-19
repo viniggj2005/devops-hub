@@ -1,26 +1,61 @@
 import './index.css';
-import { useEffect, useState } from 'react';
 import MainHomePage from './pages/MainHomePage';
 import { Events, Window } from '@wailsio/runtime';
 import { AppFrame } from './features/appFrame/appFrame';
-import SettingsPage from './pages/settings/SettingsPage';
 import { tabTitle } from './features/appFrame/TabTitle';
-import { useAppStore } from './features/appFrame/AppStore';
 import { useTranslation } from './features/i18n/useTranslation';
 import { windowInstanceId } from './features/appFrame/WindowContext';
-import { languageChangedEvent, useLanguageStore } from './features/i18n/LanguageStore';
+import { ModuleType, useAppStore } from './features/appFrame/AppStore';
+import { TabVisibilityContext } from './features/appFrame/TabVisibility';
 import { useUpdateNotifier } from './features/shared/hooks/useUpdateNotifier';
-import VulpesModuleWrapper from './features/vulpes-module/components/VulpesModuleWrapper';
-import DockerModuleWrapper from './features/docker-module/components/DockerModuleWrapper';
-import OctohubModuleWrapper from './features/octohub-module/components/OctohubModuleWrapper';
-import TalpadbModuleWrapper from './features/talpadb-module/components/TalpadbModuleWrapper';
+import { languageChangedEvent, useLanguageStore } from './features/i18n/LanguageStore';
+import { ComponentType, Suspense, lazy, memo, useEffect, useMemo, useState } from 'react';
 import { applyOctohubColorVariables } from './features/settings/functions/OctohubColorVariables';
-import FerretShellModuleWrapper from './features/ferretShell-module/components/FerretShellModuleWrapper';
 import { generalConfigsChangedEvent, useGeneralConfigsStore } from './features/settings/store/GeneralConfigsStore';
+
+const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
+const VulpesModuleWrapper = lazy(() => import('./features/vulpes-module/components/VulpesModuleWrapper'));
+const DockerModuleWrapper = lazy(() => import('./features/docker-module/components/DockerModuleWrapper'));
+const OctohubModuleWrapper = lazy(() => import('./features/octohub-module/components/OctohubModuleWrapper'));
+const TalpadbModuleWrapper = lazy(() => import('./features/talpadb-module/components/TalpadbModuleWrapper'));
+const FerretShellModuleWrapper = lazy(() => import('./features/ferretShell-module/components/FerretShellModuleWrapper'));
+
+const fullscreenSyncDelayMs = 150;
+
+const tabComponents: Record<ModuleType, ComponentType> = {
+  home: MainHomePage,
+  settings: SettingsPage,
+  vulpes: VulpesModuleWrapper,
+  docker: DockerModuleWrapper,
+  octohub: OctohubModuleWrapper,
+  talpadb: TalpadbModuleWrapper,
+  ferretshell: FerretShellModuleWrapper,
+};
+
+interface ModuleTabPanelProps {
+  type: ModuleType;
+  isActive: boolean;
+}
+
+const ModuleTabPanel = memo(({ type, isActive }: ModuleTabPanelProps) => {
+  const TabComponent = tabComponents[type];
+  if (!TabComponent) return null;
+
+  return (
+    <div className={`absolute inset-0 w-full h-full ${isActive ? 'block z-10' : 'hidden z-0'}`}>
+      <TabVisibilityContext.Provider value={isActive}>
+        <Suspense fallback={null}>
+          <TabComponent />
+        </Suspense>
+      </TabVisibilityContext.Provider>
+    </div>
+  );
+});
 
 export default function App() {
   const { dictionary } = useTranslation();
-  const { tabs, activeTabId } = useAppStore();
+  const tabs = useAppStore(state => state.tabs);
+  const activeTabId = useAppStore(state => state.activeTabId);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const loadGeneralConfigs = useGeneralConfigsStore(state => state.load);
   const resetGeneralConfigs = useGeneralConfigsStore(state => state.reset);
@@ -44,7 +79,7 @@ export default function App() {
 
   useEffect(() => applyOctohubColorVariables(octohubColors), [octohubColors]);
 
-  const activeTab = tabs.find(tab => tab.id === activeTabId);
+  const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId), [tabs, activeTabId]);
   const windowTitle = activeTab && activeTab.type !== 'home' ? `Devops Hub · ${tabTitle(activeTab, dictionary)}` : 'Devops Hub';
 
   useEffect(() => {
@@ -52,9 +87,16 @@ export default function App() {
   }, [windowTitle]);
 
   useEffect(() => {
-    const handleResize = async () => {
+    let resizeTimeout: number | undefined;
+
+    const syncFullscreen = async () => {
       const fullscreen = await Window.IsFullscreen();
       setIsFullscreen(fullscreen);
+    };
+
+    const handleResize = () => {
+      window.clearTimeout(resizeTimeout);
+      resizeTimeout = window.setTimeout(syncFullscreen, fullscreenSyncDelayMs);
     };
 
     const handleKeyDown = async (event: KeyboardEvent) => {
@@ -80,54 +122,26 @@ export default function App() {
       }
     };
 
-    handleResize();
+    syncFullscreen();
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      window.clearTimeout(resizeTimeout);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
-
-  const renderTabContent = (type: string) => {
-    switch (type) {
-      case 'home':
-        return <MainHomePage />;
-      case 'docker':
-        return <DockerModuleWrapper />;
-      case 'ferretshell':
-        return <FerretShellModuleWrapper />;
-      case 'octohub':
-        return <OctohubModuleWrapper />;
-      case 'settings':
-        return <SettingsPage />;
-      case 'talpadb':
-        return <TalpadbModuleWrapper />;
-      case 'vulpes':
-        return <VulpesModuleWrapper />;
-      default:
-        return null;
-    }
-  };
 
   return (
     <div className="w-screen h-screen flex flex-col overflow-hidden bg-white dark:bg-zinc-900">
       {!isFullscreen && <AppFrame />}
 
       <div className="flex-1 min-h-0 relative">
-        {tabs.map((tab) => {
-          const isActive = tab.id === activeTabId;
-          return (
-            <div
-              key={tab.id}
-              className={`absolute inset-0 w-full h-full ${isActive ? 'block z-10' : 'hidden z-0'}`}
-            >
-              {renderTabContent(tab.type)}
-            </div>
-          );
-        })}
+        {tabs.map(tab => (
+          <ModuleTabPanel key={tab.id} type={tab.type} isActive={tab.id === activeTabId} />
+        ))}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import toast from 'react-hot-toast';
 import React, { useMemo, useState } from 'react';
 import { useTalpadbStore } from '../TalpadbStore';
+import { useShallow } from 'zustand/react/shallow';
 import ConnectionCard from './components/ConnectionCard';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTranslation } from '../../i18n/useTranslation';
@@ -43,7 +44,19 @@ const TalpadbHomePage: React.FC = () => {
     loadConnections,
     connectionsLoaded,
     closeConnectionTabs,
-  } = useTalpadbStore();
+  } = useTalpadbStore(
+    useShallow((state) => ({
+      tabs: state.tabs,
+      openTab: state.openTab,
+      setView: state.setView,
+      connections: state.connections,
+      setActiveTab: state.setActiveTab,
+      openQueryTab: state.openQueryTab,
+      loadConnections: state.loadConnections,
+      connectionsLoaded: state.connectionsLoaded,
+      closeConnectionTabs: state.closeConnectionTabs,
+    }))
+  );
 
   const reload = async () => {
     if (!token) return;

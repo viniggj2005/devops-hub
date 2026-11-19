@@ -1,11 +1,12 @@
 import toast from 'react-hot-toast';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTabVisible } from '../../../appFrame/TabVisibility';
 import { errorMessage } from '../../../shared/functions/ErrorMessage';
 import { DockerImageInfo } from '../../../../interfaces/ContainerImagesInterfaces';
 import { ImagesList } from '../../../../../bindings/docker-manager-go/src/dockermanager/handlers/dockersdkhandlerstruct';
 
 export const ContainerImagesService = (clientId: number | null, pollMiliseconds = 4000) => {
-  const timerRef = useRef<number | null>(null);
+  const tabVisible = useTabVisible();
   const hasLoadedRef = useRef<boolean>(false);
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<DockerImageInfo[]>([]);
@@ -36,20 +37,17 @@ export const ContainerImagesService = (clientId: number | null, pollMiliseconds 
     if (clientId == null) {
       setLoading(false);
       setImages([]);
-      if (timerRef.current) {
-        window.clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
       return;
     }
-
     fetchImages(true);
-    if (timerRef.current) window.clearInterval(timerRef.current);
-    timerRef.current = window.setInterval(() => fetchImages(false), pollMiliseconds);
-    return () => {
-      if (timerRef.current) window.clearInterval(timerRef.current);
-    };
-  }, [clientId, fetchImages, pollMiliseconds]);
+  }, [clientId, fetchImages]);
+
+  useEffect(() => {
+    if (clientId == null || !tabVisible) return;
+    if (hasLoadedRef.current) fetchImages(false);
+    const timerId = window.setInterval(() => fetchImages(false), pollMiliseconds);
+    return () => window.clearInterval(timerId);
+  }, [clientId, tabVisible, fetchImages, pollMiliseconds]);
 
   return { images, loading, fetchImages, setImages };
 };

@@ -1,11 +1,12 @@
 import { Box, Loader2, Search } from 'lucide-react';
 import { useTranslation } from '../../i18n/useTranslation';
+import { useTabVisible } from '../../appFrame/TabVisibility';
 import ContainerCard from './components/cards/ContainerCard';
 import TerminalModal from './components/modals/TerminalModal';
 import { FmtName } from '../../shared/functions/TreatmentFunction';
 import { ContainerItem } from '../../../interfaces/ContainerInterfaces';
 import { useDockerClient } from '../../../contexts/DockerClientContext';
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { getContainers, renameContainer, startContainer, stopContainer, toggleContainerState } from './services/ContainersService';
 
 export interface ContainersListFetchRef {
@@ -14,8 +15,10 @@ export interface ContainersListFetchRef {
 
 type StatusFilter = 'all' | 'running' | 'paused' | 'stopped';
 
+const pollIntervalMs = 3000;
+
 const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
-  const timerRef = useRef<number | null>(null);
+  const tabVisible = useTabVisible();
   const { dictionary, formatMessage } = useTranslation();
   const containerTexts = dictionary.docker.containers;
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,21 +59,14 @@ const ContainersListView = forwardRef<ContainersListFetchRef>((_, ref) => {
   useEffect(() => {
     if (dockerClientId == null) {
       setContainers(null);
-      if (timerRef.current) {
-        window.clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
       return;
     }
+    if (!tabVisible) return;
 
     fetchContainers();
-    if (timerRef.current) window.clearInterval(timerRef.current);
-    timerRef.current = window.setInterval(fetchContainers, 3000);
-
-    return () => {
-      if (timerRef.current) window.clearInterval(timerRef.current);
-    };
-  }, [fetchContainers, dockerClientId]);
+    const timerId = window.setInterval(fetchContainers, pollIntervalMs);
+    return () => window.clearInterval(timerId);
+  }, [fetchContainers, dockerClientId, tabVisible]);
 
   const handleStart = async (id: string) => {
     if (dockerClientId == null) return;

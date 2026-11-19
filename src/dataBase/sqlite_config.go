@@ -11,6 +11,8 @@ import (
 	"docker-manager-go/src/models"
 )
 
+const connectionPragmas = "_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)"
+
 var (
 	DataBase *gorm.DB
 	err      error
@@ -32,7 +34,7 @@ func DataBasePath() string {
 }
 
 func InitDb() {
-	dsn := fmt.Sprintf("file:%s?_journal_mode=WAL&_foreign_keys=on", DataBasePath())
+	dsn := fmt.Sprintf("file:%s?%s", DataBasePath(), connectionPragmas)
 
 	DataBase, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {

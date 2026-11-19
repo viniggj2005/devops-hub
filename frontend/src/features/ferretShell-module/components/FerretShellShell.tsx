@@ -8,7 +8,8 @@ interface FerretShellShellProps {
 }
 
 const FerretShellShell: React.FC<FerretShellShellProps> = ({ children }) => {
-    const { tabs, viewMode } = useTerminalStore();
+    const tabs = useTerminalStore((state) => state.tabs);
+    const viewMode = useTerminalStore((state) => state.viewMode);
     const hasTabs = tabs.length > 0;
 
     useEffect(retainTerminalSessions, []);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTalpadbStore } from '../TalpadbStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../appFrame/AppStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import { Server, LayoutPanelLeft, LogOut } from 'lucide-react';
@@ -8,8 +9,15 @@ import type { TalpadbView } from '../../../interfaces/TalpadbInterfaces';
 import ToggleThemeButton from '../../shared/components/buttons/ToggleThemeButton';
 
 const TalpadbNavbar: React.FC = () => {
-  const { setActiveTab } = useAppStore();
-  const { view, setView, tabs, connections } = useTalpadbStore();
+  const setActiveTab = useAppStore((state) => state.setActiveTab);
+  const { view, setView, tabs, connections } = useTalpadbStore(
+    useShallow((state) => ({
+      view: state.view,
+      tabs: state.tabs,
+      setView: state.setView,
+      connections: state.connections,
+    }))
+  );
   const { dictionary } = useTranslation();
 
   const links: { view: TalpadbView; label: string; icon: typeof Server; badge?: number }[] = [

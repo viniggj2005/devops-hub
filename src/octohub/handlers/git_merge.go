@@ -243,15 +243,11 @@ func (handlerStruct *GitBranchHandler) MergeBranch(ctx context.Context, branch, 
 }
 
 func (handlerStruct *GitBranchHandler) gitPath(ctx context.Context, name string) string {
-	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"rev-parse", "--git-path", name})
+	gitDir, err := handlerStruct.gitHandler.gitDirectory(ctx)
 	if err != nil {
 		return ""
 	}
-	path := strings.TrimSpace(string(out))
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(handlerStruct.gitHandler.repositoryPath(ctx), path)
-	}
-	return path
+	return filepath.Join(gitDir, filepath.FromSlash(name))
 }
 
 func (handlerStruct *GitBranchHandler) gitPathExists(ctx context.Context, name string) bool {

@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import toast from 'react-hot-toast';
 import { Events } from '@wailsio/runtime';
+import { translateError } from './TranslateError';
 import { updateLanguageApi } from './LanguageService';
 import { getToken } from '../../contexts/AuthContext';
 import { windowInstanceId } from '../appFrame/WindowContext';
-import { errorMessage } from '../shared/functions/ErrorMessage';
 import {
   AppLanguage,
   dictionaries,
@@ -65,7 +65,7 @@ export const useLanguageStore = create<LanguageState>((set, get) => ({
     } catch (error) {
       persistLanguage(previousLanguage);
       set({ language: previousLanguage });
-      toast.error(formatMessage(dictionaries[previousLanguage].settings.language.saveError, { error: errorMessage(error) }));
+      toast.error(formatMessage(dictionaries[previousLanguage].settings.language.saveError, { error: translateError(error) }));
     } finally {
       set({ saving: false });
     }

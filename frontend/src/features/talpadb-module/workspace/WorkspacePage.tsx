@@ -2,6 +2,7 @@ import QueryTab from './query/QueryTab';
 import DiagramTab from './diagram/DiagramTab';
 import { tabIcons } from './constants/TabIcons';
 import { useTalpadbStore } from '../TalpadbStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../appFrame/AppStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import ObjectExplorer from './explorer/ObjectExplorer';
@@ -69,7 +70,19 @@ const WorkspacePage: React.FC = () => {
     mergeGroupInto,
     draggingGroupId,
     setDraggingGroup,
-  } = useTalpadbStore();
+  } = useTalpadbStore(
+    useShallow((state) => ({
+      tabs: state.tabs,
+      groups: state.groups,
+      detachPane: state.detachPane,
+      activeTabId: state.activeTabId,
+      setActiveTab: state.setActiveTab,
+      activeGroupId: state.activeGroupId,
+      mergeGroupInto: state.mergeGroupInto,
+      draggingGroupId: state.draggingGroupId,
+      setDraggingGroup: state.setDraggingGroup,
+    }))
+  );
 
   useEffect(() => {
     try {

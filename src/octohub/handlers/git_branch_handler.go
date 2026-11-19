@@ -91,7 +91,7 @@ func (handlerStruct *GitBranchHandler) CreateBranch(ctx context.Context, branchN
 }
 
 func (handlerStruct *GitBranchHandler) HasUncommittedChanges(ctx context.Context) (bool, error) {
-	args := []string{"status", "--porcelain"}
+	args := []string{"--no-optional-locks", "status", "--porcelain"}
 	out, err := handlerStruct.gitHandler.runGitCommand(ctx, args)
 	if err != nil {
 		return false, err
