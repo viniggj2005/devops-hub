@@ -14,11 +14,25 @@ const (
 )
 
 const (
+	AuthJwt     = "jwt"
 	AuthNone    = "none"
+	AuthAwsV4   = "awsv4"
 	AuthBasic   = "basic"
+	AuthOAuth2  = "oauth2"
 	AuthApiKey  = "apikey"
 	AuthBearer  = "bearer"
+	AuthDigest  = "digest"
 	AuthInherit = "inherit"
+)
+
+const (
+	GrantPassword          = "password"
+	GrantClientCredentials = "client_credentials"
+)
+
+const (
+	ClientAuthBody   = "body"
+	ClientAuthHeader = "header"
 )
 
 const (
@@ -64,13 +78,27 @@ type FormFieldDto struct {
 }
 
 type AuthDto struct {
-	Key      string `json:"key"`
-	Type     string `json:"type"`
-	Token    string `json:"token"`
-	Value    string `json:"value"`
-	Location string `json:"location"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Key          string `json:"key"`
+	Type         string `json:"type"`
+	Token        string `json:"token"`
+	Value        string `json:"value"`
+	Scope        string `json:"scope"`
+	Region       string `json:"region"`
+	Secret       string `json:"secret"`
+	Payload      string `json:"payload"`
+	Service      string `json:"service"`
+	ClientId     string `json:"clientId"`
+	Location     string `json:"location"`
+	Username     string `json:"username"`
+	Password     string `json:"password"`
+	TokenUrl     string `json:"tokenUrl"`
+	GrantType    string `json:"grantType"`
+	AccessKey    string `json:"accessKey"`
+	Algorithm    string `json:"algorithm"`
+	SecretKey    string `json:"secretKey"`
+	ClientAuth   string `json:"clientAuth"`
+	ClientSecret string `json:"clientSecret"`
+	SessionToken string `json:"sessionToken"`
 }
 
 type HttpBodyDto struct {

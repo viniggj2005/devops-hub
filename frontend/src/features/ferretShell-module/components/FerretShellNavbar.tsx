@@ -96,6 +96,15 @@ const FerretShellNavbar: React.FC = () => {
         setViewMode('terminal');
     };
 
+    const closeTerminalTab = (tabId: string) => {
+        const isLastTab = tabs.length === 1;
+        closeTab(tabId);
+        if (isLastTab) {
+            setViewMode('page');
+            navigate('/term/home');
+        }
+    };
+
     const handlePageClick = () => {
         setViewMode('page');
     };
@@ -204,6 +213,12 @@ const FerretShellNavbar: React.FC = () => {
                                 draggable={canDrag}
                                 onDragEnd={() => setDraggingTabId(null)}
                                 onClick={() => handleTabClick(tab.id)}
+                                onMouseDown={(event) => event.button === 1 && event.preventDefault()}
+                                onAuxClick={(event) => {
+                                    if (event.button !== 1) return;
+                                    event.preventDefault();
+                                    closeTerminalTab(tab.id);
+                                }}
                                 title={
                                     canDrag
                                         ? navbarTexts.dragToMerge
@@ -251,12 +266,7 @@ const FerretShellNavbar: React.FC = () => {
                                 <button
                                     onClick={(event) => {
                                         event.stopPropagation();
-                                        const isLastTab = tabs.length === 1;
-                                        closeTab(tab.id);
-                                        if (isLastTab) {
-                                            setViewMode('page');
-                                            navigate('/term/home');
-                                        }
+                                        closeTerminalTab(tab.id);
                                     }}
                                     className="opacity-0 group-hover:opacity-100 p-0.5 rounded-full hover:bg-gray-200 dark:hover:bg-zinc-700 transition-opacity"
                                 >

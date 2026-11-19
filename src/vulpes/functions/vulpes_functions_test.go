@@ -357,7 +357,7 @@ const postmanCollectionSample = `{
 			"name": "Upload",
 			"request": {
 				"method": "POST",
-				"auth": {"type": "digest", "digest": []},
+				"auth": {"type": "ntlm", "ntlm": []},
 				"body": {"mode": "formdata", "formdata": [
 					{"key": "nome", "value": "foto", "type": "text"},
 					{"key": "arquivo", "type": "file", "src": ["/tmp/a.png", "/tmp/b.png"]}
@@ -465,7 +465,7 @@ func TestParsePostmanCollection(test *testing.T) {
 	}
 
 	warnings := strings.Join(imported.Warnings, "\n")
-	for _, expected := range []string{"Exemplos de resposta", "OAuth 2.0", `"digest"`, "Scripts do Postman", "vários arquivos"} {
+	for _, expected := range []string{"Exemplos de resposta", "OAuth 2.0", `"ntlm"`, "Scripts do Postman", "vários arquivos"} {
 		if !strings.Contains(warnings, expected) {
 			test.Fatalf("expected warning containing %q, got:\n%s", expected, warnings)
 		}

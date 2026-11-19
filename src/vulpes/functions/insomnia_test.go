@@ -48,7 +48,7 @@ const insomniaV4Sample = `{
 			"authentication": {"type": "oauth2", "grantType": "client_credentials"}},
 		{"_id": "oauth_1", "_type": "oauth2_token", "parentId": "req_graphql", "accessToken": "oauth-token"},
 		{"_id": "req_file", "_type": "request", "parentId": "wrk_api", "name": "Arquivo", "metaSortKey": 40, "url": "https://loja.dev/file", "method": "PUT",
-			"body": {"mimeType": "application/octet-stream", "fileName": "/tmp/b.bin"}, "authentication": {"type": "digest"}},
+			"body": {"mimeType": "application/octet-stream", "fileName": "/tmp/b.bin"}, "authentication": {"type": "ntlm"}},
 		{"_id": "greq_health", "_type": "grpc_request", "parentId": "wrk_api", "name": "Health", "metaSortKey": 50, "url": "grpcs://grpc.loja.dev:443",
 			"protoMethodName": "/grpc.health.v1.Health/Check", "protoFileId": "pf_1", "body": {"text": "{\"service\": \"\"}"},
 			"metadata": [{"name": "x-trace", "value": "1"}]},
@@ -219,7 +219,7 @@ func TestParseInsomniaV4Export(test *testing.T) {
 	}
 
 	warnings := strings.Join(imported.Warnings, "\n")
-	for _, expected := range []string{"pastas do Insomnia", "OAuth 2.0", `"digest"`, "Scripts do Insomnia", ".proto", "Testes de unidade"} {
+	for _, expected := range []string{"pastas do Insomnia", "OAuth 2.0", `"ntlm"`, "Scripts do Insomnia", ".proto", "Testes de unidade"} {
 		if !strings.Contains(warnings, expected) {
 			test.Fatalf("expected warning containing %q, got:\n%s", expected, warnings)
 		}

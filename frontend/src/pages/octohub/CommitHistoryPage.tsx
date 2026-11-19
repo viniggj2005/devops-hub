@@ -21,9 +21,9 @@ import CommitDetailsHeader from '../../features/octohub-module/components/commit
 import CommitActionModal, { CommitAction } from '../../features/octohub-module/components/commit-history/CommitActionModals';
 import BranchCompareBar, { CompareDirection } from '../../features/octohub-module/components/commit-history/BranchCompareBar';
 import { ALL_SELECTED, FileSelection, NONE_SELECTED, selectedLineSet, setLines } from '../../features/octohub-module/functions/lineSelection';
-import { GitCommit, FileCode, Clock, FolderGit2, FolderPlus, GitCommitHorizontal, ArrowUpDown, Undo2, GitBranchPlus, Tag, Cherry, Copy, EyeOff, ClipboardCopy, FolderSearch, ExternalLink, SquareCheck, Square } from 'lucide-react';
-import { ListCommits, ListCompareCommits, GetCommitModifications, GetCommitedFileChanges, GetGitStatus, GetUncommitedFileChanges, Commit, DiscardChanges, GetUndoableCommit, UndoLastCommit } from '../../../bindings/docker-manager-go/src/octohub/handlers/gitcommitshandler';
-import { GetStashedFileDiff, ListStashes, PopStash, DropStash, GetOperationState, ContinueOperation, AbortOperation, SkipRebaseCommit, CheckoutCommit, RevertCommit, HasUncommittedChanges, GetCurrentBranch, IgnoreFile, IgnoreExtension, RevealInExplorer, OpenWithDefaultProgram, OpenFileInEditor } from '../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
+import { GitCommit, FileCode, Clock, FolderGit2, FolderPlus, GitCommitHorizontal, ArrowUpDown, Undo2, Archive, GitBranchPlus, Tag, Cherry, Copy, EyeOff, ClipboardCopy, FolderSearch, ExternalLink, SquareCheck, Square } from 'lucide-react';
+import { ListCommits, ListCompareCommits, GetCommitModifications, GetCommitedFileChanges, GetGitStatus, GetUncommitedFileChanges, Commit, DiscardChanges, StashChanges, GetUndoableCommit, UndoLastCommit } from '../../../bindings/docker-manager-go/src/octohub/handlers/gitcommitshandler';
+import { GetStashedFileDiff, ListStashes, PopStash, DropStash, FetchRemotes, GetOperationState, ContinueOperation, AbortOperation, SkipRebaseCommit, CheckoutCommit, RevertCommit, HasUncommittedChanges, GetCurrentBranch, IgnoreFile, IgnoreExtension, RevealInExplorer, OpenWithDefaultProgram, OpenFileInEditor } from '../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 
 type DiffSource = 'working' | 'stash' | 'commit';
 
@@ -70,9 +70,10 @@ const CommitHistoryPage: React.FC = () => {
     const [fileMenu, setFileMenu] = useState<{ x: number; y: number; file: octohubStructs.FilesStatus } | null>(null);
     const [commitMenu, setCommitMenu] = useState<{ x: number; y: number; commit: octohubStructs.Commit } | null>(null);
     const [commitAction, setCommitAction] = useState<{ action: CommitAction; commit: octohubStructs.Commit } | null>(null);
-    const { loading: loadingRepository, repository, revision, currentBranch, notifyChange, addRepository, openConflicts } = useOctohubRepository();
+    const { loading: loadingRepository, repository, revision, currentBranch, notifyChange, addRepository, openConflicts, handleGitError } = useOctohubRepository();
 
     const diffRequest = useRef(0);
+    const fetchingRemotes = useRef(false);
     const statusRequest = useRef(0);
     const commitsRequest = useRef(0);
     const activeTabRef = useRef(activeTab);
@@ -247,8 +248,24 @@ const CommitHistoryPage: React.FC = () => {
         await refreshWorkingTree();
     };
 
+    const refreshWithFetch = async () => {
+        notifyChange();
+        if (fetchingRemotes.current) return;
+        fetchingRemotes.current = true;
+        try {
+            await FetchRemotes();
+            notifyChange();
+        } catch (err) {
+            handleGitError(err, dictionary.octohub.common.fetchFailed, refreshWithFetch);
+        } finally {
+            fetchingRemotes.current = false;
+        }
+    };
+
     const syncWithDiskRef = useRef(syncWithDisk);
+    const refreshWithFetchRef = useRef(refreshWithFetch);
     syncWithDiskRef.current = syncWithDisk;
+    refreshWithFetchRef.current = refreshWithFetch;
 
     useEffect(() => {
         if (!hasRepository) return;
@@ -262,7 +279,7 @@ const CommitHistoryPage: React.FC = () => {
             const reloadShortcut = event.key === 'F5' || ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'r');
             if (!reloadShortcut) return;
             event.preventDefault();
-            notifyChange();
+            refreshWithFetchRef.current();
         };
         window.addEventListener('focus', onWindowFocus);
         window.addEventListener('keydown', onKeyDown);
@@ -272,7 +289,7 @@ const CommitHistoryPage: React.FC = () => {
             window.removeEventListener('keydown', onKeyDown);
             document.removeEventListener('visibilitychange', onWindowFocus);
         };
-    }, [hasRepository, notifyChange]);
+    }, [hasRepository]);
 
     const runOperation = async (action: () => Promise<octohubStructs.OperationState | void>, doneMessage: string) => {
         setOperationBusy(true);
@@ -387,6 +404,7 @@ const CommitHistoryPage: React.FC = () => {
         const onlyNew = isNew ? undefined : historyTexts.onlyNewFiles;
         const entries: ContextMenuEntry[] = [
             { label: historyTexts.discardChangesMenu, icon: Undo2, onClick: () => discardFile(file) },
+            { label: historyTexts.stashChangesMenu, icon: Archive, disabled: file.Kind === 'conflicted', onClick: () => stashFiles([file]) },
             { label: included ? historyTexts.removeFromCommit : historyTexts.includeInCommit, icon: included ? Square : SquareCheck, onClick: () => setFileIncluded(file.FileName, !included) },
             'separator',
             {
@@ -702,6 +720,25 @@ const CommitHistoryPage: React.FC = () => {
         discard(changedFiles.map(file => toRequest(file, ALL_SELECTED)), formatMessage(historyTexts.allChanges, { count: changedFiles.length }));
     };
 
+    const stashFiles = async (files: octohubStructs.FilesStatus[]) => {
+        if (files.length === 0) return;
+        try {
+            await StashChanges(files);
+            const stashedNames = new Set(files.map(file => file.FileName));
+            setSelections(previous => Object.fromEntries(
+                Object.entries(previous).filter(([fileName]) => !stashedNames.has(fileName))
+            ));
+            toast.success(historyTexts.changesStashed);
+            notifyChange();
+        } catch (err) {
+            toast.error(errorMessage(err));
+        }
+    };
+
+    const stashSelected = () => stashFiles(changedFiles.filter(file => selectionOf(file.FileName).kind !== 'none'));
+
+    const stashAll = () => stashFiles(changedFiles);
+
     const discardHunk = (hunk: DiffHunk) => {
         const file = changedFiles.find(item => item.FileName === selectedFile);
         if (!file || !fileDiffHash) return;
@@ -726,10 +763,14 @@ const CommitHistoryPage: React.FC = () => {
                 ShortHash: hash.slice(0, 7),
                 Description: committedDescription,
             }));
+            const committedNames = new Set(files.filter(file => file.All).map(file => file.FileName));
+            setChangedFiles(previous => previous.filter(file => !committedNames.has(file.FileName)));
+            setSelections(previous => Object.fromEntries(
+                Object.entries(previous).filter(([, selection]) => selection.kind === 'none')
+            ));
             toast.success(`${hash ? `${hash}: ` : ''}${committedSummary}`);
             setSummary('');
             setDescription('');
-            setSelections({});
             notifyChange();
         } catch (err: any) {
             toast.error(formatMessage(historyTexts.commitFailed, { error: errorMessage(err) }));
@@ -878,8 +919,10 @@ const CommitHistoryPage: React.FC = () => {
                             onPopStash={handlePopStash}
                             selectedFile={selectedFile}
                             onDiscardFile={discardFile}
+                            onStashAll={stashAll}
                             onDropStash={handleDropStash}
-                            onRefresh={refreshWorkingTree}
+                            onRefresh={refreshWithFetch}
+                            onStashSelected={stashSelected}
                             onFileClick={fetchUncommitedDiff}
                             onFileDoubleClick={(file) => file.Kind !== 'deleted' && openInEditor(file.FileName)}
                             onSearchTermChange={setSearchTerm}
@@ -918,7 +961,7 @@ const CommitHistoryPage: React.FC = () => {
                             onSelectCommit={setSelectedCommit}
                             onSearchTermChange={setSearchTerm}
                             lastCommitElementRef={lastCommitElementRef}
-                            onRefresh={() => { setPage(0); fetchCommits(0); }}
+                            onRefresh={refreshWithFetch}
                             compareBar={
                                 <BranchCompareBar
                                     revision={revision}
