@@ -1,5 +1,6 @@
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { useTabVisible } from '../../../appFrame/TabVisibility';
 import { TalpadbServices } from '../../services/TalpadbServices';
 import { FormatBytes } from '../../../shared/functions/TreatmentFunction';
 import { DashboardChart, type DashboardSample } from './components/DashboardChart';
@@ -86,6 +87,7 @@ const bodyCell = 'px-3 py-2 align-top border-t border-gray-100 dark:border-white
 
 const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ tab, active }) => {
   const { token } = useAuth();
+  const tabVisible = useTabVisible();
   const confirmToast = useConfirmToast();
   const { dictionary, formatMessage } = useTranslation();
   const dashboardTexts = dictionary.talpadb.dashboard;
@@ -161,10 +163,10 @@ const ServerDashboardTab: React.FC<{ tab: WorkspaceTab; active: boolean }> = ({ 
   }, [refresh]);
 
   useEffect(() => {
-    if (!autoRefresh || !active) return;
-    const timer = window.setInterval(() => refresh(false), REFRESH_INTERVAL);
-    return () => window.clearInterval(timer);
-  }, [autoRefresh, active, refresh]);
+    if (!autoRefresh || !active || !tabVisible) return;
+    const timerId = window.setInterval(() => refresh(false), REFRESH_INTERVAL);
+    return () => window.clearInterval(timerId);
+  }, [autoRefresh, active, tabVisible, refresh]);
 
   const sessions = useMemo(
     () =>

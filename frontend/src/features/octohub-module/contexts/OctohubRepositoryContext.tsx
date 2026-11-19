@@ -5,7 +5,7 @@ import { errorMessage } from '../../shared/functions/ErrorMessage';
 import { formatMessage } from '../../i18n/Languages';
 import { currentDictionary } from '../../i18n/TranslateError';
 import { useConfirmToast } from '../../shared/components/toasts/ConfirmToast';
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import * as octohubDtos from '../../../../bindings/docker-manager-go/src/octohub/dtos/models';
 import { GetCurrentBranch } from '../../../../bindings/docker-manager-go/src/octohub/handlers/gitbranchhandler';
 import {
@@ -233,56 +233,104 @@ export const OctohubRepositoryProvider: React.FC<OctohubRepositoryProviderProps>
         [token, handleGitError, notifyChange]
     );
 
-    const removeRepository = (target: octohubDtos.RepositoryDto) => {
-        if (!token) return;
-        confirmToast({
-            id: `repository-${target.id}`,
-            title: formatMessage(repositoryTexts().removeTitle, { name: target.name }),
-            message: formatMessage(repositoryTexts().removeMessage, { name: target.name }),
-            onConfirm: async () => {
-                await RemoveRepository(token, target.id);
-                await refresh();
-            },
-        });
-    };
+    const removeRepository = useCallback(
+        (target: octohubDtos.RepositoryDto) => {
+            if (!token) return;
+            confirmToast({
+                id: `repository-${target.id}`,
+                title: formatMessage(repositoryTexts().removeTitle, { name: target.name }),
+                message: formatMessage(repositoryTexts().removeMessage, { name: target.name }),
+                onConfirm: async () => {
+                    await RemoveRepository(token, target.id);
+                    await refresh();
+                },
+            });
+        },
+        [token, confirmToast, refresh]
+    );
+
+    const openConflicts = useCallback(() => setConflictsOpen(true), []);
+    const closeConflicts = useCallback(() => setConflictsOpen(false), []);
+    const openCloneModal = useCallback(() => setCloneModalOpen(true), []);
+    const closeCloneModal = useCallback(() => setCloneModalOpen(false), []);
+    const openCreateModal = useCallback(() => setCreateModalOpen(true), []);
+    const closeCreateModal = useCallback(() => setCreateModalOpen(false), []);
+    const openPublishModal = useCallback(() => setPublishModalOpen(true), []);
+    const closeCredentials = useCallback(() => setCredentialsTarget(null), []);
+    const closePublishModal = useCallback(() => setPublishModalOpen(false), []);
+    const notifyCredentialsChange = useCallback(() => setCredentialsRevision((previous) => previous + 1), []);
+
+    const contextValue = useMemo(
+        () => ({
+            loading,
+            revision,
+            repository,
+            repositories,
+            notifyChange,
+            githubAccount,
+            currentBranch,
+            addRepository,
+            conflictsOpen,
+            openConflicts,
+            cloneModalOpen,
+            handleGitError,
+            closeConflicts,
+            openCloneModal,
+            createModalOpen,
+            openCredentials,
+            cloneRepository,
+            closeCloneModal,
+            openCreateModal,
+            publishModalOpen,
+            createRepository,
+            selectRepository,
+            removeRepository,
+            closeCreateModal,
+            openPublishModal,
+            closeCredentials,
+            publishRepository,
+            credentialsTarget,
+            closePublishModal,
+            credentialsRevision,
+            notifyCredentialsChange,
+        }),
+        [
+            loading,
+            revision,
+            repository,
+            repositories,
+            notifyChange,
+            githubAccount,
+            currentBranch,
+            addRepository,
+            conflictsOpen,
+            openConflicts,
+            cloneModalOpen,
+            handleGitError,
+            closeConflicts,
+            openCloneModal,
+            createModalOpen,
+            openCredentials,
+            cloneRepository,
+            closeCloneModal,
+            openCreateModal,
+            publishModalOpen,
+            createRepository,
+            selectRepository,
+            removeRepository,
+            closeCreateModal,
+            openPublishModal,
+            closeCredentials,
+            publishRepository,
+            credentialsTarget,
+            closePublishModal,
+            credentialsRevision,
+            notifyCredentialsChange,
+        ]
+    );
 
     return (
-        <OctohubRepositoryContext.Provider
-            value={{
-                loading,
-                revision,
-                repository,
-                repositories,
-                notifyChange,
-                githubAccount,
-                currentBranch,
-                addRepository,
-                conflictsOpen,
-                cloneModalOpen,
-                handleGitError,
-                createModalOpen,
-                openCredentials,
-                cloneRepository,
-                publishModalOpen,
-                createRepository,
-                selectRepository,
-                removeRepository,
-                publishRepository,
-                credentialsTarget,
-                credentialsRevision,
-                openConflicts: () => setConflictsOpen(true),
-                openCloneModal: () => setCloneModalOpen(true),
-                closeConflicts: () => setConflictsOpen(false),
-                openCreateModal: () => setCreateModalOpen(true),
-                closeCloneModal: () => setCloneModalOpen(false),
-                openPublishModal: () => setPublishModalOpen(true),
-                closeCreateModal: () => setCreateModalOpen(false),
-                closePublishModal: () => setPublishModalOpen(false),
-                closeCredentials: () => setCredentialsTarget(null),
-                notifyCredentialsChange: () =>
-                    setCredentialsRevision((previous) => previous + 1),
-            }}
-        >
+        <OctohubRepositoryContext.Provider value={contextValue}>
             {children}
         </OctohubRepositoryContext.Provider>
     );

@@ -79,16 +79,18 @@ const ConfirmToastCard: React.FC<{
   );
 };
 
+const showConfirmToast = (options: ConfirmOpts) => {
+  toast.custom(
+    (toastInstance) => <ConfirmToastCard toastId={toastInstance.id} options={options} />,
+    {
+      id: options.id,
+      duration: 20000,
+      position: 'top-center',
+    }
+  );
+};
+
 export function useConfirmToast() {
-  return (options: ConfirmOpts) => {
-    toast.custom(
-      (toastInstance) => <ConfirmToastCard toastId={toastInstance.id} options={options} />,
-      {
-        id: options.id,
-        duration: 20000,
-        position: 'top-center',
-      }
-    );
-  };
+  return showConfirmToast;
 }
 

@@ -26,7 +26,7 @@ const SshConnectionList: React.FC<SshConnectionListProps> = ({
   const confirmToast = useConfirmToast();
   const { dictionary, formatMessage } = useTranslation();
   const connectionTexts = dictionary.ferretShell.connections;
-  const { createTab } = useTerminalStore();
+  const createTab = useTerminalStore((state) => state.createTab);
   const [loading, setLoading] = useState(true);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [connectionsList, setConnectionsList] = useState<SshDto[]>([]);

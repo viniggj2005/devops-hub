@@ -3,6 +3,7 @@ import termIcon from '../../../assets/images/term.svg';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useDismiss } from '../../shared/hooks/useDismiss';
+import { useShallow } from 'zustand/react/shallow';
 import { useTerminalStore } from '../terminal/TerminalStore';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
 import { useTranslation } from '../../i18n/useTranslation';
@@ -61,7 +62,18 @@ const FerretShellNavbar: React.FC = () => {
         setViewMode,
         setActiveTab,
         setDraggingTabId,
-    } = useTerminalStore();
+    } = useTerminalStore(
+        useShallow((state) => ({
+            tabs: state.tabs,
+            closeTab: state.closeTab,
+            viewMode: state.viewMode,
+            createTab: state.createTab,
+            activeTabId: state.activeTabId,
+            setViewMode: state.setViewMode,
+            setActiveTab: state.setActiveTab,
+            setDraggingTabId: state.setDraggingTabId,
+        }))
+    );
     const isShowingTerminal = viewMode === 'terminal';
 
     const closeMenu = () => {

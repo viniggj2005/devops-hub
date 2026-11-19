@@ -7,9 +7,14 @@ export interface ModuleHandoff {
 }
 
 const handoffs = new Map<ModuleType, ModuleHandoff>();
+const pendingPayloads = new Map<ModuleType, string>();
 
 export function registerModuleHandoff(module: ModuleType, handoff: ModuleHandoff) {
   handoffs.set(module, handoff);
+  const pendingPayload = pendingPayloads.get(module);
+  if (pendingPayload === undefined) return;
+  pendingPayloads.delete(module);
+  handoff.adopt(pendingPayload);
 }
 
 export function captureModuleHandoff(module: ModuleType) {
@@ -21,5 +26,8 @@ export function releaseModuleHandoff(module: ModuleType) {
 }
 
 export function adoptModuleHandoff(module: ModuleType, payload: string | undefined) {
-  if (payload) handoffs.get(module)?.adopt(payload);
+  if (!payload) return;
+  const handoff = handoffs.get(module);
+  if (handoff) handoff.adopt(payload);
+  else pendingPayloads.set(module, payload);
 }

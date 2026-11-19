@@ -6,7 +6,8 @@ import { TalpadbModuleIcon, TALPADB_MODULE } from '../../moduleInfo';
 import { connectionLabel } from '../../functions/TreatmentFunctions';
 
 const EmptyWorkspace: React.FC = () => {
-  const { connections, openQueryTab } = useTalpadbStore();
+  const connections = useTalpadbStore((state) => state.connections);
+  const openQueryTab = useTalpadbStore((state) => state.openQueryTab);
   const { dictionary, formatMessage } = useTranslation();
   const workspaceTexts = dictionary.talpadb.workspace;
   const shortcuts = [

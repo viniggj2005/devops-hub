@@ -19,7 +19,7 @@ const MainHomePage: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const appVersion = useAppVersion();
-    const { openTab } = useAppStore();
+    const openTab = useAppStore(state => state.openTab);
     const { dictionary, formatMessage } = useTranslation();
     const configsLoaded = useGeneralConfigsStore(state => state.loaded);
     const modulesConfig = useGeneralConfigsStore(state => state.modules);

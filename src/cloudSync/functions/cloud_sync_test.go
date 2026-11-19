@@ -94,7 +94,7 @@ func useFakeDrive(test *testing.T) *fakeDrive {
 }
 
 func openTestDatabase(test *testing.T, path string) *gorm.DB {
-	dataBase, err := gorm.Open(sqlite.Open("file:"+path+"?_journal_mode=WAL"), &gorm.Config{})
+	dataBase, err := gorm.Open(sqlite.Open("file:"+path+"?_pragma=journal_mode(WAL)"), &gorm.Config{})
 	if err != nil {
 		test.Fatalf("unexpected error opening database: %v", err)
 	}

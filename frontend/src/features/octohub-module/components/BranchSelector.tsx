@@ -75,8 +75,9 @@ const BranchSelector: React.FC = () => {
             return;
         }
         try {
-            setBranches(await ListBranches());
-            setOriginUrl(await GetOriginURL());
+            const [branchList, remoteUrl] = await Promise.all([ListBranches(), GetOriginURL()]);
+            setBranches(branchList);
+            setOriginUrl(remoteUrl);
         } catch {
             setBranches([]);
         }

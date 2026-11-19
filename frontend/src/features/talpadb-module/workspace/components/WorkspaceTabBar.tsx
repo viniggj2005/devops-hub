@@ -1,6 +1,7 @@
 import React from 'react';
 import { tabIcons } from '../constants/TabIcons';
 import { useTalpadbStore } from '../../TalpadbStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { GripVertical, LayoutGrid, X } from 'lucide-react';
 import { useCloseWorkspaceTabs } from '../hooks/useCloseWorkspaceTabs';
@@ -13,7 +14,16 @@ const WorkspaceTabBar: React.FC = () => {
   const { closeWholeGroup } = useCloseWorkspaceTabs();
   const { dictionary, formatMessage } = useTranslation();
   const workspaceTexts = dictionary.talpadb.workspace;
-  const { tabs, groups, activeGroupId, tabTxStatus, setActiveGroup, setDraggingGroup } = useTalpadbStore();
+  const { tabs, groups, activeGroupId, tabTxStatus, setActiveGroup, setDraggingGroup } = useTalpadbStore(
+    useShallow((state) => ({
+      tabs: state.tabs,
+      groups: state.groups,
+      tabTxStatus: state.tabTxStatus,
+      activeGroupId: state.activeGroupId,
+      setActiveGroup: state.setActiveGroup,
+      setDraggingGroup: state.setDraggingGroup,
+    }))
+  );
 
   if (!groups.length) return null;
 

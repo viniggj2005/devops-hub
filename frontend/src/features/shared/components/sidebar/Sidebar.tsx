@@ -11,7 +11,7 @@ import DockerCredentialSelector from '../../../docker-module/dockerCredentials/c
 
 const Sidebar: React.FC<SidebarProps> = () => {
   const navigate = useNavigate();
-  const { setActiveTab } = useAppStore();
+  const setActiveTab = useAppStore((state) => state.setActiveTab);
   const { dictionary } = useTranslation();
   const { connecting, dockerClientId } = useDockerClient();
   const { navigation, connection } = dictionary.docker;

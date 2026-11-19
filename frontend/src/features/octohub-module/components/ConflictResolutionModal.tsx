@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { VsCodeIcon } from '../../shared/Icons';
 import { errorMessage } from '../../shared/functions/ErrorMessage';
 import { useTranslation } from '../../i18n/useTranslation';
+import { useTabVisible } from '../../appFrame/TabVisibility';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOctohubRepository } from '../contexts/OctohubRepositoryContext';
 import * as octohubStructs from '../../../../bindings/docker-manager-go/src/octohub/structs/models';
@@ -20,7 +21,11 @@ const operationLabels: Record<string, string> = {
 };
 
 const ConflictResolutionModal: React.FC = () => {
+    const tabVisible = useTabVisible();
+    const checkRequest = useRef(0);
     const resolvedCount = useRef(0);
+    const checkInFlight = useRef(false);
+    const actionRunning = useRef(false);
     const order = useRef<string[]>([]);
     const [loaded, setLoaded] = useState(false);
     const [continuing, setContinuing] = useState(false);
@@ -32,27 +37,43 @@ const ConflictResolutionModal: React.FC = () => {
     const { dictionary, formatMessage } = useTranslation();
     const conflictTexts = dictionary.octohub.conflicts;
 
+    const publishFiles = useCallback(() => {
+        const next = order.current.map((name) => known.current.get(name)!).filter(Boolean);
+        const resolved = next.filter((file) => file.Resolved).length;
+        if (resolved !== resolvedCount.current) {
+            resolvedCount.current = resolved;
+            notifyChange();
+        }
+        setFiles(next);
+    }, [notifyChange]);
+
     const check = useCallback(async () => {
+        const requestId = ++checkRequest.current;
+        checkInFlight.current = true;
         try {
             const report = await CheckConflicts(order.current);
+            if (requestId !== checkRequest.current) return;
             report.Files.forEach((file) => {
                 if (!order.current.includes(file.File)) order.current.push(file.File);
                 const before = known.current.get(file.File);
                 known.current.set(file.File, file.Resolved && !file.Kind && before ? { ...before, Resolved: true, Markers: 0 } : file);
             });
-            const next = order.current.map((name) => known.current.get(name)!).filter(Boolean);
-            const resolved = next.filter((file) => file.Resolved).length;
-            if (resolved !== resolvedCount.current) {
-                resolvedCount.current = resolved;
-                notifyChange();
-            }
-            setFiles(next);
+            publishFiles();
             setOperation(report.Operation);
             setLoaded(true);
         } catch {
             return;
+        } finally {
+            if (requestId === checkRequest.current) checkInFlight.current = false;
         }
-    }, [notifyChange]);
+    }, [publishFiles]);
+
+    const markResolved = (file: string) => {
+        const before = known.current.get(file);
+        if (!before) return;
+        known.current.set(file, { ...before, Resolved: true, Markers: 0 });
+        publishFiles();
+    };
 
     const reset = () => {
         order.current = [];
@@ -66,13 +87,20 @@ const ConflictResolutionModal: React.FC = () => {
         if (!conflictsOpen) return;
         reset();
         check();
-        const timer = setInterval(check, POLL_INTERVAL);
-        window.addEventListener('focus', check);
-        return () => {
-            clearInterval(timer);
-            window.removeEventListener('focus', check);
-        };
     }, [conflictsOpen, check]);
+
+    useEffect(() => {
+        if (!conflictsOpen || !tabVisible) return;
+        const pollConflicts = () => {
+            if (!checkInFlight.current && !actionRunning.current) check();
+        };
+        const timerId = window.setInterval(pollConflicts, POLL_INTERVAL);
+        window.addEventListener('focus', pollConflicts);
+        return () => {
+            window.clearInterval(timerId);
+            window.removeEventListener('focus', pollConflicts);
+        };
+    }, [conflictsOpen, tabVisible, check]);
 
     if (!conflictsOpen) return null;
 
@@ -94,12 +122,16 @@ const ConflictResolutionModal: React.FC = () => {
 
     const resolve = async (file: string, resolution: string) => {
         setBusyFile(file);
+        actionRunning.current = true;
         try {
             await ResolveConflict(file, resolution);
+            markResolved(file);
+            setBusyFile(null);
             await check();
         } catch (err) {
             toast.error(errorMessage(err));
         } finally {
+            actionRunning.current = false;
             setBusyFile(null);
         }
     };
@@ -112,6 +144,7 @@ const ConflictResolutionModal: React.FC = () => {
 
     const handleContinue = async () => {
         setContinuing(true);
+        actionRunning.current = true;
         try {
             const next = await ContinueOperation('');
             notifyChange();
@@ -126,6 +159,7 @@ const ConflictResolutionModal: React.FC = () => {
         } catch (err) {
             toast.error(errorMessage(err));
         } finally {
+            actionRunning.current = false;
             setContinuing(false);
         }
     };

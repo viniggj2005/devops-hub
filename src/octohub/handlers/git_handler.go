@@ -1,12 +1,14 @@
 package octohubHandler
 
 import (
+	"os"
+	"sync"
 	"bytes"
-	"context"
 	"errors"
+	"context"
 	"os/exec"
 	"strings"
-	"sync"
+	"path/filepath"
 
 	"docker-manager-go/src/appErrors"
 	"docker-manager-go/src/desktop"
@@ -24,6 +26,7 @@ type repositoryWorkspace struct {
 
 type GitHandler struct {
 	mutex        sync.RWMutex
+	gitDirs      map[string]string
 	appContext   context.Context
 	initialPath  string
 	undoneHeads  map[string]string
@@ -33,6 +36,7 @@ type GitHandler struct {
 
 func NewGitHandler(initialPath string) *GitHandler {
 	return &GitHandler{
+		gitDirs:      make(map[string]string),
 		initialPath:  initialPath,
 		undoneHeads:  make(map[string]string),
 		workspaces:   make(map[string]repositoryWorkspace),
@@ -131,6 +135,34 @@ func (handlerStruct *GitHandler) forgetRepository(path string) {
 	if handlerStruct.initialPath == path {
 		handlerStruct.initialPath = ""
 	}
+	delete(handlerStruct.gitDirs, path)
+}
+
+func (handlerStruct *GitHandler) gitDirectory(ctx context.Context) (string, error) {
+	repoPath := handlerStruct.repositoryPath(ctx)
+	if repoPath == "" {
+		return "", errNoRepository
+	}
+
+	handlerStruct.mutex.RLock()
+	cachedDir, cached := handlerStruct.gitDirs[repoPath]
+	handlerStruct.mutex.RUnlock()
+	if cached {
+		if _, err := os.Stat(cachedDir); err == nil {
+			return cachedDir, nil
+		}
+	}
+
+	out, err := handlerStruct.runGitCommand(ctx, []string{"rev-parse", "--absolute-git-dir"})
+	if err != nil {
+		return "", err
+	}
+	gitDir := filepath.FromSlash(strings.TrimSpace(string(out)))
+
+	handlerStruct.mutex.Lock()
+	defer handlerStruct.mutex.Unlock()
+	handlerStruct.gitDirs[repoPath] = gitDir
+	return gitDir, nil
 }
 
 func (handlerStruct *GitHandler) refreshAuth(resolve func(path string) (gitAuth, bool)) {

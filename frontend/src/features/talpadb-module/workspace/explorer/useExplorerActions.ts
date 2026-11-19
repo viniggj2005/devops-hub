@@ -1,6 +1,7 @@
 import toast from 'react-hot-toast';
 import { useExplorerStore } from './ExplorerStore';
 import { useTalpadbStore } from '../../TalpadbStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { useAuth } from '../../../../contexts/AuthContext';
 import type { ContextMenuItem } from '../components/ContextMenu';
@@ -73,7 +74,14 @@ export function useExplorerActions({
   const talpadbTexts = dictionary.talpadb;
   const explorerTexts = talpadbTexts.explorer;
   const menuTexts = explorerTexts.menu;
-  const { openTab, connections, openQueryTab, closeConnectionTabs } = useTalpadbStore();
+  const { openTab, connections, openQueryTab, closeConnectionTabs } = useTalpadbStore(
+    useShallow((state) => ({
+      openTab: state.openTab,
+      connections: state.connections,
+      openQueryTab: state.openQueryTab,
+      closeConnectionTabs: state.closeConnectionTabs,
+    }))
+  );
 
   const showError = (error: unknown) => toast.error(errorMessage(error));
 

@@ -22,7 +22,7 @@ var conflictKinds = map[string]string{
 }
 
 func (handlerStruct *GitBranchHandler) unmergedEntries(ctx context.Context) (map[string]string, []string, error) {
-	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"status", "--porcelain=v1", "-z", "--untracked-files=no"})
+	out, err := handlerStruct.gitHandler.runGitCommand(ctx, []string{"--no-optional-locks", "status", "--porcelain=v1", "-z", "--untracked-files=no"})
 	if err != nil {
 		return nil, nil, err
 	}
